@@ -19,6 +19,27 @@ release converts to Apache-2.0 two years after publication.
 The hosted service is the commercial offering; the source is here so you can
 learn from it, run it yourself, and contribute back.
 
+## Prerequisites
+
+Local toolchain (no login needed):
+
+- `go` ≥ 1.22
+- `node` ≥ 20, `pnpm` ≥ 9
+- `docker` + `compose`
+- `psql` (Postgres client)
+- `task` (go-task), `air`, `templ`
+- `lefthook`, `gitleaks`
+- `git`, `curl`, `jq`
+
+Service CLIs (needed at M3+):
+
+- `flyctl` — `fly auth login` (deploy)
+- `neonctl` — `neon auth` (Postgres provisioning)
+- `gh` — `gh auth login` (fast-follow CI)
+- Cloudflare — no CLI; `CLOUDFLARE_API_TOKEN` env + `curl`
+
+See [`PRD.md` §12](./PRD.md) for install/login commands.
+
 ## Quickstart
 
 ```bash
