@@ -4,7 +4,8 @@
 !.env.example
 
 # --- Go ---
-/tmp/            # air hot-reload build dir
+# air hot-reload build dir
+/tmp/
 *.test
 *.out
 coverage.*

@@ -1,0 +1,8 @@
+# Run `lefthook install` once after cloning to wire the hooks into .git/hooks.
+# Defense in depth on top of GitHub secret scanning + push protection (PRD S3).
+
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      run: gitleaks git --staged --verbose --redact --no-banner

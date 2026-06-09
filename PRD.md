@@ -132,7 +132,7 @@ browser
 
 Each phase independently testable; tick `Status` as you ship.
 
-- **M0 — repo bootstrap** · ☐
+- **M0 — repo bootstrap** · ☑
   `git init`, `LICENSE.md` (FSL-1.1-Apache-2.0 — L1), `.gitignore` + `.env.example` (S1), `README.md` (L2), `CONTRIBUTING.md` (DCO — C1). Enable GitHub secret scanning + push protection; add `gitleaks` pre-commit; add DCO check action (S3). Scaffold `Taskfile.yml`, `compose.yml`, multi-stage `Dockerfile`, empty `cards/` `migrations/` `frontend/` `ds/`, and `main.go` serving `/healthz` (F3). **Done when:** `task dev` brings up Postgres, `curl localhost:8080/healthz` → 200; DCO check green on throwaway PR; `gitleaks` blocks a deliberate fake-secret commit.
 
 - **M1a — write path + txid** · ☐

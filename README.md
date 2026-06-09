@@ -1,0 +1,41 @@
+# hello-cards
+
+A minimal full-stack reference app validating the production architecture for a
+Trello-like multi-tenant product with optimistic UI over flaky networks: a Go
+API as the only home of business logic, Postgres as source of truth, SSE for
+live reads, and **two frontends over one Go core** (Vite + React + TanStack DB,
+and Datastar + templ) to prove the "logic exactly once" thesis.
+
+See [`PRD.md`](./PRD.md) for the full spec, milestones, and trade-offs.
+
+## License
+
+This project is **source-available** under
+[FSL-1.1-Apache-2.0](./LICENSE.md) — not OSI "open source." You can read,
+modify, self-host, and contribute, but you cannot offer it as a commercial
+product or service that competes with the licensor's hosted offering. Each
+release converts to Apache-2.0 two years after publication.
+
+The hosted service is the commercial offering; the source is here so you can
+learn from it, run it yourself, and contribute back.
+
+## Quickstart
+
+```bash
+# One-time
+brew install go-task lefthook gitleaks docker
+corepack enable && corepack prepare pnpm@latest --activate
+go install github.com/air-verse/air@latest
+go install github.com/a-h/templ/cmd/templ@latest
+lefthook install                  # wires pre-commit gitleaks hook
+cp .env.example .env
+
+# Day-to-day
+task dev                          # Postgres + Go hot reload
+curl localhost:8080/healthz       # → 200 OK
+```
+
+## Contributing
+
+PRs welcome. Sign commits with `git commit -s` (DCO) — see
+[`CONTRIBUTING.md`](./CONTRIBUTING.md). A CI check enforces sign-off.

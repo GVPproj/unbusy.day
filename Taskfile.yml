@@ -1,0 +1,62 @@
+version: "3"
+
+dotenv: [".env"]
+
+tasks:
+  default:
+    desc: "List available tasks"
+    cmds:
+      - task --list
+
+  dev:
+    desc: "Postgres (compose) + Go hot reload (air)"
+    cmds:
+      - docker compose up -d --wait
+      - air
+
+  up:
+    desc: "Start local Postgres in the background"
+    cmds:
+      - docker compose up -d --wait
+
+  down:
+    desc: "Stop local Postgres (keeps volume)"
+    cmds:
+      - docker compose down
+
+  nuke:
+    desc: "Stop Postgres and delete the data volume"
+    prompt: "This will erase local dev data. Continue?"
+    cmds:
+      - docker compose down -v
+
+  migrate:
+    desc: "Apply SQL migrations against $DATABASE_URL (psql)"
+    cmds:
+      - |
+        for f in migrations/*.sql; do
+          [ -f "$f" ] || continue
+          echo "→ $f"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+        done
+
+  templ:
+    desc: "Generate templ Go files (FE2)"
+    cmds:
+      - templ generate
+
+  build:
+    desc: "Build the Go binary"
+    deps: [templ]
+    cmds:
+      - go build -o tmp/hello-cards .
+
+  test:
+    desc: "Run Go tests"
+    cmds:
+      - go test ./...
+
+  fmt:
+    desc: "Format Go code"
+    cmds:
+      - go fmt ./...
