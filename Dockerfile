@@ -13,7 +13,7 @@
 # RUN pnpm build
 
 # --- 2. Go build (+ templ generate for FE2 — wired in M2.5b) ---
-FROM golang:1.22-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git
 # Uncomment once ds/ has templ files (M2.5b):
