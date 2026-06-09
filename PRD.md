@@ -1,7 +1,7 @@
 
 # PRD: hello-cards (v3 — Go-native sync + edge)
 
-**Status:** Draft · **Owner:** you · **Last updated:** 2026-06-08 · **Supersedes:** v2 (Electric sync-engine spike)
+**Status:** Draft · **Owner:** you · **Last updated:** 2026-06-09 · **Supersedes:** v2 (Electric sync-engine spike)
 
 > **v3 domain-object note:** the spike's placeholder domain object is a **single sortable column of 3 cards** (reorder-only — no card create/delete/rename), chosen so the demo mirrors the eventual Trello target more closely than a bare counter did. The reorder mutation replaces the increment everywhere below; all architecture (Go-as-logic, txid handshake, SSE fan-out, two-FE proof, edge delivery) is unchanged.
 
@@ -131,11 +131,40 @@ browser
 
 ## 8. Milestones
 
-1. **M1 — local write path + SSE**: docker-compose Postgres; Go reorder endpoint returning txid; in-process pub/sub; SSE endpoint with `Last-Event-ID` support and 25s keepalive; curl-tested with `--no-buffer -N`.
-2. **M2 — local sync loop (FE1)**: extract the `cards` service + Adapter A; React + TanStack DB SSE-backed collection; dnd-kit sortable column; acceptance criteria 1–3 pass locally. The core/adapter split lands here so M2.5 is purely additive.
-2. **M2.5 — second frontend (FE2, comparison spike)**: pin & verify Datastar version + SortableJS wiring (F16); add Adapter B (Datastar handlers + templ fragment SSE) over the existing `cards` service and pub/sub; `/ds/*` route tree + `templ generate` in dev/build. Acceptance criterion 9 (two-FE parity) passes locally; fill in the comparison table.
-3. **M3 — Fly + Neon + Cloudflare**: Neon project, app deploy, custom domain on Cloudflare with Cache Rules wired up; criteria 4–8 pass.
-4. **Fast-follow**: GitHub Actions `fly deploy` on push to main; spike TanStack DB persistence + `offline-transactions` to scope true-offline upgrade; spike cross-instance fan-out (LISTEN/NOTIFY on a session-mode connection, or small Redis) to unblock multi-machine Go (§9).
+Each phase is independently testable; tick `Status` here as you ship so the PRD doubles as the build log.
+
+- **M0 — repo bootstrap** · Status: ☐
+  `git init` with `LICENSE.md` (FSL-1.1-Apache-2.0, L1), `.gitignore` + `.env.example` (S1), `README.md` stating the source-available model (L2), `CONTRIBUTING.md` with the DCO text and sign-off instruction (C1). Enable GitHub secret scanning + push protection and add a `gitleaks` pre-commit hook (S3); add the DCO check action. Scaffold `Taskfile.yml`, `compose.yml` (dev Postgres only), a multi-stage `Dockerfile` skeleton, empty `cards/` `migrations/` `frontend/` `ds/` directories, and a minimal `main.go` serving `/healthz` only (F3). **Done when:** `task dev` brings up Postgres and `curl localhost:8080/healthz` returns 200; the DCO check runs green on a throwaway PR; `gitleaks` blocks a deliberate fake-secret commit.
+
+- **M1a — write path + txid** · Status: ☐
+  `card` table migration (F10) with `DEFERRABLE INITIALLY DEFERRED` unique on `position`, seeded with 3 fixed cards via `task migrate`. `cards` service package owns permutation validation, the bulk `UPDATE … FROM (VALUES …)` rewrite, and `pg_current_xact_id()::text` capture as a **string** (never cast to `xid`, never marshalled as a JS number). `POST /api/cards/reorder` (F1) wired to the service. **Done when:** `curl -X POST … '{"order":["c","a","b"]}'` returns `{cards, txid}` with txid as a decimal string; a malformed/non-permutation `order` returns 4xx (F5); a fuzz of 100 random reorders never trips the unique constraint (validates the `DEFERRABLE` + bulk-UPDATE mitigation in §11).
+
+- **M1b — SSE fan-out** · Status: ☐
+  In-process pub/sub; the reorder handler publishes `{txid, cards}` after commit. `GET /api/events` (F2) with full connection hardening: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`, `http.Flusher.Flush` per event, 25s `:keepalive` comments, server read/write timeouts disabled on this route. In-memory ring buffer (1024) with `Last-Event-ID` replay; ring-overflow contract (client falls back to a full state refetch) documented in the handler. **Done when:** `curl --no-buffer -N /api/events` in one terminal receives an event with `id: <txid>` immediately after `curl POST /api/cards/reorder` in another; reconnecting with `Last-Event-ID: <old txid>` replays the events between; an overflow-forcing replay returns the documented sentinel.
+
+- **M2a — FE1 read path** · Status: ☐
+  Vite + React scaffold under `frontend/` with dev proxy `/api → :8080`. Custom SSE-backed TanStack DB collection (F6); column rendered via a live query ordered by `position` (F7); native EventSource reconnect carries `Last-Event-ID`; the adapter adds exponential-backoff retry over hard close. **Done when:** two browser tabs open; a `curl POST /api/cards/reorder` updates both tabs within ~1s with no refresh (the read half of criterion 2); killing and restarting the Go server triggers a clean reconnect with no missed events.
+
+- **M2b — FE1 optimistic write** · Status: ☐
+  dnd-kit sortable column; `onUpdate` posts the new `order` and returns `{txid}` so TanStack DB holds the optimistic order until the matching txid arrives via SSE (no snap-back flicker on commit), and rolls back automatically on F5 errors (the dragged card snaps back to its prior position). This is also where the core/adapter split (`cards` service + Adapter A) crystallizes — the artifact that lets M2.5 be purely additive. **Done when:** acceptance criteria 1–3 all pass locally — drag-reorder is instant and persists across refresh; two windows sync within ~1s; a devtools-offline drag either commits or visibly snaps back on reconnect; the txid handshake suppresses the snap-back flicker on the commit path.
+
+- **M2.5a — Datastar/SortableJS pin & verify** · Status: ☐
+  Pin a specific Datastar 1.0+ release and a SortableJS version; verify the SSE element/signal-patch event names, the Go SDK helpers, and the SortableJS↔Datastar DOM-ownership wiring against current docs (F16). Output: a short note checked into the repo (`ds/NOTES.md`) listing the verified API surface and any naming changes from the 1.0-RC era. **Done when:** a smoke `templ` page connected to a `/ds/_smoke` endpoint receives a hand-crafted element patch and updates correctly; the pinned versions are recorded in `go.mod` / `package.json` / the notes file.
+
+- **M2.5b — FE2 over the shared core** · Status: ☐
+  Adapter B mounted at `/ds/*` over the existing `cards` service and the same pub/sub: `POST /ds/cards/reorder` (F12), `GET /ds/events` rendering templ-fragment patches (F13) reusing F2 connection hardening verbatim, server-rendered column updated via element patches (F14), SortableJS-driven post-drop (F15) with the optimistic-or-pure-server-driven choice documented. `templ generate` runs in dev (`task dev --watch`) and as a step in the multi-stage build. **Done when:** acceptance criterion 9 passes — FE1 and FE2 open side by side, a reorder in either updates both within ~1s, proving one mutation fans out through both adapters; the comparison table (lines of client code, DnD-library integration cost incl. the F16 DOM-ownership wiring, drop-to-settled latency, first-paint-from-distant-colo, reconnect behavior) is filled in.
+
+- **M3a — Neon + Fly origin** · Status: ☐
+  Neon project in `aws-us-west-2` (D2), pooled connection string pushed to `fly secrets`. `fly launch --no-deploy --copy-config --name hello-cards --region sea`, then `fly deploy --remote-only --strategy immediate`. `min_machines_running = 1`; `/api/events` route timeouts disabled or ≥1h (D1). **Done when:** acceptance criterion 4 passes against the raw `*.fly.dev` URL (Cloudflare not yet in front); `/healthz` returns 200 from the public origin URL with no DB query in the handler (D6 — keeps Neon scale-to-zero intact); drag-reorder works end-to-end on the FE1 path.
+
+- **M3b — Cloudflare proxy + Cache Rules** · Status: ☐
+  Proxied A/AAAA record at the apex/subdomain pointed at the Fly anycast IP (D3); SSL mode Full (strict). `ops/cloudflare/cache-rules.json` committed to the repo and PUT against the zone's `http_request_cache_settings` ruleset entrypoint with three rules: (a) `/events` matcher (covers `/api/events` **and** `/ds/events`) bypasses cache and disables response buffering; (b) `/api/*` bypasses cache (defense in depth on top of F4 headers); (c) default respects origin `Cache-Control`. **Done when:** acceptance criterion 6 passes — hashed `/assets/*` returns `cf-cache-status: HIT` after warm-up, `/api/*` returns BYPASS or DYNAMIC, `curl --no-buffer -N` against `/api/events` and `/ds/events` delivers events without proxy buffering, and a spot-check from a distant Cloudflare colo confirms edge proximity via `cf-ray`.
+
+- **M3c — production hardening drills** · Status: ☐
+  `fly machine restart` drill (criterion 5: card order persists; SSE clients reconnect and resume from `Last-Event-ID`). Overnight-idle SSE drill (criterion 7: keepalive + EventSource reconnect both prove out over an unattended window). Schema-change drill (criterion 8: add a column, run the migration, document whether a reconnect/refetch is needed for clients to observe the new shape). Switch deploy strategy from `immediate` to `rolling` (D5). **Done when:** criteria 5, 7, 8 all pass and `fly.app.toml` carries `strategy = "rolling"`; observed concurrent-connection ceiling on `shared-cpu-1x` is recorded in the repo so the §9 scale-out trigger is data-driven (§11 last bullet).
+
+- **Fast-follow** · Status: ☐
+  GitHub Actions `fly deploy` on push to main (uses the Fly deploy token from `gh` repo secrets). Spike TanStack DB persistence + `offline-transactions` to scope the true-offline upgrade (§3). Spike cross-instance fan-out (LISTEN/NOTIFY on a session-mode Neon endpoint, or a small Redis) to unblock multi-machine Go (§9). None of these gate the v1 spike sign-off.
 
 ## 9. Forward-looking notes (Trello PRD inputs)
 
@@ -154,6 +183,7 @@ browser
   - **Latency that actually flips:** only FE2's initial render (and read-only paths), and only if a read replica is co-located per region. Static assets (FE1) already edge-cache for free; writes don't improve; live fan-out improves only partially.
   - **Neon wrinkle.** D2 deliberately pins Neon `us-west-2` ~10–20ms from Fly `sea`. Multi-region Go puts edge nodes far from that single Neon, forcing either slow cross-region reads or per-region read replicas — and Neon's cross-region replica story is thinner than Fly Postgres's built-in replica+replay. So "Go at the edge" silently re-opens the DB topology decision and may push off Neon toward Fly Postgres for replica ergonomics.
   - **Consistency hazard, worst for FE2.** Edge read replicas + Datastar's server-authoritative render interact badly: client reorders (committed at txid N via the primary) but the local replica is still at N−1 → server renders the stale order → SSE patch corrects → *card snaps* — the exact failure F8's txid handshake prevents. Making edge safe for FE2 means rebuilding FE1's reconciliation inside the server-driven model (read-from-primary-until-replica≥txid, or txid-keyed optimistic signals) — re-importing the client complexity Datastar was chosen to avoid.
+  - **What production server-driven apps actually do at scale.** Three patterns dominate, and naming them is what makes the fork below honest: (1) **tenant-pinned regions** — each workspace/org gets a home region at signup; writes are local there; users elsewhere accept the RTT but it's their org's choice. Fly's `fly-replay: region=<home>` header is the canonical mechanism (anycast lands you anywhere, app replays to home); Linear/Notion/Turso shape this way. Cost: cross-tenant features (global search, marketplaces) get structurally harder, and region migrations are real surgery. (2) **Per-region read replicas + write-to-primary** — reads stay local, writes forward to the single primary; to dodge the replica-lag snap (see *Consistency hazard* above) you must re-import the txid handshake server-side ("read from primary until replica ≥ committed txid"), which rebuilds FE1's reconciliation inside FE2's render path. (3) **Optimistic islands inside the server-driven shell** — Stimulus/Alpine on Hotwire, signals on Datastar — hold the hot interactions (drag, type-ahead, hover) locally so RTT only shows up on commit. This is FE1's reconciliation in miniature; the honest finding is that at scale FE2 converges toward FE1 on the hot paths. Trello-relevant takeaway: server-driven globally is fine if you pick (1), but a globally-distributed multi-tenant product with cross-tenant surfaces collides with the structural cost of (1) and with the FE1-shaped complexity (2) and (3) re-introduce.
   - **The fork (most important finding the spike will surface).** Server-driven (FE2)'s only lever for global latency is *physically relocating the server* — edge compute + edge data + cross-region fan-out, expensive and consistency-fraught, dragging DB topology along. Local-first (FE1)'s answer is "**the client *is* the edge node**": it holds state, applies optimistically, reconciles via txid, so global low-latency interaction is the default with zero extra infrastructure. "Where can the server live?" is really "where do state and authority live?" — and that is the axis the Trello frontend choice turns on.
   - **For the spike:** do *not* build edge (a §3 non-goal); just measure FE2's distant-colo first-paint (criterion 9). Cheaper FE2 mitigations if needed: stream a fast skeleton then SSE-patch the data in (moves perceived latency only); edge-cache the shell *while anonymous* (evaporates the moment per-tenant auth lands — itself a useful warning).
 
@@ -166,7 +196,7 @@ browser
 - TanStack DB pre-1.0 — pin exact versions, expect breaking changes between minor releases until ~1.0. The custom SSE collection wrapper is the regression surface to retest on upgrade.
 - Domain on Cloudflare: a registered domain on a Cloudflare zone is required; no free wildcard exists for generic origin proxying (Workers/Pages `*.workers.dev` is for their compute, not arbitrary origin pass-through). ~$10/yr for a `.com`.
 - Datastar version/API surface (FE2): pin a specific 1.0+ release and verify the SSE element/signal-patch event names and Go SDK helpers against its docs before implementing F12–F14 (F16). The patch event naming changed during the 1.0 RC era — a stale name is a silent no-op. Also pin SortableJS and confirm its DOM mutations and Datastar's patches don't fight (F16).
-- Cloudflare cache-purge step in deploys: `Cache-Control: no-cache` on `index.html` (F4) should make a purge unnecessary, but worth empirically confirming during M3 — if Cloudflare ignores `no-cache` under load, add a `flarectl` purge step to the deploy.
+- Cloudflare cache-purge step in deploys: `Cache-Control: no-cache` on `index.html` (F4) should make a purge unnecessary, but worth empirically confirming during M3 — if Cloudflare ignores `no-cache` under load, add a `POST /zones/$ZONE_ID/purge_cache` step (curl, same auth as D3) to the deploy.
 
 ## 11. Foreseen bugs / engineering risks
 
@@ -181,7 +211,7 @@ Known sharp edges in this stack — mitigations are wired into the requirements 
 - **DnD library vs server patch fighting over the DOM (FE2).** SortableJS mutates the DOM on drop while Datastar patches the same elements from the SSE stream; uncoordinated, the card double-applies or reverts mid-animation. Mitigation: F16 — verify the wiring (let SortableJS own the drag, hand the resulting order to Datastar, and ensure the server patch is idempotent against the already-applied order).
 - **In-process pub/sub does not survive horizontal scaling.** Two Go machines behind a load balancer means a mutation handled on machine A is invisible to SSE subscribers on machine B. Mitigation: §9 — explicit scale-out plan. For the v1 single-machine spike this is by-design but flagged so it isn't forgotten when machine count goes >1.
 - **LISTEN/NOTIFY incompatible with transaction-mode pooling.** When the scale-out moment arrives, pasting the pooled Neon string into the `LISTEN` consumer appears to work for a single test, then silently drops notifications under load. Mitigation: §9 — use a session-mode or direct endpoint specifically for the NOTIFY consumer; document at the point of switch.
-- **Cloudflare cache poisoning of `index.html`.** A stale `index.html` cached at the edge after a deploy points clients at old asset hashes that no longer exist. Mitigation: F4 — `index.html` ships `no-cache`; M3 verifies behavior. Add `flarectl` purge to the deploy pipeline if observation shows `no-cache` insufficient under Cloudflare's aggressive cache.
+- **Cloudflare cache poisoning of `index.html`.** A stale `index.html` cached at the edge after a deploy points clients at old asset hashes that no longer exist. Mitigation: F4 — `index.html` ships `no-cache`; M3 verifies behavior. Add a `POST /zones/$ZONE_ID/purge_cache` step (curl, same auth as D3) to the deploy pipeline if observation shows `no-cache` insufficient under Cloudflare's aggressive cache.
 - **TanStack DB pre-1.0 version skew.** Frequent minor breaking changes. Mitigation: pin exact versions; treat the custom SSE collection wrapper as the regression surface on upgrade.
 - **Connection-count bottleneck on the Go app.** Each SSE client holds one TCP connection on the single Fly machine; at 10k concurrent clients that's 10k file descriptors on `shared-cpu-1x`. Mitigation: vertical scale (`fly scale vm`) until the §9 horizontal scale-out lands. Record observed concurrent-connection ceiling in M3 so the scale-out trigger is data-driven.
 
@@ -195,12 +225,12 @@ Backs the §2 goal of "all provisioned and deployed via CLI." Three services req
 |---|---|---|---|
 |Fly.io|`flyctl` (alias `fly`)|`fly auth login`|App create/deploy, secrets, machines, logs (D1, D4–D5)|
 |Neon|`neon` (npm `neonctl`)|`neon auth`|Postgres project + connection strings (D2, F11)|
-|Cloudflare|`flarectl` + Cloudflare API for Rules engine|API token via env (`CLOUDFLARE_API_TOKEN`)|DNS, proxy, Cache Rules (D3)|
+|Cloudflare|*(none — use the v4 REST API via `curl`)*|API token via env (`CLOUDFLARE_API_TOKEN`)|DNS, proxy, Cache Rules (D3)|
 |GitHub *(fast-follow only)*|`gh`|`gh auth login`|Storing the Fly deploy token as a repo secret for the GHA pipeline (§8)|
 
 ### Local toolchain (no login)
 
-`docker` + `docker compose` (dev Postgres), `go` ≥ 1.22, `node` ≥ 20 + `pnpm` ≥ 9 (lockfile is `pnpm-lock.yaml`), `psql` (libpq, for migrations), `task` (Taskfile runner), `air` (Go hot reload, dev only), `templ` (FE2 component codegen — `go install github.com/a-h/templ/cmd/templ@latest`; `task dev` runs `templ generate --watch`), `git`, `curl` (SSE / streaming checks).
+`docker` + `docker compose` (dev Postgres), `go` ≥ 1.22, `node` ≥ 20 + `pnpm` ≥ 9 (lockfile is `pnpm-lock.yaml`), `psql` (libpq, for migrations), `task` (Taskfile runner), `air` (Go hot reload, dev only), `templ` (FE2 component codegen — `go install github.com/a-h/templ/cmd/templ@latest`; `task dev` runs `templ generate --watch`), `git`, `curl` (SSE / streaming checks; also the Cloudflare provisioning interface — see D3), `jq` (parse Cloudflare API responses).
 
 ### Install
 
@@ -215,8 +245,8 @@ corepack prepare pnpm@latest --activate
 # Neon
 pnpm add -g neonctl
 
-# Cloudflare
-brew install cloudflare/cloudflare/flarectl
+# Cloudflare — no CLI binary; everything is curl against the v4 REST API (D3).
+# jq is only used to parse responses; install via your package manager if missing.
 
 # GitHub (fast-follow only)
 brew install gh
@@ -255,21 +285,26 @@ fly deploy --remote-only --strategy immediate -a hello-cards
 
 ```bash
 # Pre-req: zone already added to Cloudflare, registrar pointed at CF nameservers.
+# All Cloudflare provisioning is curl against the v4 REST API — one auth pattern
+# (CLOUDFLARE_API_TOKEN), one error surface, no extra CLI binary to install.
 ZONE=example.com
 APP_FQDN=hello-cards.example.com
 FLY_APP_IP=$(fly ips list -a hello-cards | awk '/v4/ {print $2}' | head -n 1)
-
-# Proxied A record (orange cloud)
-flarectl dns create --zone "$ZONE" --name "$APP_FQDN" --type A \
-  --content "$FLY_APP_IP" --proxy
-
-# Cache Rules — flarectl's Rules-engine coverage is partial, so post JSON via the API.
-# 1) /api/events → bypass cache, disable buffering (SSE pass-through)
-# 2) /api/*      → bypass cache (defense in depth)
-# 3) (default)   → respect origin Cache-Control (year-long for /assets/*; revalidate for index.html)
-# Commit the rule JSON to the repo so it's reproducible: ops/cloudflare/cache-rules.json
 ZONE_ID=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   "https://api.cloudflare.com/client/v4/zones?name=$ZONE" | jq -r '.result[0].id')
+
+# Proxied A record (orange cloud)
+curl -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data "$(jq -n --arg name "$APP_FQDN" --arg ip "$FLY_APP_IP" \
+    '{type:"A", name:$name, content:$ip, ttl:1, proxied:true}')"
+
+# Cache Rules — Cloudflare's Rules engine is API-only at the CLI layer.
+# 1) /events suffix → bypass cache, disable buffering (covers /api/events and /ds/events)
+# 2) /api/*         → bypass cache (defense in depth on top of F4 headers)
+# 3) (default)      → respect origin Cache-Control (year-long for /assets/*; revalidate for index.html)
+# Commit the rule JSON to the repo so it's reproducible: ops/cloudflare/cache-rules.json
 curl -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/rulesets/phases/http_request_cache_settings/entrypoint" \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   -H 'Content-Type: application/json' \
@@ -307,7 +342,13 @@ curl -i -X POST https://hello-cards.example.com/api/cards/reorder \
 ### Tear-down
 
 ```bash
-flarectl dns delete --zone example.com --name hello-cards.example.com
+# Look up the DNS record id, then delete it.
+RECORD_ID=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$APP_FQDN" \
+  | jq -r '.result[0].id')
+curl -X DELETE "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+
 fly apps destroy hello-cards
 neon projects delete <project-id>
 ```
