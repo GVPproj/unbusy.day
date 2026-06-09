@@ -144,7 +144,7 @@ Each phase independently testable; tick `Status` as you ship.
 - **M2a — FE1 read path** · ☑
   Vite + React under `frontend/` with dev proxy `/api → :8080`. Custom SSE-backed TanStack DB collection (F6); column via live query ordered by `position` (F7); native reconnect carries `Last-Event-ID`; adapter adds exp-backoff. **Done when:** two tabs open; `curl POST /api/cards/reorder` updates both within ~1s; restarting the Go server triggers clean reconnect with no missed events.
 
-- **M2b — FE1 optimistic write** · ☐
+- **M2b — FE1 optimistic write** · ☑
   dnd-kit sortable; `onUpdate` POSTs and returns `{txid}` so TanStack DB holds the optimistic order until matching txid arrives via SSE (no flicker); rolls back on F5. The core/adapter split (`cards` service + Adapter A) crystallizes here so M2.5 is purely additive. **Done when:** criteria 1–3 pass locally.
 
 - **M2.5a — Datastar/SortableJS pin & verify** · ☐
@@ -215,6 +215,7 @@ Index of sharp edges; mitigations are wired into §4–§6.
 - **LISTEN/NOTIFY incompatible with txn-mode pooling.** Pasting the pooled Neon string into a `LISTEN` consumer appears to work once, then silently drops under load. Mitigation: §9 — session-mode or direct endpoint for the NOTIFY consumer.
 - **Cloudflare cache poisoning of `index.html`.** Stale `index.html` at the edge points clients at old asset hashes. Mitigation: F4 `no-cache`; M3 verifies. Add `POST /zones/$ZONE_ID/purge_cache` to deploy if observation shows `no-cache` insufficient.
 - **TanStack DB pre-1.0 version skew.** Frequent minor breaking changes. Mitigation: pin exact versions; custom SSE collection is the regression surface.
+- **Truncate-style snapshot sync pins stale overlays (TanStack DB).** Applying each SSE frame as truncate+reinsert makes the library re-apply the client's optimistic snapshot on top of every later frame: once a local drag completes, foreign reorders are silently overridden — persistent two-browser desync (hit in M2b). Mitigation: F6 adapter applies frames as keyed upserts (update/insert + delete for vanished rows); two-client convergence tests sweep interleaved drag storms across timing offsets.
 - **Connection-count bottleneck on Go app.** Each SSE client = one TCP conn; 10k clients = 10k FDs on `shared-cpu-1x`. Mitigation: vertical scale (`fly scale vm`) until §9 horizontal lands. Record observed ceiling in M3 so trigger is data-driven.
 
 ## 12. CLI prerequisites & commands

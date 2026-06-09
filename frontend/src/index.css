@@ -36,6 +36,15 @@ body {
   border-radius: 4px;
   padding: 0.75rem;
   box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.card.dragging {
+  cursor: grabbing;
+  opacity: 0.85;
+  box-shadow: 0 4px 8px rgba(9, 30, 66, 0.25);
 }
 
 .status {

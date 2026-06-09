@@ -13,6 +13,19 @@ const liveTransport: CardsTransport = {
     const body = (await res.json()) as { cards: Awaited<ReturnType<CardsTransport["fetchCards"]>> }
     return body.cards
   },
+  // PRD F1/F8: full new order in, txid string out. Non-2xx throws so the
+  // mutation handler rejects and TanStack DB rolls the drag back (F5).
+  reorder: async (order) => {
+    const res = await fetch("/api/cards/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order }),
+    })
+    if (!res.ok) {
+      throw new Error(`POST /api/cards/reorder: ${res.status}`)
+    }
+    return (await res.json()) as { txid: string }
+  },
   createEventSource: (url) => new EventSource(url),
 }
 

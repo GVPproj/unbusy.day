@@ -13,6 +13,7 @@ coverage.*
 # --- Node / Vite / pnpm (FE1) ---
 node_modules/
 frontend/dist/
+*.tsbuildinfo
 *.log
 npm-debug.log*
 

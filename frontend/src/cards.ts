@@ -22,9 +22,32 @@ const CLOSED = 2
 const INITIAL_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 30_000
 
+// Upper bound on holding an optimistic overlay waiting for its txid frame
+// (PRD F8). The write is already committed server-side by then; if the
+// stream is silently dead, release the overlay and let reconnect/resync
+// converge the state instead of pinning the transaction forever.
+export const TXID_TIMEOUT_MS = 10_000
+
 export interface CardsTransport {
   fetchCards: () => Promise<Card[]>
+  // POST /api/cards/reorder with the full new top-to-bottom order (PRD F1).
+  // txid is a string end-to-end — JS Number loses precision above 2^53.
+  reorder: (order: string[]) => Promise<{ txid: string }>
   createEventSource: (url: string) => EventSourceLike
+}
+
+// Drag-drop entry point (PRD F8): apply the full new order optimistically by
+// rewriting every card's position to its index. One transaction → one
+// onUpdate call carrying the whole column, mirroring F1's payload shape.
+export function reorderCards(
+  collection: ReturnType<typeof createCardsCollection>,
+  order: string[],
+) {
+  return collection.update(order, (drafts) => {
+    drafts.forEach((draft, i) => {
+      draft.position = i
+    })
+  })
 }
 
 // The column is a live query ordered by position (PRD F7); reorders from
@@ -39,12 +62,66 @@ export function createCardsView(
 }
 
 export function createCardsCollection(transport: CardsTransport) {
+  // txid handshake (PRD F8): every SSE frame carries `id: <txid>`; the
+  // mutation handler holds its optimistic overlay until the txid returned by
+  // the POST shows up here, so the overlay only drops once the synced state
+  // already reflects the write — no snap-back flicker.
+  // Bounded: mirrors the server's replay ring. Old entries only matter for
+  // the frame-beats-POST-response race, which a recent window fully covers.
+  const SEEN_TXID_CAP = 1024
+  const seenTxids = new Set<string>()
+  const txidWaiters = new Map<string, Set<() => void>>()
+
+  const markTxidSeen = (txid: string) => {
+    if (!txid) return
+    seenTxids.add(txid)
+    if (seenTxids.size > SEEN_TXID_CAP) {
+      seenTxids.delete(seenTxids.values().next().value!)
+    }
+    for (const settle of txidWaiters.get(txid) ?? []) settle()
+  }
+
+  const awaitTxid = (txid: string) =>
+    new Promise<void>((resolve) => {
+      if (seenTxids.has(txid)) {
+        resolve()
+        return
+      }
+      const waiters = txidWaiters.get(txid) ?? new Set<() => void>()
+      txidWaiters.set(txid, waiters)
+      const settle = () => {
+        clearTimeout(timer)
+        waiters.delete(settle)
+        if (waiters.size === 0) txidWaiters.delete(txid)
+        resolve()
+      }
+      const timer = setTimeout(settle, TXID_TIMEOUT_MS)
+      waiters.add(settle)
+    })
+
   return createCollection<Card, string>({
     id: "cards",
     getKey: (card) => card.id,
+    // F1 wants the full permutation, but neither handler input alone has it:
+    // transaction.mutations drops cards whose position didn't change, and
+    // the collection still reads the pre-mutation order here. Overlay the
+    // mutated rows on the collection state to recover the complete order.
+    onUpdate: async ({ transaction, collection }) => {
+      const byId = new Map<string, Card>(
+        collection.toArray.map((card) => [card.id, card]),
+      )
+      for (const m of transaction.mutations) {
+        byId.set(m.modified.id, m.modified)
+      }
+      const order = [...byId.values()]
+        .sort((a, b) => a.position - b.position)
+        .map((card) => card.id)
+      const { txid } = await transport.reorder(order)
+      await awaitTxid(txid)
+    },
     sync: {
       rowUpdateMode: "full",
-      sync: ({ begin, write, commit, markReady, truncate }) => {
+      sync: ({ begin, write, commit, markReady }) => {
         let es: EventSourceLike | undefined
         let liveEvents = 0
         let backoffMs = INITIAL_BACKOFF_MS
@@ -63,14 +140,27 @@ export function createCardsCollection(transport: CardsTransport) {
           backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS)
         }
 
-        // Each frame on the wire is the full ordered card list (PRD F2), so
-        // sync is snapshot-replacement: truncate + reinsert in one committed
-        // transaction. Live queries see each reorder atomically.
+        // Each frame on the wire is the full ordered card list (PRD F2),
+        // applied as keyed upserts (plus deletes for vanished rows) in one
+        // committed transaction. NOT truncate+reinsert: truncate snapshots
+        // the optimistic overlay and re-applies it over every later frame,
+        // which pins a client's own completed drag on top of newer foreign
+        // reorders — the two-browser desync the convergence test reproduces.
+        // Per-key updates also clear completed-mutation overlays and let
+        // frames queue while a local transaction is persisting, as the
+        // library intends.
+        const knownRows = new Map<string, Card>()
         const applySnapshot = (cards: Card[]) => {
           begin()
-          truncate()
+          for (const [id, row] of knownRows) {
+            if (!cards.some((card) => card.id === id)) {
+              write({ type: "delete", value: row })
+              knownRows.delete(id)
+            }
+          }
           for (const card of cards) {
-            write({ type: "insert", value: card })
+            write({ type: knownRows.has(card.id) ? "update" : "insert", value: card })
+            knownRows.set(card.id, card)
           }
           commit()
         }
@@ -112,6 +202,9 @@ export function createCardsCollection(transport: CardsTransport) {
           es.addEventListener("message", (e) => {
             liveEvents++
             applySnapshot(JSON.parse(e.data) as Card[])
+            // After the snapshot, so waiters resume against synced state
+            // that already includes their write.
+            markTxidSeen(e.lastEventId)
           })
           // Server sentinel: our Last-Event-ID predates the replay ring;
           // deltas are unrecoverable, refetch the full state (PRD F2).
