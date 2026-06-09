@@ -23,7 +23,7 @@ learn from it, run it yourself, and contribute back.
 
 Local toolchain (no login needed):
 
-- `go` ≥ 1.22
+- `go` ≥ 1.26
 - `node` ≥ 20, `pnpm` ≥ 9
 - `docker` + `compose`
 - `psql` (Postgres client)

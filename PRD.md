@@ -232,7 +232,7 @@ Backs §2's "all CLI-provisioned." Three services need login/token; everything e
 
 ### Local toolchain (no login)
 
-`docker` + `compose`, `go` ≥ 1.22, `node` ≥ 20 + `pnpm` ≥ 9 (`pnpm-lock.yaml`), `psql`, `task`, `air`, `templ` (`go install github.com/a-h/templ/cmd/templ@latest`), `git`, `curl`, `jq`.
+`docker` + `compose`, `go` ≥ 1.26, `node` ≥ 20 + `pnpm` ≥ 9 (`pnpm-lock.yaml`), `psql`, `task`, `air`, `templ` (`go install github.com/a-h/templ/cmd/templ@latest`), `git`, `curl`, `jq`.
 
 ### Install
 
