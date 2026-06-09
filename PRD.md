@@ -138,7 +138,7 @@ Each phase independently testable; tick `Status` as you ship.
 - **M1a — write path + txid** · ☑
   `card` migration (F10) with `DEFERRABLE` unique on `position`, seeded with 3 cards. `cards` service owns permutation validation, bulk `UPDATE … FROM (VALUES …)`, `pg_current_xact_id()::text` capture as a **string**. `POST /api/cards/reorder` (F1) wired. **Done when:** `curl -X POST … '{"order":["c","a","b"]}'` returns `{cards, txid}` with txid as decimal string; non-permutation `order` → 4xx (F5); a 100-random-reorder fuzz never trips the unique constraint.
 
-- **M1b — SSE fan-out** · ☐
+- **M1b — SSE fan-out** · ☑
   In-process pub/sub; reorder handler publishes `{txid, cards}` post-commit. `GET /api/events` (F2) with full hardening: text/event-stream, no-cache, `X-Accel-Buffering: no`, `Flush` per event, 25s `:keepalive`, route timeouts disabled. In-memory ring (1024) + `Last-Event-ID` replay; overflow contract documented. **Done when:** `curl --no-buffer -N /api/events` receives `id: <txid>` after `curl POST /api/cards/reorder`; reconnect with `Last-Event-ID: <old txid>` replays the gap; an overflow returns the documented sentinel.
 
 - **M2a — FE1 read path** · ☐

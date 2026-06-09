@@ -30,7 +30,7 @@ func newPool(t *testing.T) *pgxpool.Pool {
 // constraint" — exercises F1's bulk UPDATE against F10's DEFERRABLE unique.
 func TestReorder_Fuzz(t *testing.T) {
 	pool := newPool(t)
-	svc := cards.NewService(pool)
+	svc := cards.NewService(pool, nil)
 	ctx := context.Background()
 
 	initial, err := svc.List(ctx)
@@ -73,7 +73,7 @@ func TestReorder_Fuzz(t *testing.T) {
 
 func TestReorder_RejectsNonPermutation(t *testing.T) {
 	pool := newPool(t)
-	svc := cards.NewService(pool)
+	svc := cards.NewService(pool, nil)
 	ctx := context.Background()
 
 	initial, err := svc.List(ctx)

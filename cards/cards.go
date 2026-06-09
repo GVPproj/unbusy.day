@@ -24,6 +24,23 @@ type ReorderResult struct {
 	Txid  string `json:"txid"`
 }
 
+// Event is one mutation fanned out over the in-process pub/sub (PRD §5): a
+// txid plus the full ordered card list. Carries structured Cards rather than
+// pre-serialized bytes so each adapter renders its own way — JSON for FE1,
+// templ fragments for FE2 — off one published event.
+type Event struct {
+	Txid  string `json:"txid"`
+	Cards []Card `json:"cards"`
+}
+
+// Publisher is the seam between the core mutation and transport fan-out. The
+// Service owns the publish call (post-commit, PRD §5) but not the bus, so the
+// concrete pub/sub Broker can live outside this package without an import
+// cycle. A nil Publisher is valid — Reorder simply skips the fan-out.
+type Publisher interface {
+	Publish(Event)
+}
+
 // ErrNotPermutation signals that the supplied order is not a permutation of
 // the current card ids (wrong length, unknown id, or duplicate). Adapters
 // surface this as 4xx so TanStack DB rolls back (PRD F5).
@@ -31,10 +48,13 @@ var ErrNotPermutation = errors.New("order is not a permutation of current cards"
 
 type Service struct {
 	pool *pgxpool.Pool
+	pub  Publisher
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+// NewService wires the core service over a Postgres pool and a Publisher. pub
+// may be nil (e.g. unit tests with no bus): Reorder then skips fan-out.
+func NewService(pool *pgxpool.Pool, pub Publisher) *Service {
+	return &Service{pool: pool, pub: pub}
 }
 
 func (s *Service) List(ctx context.Context) ([]Card, error) {
@@ -112,6 +132,13 @@ func (s *Service) Reorder(ctx context.Context, order []string) (*ReorderResult, 
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted order
+	// (PRD §5, M1b). FOR UPDATE above serialises concurrent reorders, so
+	// commit order — and therefore publish order — is monotonic in txid.
+	if s.pub != nil {
+		s.pub.Publish(Event{Txid: txid, Cards: cs})
 	}
 	return &ReorderResult{Cards: cs, Txid: txid}, nil
 }

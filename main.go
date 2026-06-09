@@ -7,10 +7,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/grahamvanpelt/unbusy.day/cards"
+	"github.com/grahamvanpelt/unbusy.day/pubsub"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// ringSize bounds the SSE replay buffer (PRD F2). On overflow the client
+// refetches; see eventsHandler / pubsub.Broker.
+const ringSize = 1024
 
 func main() {
 	ctx := context.Background()
@@ -28,7 +34,8 @@ func main() {
 		log.Fatalf("ping db: %v", err)
 	}
 
-	svc := cards.NewService(pool)
+	broker := pubsub.New(ringSize)
+	svc := cards.NewService(pool, broker)
 
 	mux := http.NewServeMux()
 
@@ -65,12 +72,25 @@ func main() {
 		_ = json.NewEncoder(w).Encode(res)
 	})
 
+	// PRD F2: live read path. SSE off the same pub/sub the reorder handler
+	// publishes to; one mutation fans to every subscriber.
+	mux.HandleFunc("GET /api/events", eventsHandler(broker))
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
+	// WriteTimeout stays 0 (disabled): SSE streams are long-lived and the
+	// handler manages its own liveness via the 25s keepalive (PRD D1/F2).
+	// ReadHeaderTimeout guards the non-streaming routes against slow-loris.
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	log.Printf("hello-cards listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
