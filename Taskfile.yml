@@ -14,6 +14,12 @@ tasks:
       - docker compose up -d --wait
       - air
 
+  dev:fe:
+    desc: "Vite dev server (FE1) with /api proxy to :8080"
+    dir: frontend
+    cmds:
+      - pnpm dev
+
   up:
     desc: "Start local Postgres in the background"
     cmds:
@@ -52,9 +58,10 @@ tasks:
       - go build -o tmp/hello-cards .
 
   test:
-    desc: "Run Go tests"
+    desc: "Run Go and frontend tests"
     cmds:
       - go test ./...
+      - cd frontend && pnpm test
 
   fmt:
     desc: "Format Go code"

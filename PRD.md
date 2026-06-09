@@ -141,7 +141,7 @@ Each phase independently testable; tick `Status` as you ship.
 - **M1b — SSE fan-out** · ☑
   In-process pub/sub; reorder handler publishes `{txid, cards}` post-commit. `GET /api/events` (F2) with full hardening: text/event-stream, no-cache, `X-Accel-Buffering: no`, `Flush` per event, 25s `:keepalive`, route timeouts disabled. In-memory ring (1024) + `Last-Event-ID` replay; overflow contract documented. **Done when:** `curl --no-buffer -N /api/events` receives `id: <txid>` after `curl POST /api/cards/reorder`; reconnect with `Last-Event-ID: <old txid>` replays the gap; an overflow returns the documented sentinel.
 
-- **M2a — FE1 read path** · ☐
+- **M2a — FE1 read path** · ☑
   Vite + React under `frontend/` with dev proxy `/api → :8080`. Custom SSE-backed TanStack DB collection (F6); column via live query ordered by `position` (F7); native reconnect carries `Last-Event-ID`; adapter adds exp-backoff. **Done when:** two tabs open; `curl POST /api/cards/reorder` updates both within ~1s; restarting the Go server triggers clean reconnect with no missed events.
 
 - **M2b — FE1 optimistic write** · ☐

@@ -47,6 +47,20 @@ func main() {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
+	// Authoritative read for initial sync and the F2 overflow contract: when
+	// the SSE replay ring can't cover a client's gap (or a reconnect carries
+	// no Last-Event-ID), the client refetches the full state here.
+	mux.HandleFunc("GET /api/cards", func(w http.ResponseWriter, r *http.Request) {
+		cs, err := svc.List(r.Context())
+		if err != nil {
+			log.Printf("list: %v", err)
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"cards": cs})
+	})
+
 	// PRD F1: reorder mutation. Returns {cards, txid} with txid as a
 	// decimal string. F5: errors return structured JSON with 4xx/5xx so
 	// the client (TanStack DB) rolls back the optimistic order.
