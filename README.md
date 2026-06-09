@@ -56,6 +56,25 @@ task dev                          # Postgres + Go hot reload
 curl localhost:8080/healthz       # → 200 OK
 ```
 
+### Linux (Debian / Ubuntu / Mint)
+
+No Homebrew. Install Go-based tools with `go install` (they land in
+`$(go env GOPATH)/bin` — ensure it's on your `PATH`), and the system clients
+via `apt`. Install `docker` + `node`/`corepack` via your distro's usual method.
+
+```bash
+# One-time
+sudo apt-get update && sudo apt-get install -y postgresql-client jq curl git
+go install github.com/go-task/task/v3/cmd/task@latest
+go install github.com/air-verse/air@latest
+go install github.com/a-h/templ/cmd/templ@latest
+go install github.com/evilmartians/lefthook@latest
+go install github.com/zricethezav/gitleaks/v8@latest   # note: zricethezav, not gitleaks
+corepack enable && corepack prepare pnpm@latest --activate
+lefthook install                  # wires pre-commit gitleaks hook
+cp .env.example .env
+```
+
 ## Contributing
 
 PRs welcome. Sign commits with `git commit -s` (DCO) — see
