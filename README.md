@@ -58,7 +58,7 @@ curl localhost:8080/healthz       # → 200 OK
 
 ### Linux (Debian / Ubuntu / Mint)
 
-No Homebrew. Install Go-based tools with `go install` (they land in
+Install Go-based tools with `go install` (they land in
 `$(go env GOPATH)/bin` — ensure it's on your `PATH`), and the system clients
 via `apt`. Install `docker` + `node`/`corepack` via your distro's usual method.
 
