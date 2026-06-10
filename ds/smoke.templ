@@ -1,0 +1,63 @@
+package ds
+
+// SmokePage is the M2.5a verify-and-pin smoke target (PRD F16, criterion 2.5a).
+// Four obligations:
+//   - mount a stable #smoke-target so Datastar's default outer-morph mode has
+//     something deterministic to patch onto;
+//   - open an SSE stream to /ds/_smoke/events the moment the page loads so the
+//     visitor sees a patch without further interaction;
+//   - pull in the pinned Datastar JS runtime (version recorded in ds/NOTES.md);
+//   - pull in the pinned SortableJS and prove it co-exists with Datastar on the
+//     page (lib loads, drag works) — M2.5b drives the full reorder round-trip
+//     against the real cards model; here we just verify two libs don't clash.
+//
+// Kept deliberately bare — no styling, no extra signals. The thing under test
+// is the wiring; anything else would be noise the next person has to peel back.
+templ SmokePage() {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<title>ds smoke</title>
+			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
+			<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+		</head>
+		<body data-init="@get('/ds/_smoke/events')">
+			<main>
+				<h1>Datastar smoke</h1>
+				<p>The line below should change from "awaiting patch…" to "patched by datastar" within a tick of load.</p>
+				<div id="smoke-target">awaiting patch…</div>
+				<h2>SortableJS co-existence</h2>
+				<p>The list below should be drag-reorderable; M2.5b wires the round-trip.</p>
+				<ul id="sortable-list">
+					<li data-id="a">a</li>
+					<li data-id="b">b</li>
+					<li data-id="c">c</li>
+				</ul>
+				<div id="sort-order">order: a, b, c</div>
+				<script>
+					// Init SortableJS post-load. Uses toArray() (PRD F16) to read
+					// the post-drop data-id order; a sibling #sort-order div is
+					// updated locally so the dragger can see Sortable working.
+					// No server round-trip in M2.5a — that's M2.5b territory.
+					const list = document.getElementById('sortable-list');
+					const out  = document.getElementById('sort-order');
+					Sortable.create(list, {
+						animation: 150,
+						onEnd: function () {
+							out.textContent = 'order: ' + Sortable.get(list).toArray().join(', ');
+						}
+					});
+				</script>
+			</main>
+		</body>
+	</html>
+}
+
+// SmokeFragment is the body of the element-patch frame /ds/_smoke/events ships
+// (T2's wire test pins the #smoke-target id so outer-morph lands on the right
+// node). Keeping it co-located with SmokePage means the page-side anchor and
+// the patch-side replacement evolve together.
+templ SmokeFragment(message string) {
+	<div id="smoke-target">{ message }</div>
+}

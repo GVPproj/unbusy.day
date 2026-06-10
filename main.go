@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grahamvanpelt/unbusy.day/cards"
+	"github.com/grahamvanpelt/unbusy.day/ds"
 	"github.com/grahamvanpelt/unbusy.day/pubsub"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -89,6 +90,18 @@ func main() {
 	// PRD F2: live read path. SSE off the same pub/sub the reorder handler
 	// publishes to; one mutation fans to every subscriber.
 	mux.HandleFunc("GET /api/events", eventsHandler(broker))
+
+	// PRD §5 / M2.5b: Adapter B (FE2, Datastar + templ) over the same cards
+	// service and pub/sub as Adapter A — one mutation fans to both adapters'
+	// subscribers (criterion 9). F12 reorder, F13 patch stream, F14 page.
+	mux.Handle("GET /ds/{$}", ds.PageHandler(svc))
+	mux.Handle("GET /ds/events", ds.EventsHandler(svc, broker))
+	mux.Handle("POST /ds/cards/reorder", ds.ReorderHandler(svc))
+
+	// PRD F16 / M2.5a: Adapter B's pin-and-verify smoke. Kept mounted as a
+	// cheap wiring canary for the pinned Datastar SDK + templ versions.
+	mux.Handle("GET /ds/_smoke", ds.SmokeHandler())
+	mux.Handle("GET /ds/_smoke/events", ds.SmokeEventsHandler())
 
 	port := os.Getenv("PORT")
 	if port == "" {

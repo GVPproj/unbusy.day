@@ -9,10 +9,13 @@ tasks:
       - task --list
 
   dev:
-    desc: "Postgres (compose) + Go hot reload (air)"
+    desc: "Postgres (compose) + templ watch (FE2) + Go hot reload (air)"
     cmds:
       - docker compose up -d --wait
-      - air
+      # templ regenerates *_templ.go on .templ edits; air picks up the .go
+      # change and rebuilds. Backgrounded in the same process group so Ctrl-C
+      # tears both down.
+      - sh -c 'templ generate --watch & exec air'
 
   dev:fe:
     desc: "Vite dev server (FE1) with /api proxy to :8080"

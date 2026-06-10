@@ -147,11 +147,11 @@ Each phase independently testable; tick `Status` as you ship.
 - **M2b — FE1 optimistic write** · ☑
   dnd-kit sortable; `onUpdate` POSTs and returns `{txid}` so TanStack DB holds the optimistic order until matching txid arrives via SSE (no flicker); rolls back on F5. The core/adapter split (`cards` service + Adapter A) crystallizes here so M2.5 is purely additive. **Done when:** criteria 1–3 pass locally.
 
-- **M2.5a — Datastar/SortableJS pin & verify** · ☐
+- **M2.5a — Datastar/SortableJS pin & verify** · ☑
   Pin a Datastar 1.0+ release and a SortableJS version; verify the SSE element/signal-patch event names, Go SDK helpers, and SortableJS↔Datastar DOM-ownership wiring (F16). Output: `ds/NOTES.md` listing the verified API surface and any 1.0-RC-era changes. **Done when:** smoke `templ` page on `/ds/_smoke` receives a hand-crafted element patch and updates; pinned versions in `go.mod`/`package.json`/notes.
 
-- **M2.5b — FE2 over shared core** · ☐
-  Adapter B at `/ds/*` over the existing `cards` service and pub/sub: `POST /ds/cards/reorder` (F12), `GET /ds/events` rendering templ-fragment patches (F13) reusing F2 hardening, server-rendered column updated via element patches (F14), SortableJS-driven post-drop (F15) with the optimistic-vs-server-driven choice documented. `templ generate` runs in dev (`task dev --watch`) and as a build step. **Done when:** criterion 9 passes — both FEs side by side, reorder in either updates both within ~1s; comparison table filled in.
+- **M2.5b — FE2 over shared core** · ☑
+  Adapter B at `/ds/*` over the existing `cards` service and pub/sub: `POST /ds/cards/reorder` (F12), `GET /ds/events` rendering templ-fragment patches (F13) reusing F2 hardening, server-rendered column updated via element patches (F14), SortableJS-driven post-drop (F15) with the optimistic-vs-server-driven choice documented (server-driven — ds/NOTES.md). `templ generate` runs in dev (`task dev` backgrounds `templ generate --watch` alongside air) and as a Docker build step. **Done when:** criterion 9 passes — both FEs side by side, reorder in either updates both within ~1s; comparison table filled in. *(Verified by headless-browser harness: real mouse drag in FE2 commits and fans out cross-tab/cross-adapter <1s; comparison table in ds/NOTES.md — first-paint-from-distant-colo and drop-to-settled numbers measured at M3 post-deploy.)*
 
 - **M3a — Neon + Fly origin** · ☐
   Neon project in `aws-us-west-2` (D2), pooled string in `fly secrets`. `fly launch --no-deploy --copy-config --name hello-cards --region sea`, then `fly deploy --remote-only --strategy immediate`. `min_machines_running = 1`; `/api/events` timeouts disabled or ≥1h (D1). **Done when:** criterion 4 passes against raw `*.fly.dev` URL (no CF yet); `/healthz` is in-process 200 with no DB query (D6 — keeps Neon scale-to-zero intact); drag-reorder works end-to-end on FE1.
@@ -197,7 +197,7 @@ The most important finding the spike will surface — the axis the Trello fronte
 - **Reorder payload shape:** v1 sends the full new `order` (fine for 3 cards). Trello needs single-card "move X after Y" deltas (full-arrays don't scale, lose intent under concurrency). Decide when the second list lands — interacts with the fractional-indexing switch.
 - TanStack DB pre-1.0 — pin exact versions, expect breaking changes. Custom SSE collection is the regression surface on upgrade.
 - Domain on CF: registered domain on a CF zone required; no free wildcard for generic origin proxying. ~$10/yr.
-- Datastar version/API (FE2): pin 1.0+ release and verify SSE event names + Go SDK against docs before F12–F14 (F16). 1.0-RC-era naming changed — a stale name is a silent no-op. Also pin SortableJS and confirm DOM ownership (F16).
+- ~~Datastar version/API (FE2): pin 1.0+ release and verify SSE event names + Go SDK against docs before F12–F14 (F16). 1.0-RC-era naming changed — a stale name is a silent no-op. Also pin SortableJS and confirm DOM ownership (F16).~~ **Resolved (M2.5a/b):** versions pinned and full surface verified in `ds/NOTES.md`. The silent-no-op class was real twice over: `data-on-load` → `data-init`, and keyed attributes are colon-separated (`data-on:reorder`, not `data-on-reorder` — dash forms are skipped without error). Pinned by test.
 - Cloudflare cache-purge in deploys: `no-cache` on `index.html` (F4) should make purge unnecessary; confirm in M3. If CF ignores `no-cache` under load, add `POST /zones/$ZONE_ID/purge_cache` to the deploy.
 
 ## 11. Foreseen bugs / engineering risks

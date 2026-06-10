@@ -12,18 +12,18 @@
 # COPY frontend/ ./
 # RUN pnpm build
 
-# --- 2. Go build (+ templ generate for FE2 — wired in M2.5b) ---
+# --- 2. Go build (+ templ generate for FE2 — M2.5b) ---
 FROM golang:1.26-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git
-# Uncomment once ds/ has templ files (M2.5b):
-# RUN go install github.com/a-h/templ/cmd/templ@latest
-COPY go.mod ./
-# COPY go.sum ./
+# Pinned to the templ runtime version in go.mod (ds/NOTES.md) — a CLI/runtime
+# mismatch fails generation rather than producing skewed output.
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1020
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 # COPY --from=frontend /app/frontend/dist ./frontend/dist
-# RUN templ generate
+RUN templ generate
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/hello-cards .
 
 # --- 3. Runtime: scratch (no shell, no libc) ---
