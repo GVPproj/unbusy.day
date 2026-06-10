@@ -30,7 +30,7 @@ type CardService interface {
 // PageHandler serves the FE2 column page (PRD F14): server-rendered from the
 // core service's authoritative order. Origin-rendered on every hit (the PRD §5
 // edge-topology trade) — no-cache keeps the entry document honest while the
-// Datastar/SortableJS bundles edge-cache on their CDN URLs.
+// Datastar/Motion bundles edge-cache on their CDN URLs.
 func PageHandler(svc CardService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cs, err := svc.List(r.Context())
@@ -48,7 +48,7 @@ func PageHandler(svc CardService) http.Handler {
 }
 
 // reorderSignals is the Datastar signals body @post ships for F12/F15: the
-// $order signal set from SortableJS's post-drop toArray().
+// $order signal set from the data-id order dragInit commits on drop.
 type reorderSignals struct {
 	Order []string `json:"order"`
 }

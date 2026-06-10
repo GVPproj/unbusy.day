@@ -269,3 +269,50 @@ Keepalive and buffering hardening are F2's verbatim (25s `:keepalive`,
 - **T2** (unit) — `TestSmokeEventsEmitsDatastarPatchElementsFrame` — SSE emits a `datastar-patch-elements` frame whose body morphs `#smoke-target`. ✅
 - **V1** (browser) — patch lands: page text flips from "awaiting patch…" to "patched by datastar" within a tick of load. ✅ (after `data-on-load` → `data-init` fix)
 - **V2** (browser) — SortableJS co-exists: 3-item list drags freely, local "order:" line updates from `toArray()`. ✅
+
+## Motion drag swap (branch motion-templ, post-M2.5b)
+
+SortableJS is gone from `/ds/`; the drag is now hand-rolled on **Motion
+`12.40.0`** (vanilla ESM, `https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm`),
+imported inside `dragInit`'s module script in `column.templ` — same
+CDN-pin-no-toolchain policy as before; `Layout` no longer loads a drag library
+at all. (`smoke.templ` keeps its pinned SortableJS — it's the M2.5a spike
+artifact and stays frozen.)
+
+**Why:** feel parity with FE1. SortableJS floats a cloned ghost while the real
+item sits as a placeholder; dnd-kit transforms the actual node under the
+pointer, which is what makes the drag feel like picking the card up.
+`dragInit` reimplements the dnd-kit interaction:
+
+- `pointerdown` captures the pointer on the real `<li>`; a
+  `motionValue`/`styleEffect` pair drives its transform.
+- `pointermove` applies deltas **1:1** (smoothing the held card reads as
+  dragging a ghost) and springs displaced siblings one slot out of the way
+  (`{type: 'spring', stiffness: 600, damping: 38}`).
+- `pointerup` springs the card into its landing slot, then clears every
+  transform and commits the new DOM order in one synchronous frame (FLIP — no
+  pixel jump), and only then dispatches `reorder`.
+
+**Wire contract unchanged:** same `reorder` CustomEvent with `detail.order`
+(data-ids, now read from the committed children instead of Sortable's
+`toArray()`), same `$order` signal + `@post('/ds/cards/reorder')`, same
+idempotent outer-morph response. Listeners are delegated to `#card-list`,
+which the morph preserves, so the wiring survives every patch.
+
+**In-flight clobber guard:** if a foreign patch replaced the children
+mid-drag, `settle` detects detached nodes and skips the commit/dispatch — the
+server's order already won; re-appending stale nodes would fork the DOM.
+
+**Motion gotcha — element-targeted `animate` caches values across drags.**
+The first cut animated siblings with `animate(element, {y}, spring)`. Motion
+keeps the `y` motion value cached *on the element*, so when the FLIP teardown
+cleared `style.transform` behind Motion's back, the next drag's `animate`
+resumed from the stale cached `y` (±one slot) — a sibling would teleport a
+slot (observed: `translateY(95px)` on a card whose legal offsets were 0/+47.5)
+and sit 100% on top of its neighbour. Same silent-no-error failure class as
+the Datastar attribute bugs above; caught by a headless-Chromium harness
+sampling per-frame rects across repeated drags (worst sibling overlap 0.999 →
+0.000 after the fix). Rule: anything whose inline transform gets wiped
+manually must be driven by **per-drag `motionValue` + `styleEffect`**, never
+element-targeted `animate` — per-drag values die with the drag, so there is
+no cache to go stale.

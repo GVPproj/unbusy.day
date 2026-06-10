@@ -4,9 +4,9 @@ import "github.com/grahamvanpelt/unbusy.day/cards"
 
 // CardColumn is the patch fragment (PRD F13/F14): the stable #card-list id is
 // the outer-morph anchor every SSE patch and reorder response lands on, and
-// the data-id attributes are what SortableJS's toArray() reads post-drop
-// (F16). Page render and patch render share this one component so the anchor
-// and the replacement can't drift apart.
+// the data-id attributes are what dragInit reads post-drop to build the new
+// order (F16). Page render and patch render share this one component so the
+// anchor and the replacement can't drift apart.
 //
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
 // (`data-on:reorder`, `data-signals:order`) — the dash forms are looked up as
@@ -24,28 +24,136 @@ templ CardColumn(cs []cards.Card) {
 	</ul>
 }
 
-// card is one draggable list item. The data-id is the SortableJS toArray()
-// anchor and the idiomorph identity key — keep it stable across renders.
+// card is one draggable list item. The data-id is dragInit's order anchor and
+// the idiomorph identity key — keep it stable across renders.
 templ card(c cards.Card) {
 	<li class="card" data-id={ c.ID }>{ c.Label }</li>
 }
 
-// sortableInit attaches SortableJS to #card-list, so it must render after
-// CardColumn in the document. SortableJS owns the drag (F16); Datastar only
-// hears about it via the reorder event after the drop settles. chosenClass
-// reuses FE1's .dragging look for the lifted card; Sortable strips it before
-// onEnd, so the response morph never sees it.
-templ sortableInit() {
-	<script>
+// dragInit is the Motion-powered drag (FE1-feel parity; replaces SortableJS,
+// see ds/NOTES.md "Motion drag swap"). SortableJS floats a cloned ghost; FE1's
+// dnd-kit transforms the REAL node under the pointer, which is what makes a
+// drag feel like picking the card up. This does the dnd-kit thing by hand:
+//
+//  1. pointerdown captures the pointer on the real <li>; motionValue +
+//     styleEffect drive its transform.
+//  2. pointermove lands deltas on the held card 1:1 (no smoothing — lag here
+//     reads as dragging a ghost) and springs displaced siblings out of the
+//     way one slot at a time.
+//  3. pointerup springs the card into its landing slot, then clears every
+//     transform and commits the new DOM order in one synchronous frame — a
+//     FLIP, so the pixels never jump — and only then dispatches `reorder`.
+//
+// The wire contract is unchanged: the Datastar listener on the list copies
+// evt.detail.order into $order and @posts, the response patch renders the
+// order the drop already left in the DOM, and the outer morph stays a visual
+// no-op (the M2.5a idempotency property). Listeners are delegated to
+// #card-list, which the morph preserves, so the wiring survives every patch.
+templ dragInit() {
+	<script type="module">
+		import { animate, motionValue, styleEffect } from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
+
 		const list = document.getElementById('card-list');
-		Sortable.create(list, {
-			animation: 150,
-			chosenClass: 'dragging',
-			onEnd: function () {
-				list.dispatchEvent(new CustomEvent('reorder', {
-					detail: { order: Sortable.get(list).toArray() }
-				}));
+		const SPRING = { type: 'spring', stiffness: 600, damping: 38 };
+
+		let drag = null;
+		let settling = false;
+
+		list.addEventListener('pointerdown', (e) => {
+			const el = e.target.closest('.card');
+			if (drag || settling || e.button !== 0 || !el || el.parentElement !== list) return;
+			e.preventDefault();
+			el.setPointerCapture(e.pointerId);
+
+			const cards = [...list.children];
+			const first = cards[0].getBoundingClientRect();
+			const x = motionValue(0);
+			const y = motionValue(0);
+			drag = {
+				el, cards, x, y,
+				// slot pitch = row height + flex gap, measured not assumed
+				step: cards.length > 1 ? cards[1].getBoundingClientRect().top - first.top : first.height,
+				detach: styleEffect(el, { x, y }),
+				sibs: new Map(),
+				pointerId: e.pointerId,
+				from: cards.indexOf(el),
+				to: cards.indexOf(el),
+				startX: e.clientX,
+				startY: e.clientY,
+			};
+			// Siblings get per-drag motionValues too — NOT animate(element, …),
+			// which caches values on the element inside Motion. The teardown
+			// below wipes style.transform behind Motion's back, so a second
+			// drag's animate(element) would resume from the stale cached y
+			// (±one slot) and teleport a sibling onto its neighbour.
+			for (const c of cards) {
+				if (c === el) continue;
+				const v = motionValue(0);
+				drag.sibs.set(c, { v, detach: styleEffect(c, { y: v }), anim: null });
 			}
+			el.classList.add('dragging');
 		});
+
+		list.addEventListener('pointermove', (e) => {
+			if (!drag || e.pointerId !== drag.pointerId) return;
+			drag.x.set(e.clientX - drag.startX);
+			drag.y.set(e.clientY - drag.startY);
+			shiftSiblings(drag.from + Math.round(drag.y.get() / drag.step));
+		});
+
+		// Spring every non-held card toward its offset for landing slot `to`.
+		function shiftSiblings(to) {
+			to = Math.max(0, Math.min(drag.cards.length - 1, to));
+			if (to === drag.to) return;
+			drag.to = to;
+			drag.cards.forEach((card, i) => {
+				if (card === drag.el) return;
+				let y = 0;
+				if (i > drag.from && i <= to) y = -drag.step;
+				else if (i < drag.from && i >= to) y = drag.step;
+				const s = drag.sibs.get(card);
+				if (s.anim) s.anim.stop();
+				s.anim = animate(s.v, y, SPRING);
+			});
+		}
+
+		list.addEventListener('pointerup', (e) => settle(e, true));
+		list.addEventListener('pointercancel', (e) => settle(e, false));
+
+		async function settle(e, commit) {
+			if (!drag || e.pointerId !== drag.pointerId) return;
+			const d = drag;
+			if (!commit) shiftSiblings(d.from); // cancelled: spring everyone home
+			drag = null;
+			settling = true;
+			try {
+				// land the held card AND let in-flight sibling springs finish
+				await Promise.all([
+					animate(d.x, 0, SPRING),
+					animate(d.y, (d.to - d.from) * d.step, SPRING),
+					...[...d.sibs.values()].map((s) => s.anim),
+				]);
+			} finally {
+				// Transform teardown and DOM reorder below share one
+				// synchronous frame: same pixels, new layout (FLIP).
+				d.detach();
+				d.sibs.forEach((s) => { if (s.anim) s.anim.stop(); s.detach(); });
+				d.cards.forEach((c) => { c.style.transform = ''; });
+				d.el.classList.remove('dragging');
+				settling = false;
+			}
+			if (d.to === d.from) return;
+			// A foreign patch may have replaced the children mid-drag (the
+			// in-flight clobber documented in ds/NOTES.md) — the server's
+			// order already won, so don't re-append detached nodes.
+			if (d.cards.some((c) => c.parentElement !== list)) return;
+			const order = [...d.cards];
+			order.splice(d.from, 1);
+			order.splice(d.to, 0, d.el);
+			order.forEach((c) => list.appendChild(c));
+			list.dispatchEvent(new CustomEvent('reorder', {
+				detail: { order: order.map((c) => c.dataset.id) },
+			}));
+		}
 	</script>
 }

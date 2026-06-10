@@ -66,7 +66,7 @@ func threeCards() []cards.Card {
 
 // assertOrder checks that the ids appear in body in the given order — the
 // observable contract of a server-rendered column (F14) without pinning
-// markup details beyond the data-id anchors SortableJS reads (F16).
+// markup details beyond the data-id anchors dragInit reads (F16).
 func assertOrder(t *testing.T, body string, ids ...string) {
 	t.Helper()
 	last := -1

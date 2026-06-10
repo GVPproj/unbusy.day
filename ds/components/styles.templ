@@ -53,6 +53,10 @@ templ styles() {
 			cursor: grabbing;
 			opacity: 0.85;
 			box-shadow: 0 4px 8px rgba(16, 61, 41, 0.25);
+			/* the held card is the real node transformed in place — it must
+			   paint above the siblings springing past underneath it */
+			position: relative;
+			z-index: 1;
 		}
 
 		.status {
