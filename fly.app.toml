@@ -1,0 +1,42 @@
+# Fly app config (PRD D1). Named fly.app.toml (not fly.toml) per §5 repo
+# layout; pass with `fly deploy -c fly.app.toml`.
+#
+# Single machine in sjc, paired with Neon us-west-2. PRD D2 pinned `sea`, but
+# Fly deprecated `sea` (no new resources); `sjc` is the West-Coast replacement
+# (~20-30ms to Neon Oregon — still well within the low-RTT intent). In-process
+# pub/sub is single-machine by design (§3) — keep exactly one machine running.
+app            = "hello-cards"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port       = 8080
+  force_https         = true
+  # Never stop the machine: in-process pub/sub + the SSE ring buffer live in
+  # memory, and a stop would drop every open EventSource. M3a uses a single
+  # always-on machine.
+  auto_stop_machines  = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes           = ["app"]
+
+  # SSE (/api/events, /ds/events) are long-lived. Fly's proxy streams them as
+  # long as data flows; the 25s :keepalive (F2) keeps idle conns warm. No
+  # per-route timeout knob exists in fly.toml — the app disables WriteTimeout
+  # itself (main.go) and manages liveness via keepalive (D1).
+
+  # Fly health check on /healthz (D4). /healthz is a pure in-process 200 with
+  # NO DB query (D6), so this frequent probe does NOT keep Neon warm — Neon's
+  # scale-to-zero stays intact.
+  [[http_service.checks]]
+    path         = "/healthz"
+    method       = "GET"
+    interval     = "15s"
+    timeout      = "2s"
+    grace_period = "10s"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "256mb"

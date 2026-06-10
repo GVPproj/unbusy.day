@@ -103,6 +103,13 @@ func main() {
 	mux.Handle("GET /ds/_smoke", ds.SmokeHandler())
 	mux.Handle("GET /ds/_smoke/events", ds.SmokeEventsHandler())
 
+	// PRD F4: everything not matched above serves the embedded FE1 SPA with an
+	// index.html fallback (/assets/* immutable, index.html no-cache). The "/"
+	// pattern is lowest precedence in net/http's mux, so /api/*, /ds/*, and
+	// /healthz keep their specific handlers. Released builds embed the Vite
+	// output (-tags embedassets); dev builds use the spa_stub.go no-op.
+	mux.Handle("/", spaHandler())
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
