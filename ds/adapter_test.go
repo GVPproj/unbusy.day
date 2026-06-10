@@ -329,6 +329,26 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	}
 }
 
+// TestColumnRendersStretchSlotRail pins the stretch rail's server-side half
+// (card heights are frontend-only state, see ds/NOTES.md "Stretch rail"): the
+// column renders one empty slot per card, all of them after the cards, so
+// every morph re-asserts the same baseline — span-1 cards, fully open rail —
+// that dragInit's spans map then re-applies onto. Slots carry no data-id, so
+// they can never leak into the reorder wire payload.
+func TestColumnRendersStretchSlotRail(t *testing.T) {
+	var b strings.Builder
+	if err := components.CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
+		t.Fatalf("render column: %v", err)
+	}
+	body := b.String()
+	if got, want := strings.Count(body, `class="slot"`), len(threeCards()); got != want {
+		t.Errorf("want %d slots, got %d; body:\n%s", want, got, body)
+	}
+	if last, first := strings.LastIndex(body, `class="card"`), strings.Index(body, `class="slot"`); first < last {
+		t.Errorf("slots must render after the cards; body:\n%s", body)
+	}
+}
+
 // TestPageRendersColumnInServiceOrder is the M2.5b tracer bullet (F14):
 // GET /ds/ renders the column server-side, cards in the order the core
 // service returns them, and wires the page to the live stream (/ds/events)

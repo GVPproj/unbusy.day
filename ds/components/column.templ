@@ -21,13 +21,32 @@ templ CardColumn(cs []cards.Card) {
 		for _, c := range cs {
 			@card(c)
 		}
+		for range cs {
+			@slot()
+		}
 	</ul>
 }
 
 // card is one draggable list item. The data-id is dragInit's order anchor and
-// the idiomorph identity key — keep it stable across renders.
+// the idiomorph identity key — keep it stable across renders. The grip is the
+// stretch handle: pointerdown on it starts a resize gesture instead of a drag
+// (see dragInit).
 templ card(c cards.Card) {
-	<li class="card" data-id={ c.ID }>{ c.Label }</li>
+	<li class="card" data-id={ c.ID }>
+		{ c.Label }
+		<span class="grip" aria-hidden="true"></span>
+	</li>
+}
+
+// slot is one empty row of the stretch rail — the space a card can grow into
+// by dragging its grip. Card heights are frontend-only state (not persisted),
+// so the server always renders the same baseline: every card at span 1, every
+// slot open. That keeps morphs idempotent; dragInit's spans map re-asserts the
+// client's stretch state after each patch. Slots live inside #card-list so
+// the outer morph owns them, but they carry no data-id and never enter the
+// reorder wire payload.
+templ slot() {
+	<li class="slot" aria-hidden="true"></li>
 }
 
 // dragInit is the Motion-powered drag (FE1-feel parity; replaces SortableJS,
@@ -44,6 +63,13 @@ templ card(c cards.Card) {
 //     transform and commits the new DOM order in one synchronous frame — a
 //     FLIP, so the pixels never jump — and only then dispatches `reorder`.
 //
+// It also owns the stretch gesture (grip drag): the card's height snaps span
+// by span to the spring — never tracking the pointer 1:1, the snap IS the
+// feedback — while the bottom-most open slot collapses or reopens in the same
+// spring, so the column's total height holds steady. Spans are frontend-only
+// state (a Map keyed by data-id); a MutationObserver re-asserts them after
+// every server morph, which always renders the span-1 baseline.
+//
 // The wire contract is unchanged: the Datastar listener on the list copies
 // evt.detail.order into $order and @posts, the response patch renders the
 // order the drop already left in the DOM, and the outer morph stays a visual
@@ -55,24 +81,93 @@ templ dragInit() {
 
 		const list = document.getElementById('card-list');
 		const SPRING = { type: 'spring', stiffness: 600, damping: 38 };
+		const GAP = parseFloat(getComputedStyle(list).rowGap);
+		// Natural span-1 card height, measured at load (the server only ever
+		// renders span-1 cards). One slot of vertical space is a card + gap.
+		const CARD_H = list.querySelector('.card').getBoundingClientRect().height;
+		const PITCH = CARD_H + GAP;
+		const heightFor = (span) => CARD_H + (span - 1) * PITCH;
+
+		// Frontend-only stretch state: card id -> span in slots (absent = 1).
+		// Not persisted by design, so every server patch re-renders span-1
+		// cards and a fully open slot rail; apply() re-asserts this map after
+		// each morph (see the MutationObserver below).
+		const spans = new Map();
+		const spanOf = (el) => spans.get(el.dataset.id) || 1;
+		const cardsIn = () => [...list.children].filter((c) => c.classList.contains('card'));
+		const slotsIn = () => [...list.children].filter((c) => c.classList.contains('slot'));
+		const extraSpans = () => cardsIn().reduce((n, c) => n + spanOf(c) - 1, 0);
 
 		let drag = null;
+		let resize = null;
 		let settling = false;
 
+		// apply is the one writer of stable stretch styles: card heights from
+		// the spans map, and the bottom-most slots collapsed to balance the
+		// stretched spans. A collapsed slot animates/holds height 0 plus a
+		// -GAP top margin so the flex gap collapses with it. Idempotent;
+		// disconnects the observer around its own writes (disconnect also
+		// drops any queued records, so apply never observes itself).
+		function apply() {
+			observer.disconnect();
+			for (const c of cardsIn()) {
+				const s = spanOf(c);
+				c.style.height = s === 1 ? '' : heightFor(s) + 'px';
+			}
+			const open = slotsIn().length - extraSpans();
+			slotsIn().forEach((slot, i) => {
+				const consumed = i >= open;
+				slot.style.height = consumed ? '0px' : CARD_H + 'px';
+				slot.style.marginTop = consumed ? -GAP + 'px' : '';
+			});
+			observer.observe(list, OBSERVED);
+		}
+
+		// Server morphs wipe inline styles and restore the span-1 baseline;
+		// re-assert the client's stretch state in the same microtask, before
+		// the next paint. Gesture-time Motion writes also land here and are
+		// skipped — the gesture's own settle calls apply().
+		const OBSERVED = { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] };
+		const observer = new MutationObserver(() => {
+			if (drag || resize || settling) return;
+			apply();
+		});
+
 		list.addEventListener('pointerdown', (e) => {
+			if (drag || resize || settling || e.button !== 0) return;
 			const el = e.target.closest('.card');
-			if (drag || settling || e.button !== 0 || !el || el.parentElement !== list) return;
+			if (!el || el.parentElement !== list) return;
 			e.preventDefault();
 			el.setPointerCapture(e.pointerId);
+			if (e.target.closest('.grip')) startResize(e, el);
+			else startDrag(e, el);
+		});
 
-			const cards = [...list.children];
-			const first = cards[0].getBoundingClientRect();
+		list.addEventListener('pointermove', (e) => {
+			if (drag && e.pointerId === drag.pointerId) {
+				drag.x.set(e.clientX - drag.startX);
+				drag.y.set(e.clientY - drag.startY);
+				shiftSiblings(targetFor(drag.y.get()));
+			} else if (resize && e.pointerId === resize.pointerId) {
+				const span = resize.startSpan + Math.round((e.clientY - resize.startY) / PITCH);
+				snapTo(Math.max(1, Math.min(resize.max, span)));
+			}
+		});
+
+		list.addEventListener('pointerup', (e) => { settleDrag(e, true); settleResize(e, true); });
+		list.addEventListener('pointercancel', (e) => { settleDrag(e, false); settleResize(e, false); });
+
+		// ---- drag to reorder ----------------------------------------------
+
+		function startDrag(e, el) {
+			const cards = cardsIn();
 			const x = motionValue(0);
 			const y = motionValue(0);
 			drag = {
 				el, cards, x, y,
-				// slot pitch = row height + flex gap, measured not assumed
-				step: cards.length > 1 ? cards[1].getBoundingClientRect().top - first.top : first.height,
+				// Per-card pitches, measured not assumed — stretched cards
+				// span several slots, so there is no uniform step.
+				pitch: cards.map((c) => c.getBoundingClientRect().height + GAP),
 				detach: styleEffect(el, { x, y }),
 				sibs: new Map(),
 				pointerId: e.pointerId,
@@ -92,35 +187,45 @@ templ dragInit() {
 				drag.sibs.set(c, { v, detach: styleEffect(c, { y: v }), anim: null });
 			}
 			el.classList.add('dragging');
-		});
+		}
 
-		list.addEventListener('pointermove', (e) => {
-			if (!drag || e.pointerId !== drag.pointerId) return;
-			drag.x.set(e.clientX - drag.startX);
-			drag.y.set(e.clientY - drag.startY);
-			shiftSiblings(drag.from + Math.round(drag.y.get() / drag.step));
-		});
+		// Signed translate that lands the held card in index `to`: the summed
+		// pitches of every card it passes on the way.
+		function offsetFor(d, to) {
+			let off = 0;
+			for (let i = d.from + 1; i <= to; i++) off += d.pitch[i];
+			for (let i = to; i < d.from; i++) off -= d.pitch[i];
+			return off;
+		}
 
-		// Spring every non-held card toward its offset for landing slot `to`.
+		// Which index the pointer offset has dragged the card into — a
+		// crossing happens halfway through each passed card's pitch.
+		function targetFor(dy) {
+			const d = drag;
+			let to = d.from;
+			while (to + 1 < d.cards.length && dy > offsetFor(d, to) + d.pitch[to + 1] / 2) to++;
+			while (to > 0 && dy < offsetFor(d, to) - d.pitch[to - 1] / 2) to--;
+			return to;
+		}
+
+		// Spring every non-held card toward its offset for landing index `to`
+		// — displaced cards dodge by the held card's pitch.
 		function shiftSiblings(to) {
-			to = Math.max(0, Math.min(drag.cards.length - 1, to));
 			if (to === drag.to) return;
 			drag.to = to;
+			const dodge = drag.pitch[drag.from];
 			drag.cards.forEach((card, i) => {
 				if (card === drag.el) return;
 				let y = 0;
-				if (i > drag.from && i <= to) y = -drag.step;
-				else if (i < drag.from && i >= to) y = drag.step;
+				if (i > drag.from && i <= to) y = -dodge;
+				else if (i < drag.from && i >= to) y = dodge;
 				const s = drag.sibs.get(card);
 				if (s.anim) s.anim.stop();
 				s.anim = animate(s.v, y, SPRING);
 			});
 		}
 
-		list.addEventListener('pointerup', (e) => settle(e, true));
-		list.addEventListener('pointercancel', (e) => settle(e, false));
-
-		async function settle(e, commit) {
+		async function settleDrag(e, commit) {
 			if (!drag || e.pointerId !== drag.pointerId) return;
 			const d = drag;
 			if (!commit) shiftSiblings(d.from); // cancelled: spring everyone home
@@ -130,7 +235,7 @@ templ dragInit() {
 				// land the held card AND let in-flight sibling springs finish
 				await Promise.all([
 					animate(d.x, 0, SPRING),
-					animate(d.y, (d.to - d.from) * d.step, SPRING),
+					animate(d.y, offsetFor(d, d.to), SPRING),
 					...[...d.sibs.values()].map((s) => s.anim),
 				]);
 			} finally {
@@ -150,10 +255,83 @@ templ dragInit() {
 			const order = [...d.cards];
 			order.splice(d.from, 1);
 			order.splice(d.to, 0, d.el);
-			order.forEach((c) => list.appendChild(c));
+			// Reinsert ahead of the slot rail so slots stay at the bottom.
+			const firstSlot = list.querySelector(':scope > .slot');
+			order.forEach((c) => list.insertBefore(c, firstSlot));
 			list.dispatchEvent(new CustomEvent('reorder', {
 				detail: { order: order.map((c) => c.dataset.id) },
 			}));
 		}
+
+		// ---- stretch / compress ---------------------------------------------
+
+		// Grip drag. All motionValues are per-gesture (the Motion cache gotcha
+		// above — apply() rewrites these styles behind Motion's back) and the
+		// settle hands final styles back to apply().
+		function startResize(e, el) {
+			const slots = slotsIn();
+			const span = spanOf(el);
+			const h = motionValue(el.getBoundingClientRect().height);
+			resize = {
+				el, h, span,
+				startSpan: span,
+				// shared pool: a card may grow by however many slots are open
+				max: span + Math.max(0, slots.length - extraSpans()),
+				hAnim: null,
+				detach: styleEffect(el, { height: h }),
+				slots: slots.map((slot) => {
+					const sh = motionValue(slot.getBoundingClientRect().height);
+					const sm = motionValue(parseFloat(getComputedStyle(slot).marginTop) || 0);
+					return { sh, sm, detach: styleEffect(slot, { height: sh, marginTop: sm }), anims: [] };
+				}),
+				pointerId: e.pointerId,
+				startY: e.clientY,
+			};
+			el.classList.add('resizing');
+		}
+
+		// Spring the card to the snapped span and rebalance the slot rail —
+		// the card's growth and the slot's collapse share one spring, so the
+		// column bottom barely moves.
+		function snapTo(span) {
+			if (span === resize.span) return;
+			resize.span = span;
+			if (resize.hAnim) resize.hAnim.stop();
+			resize.hAnim = animate(resize.h, heightFor(span), SPRING);
+			const open = resize.slots.length - (extraSpans() - (resize.startSpan - 1)) - (span - 1);
+			resize.slots.forEach((s, i) => {
+				const consumed = i >= open;
+				s.anims.forEach((a) => a.stop());
+				s.anims = [
+					animate(s.sh, consumed ? 0 : CARD_H, SPRING),
+					animate(s.sm, consumed ? -GAP : 0, SPRING),
+				];
+			});
+		}
+
+		async function settleResize(e, commit) {
+			if (!resize || e.pointerId !== resize.pointerId) return;
+			if (!commit) snapTo(resize.startSpan); // cancelled: spring back
+			const r = resize;
+			resize = null;
+			settling = true;
+			try {
+				await Promise.all([r.hAnim, ...r.slots.flatMap((s) => s.anims)].filter(Boolean));
+			} finally {
+				if (r.hAnim) r.hAnim.stop();
+				r.detach();
+				r.slots.forEach((s) => { s.anims.forEach((a) => a.stop()); s.detach(); });
+				r.el.classList.remove('resizing');
+				settling = false;
+			}
+			if (r.span === 1) spans.delete(r.el.dataset.id);
+			else spans.set(r.el.dataset.id, r.span);
+			// Hand final styles to the one stable-state writer. Also covers a
+			// mid-gesture clobber: if a patch replaced the children, apply()
+			// targets the fresh nodes by the same ids.
+			apply();
+		}
+
+		apply();
 	</script>
 }

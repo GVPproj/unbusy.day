@@ -303,6 +303,57 @@ which the morph preserves, so the wiring survives every patch.
 mid-drag, `settle` detects detached nodes and skips the commit/dispatch — the
 server's order already won; re-appending stale nodes would fork the DOM.
 
+## Stretch rail (branch motion-templ, frontend-only card heights)
+
+Below the cards, `CardColumn` renders one empty `.slot` per card inside
+`#card-list`. Dragging the `.grip` on a card's bottom edge stretches it to
+span 2 or 3 slots (and compresses it back); the height **snaps** span by span
+— `pointermove` only ever picks a target span and springs toward it, never
+tracking the pointer 1:1, so the snap itself is the gesture feedback. The
+bottom-most open slot collapses (or reopens) in the same spring, so the
+column's total height holds roughly steady mid-gesture.
+
+Design decisions, all verified by the CDP harness (13 checks: stretch to
+2/3, compress, slot bookkeeping, reorder-with-stretched-card, morph
+survival):
+
+- **Spans are client state only** (per scope: nothing saved to the DB). A
+  `Map` of data-id → span lives in `dragInit`'s module. The server always
+  renders the same baseline — every card span 1, every slot open — which
+  keeps morphs idempotent exactly as before.
+- **Morph survival via MutationObserver.** Every server patch wipes inline
+  heights and restores the baseline; an observer on `#card-list` (childList +
+  style-attribute, subtree) calls `apply()`, the one writer of stable stretch
+  styles, in the same microtask — before the next paint, so no flash.
+  `apply()` disconnects the observer around its own writes (disconnect also
+  drops queued records), and gesture-time Motion writes are skipped via the
+  gesture flags.
+- **Slots collapse with height 0 + `margin-top: -GAP`** so the flex gap
+  collapses with them (gap isn't a margin; the negative margin cancels it).
+  The slot `<li>` carries no padding/border — the dashes live on an inset
+  `::before` clipped by `overflow: hidden` — so height 0 truly collapses it.
+- **Reorder generalised to variable pitches.** The uniform `step` died with
+  span-1-only cards: the drag now measures per-card pitches, crossings happen
+  halfway through each *passed card's* pitch, displaced siblings dodge by the
+  *held card's* pitch, and the landing offset is the summed pitches of passed
+  cards. The drop commit re-inserts cards before the first slot so the rail
+  stays at the bottom; the reorder wire payload is cards-only and unchanged.
+- All resize motionValues are **per-gesture** (the cache gotcha below);
+  `settleResize` hands final styles to `apply()`, which also makes a
+  mid-gesture foreign morph safe — apply targets the fresh nodes by id.
+
+**Tooling gotcha — never run plain `templ generate` while `task dev` is
+running.** Non-watch `templ generate` ends by calling
+`deleteWatchModeTextFiles()`, which removes the `$TMPDIR/templ_<hash>.txt`
+literal files the *running* watch session's server reads on every render
+(`TEMPL_DEV_MODE`). The live watcher won't rewrite a txt until that file's
+literals actually change (its in-memory hash cache still matches), so the dev
+server 500s with "render page" on every route — another silent-ish no-op
+class: the generate command succeeds, tests pass, only the dev loop dies.
+Fix: restart `task dev` (a fresh watcher's startup pass rewrites every txt),
+or force literal-changing edits per file. `go test` / CI never notice because
+non-dev renders use the literals embedded in `*_templ.go`.
+
 **Motion gotcha — element-targeted `animate` caches values across drags.**
 The first cut animated siblings with `animate(element, {y}, spring)`. Motion
 keeps the `y` motion value cached *on the element*, so when the FLIP teardown

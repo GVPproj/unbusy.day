@@ -47,6 +47,8 @@ templ styles() {
 			cursor: grab;
 			user-select: none;
 			touch-action: none;
+			/* anchor for the grip; also the z-index context .dragging needs */
+			position: relative;
 		}
 
 		.card.dragging {
@@ -55,8 +57,62 @@ templ styles() {
 			box-shadow: 0 4px 8px rgba(16, 61, 41, 0.25);
 			/* the held card is the real node transformed in place — it must
 			   paint above the siblings springing past underneath it */
-			position: relative;
 			z-index: 1;
+		}
+
+		.card.resizing {
+			box-shadow: 0 4px 8px rgba(16, 61, 41, 0.25);
+			z-index: 1;
+		}
+
+		/* stretch handle along the card's bottom edge; the bar fades in on
+		   hover as the affordance */
+		.grip {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 10px;
+			cursor: ns-resize;
+		}
+
+		.grip::after {
+			content: "";
+			position: absolute;
+			left: 50%;
+			bottom: 3px;
+			width: 28px;
+			height: 3px;
+			border-radius: 2px;
+			transform: translateX(-50%);
+			background: rgba(16, 61, 41, 0.2);
+			opacity: 0;
+			transition: opacity 120ms;
+		}
+
+		.card:hover .grip::after,
+		.card.resizing .grip::after {
+			opacity: 1;
+		}
+
+		/* one empty row of the stretch rail. The dashes live on an inset
+		   ::before and the li itself carries no padding/border, so animating
+		   height to 0 (with overflow hidden) collapses it completely. The
+		   calc height is the pre-JS approximation of a card row; dragInit
+		   pins it to the measured card height on load. */
+		.slot {
+			height: calc(1lh + 1.5rem);
+			border-radius: 4px;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.slot::before {
+			content: "";
+			position: absolute;
+			inset: 0;
+			border: 2px dashed #b9d4c4;
+			border-radius: 4px;
 		}
 
 		.status {
