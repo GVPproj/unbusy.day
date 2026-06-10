@@ -9,13 +9,24 @@ tasks:
       - task --list
 
   dev:
-    desc: "Postgres (compose) + templ watch (FE2) + Go hot reload (air)"
+    desc: "Postgres (compose) + templ watch/proxy driving the Go server (browse :7331)"
     cmds:
       - docker compose up -d --wait
-      # templ regenerates *_templ.go on .templ edits; air picks up the .go
-      # change and rebuilds. Backgrounded in the same process group so Ctrl-C
-      # tears both down.
-      - sh -c 'templ generate --watch & exec air'
+      # templ owns the whole dev loop: it watches .templ and .go files,
+      # regenerates, (re)runs the server, and auto-reloads the browser via
+      # the proxy on :7331. Text-only .templ edits (CSS in styles.templ,
+      # copy) skip the rebuild/restart entirely — the running server re-reads
+      # literals from _templ.txt per render (TEMPL_DEV_MODE, set by the CLI)
+      # and the proxy just reloads the page. Go-affecting changes restart
+      # `go run .`. Don't run air alongside this; it rebuilds on every
+      # .templ edit and defeats the fast path.
+      # templ always opens the proxy root (no flag to pick a path), and the
+      # server has no "/" route, so we suppress its auto-open and open /ds/
+      # ourselves once the proxy serves it (curl -f waits out the 502s
+      # while `go run .` starts up).
+      - |
+        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ds/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/ds/") &
+        templ generate --watch --proxy="http://localhost:8080" --open-browser=false --cmd="go run ."
 
   dev:fe:
     desc: "Vite dev server (FE1) with /api proxy to :8080"
