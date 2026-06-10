@@ -215,6 +215,34 @@ the JSON body, so the server reads `{"order":[…]}` via `datastar.ReadSignals`
 — the same payload shape as F1. The morph preserves the `<ul>` node itself, so
 the Sortable instance and the Datastar listeners survive every patch.
 
+### Component layout (post-M2 refactor)
+
+The UI lives in `ds/components/`, a separate package the `ds` handlers import.
+The criterion-9 "63-line templ file" is now four focused files totalling the
+same UI; the smoke page stays in `ds` (spike artifact, deliberately bare):
+
+- `layout.templ` — `Layout(title, streamInit)` document shell: pinned CDN
+  scripts, inline styles, and the `data-init` stream opener on `<body>`; page
+  content fills the `{ children... }` slot.
+- `styles.templ` — the inline stylesheet (FE1 palette-swapped to green).
+- `column.templ` — `CardColumn` (the #card-list morph anchor), the unexported
+  `card` item, and `sortableInit` (the SortableJS → reorder-event bridge).
+  Everything coupled to `#card-list` stays in one file so the anchor, the
+  data-ids, and the script that reads them evolve together.
+- `page.templ` — `CardsPage` composes the above; the only place the
+  `/ds/events` URL and `retry: 'always'` option appear.
+
+Exports are exactly what handlers need: `CardsPage` (F14 page render) and
+`CardColumn` (F12/F13 patches). One wire-level consequence: `Layout`'s
+`streamInit` is a dynamic templ attribute, so it lands in the HTML
+entity-escaped (`data-init="@get(&#39;/ds/events&#39;, …)"`) where the old
+hardcoded form was raw. Harmless — the parser decodes entities before
+`getAttribute`, so Datastar sees the original expression — but in this
+codebase's silent-no-op climate it was browser-verified, not assumed: headless
+Chromium loaded `/ds/`, a foreign `POST /api/cards/reorder` was issued, and a
+CDP `Runtime.evaluate` saw the live DOM converge to the new order (stream
+opened + patch applied, end to end).
+
 ### Reconnect contract (F13)
 
 `/ds/events` subscribes with no cursor and ships one render of the current

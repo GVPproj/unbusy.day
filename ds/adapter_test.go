@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/grahamvanpelt/unbusy.day/cards"
+	"github.com/grahamvanpelt/unbusy.day/ds/components"
 	"github.com/grahamvanpelt/unbusy.day/pubsub"
 )
 
@@ -312,7 +313,7 @@ func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 // exists because that exact regression shipped once.
 func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	var b strings.Builder
-	if err := CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
+	if err := components.CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()

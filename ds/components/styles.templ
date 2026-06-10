@@ -1,0 +1,64 @@
+package components
+
+// styles mirrors frontend/src/index.css (FE1) so the two demos read as the
+// same app, but in a green palette so a glance tells you which adapter you're
+// on (FE1 is Trello blue-gray). Inline because FE2 has no asset pipeline —
+// one origin-rendered document (PRD §5).
+templ styles() {
+	<style>
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family: system-ui, sans-serif;
+			background: #f3f7f4;
+			color: #1b3d2f;
+		}
+
+		.column {
+			max-width: 320px;
+			margin: 3rem auto;
+			padding: 1rem;
+			background: #dfeee5;
+			border-radius: 8px;
+		}
+
+		.column h1 {
+			font-size: 1rem;
+			margin: 0 0 0.75rem;
+		}
+
+		.cards {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+
+		.card {
+			background: #fff;
+			border-radius: 4px;
+			padding: 0.75rem;
+			box-shadow: 0 1px 1px rgba(16, 61, 41, 0.25);
+			cursor: grab;
+			user-select: none;
+			touch-action: none;
+		}
+
+		.card.dragging {
+			cursor: grabbing;
+			opacity: 0.85;
+			box-shadow: 0 4px 8px rgba(16, 61, 41, 0.25);
+		}
+
+		.status {
+			margin: 0 0 0.75rem;
+			color: #5f8270;
+			font-size: 0.875rem;
+		}
+	</style>
+}

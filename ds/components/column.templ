@@ -1,0 +1,51 @@
+package components
+
+import "github.com/grahamvanpelt/unbusy.day/cards"
+
+// CardColumn is the patch fragment (PRD F13/F14): the stable #card-list id is
+// the outer-morph anchor every SSE patch and reorder response lands on, and
+// the data-id attributes are what SortableJS's toArray() reads post-drop
+// (F16). Page render and patch render share this one component so the anchor
+// and the replacement can't drift apart.
+//
+// Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
+// (`data-on:reorder`, `data-signals:order`) — the dash forms are looked up as
+// nonexistent plugin names and silently skipped (ds/NOTES.md, F16).
+templ CardColumn(cs []cards.Card) {
+	<ul
+		id="card-list"
+		class="cards"
+		data-signals:order="[]"
+		data-on:reorder="$order = evt.detail.order; @post('/ds/cards/reorder')"
+	>
+		for _, c := range cs {
+			@card(c)
+		}
+	</ul>
+}
+
+// card is one draggable list item. The data-id is the SortableJS toArray()
+// anchor and the idiomorph identity key — keep it stable across renders.
+templ card(c cards.Card) {
+	<li class="card" data-id={ c.ID }>{ c.Label }</li>
+}
+
+// sortableInit attaches SortableJS to #card-list, so it must render after
+// CardColumn in the document. SortableJS owns the drag (F16); Datastar only
+// hears about it via the reorder event after the drop settles. chosenClass
+// reuses FE1's .dragging look for the lifted card; Sortable strips it before
+// onEnd, so the response morph never sees it.
+templ sortableInit() {
+	<script>
+		const list = document.getElementById('card-list');
+		Sortable.create(list, {
+			animation: 150,
+			chosenClass: 'dragging',
+			onEnd: function () {
+				list.dispatchEvent(new CustomEvent('reorder', {
+					detail: { order: Sortable.get(list).toArray() }
+				}));
+			}
+		});
+	</script>
+}

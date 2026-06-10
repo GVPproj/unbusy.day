@@ -1,0 +1,25 @@
+package components
+
+import "github.com/grahamvanpelt/unbusy.day/cards"
+
+// CardsPage is FE2's full document (PRD F14/F15). retry 'always' matches
+// FE1's EventSource semantics: the default 'auto' never reconnects after a
+// *clean* stream end, leaving the tab silently deaf (ds/NOTES.md, F16).
+//
+// F15 wiring, server-driven by design (the PRD default — decision recorded in
+// ds/NOTES.md): SortableJS owns the drag; on drop it dispatches a `reorder`
+// CustomEvent carrying toArray()'s data-id order; the Datastar listener on the
+// list copies it into the $order signal and @posts, which ships signals as the
+// JSON body {"order": [...]}. The response patch renders the same order the
+// drop already left in the DOM, so the outer morph is a visual no-op — the
+// idempotency property verified in M2.5a.
+templ CardsPage(cs []cards.Card) {
+	@Layout("hello-cards — FE2 (Datastar + templ)", "@get('/ds/events', {retry: 'always'})") {
+		<main class="column">
+			<h1>hello-cards — FE2 datastar</h1>
+			<p class="status">Drag to reorder. Other clients' reorders land as server patches.</p>
+			@CardColumn(cs)
+			@sortableInit()
+		</main>
+	}
+}

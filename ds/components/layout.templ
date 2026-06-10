@@ -1,0 +1,24 @@
+package components
+
+// Layout is FE2's document shell (PRD F14): pinned CDN scripts (versions per
+// ds/NOTES.md), the shared inline stylesheet, and the live-stream opener.
+// Pages render their content into the body slot via { children... }.
+//
+// streamInit is the body's `data-init` expression — not the RC-era
+// `data-on-load`, a silent no-op on v1.0.2 (ds/NOTES.md, F16). It runs when
+// the body enters the DOM, which is how a page opens its SSE stream on load.
+templ Layout(title string, streamInit string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<title>{ title }</title>
+			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
+			<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+			@styles()
+		</head>
+		<body data-init={ streamInit }>
+			{ children... }
+		</body>
+	</html>
+}

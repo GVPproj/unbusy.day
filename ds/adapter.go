@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/grahamvanpelt/unbusy.day/cards"
+	"github.com/grahamvanpelt/unbusy.day/ds/components"
 	"github.com/grahamvanpelt/unbusy.day/pubsub"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -40,7 +41,7 @@ func PageHandler(svc CardService) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := CardsPage(cs).Render(r.Context(), w); err != nil {
+		if err := components.CardsPage(cs).Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
 		}
 	})
@@ -88,7 +89,7 @@ func ReorderHandler(svc CardService) http.Handler {
 		}
 
 		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(CardColumn(cs)); err != nil {
+		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
 			log.Printf("ds reorder patch: %v", err)
 		}
 	})
@@ -123,7 +124,7 @@ func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 			log.Printf("ds events list: %v", err)
 			return
 		}
-		if err := sse.PatchElementTempl(CardColumn(cs)); err != nil {
+		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
 			return
 		}
 
@@ -134,7 +135,7 @@ func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 			case <-r.Context().Done():
 				return
 			case e := <-sub.Events:
-				if err := sse.PatchElementTempl(CardColumn(e.Cards)); err != nil {
+				if err := sse.PatchElementTempl(components.CardColumn(e.Cards)); err != nil {
 					return
 				}
 			case <-ticker.C:
