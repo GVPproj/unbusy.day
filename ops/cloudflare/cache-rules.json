@@ -1,0 +1,35 @@
+{
+  "description": "hello-cards cache rules (PRD D3/M3b). PUT against zones/$CLOUDFLARE_ZONE_ID/rulesets/phases/http_request_cache_settings/entrypoint. Expressions are mutually exclusive so rule order never matters.",
+  "rules": [
+    {
+      "description": "(a) SSE endpoints (/api/events, /ds/events): bypass cache so events stream through the edge unbuffered",
+      "expression": "ends_with(http.request.uri.path, \"/events\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": false
+      }
+    },
+    {
+      "description": "(b) /api/*: bypass cache (defense in depth over origin Cache-Control, F4)",
+      "expression": "starts_with(http.request.uri.path, \"/api/\") and not ends_with(http.request.uri.path, \"/events\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": false
+      }
+    },
+    {
+      "description": "(c) everything else: respect origin Cache-Control (year-long immutable /assets/*; no-cache index.html revalidates at the edge)",
+      "expression": "not starts_with(http.request.uri.path, \"/api/\") and not ends_with(http.request.uri.path, \"/events\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "respect_origin"
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      }
+    }
+  ]
+}
