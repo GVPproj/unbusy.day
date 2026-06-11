@@ -49,6 +49,17 @@ templ styles() {
 			position: relative;
 		}
 
+		/* Persisted stretch height, server-rendered so a stretched card paints
+		   full-size on first load instead of flashing at span 1 before
+		   dragInit's deferred module measures and applies it. Mirrors
+		   heightFor() in dragInit: span card-rows plus the gaps between them
+		   (1lh + 1.5rem padding per row, 0.5rem gap). A unit-based
+		   approximation; dragInit overwrites style.height with measured pixels
+		   on gesture. */
+		.card.stretched {
+			height: calc(var(--span) * (1lh + 1.5rem) + (var(--span) - 1) * 0.5rem);
+		}
+
 		.card.dragging {
 			cursor: grabbing;
 			opacity: 0.85;
@@ -103,6 +114,14 @@ templ styles() {
 			border-radius: 4px;
 			position: relative;
 			overflow: hidden;
+		}
+
+		/* a rail row a stretched card has grown into — collapsed flush (height 0,
+		   negative margin eating the flex gap) so the column height holds.
+		   Server-rendered to match dragInit's apply() on first paint. */
+		.slot.consumed {
+			height: 0;
+			margin-top: -0.5rem;
 		}
 
 		.slot::before {
