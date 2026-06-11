@@ -9,12 +9,12 @@ import (
 
 // The smoke page must render an HTML document with a stable #smoke-target
 // (Datastar's default outer-morph patches by id; without a match the SDK is a
-// silent no-op) and a reference to /ds/_smoke/events so the browser opens the
+// silent no-op) and a reference to /_smoke/events so the browser opens the
 // stream on load. It deliberately does not pin the attribute syntax — that's
 // verified in a real browser, and locking it here would couple us to RC-era
 // naming.
 func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/ds/_smoke", nil)
+	req := httptest.NewRequest(http.MethodGet, "/_smoke", nil)
 	rec := httptest.NewRecorder()
 
 	SmokeHandler().ServeHTTP(rec, req)
@@ -30,8 +30,8 @@ func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
 	if !strings.Contains(body, `id="smoke-target"`) {
 		t.Errorf("body missing #smoke-target morph anchor; body:\n%s", body)
 	}
-	if !strings.Contains(body, "/ds/_smoke/events") {
-		t.Errorf("body missing /ds/_smoke/events SSE reference; body:\n%s", body)
+	if !strings.Contains(body, "/_smoke/events") {
+		t.Errorf("body missing /_smoke/events SSE reference; body:\n%s", body)
 	}
 }
 

@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -16,7 +14,7 @@ import (
 )
 
 // ringSize bounds the SSE replay buffer. On overflow the client refetches;
-// see eventsHandler / pubsub.Broker.
+// see pubsub.Broker.
 const ringSize = 1024
 
 func main() {
@@ -47,63 +45,17 @@ func main() {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	// Authoritative read for initial sync and the overflow contract: when the
-	// replay ring can't cover a client's gap (or a reconnect carries no
-	// Last-Event-ID), the client refetches the full state here.
-	mux.HandleFunc("GET /api/cards", func(w http.ResponseWriter, r *http.Request) {
-		cs, err := svc.List(r.Context())
-		if err != nil {
-			log.Printf("list: %v", err)
-			writeError(w, http.StatusInternalServerError, "internal error")
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"cards": cs})
-	})
-
-	// Reorder mutation. Returns {cards, txid} with txid a decimal string;
-	// errors return JSON with 4xx/5xx so the client rolls back its order.
-	mux.HandleFunc("POST /api/cards/reorder", func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Order []string `json:"order"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON body")
-			return
-		}
-		res, err := svc.Reorder(r.Context(), body.Order)
-		switch {
-		case errors.Is(err, cards.ErrNotPermutation):
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		case err != nil:
-			log.Printf("reorder: %v", err)
-			writeError(w, http.StatusInternalServerError, "internal error")
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(res)
-	})
-
-	// Live read path: SSE off the same pub/sub the reorder handler publishes
-	// to; one mutation fans to every subscriber.
-	mux.HandleFunc("GET /api/events", eventsHandler(broker))
-
-	// Datastar + templ adapter over the same service and pub/sub, so one
-	// mutation fans to both adapters' subscribers.
-	mux.Handle("GET /ds/{$}", ds.PageHandler(svc))
-	mux.Handle("GET /ds/events", ds.EventsHandler(svc, broker))
-	mux.Handle("POST /ds/cards/reorder", ds.ReorderHandler(svc))
+	// Datastar + templ frontend, server-rendered over the cards service and
+	// pub/sub: the page renders the authoritative order, the events stream
+	// fans every mutation to all subscribers as element patches, and the
+	// reorder endpoint commits a drop and patches the column back.
+	mux.Handle("GET /{$}", ds.PageHandler(svc))
+	mux.Handle("GET /events", ds.EventsHandler(svc, broker))
+	mux.Handle("POST /cards/reorder", ds.ReorderHandler(svc))
 
 	// Wiring canary for the pinned Datastar SDK + templ versions.
-	mux.Handle("GET /ds/_smoke", ds.SmokeHandler())
-	mux.Handle("GET /ds/_smoke/events", ds.SmokeEventsHandler())
-
-	// Everything else serves the embedded SPA with an index.html fallback.
-	// "/" is lowest precedence in net/http's mux, so /api/*, /ds/*, and
-	// /healthz keep their handlers. Release builds embed the Vite output
-	// (-tags embedassets); dev builds use the spa_stub.go no-op.
-	mux.Handle("/", spaHandler())
+	mux.Handle("GET /_smoke", ds.SmokeHandler())
+	mux.Handle("GET /_smoke/events", ds.SmokeEventsHandler())
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -122,10 +74,4 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }

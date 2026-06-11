@@ -15,7 +15,7 @@ templ CardColumn(cs []cards.Card) {
 		id="card-list"
 		class="cards"
 		data-signals:order="[]"
-		data-on:reorder="$order = evt.detail.order; @post('/ds/cards/reorder')"
+		data-on:reorder="$order = evt.detail.order; @post('/cards/reorder')"
 	>
 		for _, c := range cs {
 			@card(c)

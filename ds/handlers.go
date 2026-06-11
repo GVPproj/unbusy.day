@@ -7,7 +7,7 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// smokeMessage is the body of the one patch /ds/_smoke/events ships on connect.
+// smokeMessage is the body of the one patch /_smoke/events ships on connect.
 // Constant so the wire test can rely on the message landing verbatim.
 const smokeMessage = "patched by datastar"
 

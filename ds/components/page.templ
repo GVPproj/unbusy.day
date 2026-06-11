@@ -12,9 +12,9 @@ import "github.com/grahamvanpelt/unbusy.day/cards"
 // ships signals as the JSON body {"order": [...]}). The response patch renders
 // the order the drop already left in the DOM, so the morph is a visual no-op.
 templ CardsPage(cs []cards.Card) {
-	@Layout("hello-cards — FE2 (Datastar + templ)", "@get('/ds/events', {retry: 'always'})") {
+	@Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})") {
 		<main class="column">
-			<h1>hello-cards — FE2 datastar</h1>
+			<h1>hello-cards — datastar</h1>
 			<p class="status">Drag to reorder. Other clients' reorders land as server patches.</p>
 			@CardColumn(cs)
 			@dragInit()

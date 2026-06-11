@@ -1,10 +1,10 @@
 # hello-cards
 
 A minimal full-stack reference app validating the production architecture for a
-Trello-like multi-tenant product with optimistic UI over flaky networks: a Go
-API as the only home of business logic, Postgres as source of truth, SSE for
-live reads, and **two frontends over one Go core** (Vite + React + TanStack DB,
-and Datastar + templ) to prove the "logic exactly once" thesis.
+Trello-like multi-tenant product with live, optimistic UI over flaky networks:
+a **Go-only stack** with business logic living exactly once on the server,
+Postgres as source of truth, SSE for live reads, and a server-rendered
+**Datastar + templ** frontend.
 
 ## License
 
@@ -22,7 +22,6 @@ learn from it, run it yourself, and contribute back.
 Local toolchain (no login needed):
 
 - `go` ≥ 1.26
-- `node` ≥ 20, `pnpm` ≥ 9
 - `docker` + `compose`
 - `psql` (Postgres client)
 - `task` (go-task), `air`, `templ`
@@ -41,14 +40,13 @@ Service CLIs (needed at M3+):
 ```bash
 # One-time
 brew install go-task lefthook gitleaks docker
-corepack enable && corepack prepare pnpm@latest --activate
 go install github.com/air-verse/air@latest
 go install github.com/a-h/templ/cmd/templ@latest
 lefthook install                  # wires pre-commit gitleaks hook
 cp .env.example .env
 
 # Day-to-day
-task dev                          # Postgres + Go hot reload
+task dev                          # Postgres + templ watch + Go hot reload
 curl localhost:8080/healthz       # → 200 OK
 ```
 
@@ -56,7 +54,7 @@ curl localhost:8080/healthz       # → 200 OK
 
 Install Go-based tools with `go install` (they land in
 `$(go env GOPATH)/bin` — ensure it's on your `PATH`), and the system clients
-via `apt`. Install `docker` + `node`/`corepack` via your distro's usual method.
+via `apt`. Install `docker` via your distro's usual method.
 
 ```bash
 # One-time
@@ -66,7 +64,6 @@ go install github.com/air-verse/air@latest
 go install github.com/a-h/templ/cmd/templ@latest
 go install github.com/evilmartians/lefthook@latest
 go install github.com/zricethezav/gitleaks/v8@latest   # note: zricethezav, not gitleaks
-corepack enable && corepack prepare pnpm@latest --activate
 lefthook install                  # wires pre-commit gitleaks hook
 cp .env.example .env
 ```

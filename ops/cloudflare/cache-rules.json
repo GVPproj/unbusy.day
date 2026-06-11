@@ -1,7 +1,7 @@
 {
   "rules": [
     {
-      "description": "(c) default: respect origin Cache-Control (year-long immutable /assets/*, revalidate index.html via no-cache)",
+      "description": "(b) default: respect origin Cache-Control (the Datastar pages are origin no-cache, so the edge revalidates the entry document)",
       "expression": "true",
       "action": "set_cache_settings",
       "action_parameters": {
@@ -11,13 +11,7 @@
       }
     },
     {
-      "description": "(b) /api/* bypass cache (defense in depth over F4; mutations + /api/cards must never cache)",
-      "expression": "starts_with(http.request.uri.path, \"/api/\")",
-      "action": "set_cache_settings",
-      "action_parameters": { "cache": false }
-    },
-    {
-      "description": "(a) /events suffix bypass cache so SSE streams un-buffered (covers /api/events AND /ds/events)",
+      "description": "(a) /events suffix bypass cache so the SSE stream un-buffers (defense in depth over the origin no-cache + X-Accel-Buffering headers)",
       "expression": "ends_with(http.request.uri.path, \"/events\")",
       "action": "set_cache_settings",
       "action_parameters": { "cache": false }

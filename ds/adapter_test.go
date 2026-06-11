@@ -239,15 +239,15 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	}
 }
 
-// POST /ds/cards/reorder carries the order as Datastar signals (JSON body
-// {"order": [...]}, what @post ships), delegates to the same core mutation as
-// the JSON adapter, and responds with an SSE element-patch of the post-mutation
-// column so the dragging client settles on the committed order. The patch must
-// anchor on #card-list — without that id the outer morph is a silent no-op.
+// POST /cards/reorder carries the order as Datastar signals (JSON body
+// {"order": [...]}, what @post ships), delegates to the core mutation, and
+// responds with an SSE element-patch of the post-mutation column so the
+// dragging client settles on the committed order. The patch must anchor on
+// #card-list — without that id the outer morph is a silent no-op.
 func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), txid: "101"}
 
-	req := httptest.NewRequest(http.MethodPost, "/ds/cards/reorder",
+	req := httptest.NewRequest(http.MethodPost, "/cards/reorder",
 		strings.NewReader(`{"order":["c","a","b"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -280,7 +280,7 @@ func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), reorderErr: cards.ErrNotPermutation}
 
-	req := httptest.NewRequest(http.MethodPost, "/ds/cards/reorder",
+	req := httptest.NewRequest(http.MethodPost, "/cards/reorder",
 		strings.NewReader(`{"order":["c","a","zzz"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -340,13 +340,13 @@ func TestColumnRendersStretchSlotRail(t *testing.T) {
 	}
 }
 
-// GET /ds/ renders the column server-side, cards in the order the core service
-// returns them, and wires the page to the live stream (/ds/events) so foreign
+// GET / renders the column server-side, cards in the order the core service
+// returns them, and wires the page to the live stream (/events) so foreign
 // reorders arrive as patches.
 func TestPageRendersColumnInServiceOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 
-	req := httptest.NewRequest(http.MethodGet, "/ds/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	PageHandler(svc).ServeHTTP(rec, req)
 
@@ -364,7 +364,7 @@ func TestPageRendersColumnInServiceOrder(t *testing.T) {
 			t.Errorf("body missing card label %q", label)
 		}
 	}
-	if !strings.Contains(body, "/ds/events") {
-		t.Errorf("body missing /ds/events SSE reference; body:\n%s", body)
+	if !strings.Contains(body, "/events") {
+		t.Errorf("body missing /events SSE reference; body:\n%s", body)
 	}
 }

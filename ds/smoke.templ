@@ -2,7 +2,7 @@ package ds
 
 // SmokePage is the verify-and-pin smoke target. It mounts a stable
 // #smoke-target for Datastar's default outer-morph, opens an SSE stream to
-// /ds/_smoke/events on load, and loads the pinned Datastar + SortableJS
+// /_smoke/events on load, and loads the pinned Datastar + SortableJS
 // runtimes to prove they co-exist. Kept deliberately bare — the wiring is the
 // thing under test.
 templ SmokePage() {
@@ -14,7 +14,7 @@ templ SmokePage() {
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
 			<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
 		</head>
-		<body data-init="@get('/ds/_smoke/events')">
+		<body data-init="@get('/_smoke/events')">
 			<main>
 				<h1>Datastar smoke</h1>
 				<p>The line below should change from "awaiting patch…" to "patched by datastar" within a tick of load.</p>
@@ -45,7 +45,7 @@ templ SmokePage() {
 	</html>
 }
 
-// SmokeFragment is the body of the element-patch frame /ds/_smoke/events ships;
+// SmokeFragment is the body of the element-patch frame /_smoke/events ships;
 // the #smoke-target id is the outer-morph anchor. Co-located with SmokePage so
 // the page-side anchor and the patch-side replacement evolve together.
 templ SmokeFragment(message string) {

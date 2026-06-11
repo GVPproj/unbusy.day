@@ -1,10 +1,7 @@
-# Build context hygiene — the Vite build comes from the `frontend` stage and
-# templ files are regenerated in the build, so don't ship local copies.
+# Build context hygiene — templ files are regenerated in the build, so don't
+# ship local copies.
 .git
 tmp/
-node_modules/
-frontend/node_modules/
-frontend/dist/
 *_templ.go
 .env
 .env.*

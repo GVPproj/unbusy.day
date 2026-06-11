@@ -1,7 +1,6 @@
-// Package ds is the Datastar + templ adapter: the /ds/* route tree mounted
-// alongside the JSON adapter (/api/*), driving the same cards service and
-// pub/sub. /ds/_smoke is a wiring canary for the pinned Datastar SDK + templ
-// versions.
+// Package ds is the Datastar + templ frontend: the server-rendered route tree
+// (page, events stream, reorder) driving the cards service and pub/sub.
+// /_smoke is a wiring canary for the pinned Datastar SDK + templ versions.
 package ds
 
 import (
@@ -18,12 +17,12 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// keepaliveInterval mirrors the JSON adapter's hardening: 25s `:keepalive`
+// keepaliveInterval is the SSE idle-heartbeat cadence: 25s `:keepalive`
 // comments defeat intermediary idle closes. A var so tests can shrink it.
 var keepaliveInterval = 25 * time.Second
 
-// CardService is the Datastar adapter's view of the core cards service;
-// *cards.Service satisfies it. The seam keeps the adapter testable without
+// CardService is the frontend's view of the core cards service;
+// *cards.Service satisfies it. The seam keeps the handlers testable without
 // Postgres.
 type CardService interface {
 	List(ctx context.Context) ([]cards.Card, error)
@@ -55,10 +54,9 @@ type reorderSignals struct {
 	Order []string `json:"order"`
 }
 
-// ReorderHandler is the Datastar adapter's mutation endpoint. Same core
-// mutation as the JSON adapter; only serialization differs — the response is
-// an SSE element-patch of the committed column rather than {cards, txid} JSON,
-// so the dragging client settles on the server's order in the same round-trip.
+// ReorderHandler is the mutation endpoint. The response is an SSE
+// element-patch of the committed column, so the dragging client settles on
+// the server's order in the same round-trip.
 func ReorderHandler(svc CardService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig reorderSignals
@@ -96,11 +94,10 @@ func ReorderHandler(svc CardService) http.Handler {
 	})
 }
 
-// EventsHandler is the Datastar adapter's live read path: same cards topic as
-// /api/events, but each event renders as a templ element-patch instead of
-// JSON. Reconnect differs by design: the first frame is the current
-// authoritative column, so a (re)connecting client is made whole by one
-// render — no ring buffer, no Last-Event-ID.
+// EventsHandler is the live read path: the cards pub/sub rendered as templ
+// element-patches. The first frame is the current authoritative column, so a
+// (re)connecting client is made whole by one render — no ring buffer, no
+// Last-Event-ID.
 func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// NewSSE sets text/event-stream + no-cache; the buffering header is ours.

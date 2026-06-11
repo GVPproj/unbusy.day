@@ -2,10 +2,16 @@
 // against the live origin to find the per-connection ceiling on shared-cpu-1x.
 //
 // It is black-box and client-side only — no access to the box is needed. Each
-// virtual client opens one real EventSource-shaped GET /api/events. We force
+// virtual client opens one real EventSource-shaped GET /events. We force
 // HTTP/1.1 with keep-alives disabled so every client maps to exactly ONE
 // origin TCP connection (HTTP/2 would multiplex many streams over few conns
 // and hide the FD/conn ceiling we are trying to measure).
+//
+// The frontend is Datastar + templ: the /events stream and the reorder
+// response are SSE `event: datastar-patch-elements` frames (full-column
+// renders), the reorder POST ships its order as a Datastar signals JSON body,
+// and the authoritative order is read from the data-id attributes in the
+// server-rendered page at /.
 //
 // The ramp opens connections in steps, holds, and at peak fires a real reorder
 // and measures how fast + how COMPLETELY the mutation fans out to every held
@@ -32,12 +38,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/starfederation/datastar-go/datastar"
 )
 
 type stats struct {
@@ -46,7 +55,7 @@ type stats struct {
 	failed      atomic.Int64 // dial/handshake/non-200/early-EOF
 	active      atomic.Int64 // currently held open
 	keepalives  atomic.Int64 // :keepalive frames received (fleet-wide)
-	events      atomic.Int64 // id:/data: mutation frames received (fleet-wide)
+	events      atomic.Int64 // datastar-patch-elements frames received (fleet-wide)
 	ttfbSumMs   atomic.Int64
 	ttfbN       atomic.Int64
 }
@@ -161,7 +170,7 @@ func holdConn(ctx context.Context, client *http.Client, base string, st *stats, 
 	// release frees the caller's dial slot the moment the handshake resolves.
 	// Guard every early-return path so a failed dial doesn't leak the slot.
 	st.attempted.Add(1)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/events", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/events", nil)
 	if err != nil {
 		st.failed.Add(1)
 		release()
@@ -199,7 +208,10 @@ func holdConn(ctx context.Context, client *http.Client, base string, st *stats, 
 		switch {
 		case strings.HasPrefix(line, ":keepalive"):
 			st.keepalives.Add(1)
-		case strings.HasPrefix(line, "id:"):
+		case strings.HasPrefix(line, "event: "+string(datastar.EventTypePatchElements)):
+			// One mutation == one element-patch frame. The first frame after
+			// connect is the snapshot; fanoutProbe baselines off a counter
+			// delta, so that connect-time patch never skews a probe.
 			st.events.Add(1)
 		}
 		if ctx.Err() != nil {
@@ -258,32 +270,45 @@ func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stat
 	}
 }
 
+// dataIDRe pulls card ids out of the server-rendered page in document order.
+// Only cards carry data-id; the stretch-rail slots don't, so they never enter
+// the order.
+var dataIDRe = regexp.MustCompile(`data-id="([^"]+)"`)
+
+// currentOrder reads the authoritative card order from the rendered page at /.
+// There is no JSON read endpoint — the Datastar frontend is HTML over the
+// wire — so we scrape the data-id attributes the column renders.
 func currentOrder(ctx context.Context, client *http.Client, base string) ([]string, error) {
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/cards", nil)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var body struct {
-		Cards []struct {
-			ID       string `json:"id"`
-			Position int    `json:"position"`
-		} `json:"cards"`
+	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, resp.Body)
+		return nil, fmt.Errorf("page status %d", resp.StatusCode)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	html, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
-	ids := make([]string, len(body.Cards))
-	for i, c := range body.Cards {
-		ids[i] = c.ID // already position-ordered by the API
+	matches := dataIDRe.FindAllSubmatch(html, -1)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("no card data-id found in page")
+	}
+	ids := make([]string, len(matches))
+	for i, m := range matches {
+		ids[i] = string(m[1])
 	}
 	return ids, nil
 }
 
 func postReorder(ctx context.Context, client *http.Client, base string, order []string) error {
+	// Datastar reads a non-GET body as the signals JSON object directly, so
+	// the {"order":[...]} signals body is the whole request body.
 	payload, _ := json.Marshal(map[string][]string{"order": order})
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/cards/reorder", strings.NewReader(string(payload)))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/cards/reorder", strings.NewReader(string(payload)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {

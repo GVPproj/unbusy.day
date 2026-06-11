@@ -30,7 +30,7 @@ primary_region = "sjc"
   min_machines_running = 1
   processes           = ["app"]
 
-  # SSE (/api/events, /ds/events) are long-lived. Fly's proxy streams them as
+  # SSE (/events) is long-lived. Fly's proxy streams it as
   # long as data flows; the 25s :keepalive (F2) keeps idle conns warm. No
   # per-route timeout knob exists in fly.toml — the app disables WriteTimeout
   # itself (main.go) and manages liveness via keepalive (D1).

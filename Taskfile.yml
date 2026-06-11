@@ -20,19 +20,12 @@ tasks:
       # and the proxy just reloads the page. Go-affecting changes restart
       # `go run .`. Don't run air alongside this; it rebuilds on every
       # .templ edit and defeats the fast path.
-      # templ always opens the proxy root (no flag to pick a path), and the
-      # server has no "/" route, so we suppress its auto-open and open /ds/
-      # ourselves once the proxy serves it (curl -f waits out the 502s
-      # while `go run .` starts up).
+      # The proxy opens the root, which the Datastar page serves — but we wait
+      # out the startup 502s (curl -f) before opening so the first load isn't
+      # a stale error page.
       - |
-        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ds/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/ds/") &
+        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
         templ generate --watch --proxy="http://localhost:8080" --open-browser=false --cmd="go run ."
-
-  dev:fe:
-    desc: "Vite dev server (FE1) with /api proxy to :8080"
-    dir: frontend
-    cmds:
-      - pnpm dev
 
   up:
     desc: "Start local Postgres in the background"
@@ -61,7 +54,7 @@ tasks:
         done
 
   templ:
-    desc: "Generate templ Go files (FE2)"
+    desc: "Generate templ Go files"
     # Don't run this while `task dev` is up: non-watch `templ generate` deletes
     # the watch session's $TMPDIR/templ_*.txt literals, so the running dev
     # server 500s on every render until you restart it. `go test`/CI are
@@ -76,10 +69,9 @@ tasks:
       - go build -o tmp/hello-cards .
 
   test:
-    desc: "Run Go and frontend tests"
+    desc: "Run Go tests"
     cmds:
       - go test ./...
-      - cd frontend && pnpm test
 
   fmt:
     desc: "Format Go code"
