@@ -11,6 +11,14 @@ primary_region = "sjc"
 [build]
   dockerfile = "Dockerfile"
 
+# Rolling deploys (PRD D5), switched from `immediate` at M3c now that SSE
+# reconnect is verified: on drain in-flight SSE streams close cleanly and
+# clients recover via EventSource auto-reconnect + Last-Event-ID. With a
+# single machine "rolling" still means a brief origin gap while the machine
+# is replaced — clients ride it out the same way (criterion 5).
+[deploy]
+  strategy = "rolling"
+
 [http_service]
   internal_port       = 8080
   force_https         = true

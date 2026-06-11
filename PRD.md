@@ -124,7 +124,7 @@ browser
 4. `fly deploy` succeeds; the Cloudflare URL serves the React page; drag-reorder works end-to-end.
 5. `fly machine restart` → order unchanged; SSE clients reconnect within seconds and resume from `Last-Event-ID`.
 6. **Edge caching verified globally:** `curl -I` on `/assets/<hashed>.js` returns `cf-cache-status: HIT` after warm-up; `/api/*` returns `BYPASS` or `DYNAMIC`. Spot-check from a distant Cloudflare colo via `cf-ray`.
-7. SSE survives overnight idle: leave a browser open overnight; on next reorder all clients receive the event without refresh.
+7. SSE survives extended idle: with a client connected and zero traffic for ≥5 minutes (several 25s keepalive cycles, comfortably past the ~100s intermediary idle window), the next reorder reaches all clients without refresh. A forced drop (server restart) recovers via EventSource reconnect + `Last-Event-ID`. *(Simplified from overnight idle — the failure mode is intermediary idle timeout, which manifests within minutes, not hours; D8/§10 keep the long-idle question open for observation in normal use.)*
 8. Schema drill: add a column, run migration, document client behavior (does it need reconnect/refetch to observe the new shape?).
 9. **Two-FE parity (comparison payoff):** FE1 and FE2 side by side; reordering in either updates both within ~1s — one mutation, two adapters off one pub/sub. Record the comparison: lines of client code, **DnD-library integration cost (dnd-kit + optimistic vs SortableJS + server patch, including F16 DOM-ownership wiring)**, drop-to-settled latency (FE1 instant vs FE2 round-trip), first-paint-from-distant-colo, reconnect behavior. This table decides which stack the Trello PRD adopts.
 
@@ -165,7 +165,7 @@ Each phase independently testable; tick `Status` as you ship.
   Proxied A/AAAA at apex/subdomain (D3); SSL Full (strict). `ops/cloudflare/cache-rules.json` committed and PUT against `http_request_cache_settings` ruleset entrypoint with three rules: (a) `/events` suffix bypass + disable buffering; (b) `/api/*` bypass; (c) default respects origin. **Done when:** criterion 6 passes — `/assets/*` HIT after warm-up, `/api/*` BYPASS/DYNAMIC, `curl --no-buffer -N` on `/api/events` and `/ds/events` delivers without buffering, distant-colo spot-check via `cf-ray`.
 
 - **M3c — production hardening drills** · ☐
-  `fly machine restart` (criterion 5). Overnight-idle (criterion 7). Schema-change (criterion 8). Switch strategy from `immediate` to `rolling` (D5). **Done when:** criteria 5, 7, 8 pass; `fly.app.toml` carries `strategy = "rolling"`; observed concurrent-connection ceiling on `shared-cpu-1x` recorded so §9 scale-out trigger is data-driven.
+  `fly machine restart` (criterion 5). Extended-idle drill, ≥5 min (criterion 7 — simplified from overnight). Schema-change (criterion 8). Switch strategy from `immediate` to `rolling` (D5). **Done when:** criteria 5, 7, 8 pass; `fly.app.toml` carries `strategy = "rolling"`; observed concurrent-connection ceiling on `shared-cpu-1x` recorded so §9 scale-out trigger is data-driven.
 
 - **Fast-follow** · ☐
   GHA `fly deploy` on push to main (Fly token in `gh` secrets). Spike TanStack DB persistence + `offline-transactions` for true-offline (§3). Spike cross-instance fan-out (LISTEN/NOTIFY or Redis) for multi-machine Go (§9). None gate v1 sign-off.

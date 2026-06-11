@@ -85,22 +85,39 @@ func TestNoOverflowWhenCursorRetained(t *testing.T) {
 	}
 }
 
-// Eviction alone isn't overflow: if nothing was evicted past the cursor, a
-// cursor below the oldest retained txid still replays the full tail.
-func TestNoOverflowWhenRingNotFull(t *testing.T) {
+// A cursor below the oldest retained txid is overflow even if this broker
+// never evicted: the cursor may be from a previous process lifetime, and the
+// fresh ring can't prove events between cursor and oldest don't exist (M3c
+// restart drill: a pre-restart event was silently skipped under the old
+// "evicted-only" rule).
+func TestOverflowWhenCursorBelowOldest(t *testing.T) {
 	b := pubsub.New(1024)
 	for _, id := range []string{"5", "6", "7"} {
 		b.Publish(cards.Event{Txid: id})
 	}
 
-	sub := b.Subscribe("1") // below oldest, but nothing was ever evicted
+	sub := b.Subscribe("1") // below oldest retained (5)
 	defer sub.Close()
 
-	if sub.Overflow {
-		t.Fatal("unexpected overflow: ring never evicted")
+	if !sub.Overflow {
+		t.Fatal("want overflow: cursor below oldest retained txid is unprovable")
 	}
-	if len(sub.Replay) != 3 {
-		t.Fatalf("replay = %v, want [5 6 7]", sub.Replay)
+	if len(sub.Replay) != 0 {
+		t.Fatalf("replay = %v, want empty on overflow", sub.Replay)
+	}
+}
+
+// A cursor against an empty ring (e.g. reconnect right after a restart,
+// before any mutation) is overflow: contiguity is unprovable, so the client
+// refetches — one cheap GET, never a silent gap.
+func TestOverflowWhenRingEmptyWithCursor(t *testing.T) {
+	b := pubsub.New(1024)
+
+	sub := b.Subscribe("9226")
+	defer sub.Close()
+
+	if !sub.Overflow {
+		t.Fatal("want overflow: cursor against an empty ring is unprovable")
 	}
 }
 

@@ -20,7 +20,6 @@ type Broker struct {
 	// history) for Last-Event-ID replay. Oldest first; capped at ringSize.
 	ring     []cards.Event
 	ringSize int
-	evicted  bool // true once the ring has dropped an event (a gap can exist)
 }
 
 // New returns a Broker. ringSize bounds the replay buffer (PRD F2: 1024).
@@ -64,25 +63,31 @@ func (b *Broker) Subscribe(lastEventID string) *Subscription {
 }
 
 // replayLocked returns ring events with txid greater than the cursor (oldest
-// first) and whether the cursor overflowed the retained window. An empty or
-// unparseable cursor replays nothing (fresh connect → live only).
+// first) and whether the cursor overflowed the retained window. An empty
+// cursor replays nothing (fresh connect → live only).
 //
-// Overflow means the cursor predates the oldest retained event *and* the ring
-// has evicted: there may be an unrecoverable gap, so the caller refetches.
-// This is deliberately conservative at the window boundary — a needless
-// refetch is correct, a silently-missed event is not.
+// Overflow means the broker cannot PROVE the ring contiguously covers
+// everything after the cursor, so the caller must refetch. That holds
+// whenever the cursor sits below the oldest retained txid (eviction may have
+// dropped events — or, equally, a restart emptied the ring while the cursor
+// is from a previous process lifetime; the M3c restart drill caught exactly
+// that gap), the ring is empty, or the cursor is unparseable. Deliberately
+// conservative — a needless refetch is one cheap GET; a silently-missed
+// event is not recoverable.
 func (b *Broker) replayLocked(lastEventID string) (replay []cards.Event, overflow bool) {
 	if lastEventID == "" {
 		return nil, false
 	}
 	cursor, err := strconv.ParseUint(lastEventID, 10, 64)
 	if err != nil {
-		return nil, false
+		return nil, true
 	}
-	if b.evicted && len(b.ring) > 0 {
-		if oldest, err := strconv.ParseUint(b.ring[0].Txid, 10, 64); err == nil && cursor < oldest {
-			return nil, true
-		}
+	if len(b.ring) == 0 {
+		return nil, true
+	}
+	oldest, err := strconv.ParseUint(b.ring[0].Txid, 10, 64)
+	if err != nil || cursor < oldest {
+		return nil, true
 	}
 	for _, e := range b.ring {
 		// txids are pg xid8 (64-bit unsigned); compare numerically so
@@ -106,7 +111,6 @@ func (b *Broker) Publish(e cards.Event) {
 	b.ring = append(b.ring, e)
 	if len(b.ring) > b.ringSize {
 		b.ring = b.ring[1:]
-		b.evicted = true
 	}
 
 	for sub := range b.subs {
