@@ -27,6 +27,7 @@ var keepaliveInterval = 25 * time.Second
 type CardService interface {
 	List(ctx context.Context) ([]cards.Card, error)
 	Reorder(ctx context.Context, order []string) (*cards.ReorderResult, error)
+	Resize(ctx context.Context, id string, span int) (*cards.ResizeResult, error)
 }
 
 // PageHandler serves the column page, server-rendered from the core service's
@@ -90,6 +91,52 @@ func ReorderHandler(svc CardService) http.Handler {
 		sse := datastar.NewSSE(w, r)
 		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
 			log.Printf("ds reorder patch: %v", err)
+		}
+	})
+}
+
+// resizeSignals is the Datastar signals body the grip-resize gesture @posts on
+// settle: the card's data-id and its new span in slots.
+type resizeSignals struct {
+	ID   string `json:"id"`
+	Span int    `json:"span"`
+}
+
+// ResizeHandler persists a card's height. Like ReorderHandler, the response is
+// an SSE element-patch of the committed column, so the resizing client settles
+// on the server's height in the same round-trip.
+func ResizeHandler(svc CardService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig resizeSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+
+		res, err := svc.Resize(r.Context(), sig.ID, sig.Span)
+		var cs []cards.Card
+		switch {
+		case errors.Is(err, cards.ErrInvalidSpan):
+			// Rollback: patch back the authoritative column so the over-shrunk
+			// card snaps to the server's height. 200 + hypermedia truth, not
+			// 4xx — same rationale as ReorderHandler's rejection path.
+			cs, err = svc.List(r.Context())
+			if err != nil {
+				log.Printf("ds resize rollback list: %v", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+		case err != nil:
+			log.Printf("ds resize: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		default:
+			cs = res.Cards
+		}
+
+		sse := datastar.NewSSE(w, r)
+		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
+			log.Printf("ds resize patch: %v", err)
 		}
 	})
 }

@@ -103,6 +103,126 @@ func TestReorder_RejectsNonPermutation(t *testing.T) {
 	_ = b
 }
 
+// Resize persists a card's span (its height in stretch slots): after a resize,
+// List reflects the new span and leaves the other cards at their default 1.
+func TestResize_PersistsSpan(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+
+	initial, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(initial) < 2 {
+		t.Fatalf("need ≥2 seed cards")
+	}
+	id := initial[0].ID
+	other := initial[1].ID
+	t.Cleanup(func() { _, _ = svc.Resize(ctx, id, 1) }) // restore the shared seed
+
+	res, err := svc.Resize(ctx, id, 3)
+	if err != nil {
+		t.Fatalf("resize: %v", err)
+	}
+	if got := spanOf(res.Cards, id); got != 3 {
+		t.Fatalf("resize result span for %s = %d, want 3", id, got)
+	}
+	if got := spanOf(res.Cards, other); got != 1 {
+		t.Fatalf("untouched card %s span = %d, want default 1", other, got)
+	}
+
+	after, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("list after resize: %v", err)
+	}
+	if got := spanOf(after, id); got != 3 {
+		t.Fatalf("persisted span for %s = %d, want 3", id, got)
+	}
+}
+
+// A span below one slot is rejected with ErrInvalidSpan and persists nothing —
+// adapters snap the card back rather than write a sub-baseline height.
+func TestResize_RejectsSpanBelowOne(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+
+	initial, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(initial) == 0 {
+		t.Fatalf("seed missing — run `task migrate`")
+	}
+	id := initial[0].ID
+
+	for _, span := range []int{0, -1} {
+		if _, err := svc.Resize(ctx, id, span); !errors.Is(err, cards.ErrInvalidSpan) {
+			t.Fatalf("Resize(%d): want ErrInvalidSpan, got %v", span, err)
+		}
+	}
+
+	after, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("list after reject: %v", err)
+	}
+	if got := spanOf(after, id); got != 1 {
+		t.Fatalf("rejected resize must not persist: span for %s = %d, want 1", id, got)
+	}
+}
+
+// capturePub records every published Event so a test can assert fan-out.
+type capturePub struct{ events []cards.Event }
+
+func (c *capturePub) Publish(e cards.Event) { c.events = append(c.events, e) }
+
+// Like Reorder, a committed resize fans out on the bus (carrying the new span)
+// and returns a non-empty txid, so the height reaches every other open tab.
+func TestResize_PublishesEventWithTxid(t *testing.T) {
+	pool := newPool(t)
+	pub := &capturePub{}
+	svc := cards.NewService(pool, pub)
+	ctx := context.Background()
+
+	initial, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(initial) == 0 {
+		t.Fatalf("seed missing — run `task migrate`")
+	}
+	id := initial[0].ID
+	t.Cleanup(func() { _, _ = svc.Resize(ctx, id, 1) })
+
+	res, err := svc.Resize(ctx, id, 2)
+	if err != nil {
+		t.Fatalf("resize: %v", err)
+	}
+	if res.Txid == "" {
+		t.Fatalf("resize result txid is empty")
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+	e := pub.events[0]
+	if e.Txid != res.Txid {
+		t.Fatalf("published txid %q != result txid %q", e.Txid, res.Txid)
+	}
+	if got := spanOf(e.Cards, id); got != 2 {
+		t.Fatalf("published span for %s = %d, want 2", id, got)
+	}
+}
+
+func spanOf(cs []cards.Card, id string) int {
+	for _, c := range cs {
+		if c.ID == id {
+			return c.Span
+		}
+	}
+	return -1
+}
+
 func idsOf(cs []cards.Card) []string {
 	out := make([]string, len(cs))
 	for i, c := range cs {

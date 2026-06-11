@@ -16,9 +16,20 @@ type Card struct {
 	ID       string `json:"id"`
 	Label    string `json:"label"`
 	Position int    `json:"position"`
+	// Span is the card's height in stretch slots (≥1). Persisted from the
+	// grip-resize gesture; the server renders it so heights survive reload.
+	Span int `json:"span"`
 }
 
 type ReorderResult struct {
+	Cards []Card `json:"cards"`
+	Txid  string `json:"txid"`
+}
+
+// ResizeResult mirrors ReorderResult: the full post-mutation column plus the
+// txid, so the resize adapter renders one frame and the bus fans the same shape
+// to every other tab.
+type ResizeResult struct {
 	Cards []Card `json:"cards"`
 	Txid  string `json:"txid"`
 }
@@ -43,6 +54,10 @@ type Publisher interface {
 // surface this as 4xx so the client rolls back its optimistic order.
 var ErrNotPermutation = errors.New("order is not a permutation of current cards")
 
+// ErrInvalidSpan signals a span below the one-slot floor. Adapters snap the
+// card back to the authoritative height, same shape as a rejected reorder.
+var ErrInvalidSpan = errors.New("span must be at least 1")
+
 type Service struct {
 	pool *pgxpool.Pool
 	pub  Publisher
@@ -55,7 +70,7 @@ func NewService(pool *pgxpool.Pool, pub Publisher) *Service {
 }
 
 func (s *Service) List(ctx context.Context) ([]Card, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, label, position FROM card ORDER BY position`)
+	rows, err := s.pool.Query(ctx, `SELECT id, label, position, span FROM card ORDER BY position`)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +133,7 @@ func (s *Service) Reorder(ctx context.Context, order []string) (*ReorderResult, 
 		return nil, err
 	}
 
-	cardRows, err := tx.Query(ctx, `SELECT id, label, position FROM card ORDER BY position`)
+	cardRows, err := tx.Query(ctx, `SELECT id, label, position, span FROM card ORDER BY position`)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +153,50 @@ func (s *Service) Reorder(ctx context.Context, order []string) (*ReorderResult, 
 		s.pub.Publish(Event{Txid: txid, Cards: cs})
 	}
 	return &ReorderResult{Cards: cs, Txid: txid}, nil
+}
+
+// Resize persists a card's span and returns the full post-mutation column.
+func (s *Service) Resize(ctx context.Context, id string, span int) (*ResizeResult, error) {
+	// Guard the one-slot floor here (the DB CHECK is the backstop) so callers
+	// get a typed error to snap back on, not an opaque constraint violation.
+	if span < 1 {
+		return nil, ErrInvalidSpan
+	}
+
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `UPDATE card SET span = $2 WHERE id = $1`, id, span); err != nil {
+		return nil, err
+	}
+
+	// See Reorder: keep the xid8 a decimal string end-to-end — ::xid truncates.
+	var txid string
+	if err := tx.QueryRow(ctx, `SELECT pg_current_xact_id()::text`).Scan(&txid); err != nil {
+		return nil, err
+	}
+
+	cardRows, err := tx.Query(ctx, `SELECT id, label, position, span FROM card ORDER BY position`)
+	if err != nil {
+		return nil, err
+	}
+	cs, err := scanCards(cardRows)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted height.
+	if s.pub != nil {
+		s.pub.Publish(Event{Txid: txid, Cards: cs})
+	}
+	return &ResizeResult{Cards: cs, Txid: txid}, nil
 }
 
 func validatePermutation(order []string, current map[string]struct{}) error {
@@ -162,7 +221,7 @@ func scanCards(rows pgx.Rows) ([]Card, error) {
 	var out []Card
 	for rows.Next() {
 		var c Card
-		if err := rows.Scan(&c.ID, &c.Label, &c.Position); err != nil {
+		if err := rows.Scan(&c.ID, &c.Label, &c.Position, &c.Span); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

@@ -52,6 +52,7 @@ func main() {
 	mux.Handle("GET /{$}", ds.PageHandler(svc))
 	mux.Handle("GET /events", ds.EventsHandler(svc, broker))
 	mux.Handle("POST /cards/reorder", ds.ReorderHandler(svc))
+	mux.Handle("POST /cards/resize", ds.ResizeHandler(svc))
 
 	// Wiring canary for the pinned Datastar SDK + templ versions.
 	mux.Handle("GET /_smoke", ds.SmokeHandler())
