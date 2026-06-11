@@ -13,10 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ringSize bounds the SSE replay buffer. On overflow the client refetches;
-// see pubsub.Broker.
-const ringSize = 1024
-
 func main() {
 	ctx := context.Background()
 
@@ -33,7 +29,7 @@ func main() {
 		log.Fatalf("ping db: %v", err)
 	}
 
-	broker := pubsub.New(ringSize)
+	broker := pubsub.New()
 	svc := cards.NewService(pool, broker)
 
 	mux := http.NewServeMux()

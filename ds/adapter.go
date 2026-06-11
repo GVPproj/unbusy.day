@@ -95,16 +95,15 @@ func ReorderHandler(svc CardService) http.Handler {
 	})
 }
 
-// resizeSignals is the Datastar signals body the grip-resize gesture @posts on
-// settle: the card's data-id and its new span in slots.
+// resizeSignals is the Datastar signals body the grip-resize gesture @posts:
+// the card's id and its new span in slots.
 type resizeSignals struct {
 	ID   string `json:"id"`
 	Span int    `json:"span"`
 }
 
-// ResizeHandler persists a card's height. Like ReorderHandler, the response is
-// an SSE element-patch of the committed column, so the resizing client settles
-// on the server's height in the same round-trip.
+// ResizeHandler persists a card's height and, like ReorderHandler, responds
+// with an SSE element-patch of the committed column.
 func ResizeHandler(svc CardService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig resizeSignals
@@ -117,9 +116,8 @@ func ResizeHandler(svc CardService) http.Handler {
 		var cs []cards.Card
 		switch {
 		case errors.Is(err, cards.ErrInvalidSpan):
-			// Rollback: patch back the authoritative column so the over-shrunk
-			// card snaps to the server's height. 200 + hypermedia truth, not
-			// 4xx — same rationale as ReorderHandler's rejection path.
+			// Rollback at 200: patch back the authoritative column so the
+			// over-shrunk card snaps back. Same path as a rejected reorder.
 			cs, err = svc.List(r.Context())
 			if err != nil {
 				log.Printf("ds resize rollback list: %v", err)
@@ -158,7 +156,7 @@ func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 		// waiting on the channel rather than lost. Frames are full-state
 		// renders, so the worst interleaving is one redundant patch — never a
 		// silently missed order.
-		sub := broker.Subscribe("")
+		sub := broker.Subscribe()
 		defer sub.Close()
 
 		sse := datastar.NewSSE(w, r)

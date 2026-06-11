@@ -46,7 +46,6 @@ func TestReorder_Fuzz(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(1))
-	var prevTxid string
 	for i := range 100 {
 		rng.Shuffle(len(ids), func(a, b int) { ids[a], ids[b] = ids[b], ids[a] })
 		order := append([]string(nil), ids...)
@@ -55,10 +54,6 @@ func TestReorder_Fuzz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("iter %d order=%v: %v", i, order, err)
 		}
-		if res.Txid == "" || res.Txid == prevTxid {
-			t.Fatalf("iter %d: bad txid %q (prev %q)", i, res.Txid, prevTxid)
-		}
-		prevTxid = res.Txid
 		if len(res.Cards) != len(order) {
 			t.Fatalf("iter %d: got %d cards, want %d", i, len(res.Cards), len(order))
 		}
@@ -103,8 +98,7 @@ func TestReorder_RejectsNonPermutation(t *testing.T) {
 	_ = b
 }
 
-// Resize persists a card's span (its height in stretch slots): after a resize,
-// List reflects the new span and leaves the other cards at their default 1.
+// After a resize, List reflects the new span; other cards stay at default 1.
 func TestResize_PersistsSpan(t *testing.T) {
 	pool := newPool(t)
 	svc := cards.NewService(pool, nil)
@@ -141,8 +135,7 @@ func TestResize_PersistsSpan(t *testing.T) {
 	}
 }
 
-// A span below one slot is rejected with ErrInvalidSpan and persists nothing —
-// adapters snap the card back rather than write a sub-baseline height.
+// A span below one slot is rejected with ErrInvalidSpan and persists nothing.
 func TestResize_RejectsSpanBelowOne(t *testing.T) {
 	pool := newPool(t)
 	svc := cards.NewService(pool, nil)
@@ -177,9 +170,8 @@ type capturePub struct{ events []cards.Event }
 
 func (c *capturePub) Publish(e cards.Event) { c.events = append(c.events, e) }
 
-// Like Reorder, a committed resize fans out on the bus (carrying the new span)
-// and returns a non-empty txid, so the height reaches every other open tab.
-func TestResize_PublishesEventWithTxid(t *testing.T) {
+// A committed resize fans out on the bus carrying the new span.
+func TestResize_PublishesEvent(t *testing.T) {
 	pool := newPool(t)
 	pub := &capturePub{}
 	svc := cards.NewService(pool, pub)
@@ -195,21 +187,13 @@ func TestResize_PublishesEventWithTxid(t *testing.T) {
 	id := initial[0].ID
 	t.Cleanup(func() { _, _ = svc.Resize(ctx, id, 1) })
 
-	res, err := svc.Resize(ctx, id, 2)
-	if err != nil {
+	if _, err := svc.Resize(ctx, id, 2); err != nil {
 		t.Fatalf("resize: %v", err)
-	}
-	if res.Txid == "" {
-		t.Fatalf("resize result txid is empty")
 	}
 	if len(pub.events) != 1 {
 		t.Fatalf("want 1 published event, got %d", len(pub.events))
 	}
-	e := pub.events[0]
-	if e.Txid != res.Txid {
-		t.Fatalf("published txid %q != result txid %q", e.Txid, res.Txid)
-	}
-	if got := spanOf(e.Cards, id); got != 2 {
+	if got := spanOf(pub.events[0].Cards, id); got != 2 {
 		t.Fatalf("published span for %s = %d, want 2", id, got)
 	}
 }

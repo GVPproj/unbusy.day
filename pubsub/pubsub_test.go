@@ -19,154 +19,47 @@ func recv(t *testing.T, ch <-chan cards.Event) cards.Event {
 	}
 }
 
-// Reconnecting with Last-Event-ID replays only events newer than the cursor,
-// in order, comparing txids numerically (so "10" > "9", not lexically).
-func TestReplayReturnsEventsAfterCursor(t *testing.T) {
-	b := pubsub.New(1024)
-	for _, id := range []string{"8", "9", "10", "11"} {
-		b.Publish(cards.Event{Txid: id})
+func firstID(e cards.Event) string {
+	if len(e.Cards) == 0 {
+		return ""
 	}
-
-	sub := b.Subscribe("9")
-	defer sub.Close()
-
-	if sub.Overflow {
-		t.Fatal("unexpected overflow with cursor inside the ring")
-	}
-	got := make([]string, len(sub.Replay))
-	for i, e := range sub.Replay {
-		got[i] = e.Txid
-	}
-	want := []string{"10", "11"}
-	if len(got) != len(want) {
-		t.Fatalf("replay = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("replay = %v, want %v", got, want)
-		}
-	}
-}
-
-// When the ring has evicted past the cursor, the gap is unrecoverable: signal
-// overflow and replay nothing so the client does a full refetch.
-func TestOverflowWhenCursorEvicted(t *testing.T) {
-	b := pubsub.New(3) // tiny ring to force eviction
-	for _, id := range []string{"1", "2", "3", "4", "5"} {
-		b.Publish(cards.Event{Txid: id}) // ring now holds 3,4,5; 1,2 evicted
-	}
-
-	sub := b.Subscribe("1") // cursor predates oldest retained (3)
-	defer sub.Close()
-
-	if !sub.Overflow {
-		t.Fatal("want overflow when cursor is older than the retained window")
-	}
-	if len(sub.Replay) != 0 {
-		t.Fatalf("replay = %v, want empty on overflow", sub.Replay)
-	}
-}
-
-// A cursor still inside a full ring replays cleanly — no false overflow.
-func TestNoOverflowWhenCursorRetained(t *testing.T) {
-	b := pubsub.New(3)
-	for _, id := range []string{"1", "2", "3", "4", "5"} {
-		b.Publish(cards.Event{Txid: id}) // holds 3,4,5
-	}
-
-	sub := b.Subscribe("3") // oldest retained — events >3 (4,5) are all present
-	defer sub.Close()
-
-	if sub.Overflow {
-		t.Fatal("unexpected overflow: events after cursor are all retained")
-	}
-	if len(sub.Replay) != 2 {
-		t.Fatalf("replay = %v, want [4 5]", sub.Replay)
-	}
-}
-
-// A cursor below the oldest retained txid is overflow even if this broker
-// never evicted: the cursor may be from a previous process lifetime, and the
-// fresh ring can't prove events between cursor and oldest don't exist. (An
-// "evicted-only" rule silently skipped a pre-restart event.)
-func TestOverflowWhenCursorBelowOldest(t *testing.T) {
-	b := pubsub.New(1024)
-	for _, id := range []string{"5", "6", "7"} {
-		b.Publish(cards.Event{Txid: id})
-	}
-
-	sub := b.Subscribe("1") // below oldest retained (5)
-	defer sub.Close()
-
-	if !sub.Overflow {
-		t.Fatal("want overflow: cursor below oldest retained txid is unprovable")
-	}
-	if len(sub.Replay) != 0 {
-		t.Fatalf("replay = %v, want empty on overflow", sub.Replay)
-	}
-}
-
-// A cursor against an empty ring (e.g. reconnect right after a restart,
-// before any mutation) is overflow: contiguity is unprovable, so the client
-// refetches — one cheap GET, never a silent gap.
-func TestOverflowWhenRingEmptyWithCursor(t *testing.T) {
-	b := pubsub.New(1024)
-
-	sub := b.Subscribe("9226")
-	defer sub.Close()
-
-	if !sub.Overflow {
-		t.Fatal("want overflow: cursor against an empty ring is unprovable")
-	}
-}
-
-// A fresh connection (no cursor) replays nothing — it only gets live events.
-func TestNoCursorReplaysNothing(t *testing.T) {
-	b := pubsub.New(1024)
-	b.Publish(cards.Event{Txid: "1"})
-
-	sub := b.Subscribe("")
-	defer sub.Close()
-
-	if len(sub.Replay) != 0 {
-		t.Fatalf("replay = %v, want empty", sub.Replay)
-	}
+	return e.Cards[0].ID
 }
 
 // One published event fans out to every subscriber.
 func TestPublishFansOutToAllSubscribers(t *testing.T) {
-	b := pubsub.New(1024)
-	a := b.Subscribe("")
+	b := pubsub.New()
+	a := b.Subscribe()
 	defer a.Close()
-	c := b.Subscribe("")
+	c := b.Subscribe()
 	defer c.Close()
 
-	b.Publish(cards.Event{Txid: "7"})
+	b.Publish(cards.Event{Cards: []cards.Card{{ID: "a"}}})
 
-	if got := recv(t, a.Events); got.Txid != "7" {
-		t.Fatalf("sub a txid = %q, want 7", got.Txid)
+	if got := firstID(recv(t, a.Events)); got != "a" {
+		t.Fatalf("sub a card = %q, want a", got)
 	}
-	if got := recv(t, c.Events); got.Txid != "7" {
-		t.Fatalf("sub c txid = %q, want 7", got.Txid)
+	if got := firstID(recv(t, c.Events)); got != "a" {
+		t.Fatalf("sub c card = %q, want a", got)
 	}
 }
 
-// A subscriber that never drains its channel must not stall Publish or
-// starve other subscribers. The bus drops to the slow consumer (which then
-// reconnects with Last-Event-ID and replays) rather than blocking the origin.
+// A subscriber that never drains its channel must not stall Publish or starve
+// other subscribers. The bus drops to the slow consumer (which recovers on
+// reconnect) rather than blocking the origin.
 func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
-	b := pubsub.New(1024)
-	slow := b.Subscribe("") // never read
+	b := pubsub.New()
+	slow := b.Subscribe() // never read
 	defer slow.Close()
-	fast := b.Subscribe("")
+	fast := b.Subscribe()
 	defer fast.Close()
 
 	// Far more events than any channel buffer; if Publish blocked on slow,
 	// this goroutine would never finish.
 	done := make(chan struct{})
 	go func() {
-		for i := range 1000 {
-			b.Publish(cards.Event{Txid: string(rune('0' + i%10))})
+		for range 1000 {
+			b.Publish(cards.Event{Cards: []cards.Card{{ID: "a"}}})
 		}
 		close(done)
 	}()
@@ -186,14 +79,13 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 
 // Tracer: a subscriber receives an event published after it subscribed.
 func TestSubscribeReceivesPublishedEvent(t *testing.T) {
-	b := pubsub.New(1024)
-	sub := b.Subscribe("")
+	b := pubsub.New()
+	sub := b.Subscribe()
 	defer sub.Close()
 
-	b.Publish(cards.Event{Txid: "10", Cards: []cards.Card{{ID: "a"}}})
+	b.Publish(cards.Event{Cards: []cards.Card{{ID: "a"}}})
 
-	got := recv(t, sub.Events)
-	if got.Txid != "10" {
-		t.Fatalf("txid = %q, want 10", got.Txid)
+	if got := firstID(recv(t, sub.Events)); got != "a" {
+		t.Fatalf("card = %q, want a", got)
 	}
 }

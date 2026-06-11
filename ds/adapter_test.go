@@ -23,7 +23,6 @@ import (
 // returns reorderErr if set.
 type fakeService struct {
 	cards      []cards.Card
-	txid       string
 	listErr    error
 	reorderErr error
 	resizeErr  error
@@ -56,7 +55,7 @@ func (f *fakeService) Reorder(ctx context.Context, order []string) (*cards.Reord
 		out = append(out, c)
 	}
 	f.cards = out
-	return &cards.ReorderResult{Cards: out, Txid: f.txid}, nil
+	return &cards.ReorderResult{Cards: out}, nil
 }
 
 func (f *fakeService) Resize(ctx context.Context, id string, span int) (*cards.ResizeResult, error) {
@@ -72,7 +71,7 @@ func (f *fakeService) Resize(ctx context.Context, id string, span int) (*cards.R
 		}
 	}
 	f.cards = out
-	return &cards.ResizeResult{Cards: out, Txid: f.txid}, nil
+	return &cards.ResizeResult{Cards: out}, nil
 }
 
 func threeCards() []cards.Card {
@@ -166,12 +165,11 @@ func readFrame(t *testing.T, br *bufio.Reader) string {
 }
 
 // On every connect the server renders the current authoritative column as an
-// element patch — that replaces ring-buffer/Last-Event-ID replay: a
-// (re)connecting client is always made whole by one frame. Also pins the
-// connection-hardening headers.
+// element patch, so a (re)connecting client is made whole by one frame — no
+// replay needed. Also pins the connection-hardening headers.
 func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
-	broker := pubsub.New(16)
+	broker := pubsub.New()
 
 	resp, br := openEvents(t, EventsHandler(svc, broker))
 
@@ -201,12 +199,12 @@ func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 // open tab.
 func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
-	broker := pubsub.New(16)
+	broker := pubsub.New()
 
 	_, br := openEvents(t, EventsHandler(svc, broker))
 	readFrame(t, br) // connect snapshot (covered by its own test)
 
-	broker.Publish(cards.Event{Txid: "202", Cards: []cards.Card{
+	broker.Publish(cards.Event{Cards: []cards.Card{
 		{ID: "b", Label: "Bravo", Position: 0},
 		{ID: "c", Label: "Charlie", Position: 1},
 		{ID: "a", Label: "Alpha", Position: 2},
@@ -228,7 +226,7 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	t.Cleanup(func() { keepaliveInterval = old })
 
 	svc := &fakeService{cards: threeCards()}
-	broker := pubsub.New(16)
+	broker := pubsub.New()
 	_, br := openEvents(t, EventsHandler(svc, broker))
 
 	deadline := time.After(2 * time.Second)
@@ -264,7 +262,7 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 // dragging client settles on the committed order. The patch must anchor on
 // #card-list — without that id the outer morph is a silent no-op.
 func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
-	svc := &fakeService{cards: threeCards(), txid: "101"}
+	svc := &fakeService{cards: threeCards()}
 
 	req := httptest.NewRequest(http.MethodPost, "/cards/reorder",
 		strings.NewReader(`{"order":["c","a","b"]}`))
@@ -292,12 +290,10 @@ func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 	assertOrder(t, body, "c", "a", "b")
 }
 
-// POST /cards/resize carries {"id","span"} (the signals @post ships when the
-// grip-resize gesture settles), delegates to the core mutation, and responds
-// with an SSE element-patch of the post-mutation column anchored on #card-list,
-// so the resizing client settles on the committed height.
+// POST /cards/resize carries {"id","span"}, delegates to the core mutation, and
+// responds with an SSE element-patch of the column anchored on #card-list.
 func TestResizeDelegatesToCoreAndPatchesColumn(t *testing.T) {
-	svc := &fakeService{cards: threeCards(), txid: "303"}
+	svc := &fakeService{cards: threeCards()}
 
 	req := httptest.NewRequest(http.MethodPost, "/cards/resize",
 		strings.NewReader(`{"id":"b","span":2}`))
@@ -350,10 +346,8 @@ func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 	assertOrder(t, body, "a", "b", "c") // authoritative order, not the rejected one
 }
 
-// When the core rejects the span (below the one-slot floor), the response is a
-// patch of the *current authoritative* column at 200 — the over-shrunk card
-// visibly snaps back to the server's height, no client-side rollback machinery,
-// same contract as a rejected reorder.
+// A rejected span (below the floor) patches back the authoritative column at
+// 200 — the over-shrunk card snaps back. Same contract as a rejected reorder.
 func TestResizeRejectionPatchesAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), resizeErr: cards.ErrInvalidSpan}
 
@@ -399,10 +393,8 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	}
 }
 
-// Each card carries its persisted span as data-span — the morph-stable source
-// of truth dragInit re-asserts heights from after every patch, so a stretched
-// card survives reload and reaches other tabs over the stream. Default cards
-// render data-span="1".
+// Each card carries its persisted span as data-span; default cards render
+// data-span="1". dragInit re-asserts heights from this after every patch.
 func TestColumnRendersPersistedSpan(t *testing.T) {
 	cs := []cards.Card{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 2},

@@ -33,12 +33,10 @@ templ CardColumn(cs []cards.Card) {
 	</ul>
 }
 
-// card is one draggable list item. The data-id is dragInit's order anchor and
-// the idiomorph identity key — keep it stable across renders. data-span is the
-// persisted height in slots: the morph-stable source of truth dragInit seeds
-// its spans map from and re-asserts after each patch. The grip is the stretch
-// handle: pointerdown on it starts a resize gesture instead of a drag (see
-// dragInit).
+// card is one draggable list item. data-id is dragInit's order anchor and the
+// idiomorph identity key — keep it stable. data-span is the persisted height in
+// slots, which dragInit seeds its spans map from. The grip starts a resize
+// gesture instead of a drag (see dragInit).
 templ card(c cards.Card) {
 	<li class="card" data-id={ c.ID } data-span={ strconv.Itoa(spanOr1(c.Span)) }>
 		{ c.Label }
@@ -46,9 +44,8 @@ templ card(c cards.Card) {
 	</li>
 }
 
-// spanOr1 floors a card's span at 1, so a zero-valued Span (e.g. a card built
-// in a test without the field, or a pre-migration row) renders the baseline
-// height rather than data-span="0".
+// spanOr1 floors a card's span at 1, so a zero-valued Span renders the
+// baseline height rather than data-span="0".
 func spanOr1(span int) int {
 	if span < 1 {
 		return 1
@@ -94,30 +91,24 @@ templ dragInit() {
 		const list = document.getElementById('card-list');
 		const SPRING = { type: 'spring', stiffness: 600, damping: 38 };
 		const GAP = parseFloat(getComputedStyle(list).rowGap);
-		// Natural span-1 card height, measured at load. The server renders the
-		// span as a data-span attribute but never an inline height, so the card
-		// sits at its natural one-slot height until apply() runs. One slot of
-		// vertical space is a card + gap.
+		// Natural span-1 card height, measured at load (the server renders
+		// data-span but never an inline height). One slot is a card + gap.
 		const CARD_H = list.querySelector('.card').getBoundingClientRect().height;
 		const PITCH = CARD_H + GAP;
 		const heightFor = (span) => CARD_H + (span - 1) * PITCH;
 
-		// Stretch state: card id -> span in slots (absent = 1). Spans are
-		// persisted now — the server renders each card's height as data-span —
-		// so this map is a cache seeded from the DOM on load and re-seeded after
-		// every server morph (syncSpansFromDOM, below). During a gesture the map
-		// leads and the DOM follows on settle (the @post); the returned patch's
-		// data-span then re-seeds the map to match.
+		// Stretch state: card id -> span in slots (absent = 1). A cache of the
+		// persisted data-span, re-seeded from the DOM after every morph
+		// (syncSpansFromDOM). During a gesture the map leads, the DOM follows on
+		// settle, and the returned patch re-seeds the map.
 		const spans = new Map();
 		const spanOf = (el) => spans.get(el.dataset.id) || 1;
 		const cardsIn = () => [...list.children].filter((c) => c.classList.contains('card'));
 		const slotsIn = () => [...list.children].filter((c) => c.classList.contains('slot'));
 		const extraSpans = () => cardsIn().reduce((n, c) => n + spanOf(c) - 1, 0);
 
-		// Pull the server's authoritative data-span into the cache. Called only
-		// when no gesture is in flight (the observer gate / load) — exactly when
-		// the rendered data-span is the source of truth — so it never clobbers
-		// an in-progress span.
+		// Pull the authoritative data-span into the cache. Called only when no
+		// gesture is in flight, so it never clobbers an in-progress span.
 		function syncSpansFromDOM() {
 			for (const c of cardsIn()) {
 				const s = parseInt(c.dataset.span, 10) || 1;
@@ -151,13 +142,10 @@ templ dragInit() {
 			observer.observe(list, OBSERVED);
 		}
 
-		// Server morphs wipe inline styles and rewrite data-span to the
-		// authoritative height; re-seed the cache from the new data-span and
-		// re-assert the stretch styles in the same microtask, before the next
-		// paint. Watching data-span (not just style) is what makes a foreign
-		// resize land: a span-1→2 morph changes only data-span (the span-1 card
-		// had no inline height to wipe). Gesture-time Motion writes also land
-		// here and are skipped — the gesture's own settle calls apply().
+		// On morph, re-seed the cache from data-span and re-assert stretch styles
+		// before the next paint. Watching data-span (not just style) is what
+		// makes a foreign resize land: a span-1→2 morph changes only data-span.
+		// Gesture-time Motion writes also land here and are skipped.
 		const OBSERVED = { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'data-span'] };
 		const observer = new MutationObserver(() => {
 			if (drag || resize || settling) return;
@@ -362,10 +350,8 @@ templ dragInit() {
 			// mid-gesture clobber: if a patch replaced the children, apply()
 			// targets the fresh nodes by the same ids.
 			apply();
-			// Persist the committed height. The Datastar listener on #card-list
-			// copies evt.detail into $id/$span and @posts /cards/resize; the
-			// response patch re-renders data-span, which re-seeds the cache to
-			// match. Skip a no-op gesture so a plain grip tap doesn't POST.
+			// Persist the committed height: the #card-list listener @posts
+			// /cards/resize off this event. Skip a no-op gesture (a plain tap).
 			if (r.span !== r.startSpan && r.el.parentElement === list) {
 				list.dispatchEvent(new CustomEvent('cardresize', {
 					detail: { id: r.el.dataset.id, span: r.span },
