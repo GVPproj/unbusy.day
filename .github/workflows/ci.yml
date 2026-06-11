@@ -1,0 +1,95 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    # cards_test.go exercises the real DEFERRABLE-unique reorder against
+    # Postgres (it skips without DATABASE_URL). Mirror local dev: a Postgres
+    # service + the same migrations/*.sql applied via psql.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hello_cards
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hello_cards"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # Service is reachable on localhost:5432. sslmode=disable: local CI PG.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hello_cards?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Pinned to the templ runtime in go.mod — a CLI/runtime mismatch should
+      # fail generation rather than produce skewed output (same pin as Dockerfile).
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@v0.3.1020
+
+      # *_templ.go is git-ignored and regenerated in the Docker build; CI must
+      # generate before vet/build/test so the package compiles.
+      - name: Generate templ
+        run: templ generate
+
+      - name: Apply migrations
+        run: |
+          for f in migrations/*.sql; do
+            [ -f "$f" ] || continue
+            echo "→ $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
+  deploy:
+    name: Deploy (Fly)
+    needs: test
+    runs-on: ubuntu-latest
+    # Only deploy real pushes to main — never on PRs or forks.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # One deploy at a time; don't cancel a deploy mid-flight.
+    concurrency:
+      group: deploy-fly
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Config lives in fly.app.toml (not the default fly.toml) per the repo
+      # layout. The Dockerfile runs `templ generate` itself, so no templ here.
+      - name: Deploy
+        run: flyctl deploy --config fly.app.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
