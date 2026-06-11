@@ -18,6 +18,11 @@ primary_region = "sjc"
 # is replaced — clients ride it out the same way (criterion 5).
 [deploy]
   strategy = "rolling"
+  # Apply embedded migrations in a temporary release machine (with prod
+  # DATABASE_URL) before the rollout, so schema lands ahead of the new binary
+  # (expand-then-deploy). A failed migration aborts the deploy. The scratch
+  # image has no shell/psql; the binary's own `migrate` subcommand runs it.
+  release_command = "/hello-cards migrate"
 
 [http_service]
   internal_port       = 8080

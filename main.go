@@ -29,6 +29,17 @@ func main() {
 		log.Fatalf("ping db: %v", err)
 	}
 
+	// `hello-cards migrate` applies embedded migrations and exits. Fly's
+	// release_command runs this before the rollout so schema lands ahead of
+	// the new binary (expand-then-deploy).
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		if err := runMigrations(ctx, pool); err != nil {
+			log.Fatalf("migrate: %v", err)
+		}
+		log.Println("migrations applied")
+		return
+	}
+
 	broker := pubsub.New()
 	svc := cards.NewService(pool, broker)
 
