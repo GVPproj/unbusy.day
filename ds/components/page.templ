@@ -2,18 +2,15 @@ package components
 
 import "github.com/grahamvanpelt/unbusy.day/cards"
 
-// CardsPage is FE2's full document (PRD F14/F15). retry 'always' matches
-// FE1's EventSource semantics: the default 'auto' never reconnects after a
-// *clean* stream end, leaving the tab silently deaf (ds/NOTES.md, F16).
+// CardsPage is the full document. retry 'always' matches EventSource
+// semantics: Datastar's default 'auto' never reconnects after a *clean* stream
+// end, leaving the tab silently deaf.
 //
-// F15 wiring, server-driven by design (the PRD default — decision recorded in
-// ds/NOTES.md): dragInit's Motion drag owns the gesture; once the drop has
-// settled and committed it dispatches a `reorder` CustomEvent carrying the
-// committed data-id order; the Datastar listener on the list copies it into
-// the $order signal and @posts, which ships signals as the JSON body
-// {"order": [...]}. The response patch renders the same order the drop
-// already left in the DOM, so the outer morph is a visual no-op — the
-// idempotency property verified in M2.5a.
+// Server-driven by design: dragInit's Motion drag owns the gesture and, once
+// the drop commits, dispatches a `reorder` CustomEvent with the committed
+// data-id order; the Datastar listener copies it into $order and @posts (which
+// ships signals as the JSON body {"order": [...]}). The response patch renders
+// the order the drop already left in the DOM, so the morph is a visual no-op.
 templ CardsPage(cs []cards.Card) {
 	@Layout("hello-cards — FE2 (Datastar + templ)", "@get('/ds/events', {retry: 'always'})") {
 		<main class="column">

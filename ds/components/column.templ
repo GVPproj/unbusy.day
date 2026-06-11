@@ -2,15 +2,14 @@ package components
 
 import "github.com/grahamvanpelt/unbusy.day/cards"
 
-// CardColumn is the patch fragment (PRD F13/F14): the stable #card-list id is
-// the outer-morph anchor every SSE patch and reorder response lands on, and
-// the data-id attributes are what dragInit reads post-drop to build the new
-// order (F16). Page render and patch render share this one component so the
-// anchor and the replacement can't drift apart.
+// CardColumn is the patch fragment: the stable #card-list id is the
+// outer-morph anchor every SSE patch and reorder response lands on, and the
+// data-id attributes are what dragInit reads post-drop to build the new order.
+// Page render and patch render share this component so they can't drift apart.
 //
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
 // (`data-on:reorder`, `data-signals:order`) — the dash forms are looked up as
-// nonexistent plugin names and silently skipped (ds/NOTES.md, F16).
+// nonexistent plugin names and silently skipped (no error).
 templ CardColumn(cs []cards.Card) {
 	<ul
 		id="card-list"
@@ -39,41 +38,35 @@ templ card(c cards.Card) {
 }
 
 // slot is one empty row of the stretch rail — the space a card can grow into
-// by dragging its grip. Card heights are frontend-only state (not persisted),
-// so the server always renders the same baseline: every card at span 1, every
-// slot open. That keeps morphs idempotent; dragInit's spans map re-asserts the
-// client's stretch state after each patch. Slots live inside #card-list so
-// the outer morph owns them, but they carry no data-id and never enter the
-// reorder wire payload.
+// by dragging its grip. Card heights are frontend-only state, so the server
+// always renders the same baseline (every card span 1, every slot open),
+// keeping morphs idempotent; dragInit re-asserts stretch state after each
+// patch. Slots carry no data-id and never enter the reorder wire payload.
 templ slot() {
 	<li class="slot" aria-hidden="true"></li>
 }
 
-// dragInit is the Motion-powered drag (FE1-feel parity; replaces SortableJS,
-// see ds/NOTES.md "Motion drag swap"). SortableJS floats a cloned ghost; FE1's
-// dnd-kit transforms the REAL node under the pointer, which is what makes a
-// drag feel like picking the card up. This does the dnd-kit thing by hand:
+// dragInit is the Motion-powered drag, reimplementing dnd-kit's feel: it
+// transforms the REAL <li> under the pointer (not a floating ghost) so the
+// drag feels like picking the card up.
 //
-//  1. pointerdown captures the pointer on the real <li>; motionValue +
-//     styleEffect drive its transform.
-//  2. pointermove lands deltas on the held card 1:1 (no smoothing — lag here
-//     reads as dragging a ghost) and springs displaced siblings out of the
-//     way one slot at a time.
-//  3. pointerup springs the card into its landing slot, then clears every
-//     transform and commits the new DOM order in one synchronous frame — a
-//     FLIP, so the pixels never jump — and only then dispatches `reorder`.
+//  1. pointerdown captures the pointer; motionValue + styleEffect drive the
+//     held card's transform.
+//  2. pointermove lands deltas 1:1 (smoothing reads as dragging a ghost) and
+//     springs displaced siblings one slot out of the way.
+//  3. pointerup springs the card into its slot, then clears every transform
+//     and commits the new DOM order in one synchronous frame (a FLIP, so
+//     pixels never jump), and only then dispatches `reorder`.
 //
-// It also owns the stretch gesture (grip drag): the card's height snaps span
-// by span to the spring — never tracking the pointer 1:1, the snap IS the
-// feedback — while the bottom-most open slot collapses or reopens in the same
-// spring, so the column's total height holds steady. Spans are frontend-only
-// state (a Map keyed by data-id); a MutationObserver re-asserts them after
-// every server morph, which always renders the span-1 baseline.
+// It also owns the stretch gesture (grip drag): the card height snaps span by
+// span to the spring while the bottom-most open slot collapses or reopens in
+// the same spring, so the column height holds steady. Spans are frontend-only
+// (a Map keyed by data-id); a MutationObserver re-asserts them after every
+// server morph (which always renders the span-1 baseline).
 //
-// The wire contract is unchanged: the Datastar listener on the list copies
-// evt.detail.order into $order and @posts, the response patch renders the
-// order the drop already left in the DOM, and the outer morph stays a visual
-// no-op (the M2.5a idempotency property). Listeners are delegated to
+// Wire contract: the Datastar listener copies evt.detail.order into $order and
+// @posts; the response patch renders the order the drop already left in the
+// DOM, so the outer morph is a visual no-op. Listeners are delegated to
 // #card-list, which the morph preserves, so the wiring survives every patch.
 templ dragInit() {
 	<script type="module">
@@ -249,7 +242,7 @@ templ dragInit() {
 			}
 			if (d.to === d.from) return;
 			// A foreign patch may have replaced the children mid-drag (the
-			// in-flight clobber documented in ds/NOTES.md) — the server's
+			// in-flight clobber) — the server's
 			// order already won, so don't re-append detached nodes.
 			if (d.cards.some((c) => c.parentElement !== list)) return;
 			const order = [...d.cards];

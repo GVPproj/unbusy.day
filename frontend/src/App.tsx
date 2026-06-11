@@ -37,11 +37,11 @@ function SortableCard({ card }: { card: Card }) {
   )
 }
 
-// The column is a live query ordered by position (PRD F7): reorders from
-// other clients arrive over SSE and re-sort the stack with no refetch.
-// Dragging a card applies the new order optimistically and POSTs it; the
-// overlay holds until the matching txid frame arrives (PRD F8), and a
-// rejected reorder snaps back (F5) — all inside reorderCards/onUpdate.
+// The column is a live query ordered by position: reorders from other clients
+// arrive over SSE and re-sort the stack with no refetch. Dragging a card
+// applies the new order optimistically and POSTs it; the overlay holds until
+// the matching txid frame arrives, and a rejected reorder snaps back — all
+// inside reorderCards/onUpdate.
 export default function App() {
   const { data: cards, isReady } = useLiveQuery(cardsView)
   const sensors = useSensors(

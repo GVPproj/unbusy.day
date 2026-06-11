@@ -48,7 +48,7 @@ function harness(initial: Card[]) {
     respondReorder: (txid: string) => {
       reorders.shift()?.resolve({ txid })
     },
-    // Reject it with a structured mutation error (PRD F5).
+    // Reject it with a structured mutation error.
     rejectReorder: () => {
       reorders.shift()?.reject(new Error("reorder rejected: not a permutation"))
     },
@@ -68,7 +68,7 @@ const ids = (cards: ReadonlyArray<Card>) => cards.map((c) => c.id)
 // promise has had every chance to drop the optimistic overlay.
 const flushTasks = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
+describe("cards collection (SSE-backed read path)", () => {
   it("seeds from the authoritative read on connect", async () => {
     const h = harness(seed)
     const ready = h.collection.preload()
@@ -78,7 +78,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
     expect(ids(h.collection.toArray)).toEqual(["a", "b", "c"])
   })
 
-  it("orders the column by position, not arrival order (F7)", async () => {
+  it("orders the column by position, not arrival order", async () => {
     const shuffled: Card[] = [
       { id: "b", label: "Card B", position: 1 },
       { id: "c", label: "Card C", position: 2 },
@@ -135,7 +135,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
     expect(ids(view.toArray)).toEqual(["c", "a", "b"])
   })
 
-  it("refetches the full state on the overflow sentinel (F2)", async () => {
+  it("refetches the full state on the overflow sentinel", async () => {
     const h = harness(seed)
     const view = createCardsView(h.collection)
     const ready = view.preload()
@@ -156,7 +156,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
     expect(ids(view.toArray)).toEqual(["b", "c", "a"])
   })
 
-  describe("optimistic write (PRD F8 — txid handshake)", () => {
+  describe("optimistic write (txid handshake)", () => {
     afterEach(() => {
       vi.useRealTimers()
     })
@@ -170,7 +170,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
 
       reorderCards(h.collection, ["b", "a", "c"])
 
-      // Renders before the POST resolves — the optimistic path (PRD: <1 frame).
+      // Renders before the POST resolves — the optimistic path (<1 frame).
       expect(ids(view.toArray)).toEqual(["b", "a", "c"])
       expect(h.reorderCalls()).toEqual([["b", "a", "c"]])
     })
@@ -223,7 +223,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
       expect(ids(view.toArray)).toEqual(["b", "a", "c"])
     })
 
-    it("rolls back to the server order when the POST is rejected (F5)", async () => {
+    it("rolls back to the server order when the POST is rejected", async () => {
       const h = harness(seed)
       const view = createCardsView(h.collection)
       const ready = view.preload()
@@ -236,7 +236,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
       h.rejectReorder()
       await expect(tx.isPersisted.promise).rejects.toThrow()
 
-      // Dragged card visibly snaps back (PRD F5/F8).
+      // Dragged card visibly snaps back.
       expect(ids(view.toArray)).toEqual(["a", "b", "c"])
     })
 
@@ -278,7 +278,7 @@ describe("cards collection (PRD F6/F7 — SSE-backed read path)", () => {
     })
   })
 
-  describe("hard close (F6 — adapter-owned reconnect)", () => {
+  describe("hard close (adapter-owned reconnect)", () => {
     afterEach(() => {
       vi.useRealTimers()
     })

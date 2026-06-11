@@ -1,6 +1,5 @@
-// Package cards is the transport-agnostic core service (PRD §5).
-// HTTP/SSE adapters (FE1) and the future Datastar adapter (FE2) sit over
-// the same Service so business logic exists exactly once (PRD §2).
+// Package cards is the transport-agnostic core service: the JSON/SSE and
+// Datastar adapters both drive one Service, so reorder logic lives once.
 package cards
 
 import (
@@ -24,26 +23,24 @@ type ReorderResult struct {
 	Txid  string `json:"txid"`
 }
 
-// Event is one mutation fanned out over the in-process pub/sub (PRD §5): a
-// txid plus the full ordered card list. Carries structured Cards rather than
-// pre-serialized bytes so each adapter renders its own way — JSON for FE1,
-// templ fragments for FE2 — off one published event.
+// Event is one mutation fanned out over the in-process pub/sub: a txid plus
+// the full ordered card list. Carries structured Cards rather than serialized
+// bytes so each adapter renders it its own way off one published event.
 type Event struct {
 	Txid  string `json:"txid"`
 	Cards []Card `json:"cards"`
 }
 
 // Publisher is the seam between the core mutation and transport fan-out. The
-// Service owns the publish call (post-commit, PRD §5) but not the bus, so the
-// concrete pub/sub Broker can live outside this package without an import
-// cycle. A nil Publisher is valid — Reorder simply skips the fan-out.
+// Service owns the publish call but not the bus, so the Broker can live in
+// another package without an import cycle. A nil Publisher skips fan-out.
 type Publisher interface {
 	Publish(Event)
 }
 
 // ErrNotPermutation signals that the supplied order is not a permutation of
 // the current card ids (wrong length, unknown id, or duplicate). Adapters
-// surface this as 4xx so TanStack DB rolls back (PRD F5).
+// surface this as 4xx so the client rolls back its optimistic order.
 var ErrNotPermutation = errors.New("order is not a permutation of current cards")
 
 type Service struct {
@@ -97,7 +94,7 @@ func (s *Service) Reorder(ctx context.Context, order []string) (*ReorderResult, 
 	}
 
 	// Single bulk UPDATE … FROM (VALUES …). The DEFERRABLE unique on
-	// position (F10) lets intermediate row states overlap until commit.
+	// position lets intermediate row states overlap until commit.
 	var b strings.Builder
 	b.WriteString(`UPDATE card AS c SET position = v.pos FROM (VALUES `)
 	args := make([]any, 0, len(order)*2)
@@ -114,8 +111,8 @@ func (s *Service) Reorder(ctx context.Context, order []string) (*ReorderResult, 
 	}
 
 	// pg_current_xact_id() returns xid8 (64-bit). Never cast to ::xid — that
-	// truncates to 32 bits and breaks handshake matching as values wrap
-	// (PRD §11). Keep as a decimal string end-to-end.
+	// truncates to 32 bits and breaks handshake matching as values wrap.
+	// Keep it a decimal string end-to-end.
 	var txid string
 	if err := tx.QueryRow(ctx, `SELECT pg_current_xact_id()::text`).Scan(&txid); err != nil {
 		return nil, err
@@ -134,9 +131,9 @@ func (s *Service) Reorder(ctx context.Context, order []string) (*ReorderResult, 
 		return nil, err
 	}
 
-	// Fan out post-commit so subscribers never observe an uncommitted order
-	// (PRD §5, M1b). FOR UPDATE above serialises concurrent reorders, so
-	// commit order — and therefore publish order — is monotonic in txid.
+	// Fan out post-commit so subscribers never observe an uncommitted order.
+	// FOR UPDATE above serialises concurrent reorders, so publish order is
+	// monotonic in txid.
 	if s.pub != nil {
 		s.pub.Publish(Event{Txid: txid, Cards: cs})
 	}

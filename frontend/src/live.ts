@@ -1,9 +1,9 @@
 import type { CardsTransport } from "./cards"
 import { createCardsCollection, createCardsView } from "./cards"
 
-// Browser wiring for the SSE collection (PRD F6). Kept out of cards.ts so
-// importing the adapter (e.g. in node tests) never opens a network
-// connection as a side effect.
+// Browser wiring for the SSE collection. Kept out of cards.ts so importing the
+// adapter (e.g. in node tests) never opens a network connection as a side
+// effect.
 const liveTransport: CardsTransport = {
   fetchCards: async () => {
     const res = await fetch("/api/cards")
@@ -13,8 +13,8 @@ const liveTransport: CardsTransport = {
     const body = (await res.json()) as { cards: Awaited<ReturnType<CardsTransport["fetchCards"]>> }
     return body.cards
   },
-  // PRD F1/F8: full new order in, txid string out. Non-2xx throws so the
-  // mutation handler rejects and TanStack DB rolls the drag back (F5).
+  // Full new order in, txid string out. Non-2xx throws so the mutation
+  // handler rejects and TanStack DB rolls the drag back.
   reorder: async (order) => {
     const res = await fetch("/api/cards/reorder", {
       method: "POST",

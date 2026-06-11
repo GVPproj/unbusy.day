@@ -1,14 +1,13 @@
 package components
 
-// Layout is FE2's document shell (PRD F14): the pinned Datastar CDN script
-// (version per ds/NOTES.md), the shared inline stylesheet, and the
-// live-stream opener. Motion is not loaded here — dragInit ESM-imports its
-// own pinned copy, so only pages with a draggable list pay for it. Pages
-// render their content into the body slot via { children... }.
+// Layout is the document shell: the pinned Datastar CDN script, the shared
+// inline stylesheet, and the live-stream opener. Motion isn't loaded here —
+// dragInit ESM-imports its own pinned copy, so only pages with a draggable
+// list pay for it. Pages render into the body slot via { children... }.
 //
 // streamInit is the body's `data-init` expression — not the RC-era
-// `data-on-load`, a silent no-op on v1.0.2 (ds/NOTES.md, F16). It runs when
-// the body enters the DOM, which is how a page opens its SSE stream on load.
+// `data-on-load`, which is a silent no-op on v1.0.2. It runs when the body
+// enters the DOM, opening the page's SSE stream on load.
 templ Layout(title string, streamInit string) {
 	<!DOCTYPE html>
 	<html lang="en">

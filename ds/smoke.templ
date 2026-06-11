@@ -1,18 +1,10 @@
 package ds
 
-// SmokePage is the M2.5a verify-and-pin smoke target (PRD F16, criterion 2.5a).
-// Four obligations:
-//   - mount a stable #smoke-target so Datastar's default outer-morph mode has
-//     something deterministic to patch onto;
-//   - open an SSE stream to /ds/_smoke/events the moment the page loads so the
-//     visitor sees a patch without further interaction;
-//   - pull in the pinned Datastar JS runtime (version recorded in ds/NOTES.md);
-//   - pull in the pinned SortableJS and prove it co-exists with Datastar on the
-//     page (lib loads, drag works) — M2.5b drives the full reorder round-trip
-//     against the real cards model; here we just verify two libs don't clash.
-//
-// Kept deliberately bare — no styling, no extra signals. The thing under test
-// is the wiring; anything else would be noise the next person has to peel back.
+// SmokePage is the verify-and-pin smoke target. It mounts a stable
+// #smoke-target for Datastar's default outer-morph, opens an SSE stream to
+// /ds/_smoke/events on load, and loads the pinned Datastar + SortableJS
+// runtimes to prove they co-exist. Kept deliberately bare — the wiring is the
+// thing under test.
 templ SmokePage() {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -28,7 +20,7 @@ templ SmokePage() {
 				<p>The line below should change from "awaiting patch…" to "patched by datastar" within a tick of load.</p>
 				<div id="smoke-target">awaiting patch…</div>
 				<h2>SortableJS co-existence</h2>
-				<p>The list below should be drag-reorderable; M2.5b wires the round-trip.</p>
+				<p>The list below should be drag-reorderable (co-existence check only).</p>
 				<ul id="sortable-list">
 					<li data-id="a">a</li>
 					<li data-id="b">b</li>
@@ -36,10 +28,9 @@ templ SmokePage() {
 				</ul>
 				<div id="sort-order">order: a, b, c</div>
 				<script>
-					// Init SortableJS post-load. Uses toArray() (PRD F16) to read
-					// the post-drop data-id order; a sibling #sort-order div is
-					// updated locally so the dragger can see Sortable working.
-					// No server round-trip in M2.5a — that's M2.5b territory.
+					// Init SortableJS post-load. toArray() reads the post-drop
+					// data-id order; a sibling #sort-order div updates locally so
+					// the dragger can see Sortable working. No server round-trip.
 					const list = document.getElementById('sortable-list');
 					const out  = document.getElementById('sort-order');
 					Sortable.create(list, {
@@ -54,10 +45,9 @@ templ SmokePage() {
 	</html>
 }
 
-// SmokeFragment is the body of the element-patch frame /ds/_smoke/events ships
-// (T2's wire test pins the #smoke-target id so outer-morph lands on the right
-// node). Keeping it co-located with SmokePage means the page-side anchor and
-// the patch-side replacement evolve together.
+// SmokeFragment is the body of the element-patch frame /ds/_smoke/events ships;
+// the #smoke-target id is the outer-morph anchor. Co-located with SmokePage so
+// the page-side anchor and the patch-side replacement evolve together.
 templ SmokeFragment(message string) {
 	<div id="smoke-target">{ message }</div>
 }

@@ -8,19 +8,16 @@ import (
 )
 
 // smokeMessage is the body of the one patch /ds/_smoke/events ships on connect.
-// Constant so the wire test can rely on the message landing verbatim and so the
-// browser smoke (V1) has something obviously-from-the-server to look at.
+// Constant so the wire test can rely on the message landing verbatim.
 const smokeMessage = "patched by datastar"
 
-// SmokeHandler renders the M2.5a smoke page (PRD F16). One templ render to the
-// response writer — the page is static; the patch arrives over SSE on load via
-// the data-on-load attribute baked into SmokePage.
+// SmokeHandler renders the static smoke page; the patch arrives over SSE on
+// load via the data-init attribute baked into SmokePage.
 func SmokeHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		// Adapter B's HTML shell is origin-rendered (PRD §5 "edge topology"
-		// trade) — Cloudflare won't cache this, so no-cache keeps the entry
-		// document honest while still letting the Datastar bundle edge-cache.
+		// Origin-rendered shell — no-cache keeps the entry document honest
+		// while the Datastar bundle still edge-caches on its CDN URL.
 		w.Header().Set("Cache-Control", "no-cache")
 		if err := SmokePage().Render(r.Context(), w); err != nil {
 			http.Error(w, "render smoke page", http.StatusInternalServerError)
@@ -28,22 +25,14 @@ func SmokeHandler() http.Handler {
 	})
 }
 
-// SmokeEventsHandler is the wire side of the M2.5a smoke (PRD F16). On connect
-// it ships one element-patch frame whose body is a templ-rendered #smoke-target,
-// then sits on the stream until the client disconnects. No subscriber, no
-// pub/sub bridge yet — that's M2.5b. The point here is to prove that the
-// pinned Datastar SDK + templ versions produce a wire frame the browser will
-// actually apply (verified live in V1 / browser smoke).
-//
-// Adapter B's reconnect contract (PRD F13) is "server renders the current
-// authoritative fragment on connect" — no ring buffer, no Last-Event-ID
-// replay. The one-frame-on-connect shape here is the seed of that contract.
+// SmokeEventsHandler is the wire side of the smoke: on connect it ships one
+// element-patch frame whose body is a templ-rendered #smoke-target, then sits
+// on the stream until the client disconnects. Proves the pinned Datastar SDK +
+// templ versions produce a wire frame the browser actually applies.
 func SmokeEventsHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Datastar.NewSSE sets text/event-stream + Cache-Control: no-cache,
-		// but does not know about Cloudflare's response buffering. Set the
-		// PRD F2 / D3 hardening header before NewSSE flushes — the D3 Cache
-		// Rule applies to /events suffix, so this is belt-and-braces.
+		// NewSSE sets text/event-stream + no-cache but doesn't know about
+		// proxy buffering; set the hardening header before NewSSE flushes.
 		w.Header().Set("X-Accel-Buffering", "no")
 
 		sse := datastar.NewSSE(w, r)
@@ -53,9 +42,7 @@ func SmokeEventsHandler() http.Handler {
 		}
 
 		// Park the connection until the client disconnects (or server drains).
-		// SSE is long-lived; under the eventual FE2 contract this is where a
-		// pub/sub subscriber loop would live — for the M2.5a smoke, idle is
-		// enough. Keepalive cadence is a M2.5b concern (F13 reuses F2's 25s).
+		// The real adapter runs a subscriber loop here; the smoke just idles.
 		<-r.Context().Done()
 	})
 }

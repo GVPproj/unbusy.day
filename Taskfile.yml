@@ -62,6 +62,10 @@ tasks:
 
   templ:
     desc: "Generate templ Go files (FE2)"
+    # Don't run this while `task dev` is up: non-watch `templ generate` deletes
+    # the watch session's $TMPDIR/templ_*.txt literals, so the running dev
+    # server 500s on every render until you restart it. `go test`/CI are
+    # unaffected (they use the literals compiled into *_templ.go).
     cmds:
       - templ generate
 

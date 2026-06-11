@@ -6,8 +6,6 @@ API as the only home of business logic, Postgres as source of truth, SSE for
 live reads, and **two frontends over one Go core** (Vite + React + TanStack DB,
 and Datastar + templ) to prove the "logic exactly once" thesis.
 
-See [`PRD.md`](./PRD.md) for the full spec, milestones, and trade-offs.
-
 ## License
 
 This project is **source-available** under
@@ -37,8 +35,6 @@ Service CLIs (needed at M3+):
 - `neonctl` — `neon auth` (Postgres provisioning)
 - `gh` — `gh auth login` (fast-follow CI)
 - Cloudflare — no CLI; `CLOUDFLARE_API_TOKEN` env + `curl`
-
-See [`PRD.md` §12](./PRD.md) for install/login commands.
 
 ## Quickstart
 

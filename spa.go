@@ -10,17 +10,17 @@ import (
 	"strings"
 )
 
-// distFS holds the Vite build (frontend/dist). Compiled in only for release
-// builds via `-tags embedassets` (see Dockerfile) so dev `go run`/`go test`
-// don't require a dist directory — that path uses spa_stub.go instead.
+// distFS holds the Vite build. Compiled in only for release builds via
+// `-tags embedassets` (see Dockerfile) so dev `go run`/`go test` don't require
+// a dist directory — that path uses spa_stub.go instead.
 //
 //go:embed all:frontend/dist
 var distFS embed.FS
 
-// spaHandler serves the embedded SPA (PRD F4). Content-hashed /assets/* are
-// immutable and cached for a year; every other path falls back to index.html
-// with no-cache so Cloudflare revalidates the entry point (atomic client-level
-// deploys) and client-side routing resolves unknown paths.
+// spaHandler serves the embedded SPA. Content-hashed /assets/* are immutable
+// and cached for a year; every other path falls back to index.html with
+// no-cache so Cloudflare revalidates the entry point and client-side routing
+// resolves unknown paths.
 func spaHandler() http.Handler {
 	dist, err := fs.Sub(distFS, "frontend/dist")
 	if err != nil {

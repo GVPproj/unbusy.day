@@ -1,7 +1,3 @@
-// Package ds is Adapter B (PRD §5): the Datastar + templ route tree mounted
-// alongside Adapter A (/api/*). M2.5a is the pin-and-verify spike whose only
-// product is the /ds/_smoke page + /ds/_smoke/events stream that prove the
-// Datastar 1.0+ element-patch wiring works end-to-end.
 package ds
 
 import (
@@ -11,16 +7,12 @@ import (
 	"testing"
 )
 
-// TestSmokeHandlerRendersTargetAndSSEReference is the M2.5a tracer bullet for
-// the page side of the smoke. The handler must render an HTML document with:
-//   - a stable #smoke-target element (Datastar's default outer-morph mode
-//     patches by id; without a matching id the SDK is a silent no-op — F16);
-//   - a reference to /ds/_smoke/events somewhere on the page so the browser
-//     opens the SSE stream on load.
-//
-// The test does NOT pin the exact Datastar attribute syntax (e.g. data-on-load
-// vs data-signals-…) — that's V1's job to verify in a real browser; locking it
-// here would couple us to RC-era naming the PRD §10 explicitly distrusts.
+// The smoke page must render an HTML document with a stable #smoke-target
+// (Datastar's default outer-morph patches by id; without a match the SDK is a
+// silent no-op) and a reference to /ds/_smoke/events so the browser opens the
+// stream on load. It deliberately does not pin the attribute syntax — that's
+// verified in a real browser, and locking it here would couple us to RC-era
+// naming.
 func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/ds/_smoke", nil)
 	rec := httptest.NewRecorder()
@@ -43,23 +35,13 @@ func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
 	}
 }
 
-// TestSmokeEventsEmitsDatastarPatchElementsFrame is the wire-side tracer
-// bullet (PRD F16, criterion 2.5a). On connect the handler must ship one
-// element-patch frame whose body is a templ-rendered #smoke-target — that's
-// all the browser smoke needs to confirm Datastar's runtime applies the patch.
-//
-// Asserts at a coarse grain on purpose. The SDK owns the exact data-line
-// layout and could re-tune it across minor versions; this test pins only the
-// non-negotiables called out in the PRD:
-//   - SSE content type (the SDK is supposed to set it via NewSSE);
-//   - the verified 1.0+ event name "datastar-patch-elements" (renamed from the
-//     RC-era "datastar-merge-fragments" — see ds/NOTES.md F16);
-//   - the templ fragment's #smoke-target id ends up on the wire so the
-//     default outer-morph mode finds its anchor.
-//
-// Streams over a real server via the shared openEvents/readFrame helpers
-// (adapter_test.go) — a ResponseRecorder can't be read while a streaming
-// handler writes (data race caught under -race in M2.5b).
+// On connect the handler must ship one element-patch frame whose body is a
+// templ-rendered #smoke-target. Asserts coarsely on purpose — the SDK owns the
+// exact data-line layout — pinning only: the SSE content type, the verified
+// 1.0+ event name "datastar-patch-elements" (renamed from the RC-era
+// "datastar-merge-fragments"), and that the #smoke-target id reaches the wire
+// so outer-morph finds its anchor. Streams over a real server because a
+// ResponseRecorder can't be read while a streaming handler writes.
 func TestSmokeEventsEmitsDatastarPatchElementsFrame(t *testing.T) {
 	resp, br := openEvents(t, SmokeEventsHandler())
 
@@ -69,7 +51,7 @@ func TestSmokeEventsEmitsDatastarPatchElementsFrame(t *testing.T) {
 
 	frame := readFrame(t, br)
 	if !strings.Contains(frame, "datastar-patch-elements") {
-		t.Errorf("missing verified 1.0+ event name 'datastar-patch-elements' on the wire; frame:\n%s", frame)
+		t.Errorf("missing event name 'datastar-patch-elements' on the wire; frame:\n%s", frame)
 	}
 	if !strings.Contains(frame, `id="smoke-target"`) {
 		t.Errorf("patched fragment must carry #smoke-target so outer-morph lands; frame:\n%s", frame)

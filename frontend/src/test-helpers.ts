@@ -1,8 +1,8 @@
 import type { EventSourceLike } from "./cards"
 
 // In-memory stand-in for EventSource: tests emit frames by hand. Mirrors the
-// browser API surface the adapter touches (PRD F6) so the adapter under test
-// is the real one, with only the network boundary faked.
+// browser API surface the adapter touches so the adapter under test is the
+// real one, with only the network boundary faked.
 export class FakeEventSource implements EventSourceLike {
   static instances: FakeEventSource[] = []
   listeners = new Map<string, Array<(e: MessageEvent) => void>>()
@@ -10,7 +10,7 @@ export class FakeEventSource implements EventSourceLike {
   readyState = 1 // OPEN
 
   // A hard close: the browser gave up (readyState CLOSED) and will not
-  // auto-reconnect — the adapter must take over (PRD F6).
+  // auto-reconnect — the adapter must take over.
   fail() {
     this.readyState = 2
     for (const fn of this.listeners.get("error") ?? []) {

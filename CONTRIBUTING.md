@@ -89,5 +89,5 @@ By making a contribution to this project, I certify that:
 ## Don't commit secrets
 
 Never commit real credentials. Secrets are injected at deploy/runtime
-(`fly secrets`, env vars, GitHub repo secrets) — see PRD §13. Local config goes
-in `.env` (git-ignored); copy `.env.example` if present.
+(`fly secrets`, env vars, GitHub repo secrets). Local config goes in `.env`
+(git-ignored); copy `.env.example` if present.

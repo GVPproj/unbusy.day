@@ -49,7 +49,7 @@ func TestReplayReturnsEventsAfterCursor(t *testing.T) {
 }
 
 // When the ring has evicted past the cursor, the gap is unrecoverable: signal
-// overflow and replay nothing so the client does a full refetch (PRD F2).
+// overflow and replay nothing so the client does a full refetch.
 func TestOverflowWhenCursorEvicted(t *testing.T) {
 	b := pubsub.New(3) // tiny ring to force eviction
 	for _, id := range []string{"1", "2", "3", "4", "5"} {
@@ -87,9 +87,8 @@ func TestNoOverflowWhenCursorRetained(t *testing.T) {
 
 // A cursor below the oldest retained txid is overflow even if this broker
 // never evicted: the cursor may be from a previous process lifetime, and the
-// fresh ring can't prove events between cursor and oldest don't exist (M3c
-// restart drill: a pre-restart event was silently skipped under the old
-// "evicted-only" rule).
+// fresh ring can't prove events between cursor and oldest don't exist. (An
+// "evicted-only" rule silently skipped a pre-restart event.)
 func TestOverflowWhenCursorBelowOldest(t *testing.T) {
 	b := pubsub.New(1024)
 	for _, id := range []string{"5", "6", "7"} {

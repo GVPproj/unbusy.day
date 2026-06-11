@@ -26,8 +26,8 @@ func newPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// PRD M1a Done-when: "a 100-random-reorder fuzz never trips the unique
-// constraint" — exercises F1's bulk UPDATE against F10's DEFERRABLE unique.
+// 100 random reorders must never trip the unique-on-position constraint —
+// exercises the bulk UPDATE against the DEFERRABLE unique.
 func TestReorder_Fuzz(t *testing.T) {
 	pool := newPool(t)
 	svc := cards.NewService(pool, nil)

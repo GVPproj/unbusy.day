@@ -1,7 +1,7 @@
-// M2.5b tests: Adapter B (PRD F12–F15) over the shared cards core. The DB is
-// the system boundary, so a fake CardService stands in for *cards.Service;
-// the pub/sub Broker and templ rendering are real — tests pin observable wire
-// behavior (frames, fragment ids, order), not SDK internals.
+// Datastar adapter tests over the shared cards core. The DB is the system
+// boundary, so a fake CardService stands in for *cards.Service; the pub/sub
+// Broker and templ rendering are real — tests pin observable wire behavior
+// (frames, fragment ids, order), not SDK internals.
 package ds
 
 import (
@@ -65,8 +65,8 @@ func threeCards() []cards.Card {
 }
 
 // assertOrder checks that the ids appear in body in the given order — the
-// observable contract of a server-rendered column (F14) without pinning
-// markup details beyond the data-id anchors dragInit reads (F16).
+// observable contract of a server-rendered column, without pinning markup
+// details beyond the data-id anchors dragInit reads.
 func assertOrder(t *testing.T, body string, ids ...string) {
 	t.Helper()
 	last := -1
@@ -146,11 +146,10 @@ func readFrame(t *testing.T, br *bufio.Reader) string {
 	}
 }
 
-// TestEventsConnectShipsAuthoritativeColumn pins F13's connect/reconnect
-// contract: on every connect the server renders the current authoritative
-// column as an element patch. That replaces FE1's ring-buffer/Last-Event-ID
-// replay — a (re)connecting FE2 client is always made whole by one frame.
-// Also pins the F2 hardening headers F13 reuses.
+// On every connect the server renders the current authoritative column as an
+// element patch — that replaces ring-buffer/Last-Event-ID replay: a
+// (re)connecting client is always made whole by one frame. Also pins the
+// connection-hardening headers.
 func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 	broker := pubsub.New(16)
@@ -177,11 +176,10 @@ func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	assertOrder(t, frame, "a", "b", "c")
 }
 
-// TestEventsStreamsPublishedReordersAsPatches pins the criterion-9 fan-out
-// path (F13/F14): one mutation published on the shared bus — by either
-// adapter's reorder handler — reaches FE2 subscribers as an element patch in
-// the committed order. This is what makes a reorder in FE1 move the cards in
-// an open FE2 tab.
+// One mutation published on the shared bus — by either adapter's reorder
+// handler — reaches subscribers as an element patch in the committed order.
+// This is what makes a reorder in one adapter move the cards in the other's
+// open tab.
 func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 	broker := pubsub.New(16)
@@ -202,10 +200,9 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	assertOrder(t, frame, "b", "c", "a")
 }
 
-// TestEventsEmitsKeepaliveComments pins the F2 heartbeat F13 reuses: on an
-// idle stream the server emits `:keepalive` comment frames so intermediaries
-// (browser/NAT/Cloudflare) don't reap the connection. Interval shrunk for the
-// test; production cadence is 25s (PRD F2).
+// On an idle stream the server emits `:keepalive` comment frames so
+// intermediaries (browser/NAT/Cloudflare) don't reap the connection. Interval
+// shrunk for the test; production cadence is 25s.
 func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	old := keepaliveInterval
 	keepaliveInterval = 20 * time.Millisecond
@@ -242,12 +239,11 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	}
 }
 
-// TestReorderDelegatesToCoreAndPatchesNewOrder pins F12's contract:
 // POST /ds/cards/reorder carries the order as Datastar signals (JSON body
 // {"order": [...]}, what @post ships), delegates to the same core mutation as
-// F1, and responds with an SSE element-patch of the post-mutation column so
-// the dragging client settles on the committed order. The patch must anchor
-// on #card-list — without that id the outer morph is a silent no-op (F16).
+// the JSON adapter, and responds with an SSE element-patch of the post-mutation
+// column so the dragging client settles on the committed order. The patch must
+// anchor on #card-list — without that id the outer morph is a silent no-op.
 func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), txid: "101"}
 
@@ -277,12 +273,10 @@ func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 	assertOrder(t, body, "c", "a", "b")
 }
 
-// TestReorderRejectionPatchesAuthoritativeOrder pins FE2's rollback contract
-// (the F5 analogue, F15): when the core rejects the order (stale /
-// non-permutation), the response is a patch of the *current authoritative*
-// column. The dropped card visibly snaps back because the server re-asserts
-// truth — no client-side rollback machinery, which is the point of the
-// server-driven choice recorded in ds/NOTES.md.
+// When the core rejects the order (stale / non-permutation), the response is a
+// patch of the *current authoritative* column. The dropped card visibly snaps
+// back because the server re-asserts truth — no client-side rollback machinery,
+// the point of the server-driven choice.
 func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), reorderErr: cards.ErrNotPermutation}
 
@@ -293,7 +287,7 @@ func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 	ReorderHandler(svc).ServeHTTP(rec, req)
 
 	// 200, not 4xx: the response is hypermedia ("here is the truth"), and the
-	// only patch-application behavior verified in M2.5a is on OK responses.
+	// patch application is only verified on OK responses.
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
 	}
@@ -305,12 +299,11 @@ func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 	assertOrder(t, body, "a", "b", "c") // authoritative order, not the rejected one
 }
 
-// TestColumnUsesVerifiedDatastarKeyedAttributeSyntax pins the browser-verified
-// v1.0.2 wiring (ds/NOTES.md, F16): keyed Datastar attributes separate plugin
-// and key with a COLON (`data-on:reorder`, `data-signals:order`). The dash
-// forms (`data-on-reorder`) are looked up as nonexistent plugin names and
-// silently skipped — no console error, the drop just never POSTs. This test
-// exists because that exact regression shipped once.
+// Keyed Datastar attributes separate plugin and key with a COLON on v1.0.2
+// (`data-on:reorder`, `data-signals:order`). The dash forms (`data-on-reorder`)
+// are looked up as nonexistent plugin names and silently skipped — no console
+// error, the drop just never POSTs. This test exists because that exact
+// regression shipped once.
 func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	var b strings.Builder
 	if err := components.CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
@@ -329,12 +322,10 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	}
 }
 
-// TestColumnRendersStretchSlotRail pins the stretch rail's server-side half
-// (card heights are frontend-only state, see ds/NOTES.md "Stretch rail"): the
-// column renders one empty slot per card, all of them after the cards, so
-// every morph re-asserts the same baseline — span-1 cards, fully open rail —
-// that dragInit's spans map then re-applies onto. Slots carry no data-id, so
-// they can never leak into the reorder wire payload.
+// The column renders one empty slot per card, all after the cards, so every
+// morph re-asserts the same baseline (span-1 cards, fully open rail) that
+// dragInit's spans map then re-applies onto. Slots carry no data-id, so they
+// can never leak into the reorder wire payload.
 func TestColumnRendersStretchSlotRail(t *testing.T) {
 	var b strings.Builder
 	if err := components.CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
@@ -349,10 +340,9 @@ func TestColumnRendersStretchSlotRail(t *testing.T) {
 	}
 }
 
-// TestPageRendersColumnInServiceOrder is the M2.5b tracer bullet (F14):
-// GET /ds/ renders the column server-side, cards in the order the core
-// service returns them, and wires the page to the live stream (/ds/events)
-// so foreign reorders arrive as patches.
+// GET /ds/ renders the column server-side, cards in the order the core service
+// returns them, and wires the page to the live stream (/ds/events) so foreign
+// reorders arrive as patches.
 func TestPageRendersColumnInServiceOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 

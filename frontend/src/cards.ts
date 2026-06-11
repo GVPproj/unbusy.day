@@ -7,7 +7,7 @@ export type Card = {
 }
 
 // The slice of EventSource the adapter touches — injectable so tests drive
-// frames by hand (PRD F6).
+// frames by hand.
 export interface EventSourceLike {
   readonly readyState: number
   addEventListener(type: string, fn: (e: MessageEvent) => void): void
@@ -22,23 +22,23 @@ const CLOSED = 2
 const INITIAL_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 30_000
 
-// Upper bound on holding an optimistic overlay waiting for its txid frame
-// (PRD F8). The write is already committed server-side by then; if the
-// stream is silently dead, release the overlay and let reconnect/resync
-// converge the state instead of pinning the transaction forever.
+// Upper bound on holding an optimistic overlay waiting for its txid frame. The
+// write is already committed server-side by then; if the stream is silently
+// dead, release the overlay and let reconnect/resync converge the state instead
+// of pinning the transaction forever.
 export const TXID_TIMEOUT_MS = 10_000
 
 export interface CardsTransport {
   fetchCards: () => Promise<Card[]>
-  // POST /api/cards/reorder with the full new top-to-bottom order (PRD F1).
-  // txid is a string end-to-end — JS Number loses precision above 2^53.
+  // POST /api/cards/reorder with the full new top-to-bottom order. txid is a
+  // string end-to-end — JS Number loses precision above 2^53.
   reorder: (order: string[]) => Promise<{ txid: string }>
   createEventSource: (url: string) => EventSourceLike
 }
 
-// Drag-drop entry point (PRD F8): apply the full new order optimistically by
-// rewriting every card's position to its index. One transaction → one
-// onUpdate call carrying the whole column, mirroring F1's payload shape.
+// Drag-drop entry point: apply the full new order optimistically by rewriting
+// every card's position to its index. One transaction → one onUpdate call
+// carrying the whole column, mirroring the POST payload shape.
 export function reorderCards(
   collection: ReturnType<typeof createCardsCollection>,
   order: string[],
@@ -50,9 +50,9 @@ export function reorderCards(
   })
 }
 
-// The column is a live query ordered by position (PRD F7); reorders from
-// other clients re-sort it on SSE arrival. Defined here (not inline in the
-// component) so node tests exercise the same query the UI renders.
+// The column is a live query ordered by position; reorders from other clients
+// re-sort it on SSE arrival. Defined here (not inline in the component) so node
+// tests exercise the same query the UI renders.
 export function createCardsView(
   collection: ReturnType<typeof createCardsCollection>,
 ) {
@@ -62,12 +62,11 @@ export function createCardsView(
 }
 
 export function createCardsCollection(transport: CardsTransport) {
-  // txid handshake (PRD F8): every SSE frame carries `id: <txid>`; the
-  // mutation handler holds its optimistic overlay until the txid returned by
-  // the POST shows up here, so the overlay only drops once the synced state
-  // already reflects the write — no snap-back flicker.
-  // Bounded: mirrors the server's replay ring. Old entries only matter for
-  // the frame-beats-POST-response race, which a recent window fully covers.
+  // txid handshake: every SSE frame carries `id: <txid>`; the mutation handler
+  // holds its optimistic overlay until the txid the POST returned shows up
+  // here, so the overlay only drops once the synced state already reflects the
+  // write — no snap-back flicker. Bounded set: old entries only matter for the
+  // frame-beats-POST-response race, which a recent window fully covers.
   const SEEN_TXID_CAP = 1024
   const seenTxids = new Set<string>()
   const txidWaiters = new Map<string, Set<() => void>>()
@@ -102,9 +101,9 @@ export function createCardsCollection(transport: CardsTransport) {
   return createCollection<Card, string>({
     id: "cards",
     getKey: (card) => card.id,
-    // F1 wants the full permutation, but neither handler input alone has it:
-    // transaction.mutations drops cards whose position didn't change, and
-    // the collection still reads the pre-mutation order here. Overlay the
+    // The server wants the full permutation, but neither handler input alone
+    // has it: transaction.mutations drops cards whose position didn't change,
+    // and the collection still reads the pre-mutation order here. Overlay the
     // mutated rows on the collection state to recover the complete order.
     onUpdate: async ({ transaction, collection }) => {
       const byId = new Map<string, Card>(
@@ -140,15 +139,14 @@ export function createCardsCollection(transport: CardsTransport) {
           backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS)
         }
 
-        // Each frame on the wire is the full ordered card list (PRD F2),
-        // applied as keyed upserts (plus deletes for vanished rows) in one
-        // committed transaction. NOT truncate+reinsert: truncate snapshots
-        // the optimistic overlay and re-applies it over every later frame,
-        // which pins a client's own completed drag on top of newer foreign
-        // reorders — the two-browser desync the convergence test reproduces.
-        // Per-key updates also clear completed-mutation overlays and let
-        // frames queue while a local transaction is persisting, as the
-        // library intends.
+        // Each frame on the wire is the full ordered card list, applied as
+        // keyed upserts (plus deletes for vanished rows) in one committed
+        // transaction. NOT truncate+reinsert: truncate snapshots the optimistic
+        // overlay and re-applies it over every later frame, which pins a
+        // client's own completed drag on top of newer foreign reorders — the
+        // two-browser desync the convergence test reproduces. Per-key updates
+        // also clear completed-mutation overlays and let frames queue while a
+        // local transaction is persisting, as the library intends.
         const knownRows = new Map<string, Card>()
         const applySnapshot = (cards: Card[]) => {
           begin()
@@ -191,9 +189,8 @@ export function createCardsCollection(transport: CardsTransport) {
         // The browser handles transient drops natively (auto-reconnect with
         // Last-Event-ID; the server replays the gap from its ring). Only a
         // hard close lands in the error handler: we reopen with backoff, and
-        // since a fresh EventSource carries no Last-Event-ID, refetch
-        // instead of relying on replay. Covers server restarts with no
-        // missed events (M2a).
+        // since a fresh EventSource carries no Last-Event-ID, refetch instead
+        // of relying on replay. Covers server restarts with no missed events.
         const connect = () => {
           es = transport.createEventSource("/api/events")
           es.addEventListener("open", () => {
@@ -207,7 +204,7 @@ export function createCardsCollection(transport: CardsTransport) {
             markTxidSeen(e.lastEventId)
           })
           // Server sentinel: our Last-Event-ID predates the replay ring;
-          // deltas are unrecoverable, refetch the full state (PRD F2).
+          // deltas are unrecoverable, refetch the full state.
           es.addEventListener("overflow", () => {
             resync()
           })

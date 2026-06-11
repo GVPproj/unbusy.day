@@ -1,6 +1,6 @@
--- PRD F10: card table with DEFERRABLE unique on position so the bulk
--- reorder UPDATE (F1) doesn't trip the constraint on intermediate per-row
--- states. Idempotent: safe to re-run via `task migrate`.
+-- card table with a DEFERRABLE unique on position so the bulk reorder UPDATE
+-- doesn't trip the constraint on intermediate per-row states. Idempotent:
+-- safe to re-run via `task migrate`.
 
 CREATE TABLE IF NOT EXISTS card (
   id       TEXT    PRIMARY KEY,

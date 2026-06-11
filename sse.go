@@ -12,14 +12,14 @@ import (
 	"github.com/grahamvanpelt/unbusy.day/pubsub"
 )
 
-// keepaliveInterval is the idle heartbeat cadence. PRD F2: 25s `:keepalive`
-// comments defeat intermediary (browser/NAT/Cloudflare) idle closes.
+// keepaliveInterval is the idle heartbeat cadence: 25s `:keepalive` comments
+// defeat intermediary (browser/NAT/Cloudflare) idle closes.
 const keepaliveInterval = 25 * time.Second
 
-// eventsHandler is Adapter A's live read path (PRD F2): a hardened SSE stream
-// off the cards pub/sub. On connect it flushes any Last-Event-ID replay (or an
+// eventsHandler is the JSON adapter's live read path: a hardened SSE stream off
+// the cards pub/sub. On connect it flushes any Last-Event-ID replay (or an
 // overflow sentinel), then streams live mutations as `id: <txid>` + JSON data,
-// with a 25s keepalive. One TCP connection per client; runs until the request
+// with a keepalive. One TCP connection per client; runs until the request
 // context is cancelled (client disconnect / server drain).
 func eventsHandler(b *pubsub.Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -27,13 +27,13 @@ func eventsHandler(b *pubsub.Broker) http.HandlerFunc {
 		h.Set("Content-Type", "text/event-stream")
 		h.Set("Cache-Control", "no-cache")
 		h.Set("Connection", "keep-alive")
-		// Defeat proxy buffering (nginx/Cloudflare); paired with the D3 Cache
-		// Rule so events are delivered one at a time, not coalesced.
+		// Defeat proxy buffering (nginx/Cloudflare) so events are delivered one
+		// at a time, not coalesced.
 		h.Set("X-Accel-Buffering", "no")
 
 		rc := http.NewResponseController(w)
 		// Disable the per-connection write deadline: an SSE stream is long-lived
-		// and must not be killed by a server write timeout (PRD D1).
+		// and must not be killed by a server write timeout.
 		_ = rc.SetWriteDeadline(time.Time{})
 
 		sub := b.Subscribe(r.Header.Get("Last-Event-ID"))
@@ -80,8 +80,8 @@ func eventsHandler(b *pubsub.Broker) http.HandlerFunc {
 }
 
 // writeEvent renders one mutation as an SSE frame. The `id:` is the pg txid
-// (a decimal string — never a JS Number, PRD §11), which the browser echoes
-// back as Last-Event-ID on reconnect. `data:` is the full ordered card list.
+// (a decimal string — never a JS Number), which the browser echoes back as
+// Last-Event-ID on reconnect. `data:` is the full ordered card list.
 func writeEvent(w io.Writer, e cards.Event) error {
 	data, err := json.Marshal(e.Cards)
 	if err != nil {
@@ -92,9 +92,9 @@ func writeEvent(w io.Writer, e cards.Event) error {
 	return err
 }
 
-// writeOverflow emits the documented overflow sentinel: the client's
-// Last-Event-ID predated the replay ring, so it must drop optimistic state and
-// refetch the authoritative order (PRD F2). No `id:` — it isn't a txid frame.
+// writeOverflow emits the overflow sentinel: the client's Last-Event-ID
+// predated the replay ring, so it must drop optimistic state and refetch the
+// authoritative order. No `id:` — it isn't a txid frame.
 func writeOverflow(w io.Writer) {
 	_, _ = io.WriteString(w, "event: overflow\ndata: {\"reason\":\"last-event-id outside replay window; refetch\"}\n\n")
 }

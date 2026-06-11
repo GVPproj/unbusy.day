@@ -1,6 +1,6 @@
-// Package pubsub is the in-process fan-out bus (PRD §5, M1b): one mutation
-// event is delivered to every live SSE subscriber. Single-machine only —
-// cross-instance fan-out is the §9 scale-out path, by design out of scope.
+// Package pubsub is the in-process fan-out bus: one mutation event is
+// delivered to every live SSE subscriber. Single-machine only — cross-instance
+// fan-out would need an external bus (LISTEN/NOTIFY or Redis).
 package pubsub
 
 import (
@@ -22,7 +22,7 @@ type Broker struct {
 	ringSize int
 }
 
-// New returns a Broker. ringSize bounds the replay buffer (PRD F2: 1024).
+// New returns a Broker. ringSize bounds the replay buffer.
 func New(ringSize int) *Broker {
 	return &Broker{
 		subs:     make(map[*Subscription]struct{}),
@@ -69,11 +69,10 @@ func (b *Broker) Subscribe(lastEventID string) *Subscription {
 // Overflow means the broker cannot PROVE the ring contiguously covers
 // everything after the cursor, so the caller must refetch. That holds
 // whenever the cursor sits below the oldest retained txid (eviction may have
-// dropped events — or, equally, a restart emptied the ring while the cursor
-// is from a previous process lifetime; the M3c restart drill caught exactly
-// that gap), the ring is empty, or the cursor is unparseable. Deliberately
-// conservative — a needless refetch is one cheap GET; a silently-missed
-// event is not recoverable.
+// dropped events — or a restart emptied the ring while the cursor is from a
+// previous process lifetime), the ring is empty, or the cursor is unparseable.
+// Deliberately conservative — a needless refetch is one cheap GET; a
+// silently-missed event is not recoverable.
 func (b *Broker) replayLocked(lastEventID string) (replay []cards.Event, overflow bool) {
 	if lastEventID == "" {
 		return nil, false
@@ -91,7 +90,7 @@ func (b *Broker) replayLocked(lastEventID string) (replay []cards.Event, overflo
 	}
 	for _, e := range b.ring {
 		// txids are pg xid8 (64-bit unsigned); compare numerically so
-		// "10" sorts after "9" (PRD §11).
+		// "10" sorts after "9".
 		if id, err := strconv.ParseUint(e.Txid, 10, 64); err == nil && id > cursor {
 			replay = append(replay, e)
 		}
@@ -102,7 +101,7 @@ func (b *Broker) replayLocked(lastEventID string) (replay []cards.Event, overflo
 // Publish fans an event to every current subscriber. Delivery is
 // non-blocking: a subscriber whose buffer is full is skipped rather than
 // stalling the origin. A dropped client recovers on its next EventSource
-// reconnect, replaying the gap from the ring via Last-Event-ID (PRD F2).
+// reconnect, replaying the gap from the ring via Last-Event-ID.
 func (b *Broker) Publish(e cards.Event) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

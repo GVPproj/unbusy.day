@@ -6,9 +6,8 @@ import { FakeEventSource } from "./test-helpers"
 // Two real collections against one fake server, with macrotask-realistic
 // network delays (fake timers). Mimics two browsers on /api: every reorder
 // commits server-side, then the response and the SSE broadcast race back to
-// the clients — the same shape as dev against the Go server. Acceptance
-// criteria 2/3: after any interleaving of drags, both clients converge to
-// the server's order.
+// the clients — the same shape as dev against the Go server. After any
+// interleaving of drags, both clients converge to the server's order.
 
 const NETWORK_MS = 2
 
@@ -43,7 +42,7 @@ function createSim() {
       reorder: (order) =>
         new Promise((resolve, reject) => {
           setTimeout(() => {
-            // Server tx: validate permutation, rewrite positions (PRD F1).
+            // Server tx: validate permutation, rewrite positions.
             const ids = new Set(serverCards.map((c) => c.id))
             if (
               order.length !== ids.size ||
@@ -62,7 +61,7 @@ function createSim() {
             const txid = String(nextTxid++)
             const frame = serverCards.map((c) => ({ ...c }))
             setTimeout(() => resolve({ txid }), NETWORK_MS)
-            // Post-commit publish fans to every subscriber (PRD F2).
+            // Post-commit publish fans to every subscriber.
             for (const client of clients) {
               setTimeout(
                 () => client.deliver(frame, txid),
@@ -105,7 +104,7 @@ function createSim() {
   }
 }
 
-describe("two-client convergence (criteria 2/3)", () => {
+describe("two-client convergence", () => {
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -148,8 +147,8 @@ describe("two-client convergence (criteria 2/3)", () => {
   })
 
   // True concurrency: both clients drag at once, repeatedly. The final order
-  // is last-writer-wins (a v1 limit the PRD accepts) but the views must
-  // still converge on whatever the server settled on.
+  // is last-writer-wins, but the views must still converge on whatever the
+  // server settled on.
   it("simultaneous drag storms still converge", async () => {
     for (let offset = 0; offset <= 12; offset++) {
       vi.useFakeTimers()

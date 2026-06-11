@@ -1,5 +1,4 @@
-// Command loadtest is the M3c connection-ceiling drill (PRD §11 "connection
-// -count bottleneck", §9 scale-out trigger): a modest concurrent-SSE ramp
+// Command loadtest is the connection-ceiling drill: a concurrent-SSE ramp
 // against the live origin to find the per-connection ceiling on shared-cpu-1x.
 //
 // It is black-box and client-side only — no access to the box is needed. Each
@@ -10,8 +9,8 @@
 //
 // The ramp opens connections in steps, holds, and at peak fires a real reorder
 // and measures how fast + how COMPLETELY the mutation fans out to every held
-// subscriber — the degradation that actually triggers §9 scale-out is not
-// "connections refused" but "fan-out stops reaching everyone".
+// subscriber — the degradation that triggers scale-out is not "connections
+// refused" but "fan-out stops reaching everyone".
 //
 // Usage (run from repo root):
 //
@@ -59,7 +58,7 @@ func main() {
 		hold     = flag.Duration("hold", 12*time.Second, "hold time per step")
 		peakHold = flag.Duration("peak-hold", 45*time.Second, "hold at final step (cross a 25s keepalive boundary)")
 		dialBurst = flag.Int("burst", 100, "max simultaneous in-flight dials when ramping")
-		probeEach = flag.Bool("probe-each", false, "fire a fan-out probe at the end of every step (maps the §2 ~1s SLO vs load)")
+		probeEach = flag.Bool("probe-each", false, "fire a fan-out probe at the end of every step (maps the ~1s sync SLO vs load)")
 	)
 	flag.Parse()
 
@@ -211,7 +210,7 @@ func holdConn(ctx context.Context, client *http.Client, base string, st *stats, 
 
 // fanoutProbe fires a real reorder and measures how long until the held fleet
 // observes it: time-to-first-event and time-to-90%-of-active. This is the
-// load-bearing §9 signal — a healthy machine fans out to ~everyone fast.
+// load-bearing signal — a healthy machine fans out to ~everyone fast.
 func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stats) {
 	active := st.active.Load()
 	order, err := currentOrder(ctx, client, base)
