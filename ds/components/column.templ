@@ -34,13 +34,9 @@ templ CardColumn(cs []cards.Card) {
 	</ul>
 }
 
-// card is one draggable list item. data-id is dragInit's order anchor and the
-// idiomorph identity key — keep it stable. data-span is the persisted height in
-// slots, which dragInit seeds its spans map from; the same span also renders as
-// the --span custom property and the .stretched class, so a stretched card
-// paints at its full height on first load — before dragInit's deferred module
-// runs (see .card.stretched in styles.templ). The grip starts a resize gesture
-// instead of a drag (see dragInit).
+// card is one draggable list item. data-id is the stable order/idiomorph key;
+// data-span (also --span + .stretched) persists the height so a stretched card
+// paints full-size on first load. The grip starts a resize gesture (see dragInit).
 templ card(c cards.Card) {
 	<li class={ "card", templ.KV("stretched", spanOr1(c.Span) > 1) } data-id={ c.ID } data-span={ strconv.Itoa(spanOr1(c.Span)) } style={ "--span:" + strconv.Itoa(spanOr1(c.Span)) }>
 		{ c.Label }
@@ -57,10 +53,8 @@ func spanOr1(span int) int {
 	return span
 }
 
-// extraSpans is how many slots the cards have grown into — the sum of each
-// card's span above 1. The bottom-most extraSpans rows of the rail render
-// collapsed (.consumed), mirroring dragInit's apply() so the rail balances on
-// first paint instead of flashing open and then collapsing.
+// extraSpans is the total slots cards have grown into (sum of span-1). The
+// bottom-most extraSpans rows render collapsed (.consumed) to balance the rail.
 func extraSpans(cs []cards.Card) int {
 	n := 0
 	for _, c := range cs {
@@ -69,13 +63,9 @@ func extraSpans(cs []cards.Card) int {
 	return n
 }
 
-// slot is one empty row of the stretch rail — the space a card can grow into by
-// dragging its grip. The server renders one slot per card and collapses the
-// bottom-most `collapsed` ones (.consumed) to balance the stretched cards, the
-// same state dragInit's apply() asserts. Spans are persisted, so page render and
-// patch render agree and morphs stay idempotent; dragInit re-asserts the same
-// state (now pixel-measured) after each patch. Slots carry no data-id and never
-// enter the reorder wire payload.
+// slot is one empty rail row a card can grow into. The bottom-most collapsed
+// ones (.consumed) balance stretched cards; spans persist so morphs stay
+// idempotent. Slots carry no data-id and never enter the reorder wire payload.
 templ slot(collapsed bool) {
 	<li class={ "slot", templ.KV("consumed", collapsed) } aria-hidden="true"></li>
 }
@@ -94,10 +84,8 @@ templ slot(collapsed bool) {
 //
 // It also owns the stretch gesture (grip drag): the card height snaps span by
 // span to the spring while the bottom-most open slot collapses or reopens in
-// the same spring, so the column height holds steady. Spans are persisted and
-// re-rendered into every morph (data-span, --span, .stretched, .consumed); the
-// Map keyed by data-id is dragInit's working cache, which a MutationObserver
-// re-seeds from data-span after every server morph.
+// the same spring, so the column height holds steady. Spans persist and re-render
+// into every morph; a MutationObserver re-seeds dragInit's data-id→span cache from data-span.
 //
 // Wire contract: the Datastar listener copies evt.detail.order into $order and
 // @posts; the response patch renders the order the drop already left in the
@@ -110,13 +98,9 @@ templ dragInit() {
 		const list = document.getElementById('card-list');
 		const SPRING = { type: 'spring', stiffness: 600, damping: 38 };
 		const GAP = parseFloat(getComputedStyle(list).rowGap);
-		// Natural span-1 card height, measured at load — gestures need the real
-		// pixel height, not the CSS calc (.card.stretched) approximation the
-		// server first-paints with. The probe card may itself be server-rendered
-		// stretched, so divide its measured height back down by its span,
-		// inverting heightFor (H = span*CARD_H + (span-1)*GAP). Measuring a
-		// stretched card raw would inflate CARD_H and balloon every card and
-		// slot. One slot is a card + gap.
+		// Natural span-1 card height, measured at load. The probe may be server-
+		// rendered stretched, so divide its height back down by its span (inverts
+		// heightFor); measuring it raw would inflate CARD_H. One slot is a card + gap.
 		const probe = list.querySelector('.card');
 		const probeSpan = parseInt(probe.dataset.span, 10) || 1;
 		const CARD_H = (probe.getBoundingClientRect().height - (probeSpan - 1) * GAP) / probeSpan;
@@ -168,11 +152,9 @@ templ dragInit() {
 			observer.observe(list, OBSERVED);
 		}
 
-		// On morph, re-seed the cache from data-span and re-assert stretch styles
-		// before the next paint. Watching data-span (not just style) is what
-		// makes a foreign resize land: a span-1→2 morph changes data-span and the
-		// server-rendered CSS height. Gesture-time Motion writes also land here
-		// and are skipped.
+		// On morph, re-seed the cache from data-span and re-assert stretch styles.
+		// Watching data-span (not just style) is what makes a foreign resize land;
+		// gesture-time Motion writes also land here and are skipped.
 		const OBSERVED = { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'data-span'] };
 		const observer = new MutationObserver(() => {
 			if (drag || resize || settling) return;
