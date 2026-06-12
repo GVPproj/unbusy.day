@@ -21,8 +21,8 @@ templ NavStyles() {
 			flex-direction: column;
 			gap: 0.25rem;
 			padding: 0.75rem 0.5rem;
-			background: var(--ink);
-			color: var(--bg);
+			background: var(--nav-bg);
+			color: var(--nav-ink);
 			position: sticky;
 			top: 0;
 			height: 100vh;
@@ -58,7 +58,7 @@ templ NavStyles() {
 
 		.navlink:hover,
 		.navlink.active {
-			background: rgba(255, 255, 255, 0.15);
+			background: var(--nav-hover);
 		}
 
 		.nav-logout {
@@ -86,7 +86,7 @@ templ NavStyles() {
 			position: fixed;
 			inset: 0;
 			z-index: 9;
-			background: rgba(16, 61, 41, 0.35);
+			background: var(--scrim);
 		}
 
 		@media (max-width: 768px) {
@@ -122,9 +122,9 @@ templ NavStyles() {
 	</style>
 }
 
-// SideNav is the icon-rail nav. The host page provides the $_navopen signal
-// (underscore = local-only, kept out of @post signal bodies). Today/Archive are placeholder links
-// until those pages exist. Logout pins to the rail's bottom.
+// SideNav is the icon-rail nav. The host page provides the $_navopen and
+// $_thememodal signals (underscore = local-only, kept out of @post signal
+// bodies). Theme opens the theme-picker modal. Logout pins to the rail's bottom.
 templ SideNav() {
 	<button
 		class="nav-toggle"
@@ -136,8 +136,7 @@ templ SideNav() {
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div class="nav-brand" title="unbusy.day">u.</div>
 		<a class="navlink active" href="/"><span class="ico">▦</span><span class="lbl">Boards</span></a>
-		<a class="navlink" href="#"><span class="ico">☀</span><span class="lbl">Today</span></a>
-		<a class="navlink" href="#"><span class="ico">▤</span><span class="lbl">Archive</span></a>
+		<button class="navlink" data-on:click="$_thememodal = true; $_navopen = false"><span class="ico">◐</span><span class="lbl">Theme</span></button>
 		<button class="navlink nav-logout" data-on:click="@post('/logout')"><span class="ico">⏻</span><span class="lbl">Log out</span></button>
 	</nav>
 }

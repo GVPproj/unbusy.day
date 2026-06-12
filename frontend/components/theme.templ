@@ -1,0 +1,108 @@
+package components
+
+// ThemeStyles owns the theme-picker modal: a centered dialog over a scrim,
+// with one swatch-preview button per theme. Tokens come from baseStyles.
+templ ThemeStyles() {
+	<style>
+		.theme-scrim {
+			display: none;
+			position: fixed;
+			inset: 0;
+			z-index: 20;
+			background: var(--scrim);
+		}
+
+		.theme-scrim.open {
+			display: grid;
+			place-items: center;
+		}
+
+		.theme-modal {
+			width: min(320px, calc(100vw - 2rem));
+			padding: 1rem;
+			background: var(--surface);
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius-lg);
+			box-shadow: var(--shadow-lift);
+
+			& h2 {
+				font-size: 1rem;
+				margin: 0 0 0.75rem;
+			}
+		}
+
+		.theme-option {
+			display: flex;
+			align-items: center;
+			gap: 0.6rem;
+			width: 100%;
+			padding: 0.5rem 0.6rem;
+			margin-bottom: var(--gap);
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius);
+			background: none;
+			color: inherit;
+			font: inherit;
+			font-size: 0.9rem;
+			cursor: pointer;
+			text-align: left;
+		}
+
+		.theme-option:hover {
+			box-shadow: var(--shadow-rest);
+		}
+
+		.theme-option.active {
+			border-color: var(--accent);
+			outline: 1px solid var(--accent);
+		}
+
+		.theme-swatch {
+			width: 1.4rem;
+			height: 1.4rem;
+			flex-shrink: 0;
+			border-radius: 50%;
+			border: 1px solid var(--rail-border);
+		}
+
+		.theme-close {
+			display: block;
+			margin: 0.25rem 0 0 auto;
+			padding: 0.35rem 0.75rem;
+			border: none;
+			border-radius: var(--radius);
+			background: var(--accent);
+			color: var(--bg);
+			font: inherit;
+			font-size: 0.85rem;
+			cursor: pointer;
+		}
+	</style>
+}
+
+// themeOption is one row in the picker; swatch shows the theme's bg/column split.
+templ themeOption(id string, label string, swatch string) {
+	<button
+		class="theme-option"
+		data-class:active={ "$_theme === '" + id + "'" }
+		data-on:click={ "$_theme = '" + id + "'" }
+	>
+		<span class="theme-swatch" style={ "background: " + swatch }></span>
+		{ label }
+	</button>
+}
+
+// ThemeModal is the picker dialog, toggled by the host page's $_thememodal
+// signal. Picking a theme writes $_theme, which the layout body mirrors into
+// data-theme (and localStorage), so the swap is live without closing.
+templ ThemeModal() {
+	<div class="theme-scrim" data-class:open="$_thememodal" data-on:click="evt.target === el && ($_thememodal = false)">
+		<div class="theme-modal">
+			<h2>Theme</h2>
+			@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
+			@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
+			@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
+			<button class="theme-close" data-on:click="$_thememodal = false">Done</button>
+		</div>
+	</div>
+}
