@@ -5,17 +5,6 @@
 
 Have a structured day. Time-block your schedule, track some progress, no rush.
 
-## License
-
-This project is **source-available** under
-[FSL-1.1-Apache-2.0](./LICENSE.md) — not OSI "open source." You can read,
-modify, self-host, and contribute, but you cannot offer it as a commercial
-product or service that competes with the licensor's hosted offering. Each
-release converts to Apache-2.0 two years after publication.
-
-The hosted service is the commercial offering; the source is here so you can
-learn from it, run it yourself, and contribute back.
-
 ## Prerequisites
 
 Local toolchain (no login needed):
@@ -59,3 +48,9 @@ curl localhost:8080/healthz       # → 200 OK
 
 PRs welcome. Sign commits with `git commit -s` (DCO) — see
 [`CONTRIBUTING.md`](./CONTRIBUTING.md). A CI check enforces sign-off.
+
+## License
+
+Licensed under [FSL-1.1-Apache-2.0](./LICENSE.md): free to read, self-host,
+and contribute to, but not to offer as a competing commercial service. Each
+release converts to Apache-2.0 after two years.
