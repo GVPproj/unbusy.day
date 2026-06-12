@@ -28,7 +28,7 @@ tasks:
       # a stale error page.
       - |
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
-        templ generate --watch --proxy="http://localhost:8080" --open-browser=false --cmd="go run ."
+        templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ."
 
   up:
     desc: "Start local Postgres in the background"
