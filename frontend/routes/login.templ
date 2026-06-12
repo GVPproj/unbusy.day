@@ -10,9 +10,11 @@ import (
 // code-entry step. Signals are global, so $email survives the morph and rides
 // along with $code on /login/verify.
 templ LoginPage() {
-	@layouts.Layout("hello-cards — log in", "", components.LoginStyles()) {
-		<main class="column">
-			<h1>hello-cards</h1>
+	@layouts.Layout("unbusy.day — log in", "", components.LoginStyles()) {
+		<main class="column login-main">
+			<div class="login-logo">
+				@components.UBLogo("153", "66")
+			</div>
 			@components.LoginEmailForm()
 		</main>
 	}
