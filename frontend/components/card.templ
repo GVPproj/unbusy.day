@@ -6,11 +6,17 @@ import (
 	"github.com/GVPproj/unbusy.day/cards"
 )
 
-// card is one draggable list item. data-id is the stable order/idiomorph key;
-// data-span (also --span + .stretched) persists the height so a stretched card
-// paints full-size on first load. The grip starts a resize gesture (see DragInit).
-templ card(c cards.Card) {
-	<li class={ "card", templ.KV("stretched", spanOr1(c.Span) > 1) } data-id={ c.ID } data-span={ strconv.Itoa(spanOr1(c.Span)) } style={ "--span:" + strconv.Itoa(spanOr1(c.Span)) }>
+// card is one draggable grid item. data-id is the stable order/idiomorph key;
+// data-slot/data-span persist the clock placement, and grid-row paints it at
+// its time relative to the day's start. The grip starts a resize gesture.
+templ card(c cards.Card, dayStart int) {
+	<li
+		class="card"
+		data-id={ c.ID }
+		data-span={ strconv.Itoa(spanOr1(c.Span)) }
+		data-slot={ strconv.Itoa(c.Position) }
+		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) }
+	>
 		{ c.Label }
 		<span class="grip" aria-hidden="true"></span>
 	</li>

@@ -11,16 +11,20 @@ import (
 // from baseStyles' :root block.
 templ ColumnStyles() {
 	<style>
+		/* The day grid: a time-gutter column plus the card lane, one fixed-height
+		   row per 30-minute slot. Slots and cards address rows by clock slot
+		   relative to the day start, so geometry is the markup, not JS math. */
 		.cards {
 			list-style: none;
 			margin: 0;
 			padding: 0;
-			display: flex;
-			flex-direction: column;
-			gap: var(--gap);
+			display: grid;
+			grid-template-columns: 3.5rem 1fr;
+			grid-auto-rows: var(--slot-h, calc(1lh + 2 * var(--card-pad)));
 		}
 
 		.card {
+			grid-column: 2;
 			background: var(--surface);
 			border-radius: var(--radius);
 			padding: var(--card-pad);
@@ -31,16 +35,6 @@ templ ColumnStyles() {
 			touch-action: none;
 			/* anchor for the grip; also the z-index context .dragging needs */
 			position: relative;
-
-			/* Persisted stretch height, server-rendered so a stretched card
-			   paints full-size on first load. Unit approximation of heightFor();
-			   DragInit overwrites style.height with measured pixels on gesture. */
-			&.stretched {
-				height: calc(
-					var(--span) * (1lh + 2 * var(--card-pad)) + (var(--span) - 1) *
-						var(--gap)
-				);
-			}
 
 			&.dragging {
 				cursor: grabbing;
@@ -87,32 +81,29 @@ templ ColumnStyles() {
 			}
 		}
 
-		/* one empty row of the stretch rail. The dashes live on an inset
-		   ::before and the li itself carries no padding/border, so animating
-		   height to 0 (with overflow hidden) collapses it completely. The
-		   calc height is the pre-JS approximation of a card row; DragInit
-		   pins it to the measured card height on load. */
+		/* one 30-minute row of the day grid: full-width so the rule line spans
+		   gutter and lane; hour lines solid, :30 lines faint. */
 		.slot {
-			height: calc(1lh + 2 * var(--card-pad));
-			border-radius: var(--radius);
-			position: relative;
-			overflow: hidden;
+			grid-column: 1 / -1;
+			border-top: 1px solid var(--rail-border);
+			display: flex;
+			align-items: start;
 
-			/* a rail row a stretched card has grown into — collapsed flush
-			   (height 0, negative margin eats the gap) so the column height
-			   holds. Matches apply(). */
-			&.consumed {
-				height: 0;
-				margin-top: calc(-1 * var(--gap));
+			&[data-slot$="1"],
+			&[data-slot$="3"],
+			&[data-slot$="5"],
+			&[data-slot$="7"],
+			&[data-slot$="9"] {
+				border-top-style: dashed;
 			}
+		}
 
-			&::before {
-				content: "";
-				position: absolute;
-				inset: 0;
-				border: 2px dashed var(--rail-border);
-				border-radius: var(--radius);
-			}
+		.gutter {
+			width: 3.5rem;
+			padding-top: 2px;
+			font-size: 0.7rem;
+			color: var(--nav-icon);
+			user-select: none;
 		}
 	</style>
 }
@@ -137,31 +128,32 @@ templ CardColumn(cs []cards.Card, b cards.Bounds) {
 		data-on:reorder="$order = evt.detail.order; @post('/cards/reorder')"
 		data-on:cardresize="$id = evt.detail.id; $span = evt.detail.span; @post('/cards/resize')"
 	>
-		for _, c := range cs {
-			@card(c)
+		for s := b.Start; s < b.End; s++ {
+			@slot(s, b.Start)
 		}
-		{{ open := len(cs) - extraSpans(cs) }}
-		for i := range cs {
-			@slot(i >= open)
+		for _, c := range cs {
+			@card(c, b.Start)
 		}
 	</ul>
 }
 
-// extraSpans is the total slots cards have grown into (sum of span-1). The
-// bottom-most extraSpans rows render collapsed (.consumed) to balance the rail.
-func extraSpans(cs []cards.Card) int {
-	n := 0
-	for _, c := range cs {
-		n += spanOr1(c.Span) - 1
-	}
-	return n
+// slot is one 30-minute row of the day grid, carrying its clock-slot index
+// and time gutter label. The explicit grid-row keeps auto-placement from
+// skipping rows cards occupy. Slots have no data-id, so they never enter the
+// layout wire payload.
+templ slot(s, dayStart int) {
+	<li class="slot" data-slot={ strconv.Itoa(s) } style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }>
+		<span class="gutter" aria-hidden="true">{ timeLabel(s) }</span>
+	</li>
 }
 
-// slot is one empty rail row a card can grow into. The bottom-most collapsed
-// ones (.consumed) balance stretched cards; spans persist so morphs stay
-// idempotent. Slots carry no data-id and never enter the reorder wire payload.
-templ slot(collapsed bool) {
-	<li class={ "slot", templ.KV("consumed", collapsed) } aria-hidden="true"></li>
+// timeLabel renders a slot index (30-min steps from 00:00) as its gutter
+// text: hours as "9:00", half-hours as the ":30" tick.
+func timeLabel(s int) string {
+	if s%2 == 1 {
+		return ":30"
+	}
+	return strconv.Itoa(s/2) + ":00"
 }
 
 // DragInit loads the Motion-powered drag/stretch script (static/drag.js)

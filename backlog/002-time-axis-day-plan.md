@@ -1,6 +1,6 @@
 # 002 — Time-axis Day Plan: slot placement with push semantics
 
-Status: in-progress (server core done, frontend pending)
+Status: in-progress (server core + frontend adapter done; grid rendering, drag.js, bounds UI pending)
 Labels: ready-for-agent
 Date: 2026-06-12
 
@@ -46,10 +46,21 @@ Chunk 2 — frontend adapter — done via TDD on `feat/initTimeBlocks`.
   truth at 200 (house convention). Routes wired in `main.go`; legacy
   reorder/resize endpoints kept until drag.js switches.
 
+Chunk 3 — grid rendering — done via TDD on `feat/initTimeBlocks`.
+
+- `CardColumn` is now a real day grid: one `li.slot` per slot in bounds
+  (`data-slot`, end-exclusive) with an hour/":30" time gutter (`timeLabel`);
+  cards carry `data-slot` and place via `grid-row: slot-dayStart+1 / span n`.
+  Slots render before cards so cards paint above; both carry explicit
+  grid-rows so auto-placement can't drift. CSS: `.cards` is a two-column grid
+  (gutter + lane), fixed `--slot-h` rows, solid hour / dashed :30 rules; the
+  old stretch-rail (`.stretched`/`.consumed`, extraSpans) is gone.
+- ⚠ drag.js still assumes the old flex-rail geometry (probe-card pitch,
+  consumed slots) — drag/resize gestures are visually broken until the
+  drag.js chunk lands. Legacy reorder/resize wiring on `#card-list` kept.
+
 Still to do (next chunks):
 
-- **Grid rendering**: every slot a first-class element with hour/:30 gutter;
-  empty slots as drop targets; render from slot/span.
 - **drag.js**: client-side push cascade (down, min distance, gaps first,
   reject-at-bottom aborts), slot-grid geometry.
 - **Bounds editing UI** (native-HTML-first).

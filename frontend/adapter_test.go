@@ -136,9 +136,9 @@ func authedRequest(method, target string, body string) *http.Request {
 
 func threeCards() []cards.Card {
 	return []cards.Card{
-		{ID: "a", Label: "Alpha", Position: 0, Span: 1},
-		{ID: "b", Label: "Bravo", Position: 1, Span: 1},
-		{ID: "c", Label: "Charlie", Position: 2, Span: 1},
+		{ID: "a", Label: "Alpha", Position: 18, Span: 1},
+		{ID: "b", Label: "Bravo", Position: 19, Span: 1},
+		{ID: "c", Label: "Charlie", Position: 20, Span: 1},
 	}
 }
 
@@ -632,21 +632,71 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 	}
 }
 
-// The column renders one empty slot per card, all after the cards, so every
-// morph re-asserts the same baseline (span-1 cards, fully open rail) that
-// DragInit's spans map then re-applies onto. Slots carry no data-id, so they
-// can never leak into the reorder wire payload.
-func TestColumnRendersStretchSlotRail(t *testing.T) {
+// The column renders every slot of the day as a first-class element carrying
+// its clock-slot index, so empty time is real markup (drop targets) and the
+// grid extent always matches the owner's bounds.
+func TestColumnRendersEverySlotInDay(t *testing.T) {
 	var b strings.Builder
 	if err := components.CardColumn(threeCards(), testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
-	if got, want := strings.Count(body, `class="slot"`), len(threeCards()); got != want {
-		t.Errorf("want %d slots, got %d; body:\n%s", want, got, body)
+	if got, want := strings.Count(body, `class="slot"`), testBounds.End-testBounds.Start; got != want {
+		t.Errorf("want %d slot elements, got %d; body:\n%s", want, got, body)
 	}
-	if last, first := strings.LastIndex(body, `class="card"`), strings.Index(body, `class="slot"`); first < last {
-		t.Errorf("slots must render after the cards; body:\n%s", body)
+	for _, want := range []string{`class="slot" data-slot="18"`, `class="slot" data-slot="33"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("column missing %q; body:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, `class="slot" data-slot="34"`) {
+		t.Errorf("slot 34 is past day end (end-exclusive); body:\n%s", body)
+	}
+	if lastSlot, firstCard := strings.LastIndex(body, `class="slot"`), strings.Index(body, `class="card"`); firstCard < lastSlot {
+		t.Errorf("cards must render after slots so they paint above; body:\n%s", body)
+	}
+}
+
+// Each slot carries a time gutter label: hour slots read like "9:00", half-hour
+// slots read ":30" — the paper time-block-notebook axis.
+func TestColumnRendersTimeGutter(t *testing.T) {
+	var b strings.Builder
+	if err := components.CardColumn(threeCards(), testBounds).Render(context.Background(), &b); err != nil {
+		t.Fatalf("render column: %v", err)
+	}
+	body := b.String()
+	for _, want := range []string{">9:00<", ">16:00<"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("gutter missing hour label %q; body:\n%s", want, body)
+		}
+	}
+	if got, want := strings.Count(body, ">:30<"), (testBounds.End-testBounds.Start)/2; got != want {
+		t.Errorf("want %d half-hour marks, got %d; body:\n%s", want, got, body)
+	}
+}
+
+// Cards render their placement from slot/span: the clock slot as data-slot and
+// a grid-row computed against the day's start, so a card at 11:00 paints at
+// 11:00 whatever the bounds are and morphs stay idempotent.
+func TestColumnPlacesCardsBySlotAndSpan(t *testing.T) {
+	cs := []cards.Card{
+		{ID: "a", Label: "Alpha", Position: 18, Span: 1},
+		{ID: "b", Label: "Bravo", Position: 22, Span: 2},
+	}
+	var b strings.Builder
+	if err := components.CardColumn(cs, testBounds).Render(context.Background(), &b); err != nil {
+		t.Fatalf("render column: %v", err)
+	}
+	body := b.String()
+	for _, want := range []string{
+		`data-id="a" data-span="1" data-slot="18"`,
+		`data-id="b" data-span="2" data-slot="22"`,
+		`grid-row:1 / span 1`,
+		`grid-row:5 / span 2`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("column missing %q; body:\n%s", want, body)
+		}
 	}
 }
 
