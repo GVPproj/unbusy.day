@@ -72,11 +72,11 @@ func assertSchema(t *testing.T, dbURL string) {
 	}
 	var exists bool
 	if err := conn.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'card_owner_position_unique')`).Scan(&exists); err != nil {
+		`SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'card_owner_slots_excl')`).Scan(&exists); err != nil {
 		t.Fatalf("check constraint: %v", err)
 	}
 	if !exists {
-		t.Error("constraint card_owner_position_unique missing")
+		t.Error("constraint card_owner_slots_excl missing")
 	}
 }
 
@@ -175,6 +175,11 @@ func TestMigrate_BaselinesExistingDatabase(t *testing.T) {
 		t.Fatalf("read migrations: %v", err)
 	}
 	for _, e := range entries {
+		// Only the legacy idempotent 0001–0004 ever ran pre-goose;
+		// timestamped migrations are goose-era and plain DDL.
+		if !strings.HasPrefix(e.Name(), "000") {
+			continue
+		}
 		sqlBytes, err := migrationsFS.ReadFile("migrations/" + e.Name())
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)

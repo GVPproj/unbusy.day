@@ -7,6 +7,8 @@ import (
 	"errors"
 	mrand "math/rand"
 	"os"
+	"slices"
+	"sync"
 	"testing"
 
 	"github.com/GVPproj/unbusy.day/cards"
@@ -66,6 +68,31 @@ func TestSeed_Idempotent(t *testing.T) {
 	}
 	if len(cs) != 3 {
 		t.Fatalf("want 3 starter cards after re-seed, got %d", len(cs))
+	}
+}
+
+// Starter cards land in the first slots after the default day start (9:00),
+// span 1 each, so a new user's plan is valid against their bounds.
+func TestSeed_PlacesStarterCardsAtDayStart(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc)
+
+	cs, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(cs) != 3 {
+		t.Fatalf("want 3 starter cards, got %d", len(cs))
+	}
+	for i, c := range cs {
+		if want := cards.DefaultDayStart + i; c.Position != want {
+			t.Fatalf("starter card %d at slot %d, want %d", i, c.Position, want)
+		}
+		if c.Span != 1 {
+			t.Fatalf("starter card %d span %d, want 1", i, c.Span)
+		}
 	}
 }
 
@@ -196,8 +223,9 @@ func TestResize_PersistsSpan(t *testing.T) {
 	if len(initial) < 2 {
 		t.Fatalf("need ≥2 seed cards")
 	}
-	id := initial[0].ID
-	other := initial[1].ID
+	// Last card: growing it stays clear of the EXCLUDE overlap backstop.
+	id := initial[len(initial)-1].ID
+	other := initial[0].ID
 
 	res, err := svc.Resize(ctx, owner, id, 3)
 	if err != nil {
@@ -250,6 +278,281 @@ func TestResize_RejectsSpanBelowOne(t *testing.T) {
 	}
 }
 
+// A valid full layout (a move into a gap plus a grow) commits and is what
+// List returns afterwards, ordered by slot.
+func TestSetLayout_CommitsAndListReflects(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc)
+
+	initial, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(initial) != 3 {
+		t.Fatalf("want 3 seed cards, got %d", len(initial))
+	}
+	a, b, c := initial[0], initial[1], initial[2]
+
+	layout := []cards.Placement{
+		{ID: a.ID, Slot: 25, Span: 2}, // moved into a gap and grown
+		{ID: b.ID, Slot: 19, Span: 1},
+		{ID: c.ID, Slot: 20, Span: 1},
+	}
+	res, err := svc.SetLayout(ctx, owner, layout)
+	if err != nil {
+		t.Fatalf("setlayout: %v", err)
+	}
+	want := []struct {
+		id         string
+		slot, span int
+	}{{b.ID, 19, 1}, {c.ID, 20, 1}, {a.ID, 25, 2}}
+	check := func(cs []cards.Card, label string) {
+		if len(cs) != len(want) {
+			t.Fatalf("%s: got %d cards, want %d", label, len(cs), len(want))
+		}
+		for i, w := range want {
+			if cs[i].ID != w.id || cs[i].Position != w.slot || cs[i].Span != w.span {
+				t.Fatalf("%s[%d]: got {%s,%d,%d}, want {%s,%d,%d}",
+					label, i, cs[i].ID, cs[i].Position, cs[i].Span, w.id, w.slot, w.span)
+			}
+		}
+	}
+	check(res.Cards, "result")
+
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	check(after, "list")
+}
+
+// A rejected layout surfaces its typed domain error, persists nothing, and
+// fans nothing out.
+func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
+	pool := newPool(t)
+	pub := &capturePub{}
+	svc := cards.NewService(pool, pub)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc)
+
+	initial, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	a, b, c := initial[0], initial[1], initial[2]
+
+	cases := map[string]struct {
+		layout []cards.Placement
+		want   error
+	}{
+		"overlap": {
+			[]cards.Placement{
+				{ID: a.ID, Slot: 20, Span: 2},
+				{ID: b.ID, Slot: 21, Span: 1},
+				{ID: c.ID, Slot: 30, Span: 1},
+			}, cards.ErrOverlap},
+		"out of bounds": {
+			[]cards.Placement{
+				{ID: a.ID, Slot: 33, Span: 2},
+				{ID: b.ID, Slot: 19, Span: 1},
+				{ID: c.ID, Slot: 20, Span: 1},
+			}, cards.ErrOutOfBounds},
+		"not same cards": {
+			[]cards.Placement{
+				{ID: a.ID, Slot: 20, Span: 1},
+			}, cards.ErrNotSameCards},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, err := svc.SetLayout(ctx, owner, tc.layout); !errors.Is(err, tc.want) {
+				t.Fatalf("want %v, got %v", tc.want, err)
+			}
+		})
+	}
+
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	for i, c := range after {
+		if c != initial[i] {
+			t.Fatalf("rejected layouts must persist nothing: card %d = %+v, want %+v", i, c, initial[i])
+		}
+	}
+	if len(pub.events) != 0 {
+		t.Fatalf("rejected layouts must not fan out: got %d events", len(pub.events))
+	}
+}
+
+// A committed layout fans out one event carrying the owner key and new layout.
+func TestSetLayout_PublishesEvent(t *testing.T) {
+	pool := newPool(t)
+	pub := &capturePub{}
+	svc := cards.NewService(pool, pub)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc)
+
+	initial, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	a, b, c := initial[0], initial[1], initial[2]
+
+	if _, err := svc.SetLayout(ctx, owner, []cards.Placement{
+		{ID: a.ID, Slot: 30, Span: 1},
+		{ID: b.ID, Slot: 19, Span: 1},
+		{ID: c.ID, Slot: 20, Span: 1},
+	}); err != nil {
+		t.Fatalf("setlayout: %v", err)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+	e := pub.events[0]
+	if e.Owner != owner {
+		t.Fatalf("published owner = %q, want %q", e.Owner, owner)
+	}
+	if last := e.Cards[len(e.Cards)-1]; last.ID != a.ID || last.Position != 30 {
+		t.Fatalf("published layout tail = {%s,%d}, want {%s,30}", last.ID, last.Position, a.ID)
+	}
+}
+
+// Concurrent layout mutations serialize on FOR UPDATE: every submission is a
+// valid layout, so all succeed and the final state is exactly one of them.
+func TestSetLayout_ConcurrentMutationsSerialize(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc)
+
+	initial, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	a, b, c := initial[0].ID, initial[1].ID, initial[2].ID
+
+	layouts := [][]cards.Placement{
+		{{ID: a, Slot: 18, Span: 2}, {ID: b, Slot: 20, Span: 1}, {ID: c, Slot: 30, Span: 1}},
+		{{ID: a, Slot: 25, Span: 1}, {ID: b, Slot: 18, Span: 3}, {ID: c, Slot: 21, Span: 1}},
+		{{ID: a, Slot: 33, Span: 1}, {ID: b, Slot: 19, Span: 1}, {ID: c, Slot: 24, Span: 2}},
+		{{ID: a, Slot: 18, Span: 1}, {ID: b, Slot: 19, Span: 1}, {ID: c, Slot: 20, Span: 1}},
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, len(layouts))
+	for i, l := range layouts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = svc.SetLayout(ctx, owner, l)
+		}()
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent setlayout %d: %v", i, err)
+		}
+	}
+
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	matchesOne := false
+	for _, l := range layouts {
+		ok := true
+		for _, p := range l {
+			i := slices.IndexFunc(after, func(c cards.Card) bool { return c.ID == p.ID })
+			if i < 0 || after[i].Position != p.Slot || after[i].Span != p.Span {
+				ok = false
+				break
+			}
+		}
+		matchesOne = matchesOne || ok
+	}
+	if !matchesOne {
+		t.Fatalf("final state %+v matches none of the submitted layouts", after)
+	}
+}
+
+// Bounds may shrink into empty slots; the change persists and fans out an
+// event carrying the new bounds so live tabs re-render the grid.
+func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
+	pool := newPool(t)
+	pub := &capturePub{}
+	svc := cards.NewService(pool, pub)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc) // starter cards at 18,19,20
+
+	if err := svc.SetBounds(ctx, owner, 17, 21); err != nil {
+		t.Fatalf("setbounds: %v", err)
+	}
+	got, err := svc.Bounds(ctx, owner)
+	if err != nil {
+		t.Fatalf("bounds: %v", err)
+	}
+	if got != (cards.Bounds{Start: 17, End: 21}) {
+		t.Fatalf("bounds = %+v, want {17 21}", got)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+	if pub.events[0].Bounds != got {
+		t.Fatalf("published bounds = %+v, want %+v", pub.events[0].Bounds, got)
+	}
+}
+
+// A shrink that would strand a card outside the day is rejected whole, on
+// either side, and persists nothing.
+func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc) // starter cards at 18,19,20
+
+	cases := map[string][2]int{
+		"start side": {19, 34},
+		"end side":   {18, 20},
+	}
+	for name, b := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := svc.SetBounds(ctx, owner, b[0], b[1]); !errors.Is(err, cards.ErrBoundsOccupied) {
+				t.Fatalf("want ErrBoundsOccupied, got %v", err)
+			}
+		})
+	}
+	got, err := svc.Bounds(ctx, owner)
+	if err != nil {
+		t.Fatalf("bounds: %v", err)
+	}
+	if got != (cards.Bounds{Start: cards.DefaultDayStart, End: cards.DefaultDayEnd}) {
+		t.Fatalf("rejected bounds must persist nothing: got %+v", got)
+	}
+}
+
+// Hard limits: start ≥ 5:00, end ≤ 18:00, end > start.
+func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
+	pool := newPool(t)
+	svc := cards.NewService(pool, nil)
+	ctx := context.Background()
+	owner := newOwner(t, pool, svc)
+
+	cases := map[string][2]int{
+		"before 5:00":    {9, 34},
+		"after 18:00":    {18, 37},
+		"end not beyond": {18, 18},
+		"inverted":       {20, 18},
+	}
+	for name, b := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := svc.SetBounds(ctx, owner, b[0], b[1]); !errors.Is(err, cards.ErrInvalidBounds) {
+				t.Fatalf("want ErrInvalidBounds, got %v", err)
+			}
+		})
+	}
+}
+
 // capturePub records every published Event so a test can assert fan-out.
 type capturePub struct{ events []cards.Event }
 
@@ -270,7 +573,8 @@ func TestResize_PublishesEvent(t *testing.T) {
 	if len(initial) == 0 {
 		t.Fatalf("seed missing")
 	}
-	id := initial[0].ID
+	// Last card: growing it stays clear of the EXCLUDE overlap backstop.
+	id := initial[len(initial)-1].ID
 
 	if _, err := svc.Resize(ctx, owner, id, 2); err != nil {
 		t.Fatalf("resize: %v", err)

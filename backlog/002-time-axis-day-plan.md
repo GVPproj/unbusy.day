@@ -1,8 +1,51 @@
 # 002 — Time-axis Day Plan: slot placement with push semantics
 
-Status: backlog
+Status: in-progress (server core done, frontend pending)
 Labels: ready-for-agent
 Date: 2026-06-12
+
+## Progress (2026-06-12)
+
+Chunk 1 — server core — done via TDD on `feat/initTimeBlocks`. All tests
+green under `go test -race ./...`.
+
+- **Pure layout validator** (`cards/layout.go`): `ValidateLayout(bounds,
+  current, proposed)` with typed errors `ErrNotSameCards`, `ErrOutOfBounds`,
+  `ErrOverlap` (plus existing `ErrInvalidSpan`). `Bounds` (slot indexes from
+  00:00, end-exclusive) and `Placement{ID, Slot, Span}` types; slot constants
+  `MinDayStart`/`MaxDayEnd`/`DefaultDayStart`/`DefaultDayEnd` (10/36/18/34).
+  Unit tests (no DB) cover all cases listed under Testing Decisions.
+- **Migration** (`migrations/20260612120000_day_plan.sql`): `day_start`/
+  `day_end` smallint on `"user"` (defaults 18/34 = 9:00–17:00); repacks
+  existing cards from day start by rank accounting for spans; drops the
+  deferrable `(owner_id, position)` unique; adds the DEFERRABLE `EXCLUDE`
+  gist constraint on `(owner_id, int4range(position, position+span))`
+  (`card_owner_slots_excl`, needs `btree_gist`).
+- **Service**: `SetLayout(owner, []Placement)` — validates inside the
+  FOR UPDATE tx, one bulk UPDATE of slot+span, post-commit fan-out.
+  `SetBounds(owner, start, end)` — hard limits, rejects shrink-into-occupied
+  (`ErrInvalidBounds`/`ErrBoundsOccupied`), publishes the new bounds.
+  `Bounds(owner)` read path. `Event` now carries `Bounds`. `Seed` places
+  starter cards in the first slots after the owner's `day_start`.
+- DB-backed tests: commit visible via List, rejection persists nothing and
+  publishes nothing, concurrent SetLayouts serialize on FOR UPDATE.
+- Migrate tests updated: schema assertion now checks `card_owner_slots_excl`;
+  the baseline test replays only legacy `0001`–`0004` old-style (timestamped
+  migrations are goose-era plain DDL).
+
+Still to do (next chunks):
+
+- **Frontend adapter**: one layout endpoint replacing `ReorderHandler`/
+  `ResizeHandler`, bounds-settings endpoint, render bounds into the column.
+- **Grid rendering**: every slot a first-class element with hour/:30 gutter;
+  empty slots as drop targets; render from slot/span.
+- **drag.js**: client-side push cascade (down, min distance, gaps first,
+  reject-at-bottom aborts), slot-grid geometry.
+- **Bounds editing UI** (native-HTML-first).
+- **Remove `Reorder`/`Resize`** from the service once the adapter switches to
+  `SetLayout`. ⚠ Until then the legacy resize endpoint can trip the new
+  EXCLUDE constraint (resizing a card into its neighbour now 500s instead of
+  snapping back); their tests were patched to resize the last card.
 
 ## Problem Statement
 

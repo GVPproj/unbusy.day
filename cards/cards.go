@@ -36,8 +36,9 @@ type ResizeResult struct {
 // plus the full ordered card list. The broker routes by Owner so a mutation
 // only wakes that User's subscribers (ADR 0003).
 type Event struct {
-	Owner string `json:"owner"`
-	Cards []Card `json:"cards"`
+	Owner  string `json:"owner"`
+	Cards  []Card `json:"cards"`
+	Bounds Bounds `json:"bounds"`
 }
 
 // Publisher is the seam between the core mutation and transport fan-out. The
@@ -81,7 +82,8 @@ func (s *Service) List(ctx context.Context, owner string) ([]Card, error) {
 func (s *Service) Seed(ctx context.Context, owner string) error {
 	labels := []string{"Alpha", "Bravo", "Charlie"}
 	var b strings.Builder
-	b.WriteString(`INSERT INTO card (id, label, position, owner_id) SELECT v.id, v.label, v.pos, $1 FROM (VALUES `)
+	// Starter cards take the first slots after the owner's day start, span 1.
+	b.WriteString(`INSERT INTO card (id, label, position, owner_id) SELECT v.id, v.label, u.day_start + v.pos, $1 FROM (VALUES `)
 	args := []any{owner}
 	for i, label := range labels {
 		id, err := newID()
@@ -94,7 +96,7 @@ func (s *Service) Seed(ctx context.Context, owner string) error {
 		fmt.Fprintf(&b, "($%d::text, $%d::text, $%d::int)", len(args)+1, len(args)+2, len(args)+3)
 		args = append(args, id, label, i)
 	}
-	b.WriteString(`) AS v(id, label, pos) WHERE NOT EXISTS (SELECT 1 FROM card WHERE owner_id = $1)`)
+	b.WriteString(`) AS v(id, label, pos), "user" u WHERE u.id = $1 AND NOT EXISTS (SELECT 1 FROM card WHERE owner_id = $1)`)
 	_, err := s.pool.Exec(ctx, b.String(), args...)
 	return err
 }
@@ -169,6 +171,123 @@ func (s *Service) Reorder(ctx context.Context, owner string, order []string) (*R
 	return &ReorderResult{Cards: cs}, nil
 }
 
+// LayoutResult mirrors ReorderResult: the post-mutation column.
+type LayoutResult struct {
+	Cards []Card `json:"cards"`
+}
+
+// SetLayout replaces the owner's whole layout in one mutation (ADR 0005): the
+// client computes the push, the server enforces the invariants via
+// ValidateLayout inside the FOR UPDATE transaction.
+func (s *Service) SetLayout(ctx context.Context, owner string, layout []Placement) (*LayoutResult, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	bounds, err := boundsTx(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	current, err := listForUpdateTx(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateLayout(bounds, current, layout); err != nil {
+		return nil, err
+	}
+
+	// Single bulk UPDATE; the DEFERRABLE EXCLUDE backstop tolerates
+	// transiently overlapping intermediate row states until commit.
+	var b strings.Builder
+	b.WriteString(`UPDATE card AS c SET position = v.slot, span = v.span FROM (VALUES `)
+	args := make([]any, 0, len(layout)*3+1)
+	for i, p := range layout {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "($%d::text, $%d::int, $%d::int)", i*3+1, i*3+2, i*3+3)
+		args = append(args, p.ID, p.Slot, p.Span)
+	}
+	fmt.Fprintf(&b, `) AS v(id, slot, span) WHERE c.id = v.id AND c.owner_id = $%d`, len(args)+1)
+	args = append(args, owner)
+	if _, err := tx.Exec(ctx, b.String(), args...); err != nil {
+		return nil, err
+	}
+
+	cs, err := listTx(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted layout.
+	if s.pub != nil {
+		s.pub.Publish(Event{Owner: owner, Cards: cs})
+	}
+	return &LayoutResult{Cards: cs}, nil
+}
+
+// Bounds reads the owner's day bounds for the render path.
+func (s *Service) Bounds(ctx context.Context, owner string) (Bounds, error) {
+	var b Bounds
+	err := s.pool.QueryRow(ctx,
+		`SELECT day_start, day_end FROM "user" WHERE id = $1`, owner).Scan(&b.Start, &b.End)
+	return b, err
+}
+
+// SetBounds edits the owner's day extent. Hard limits 5:00–18:00, end after
+// start; the day may only shrink into empty slots — a shrink onto an occupied
+// slot rejects whole, same shape as a layout rejection.
+func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) error {
+	if start < MinDayStart || end > MaxDayEnd || end <= start {
+		return ErrInvalidBounds
+	}
+
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Locked so a concurrent layout mutation can't slip a card outside the
+	// new bounds between check and commit.
+	cs, err := listForUpdateTx(ctx, tx, owner)
+	if err != nil {
+		return err
+	}
+	for _, c := range cs {
+		if c.Position < start || c.Position+c.Span > end {
+			return ErrBoundsOccupied
+		}
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE "user" SET day_start = $2, day_end = $3 WHERE id = $1`, owner, start, end); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// Fan out post-commit so live tabs re-render the grid at its new extent.
+	if s.pub != nil {
+		s.pub.Publish(Event{Owner: owner, Cards: cs, Bounds: Bounds{Start: start, End: end}})
+	}
+	return nil
+}
+
+// boundsTx reads the owner's day bounds inside the mutation's transaction.
+func boundsTx(ctx context.Context, tx pgx.Tx, owner string) (Bounds, error) {
+	var b Bounds
+	err := tx.QueryRow(ctx,
+		`SELECT day_start, day_end FROM "user" WHERE id = $1`, owner).Scan(&b.Start, &b.End)
+	return b, err
+}
+
 // Resize persists a card's span and returns the full post-mutation column.
 func (s *Service) Resize(ctx context.Context, owner, id string, span int) (*ResizeResult, error) {
 	// Typed error to snap back on; the DB CHECK is the backstop.
@@ -201,6 +320,16 @@ func (s *Service) Resize(ctx context.Context, owner, id string, span int) (*Resi
 		s.pub.Publish(Event{Owner: owner, Cards: cs})
 	}
 	return &ResizeResult{Cards: cs}, nil
+}
+
+// listForUpdateTx locks the owner's rows, serialising concurrent mutations.
+func listForUpdateTx(ctx context.Context, tx pgx.Tx, owner string) ([]Card, error) {
+	rows, err := tx.Query(ctx,
+		`SELECT id, label, position, span FROM card WHERE owner_id = $1 ORDER BY position FOR UPDATE`, owner)
+	if err != nil {
+		return nil, err
+	}
+	return scanCards(rows)
 }
 
 func listTx(ctx context.Context, tx pgx.Tx, owner string) ([]Card, error) {
