@@ -33,10 +33,21 @@ green under `go test -race ./...`.
   the baseline test replays only legacy `0001`–`0004` old-style (timestamped
   migrations are goose-era plain DDL).
 
+Chunk 2 — frontend adapter — done via TDD on `feat/initTimeBlocks`.
+
+- `SetLayout`'s post-commit event now carries the owner's `Bounds` (was zero).
+- `CardColumn(cs, bounds)` renders `data-day-start`/`data-day-end` on
+  `#card-list`; page, events (snapshot + published events), and all mutation
+  responses thread bounds through (`CardService` gains `Bounds`, `SetLayout`,
+  `SetBounds`; `snapshot` helper pairs List+Bounds).
+- `LayoutHandler` (`POST /cards/layout`, signals `{"layout":[{id,slot,span}]}`)
+  and `BoundsHandler` (`POST /cards/bounds`, `{"start","end"}`): success
+  patches the committed column; typed domain rejections patch authoritative
+  truth at 200 (house convention). Routes wired in `main.go`; legacy
+  reorder/resize endpoints kept until drag.js switches.
+
 Still to do (next chunks):
 
-- **Frontend adapter**: one layout endpoint replacing `ReorderHandler`/
-  `ResizeHandler`, bounds-settings endpoint, render bounds into the column.
 - **Grid rendering**: every slot a first-class element with hour/:30 gutter;
   empty slots as drop targets; render from slot/span.
 - **drag.js**: client-side push cascade (down, min distance, gaps first,

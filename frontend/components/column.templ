@@ -1,6 +1,10 @@
 package components
 
-import "github.com/GVPproj/unbusy.day/cards"
+import (
+	"strconv"
+
+	"github.com/GVPproj/unbusy.day/cards"
+)
 
 // ColumnStyles is the card column's stylesheet, co-located with the markup
 // it styles and passed to Layout's <head> by the cards route. Tokens come
@@ -121,10 +125,12 @@ templ ColumnStyles() {
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
 // (`data-on:reorder`, `data-signals:order`) — the dash forms are looked up as
 // nonexistent plugin names and silently skipped (no error).
-templ CardColumn(cs []cards.Card) {
+templ CardColumn(cs []cards.Card, b cards.Bounds) {
 	<ul
 		id="card-list"
 		class="cards"
+		data-day-start={ strconv.Itoa(b.Start) }
+		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:order="[]"
 		data-signals:id="''"
 		data-signals:span="1"

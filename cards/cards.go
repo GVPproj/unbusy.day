@@ -226,7 +226,7 @@ func (s *Service) SetLayout(ctx context.Context, owner string, layout []Placemen
 
 	// Fan out post-commit so subscribers never observe an uncommitted layout.
 	if s.pub != nil {
-		s.pub.Publish(Event{Owner: owner, Cards: cs})
+		s.pub.Publish(Event{Owner: owner, Cards: cs, Bounds: bounds})
 	}
 	return &LayoutResult{Cards: cs}, nil
 }

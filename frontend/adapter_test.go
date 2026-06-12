@@ -9,6 +9,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -23,14 +24,49 @@ import (
 // returns reorderErr if set.
 type fakeService struct {
 	cards      []cards.Card
+	bounds     cards.Bounds
 	listErr    error
 	reorderErr error
 	resizeErr  error
+	layoutErr  error
+	boundsErr  error
 
-	gotOwner string   // owner passed to the last mutation, for asserting scoping
-	gotOrder []string // order passed to Reorder, for asserting delegation
-	gotID    string   // id passed to Resize
-	gotSpan  int      // span passed to Resize
+	gotOwner  string            // owner passed to the last mutation, for asserting scoping
+	gotOrder  []string          // order passed to Reorder, for asserting delegation
+	gotID     string            // id passed to Resize
+	gotSpan   int               // span passed to Resize
+	gotLayout []cards.Placement // layout passed to SetLayout
+	gotBounds cards.Bounds      // bounds passed to SetBounds
+}
+
+func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end int) error {
+	f.gotOwner, f.gotBounds = owner, cards.Bounds{Start: start, End: end}
+	if f.boundsErr != nil {
+		return f.boundsErr
+	}
+	f.bounds = f.gotBounds
+	return nil
+}
+
+func (f *fakeService) SetLayout(ctx context.Context, owner string, layout []cards.Placement) (*cards.LayoutResult, error) {
+	f.gotOwner, f.gotLayout = owner, layout
+	if f.layoutErr != nil {
+		return nil, f.layoutErr
+	}
+	byID := make(map[string]cards.Card, len(f.cards))
+	for _, c := range f.cards {
+		byID[c.ID] = c
+	}
+	out := make([]cards.Card, 0, len(layout))
+	for _, p := range layout {
+		c := byID[p.ID]
+		c.Position, c.Span = p.Slot, p.Span
+		out = append(out, c)
+	}
+	// The real service returns the committed column in slot order.
+	sort.Slice(out, func(i, j int) bool { return out[i].Position < out[j].Position })
+	f.cards = out
+	return &cards.LayoutResult{Cards: out}, nil
 }
 
 func (f *fakeService) List(ctx context.Context, owner string) ([]cards.Card, error) {
@@ -38,6 +74,13 @@ func (f *fakeService) List(ctx context.Context, owner string) ([]cards.Card, err
 		return nil, f.listErr
 	}
 	return f.cards, nil
+}
+
+func (f *fakeService) Bounds(ctx context.Context, owner string) (cards.Bounds, error) {
+	if f.bounds == (cards.Bounds{}) {
+		return testBounds, nil
+	}
+	return f.bounds, nil
 }
 
 func (f *fakeService) Reorder(ctx context.Context, owner string, order []string) (*cards.ReorderResult, error) {
@@ -79,6 +122,9 @@ func (f *fakeService) Resize(ctx context.Context, owner, id string, span int) (*
 // RequireSession. Deliberately unguessable so a hardcoded owner in a handler
 // can't pass by coincidence.
 const testOwner = "test-owner-7f3a"
+
+// testBounds is the default 9:00–17:00 day the fake serves.
+var testBounds = cards.Bounds{Start: 18, End: 34}
 
 // authedRequest is an httptest request carrying the owner RequireSession
 // would have stashed.
@@ -234,6 +280,26 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	assertOrder(t, frame, "b", "c", "a")
 }
 
+// A published event's bounds render into the patch, so a bounds change in one
+// tab resizes the grid in every other open tab.
+func TestEventsStreamsPublishedBounds(t *testing.T) {
+	svc := &fakeService{cards: threeCards()}
+	broker := pubsub.New()
+
+	_, br := openEvents(t, EventsHandler(svc, broker))
+	readFrame(t, br) // connect snapshot
+
+	broker.Publish(cards.Event{Owner: testOwner, Cards: threeCards(),
+		Bounds: cards.Bounds{Start: 17, End: 21}})
+
+	frame := readFrame(t, br)
+	for _, want := range []string{`data-day-start="17"`, `data-day-end="21"`} {
+		if !strings.Contains(frame, want) {
+			t.Errorf("frame missing %q; frame:\n%s", want, frame)
+		}
+	}
+}
+
 // On an idle stream the server emits `:keepalive` comment frames so
 // intermediaries (browser/NAT/Cloudflare) don't reap the connection. Interval
 // shrunk for the test; production cadence is 25s.
@@ -339,6 +405,142 @@ func TestResizeDelegatesToCoreAndPatchesColumn(t *testing.T) {
 	}
 }
 
+// POST /cards/layout carries the full proposed layout as Datastar signals
+// ({"layout":[{id,slot,span},...]}, what the drag/resize gestures @post once
+// the client computes the push), delegates to the core SetLayout, and responds
+// with an SSE element-patch of the committed column anchored on #card-list.
+func TestLayoutDelegatesToCoreAndPatchesColumn(t *testing.T) {
+	svc := &fakeService{cards: threeCards()}
+
+	req := authedRequest(http.MethodPost, "/cards/layout",
+		`{"layout":[{"id":"a","slot":20,"span":2},{"id":"b","slot":18,"span":1},{"id":"c","slot":19,"span":1}]}`)
+	rec := httptest.NewRecorder()
+	LayoutHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner {
+		t.Errorf("core SetLayout called with owner %q, want %q", svc.gotOwner, testOwner)
+	}
+	want := []cards.Placement{{ID: "a", Slot: 20, Span: 2}, {ID: "b", Slot: 18, Span: 1}, {ID: "c", Slot: 19, Span: 1}}
+	if len(svc.gotLayout) != len(want) {
+		t.Fatalf("core SetLayout called with %d placements, want %d", len(svc.gotLayout), len(want))
+	}
+	for i, p := range want {
+		if svc.gotLayout[i] != p {
+			t.Errorf("placement[%d] = %+v, want %+v", i, svc.gotLayout[i], p)
+		}
+	}
+
+	body := rec.Body.String()
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Errorf("content-type: want text/event-stream prefix, got %q", ct)
+	}
+	if !strings.Contains(body, "datastar-patch-elements") {
+		t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
+	}
+	if !strings.Contains(body, `id="card-list"`) {
+		t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
+	}
+	assertOrder(t, body, "b", "c", "a") // committed slot order, not submission order
+}
+
+// A layout the core rejects (overlap, out of bounds, stale card set, bad
+// span) patches back the *current authoritative* column at 200 — the
+// optimistic gesture visibly snaps back. Each typed domain error takes the
+// rollback path; only unexpected errors 500.
+func TestLayoutRejectionPatchesAuthoritativeColumn(t *testing.T) {
+	for _, domainErr := range []error{
+		cards.ErrNotSameCards, cards.ErrOutOfBounds, cards.ErrOverlap, cards.ErrInvalidSpan,
+	} {
+		t.Run(domainErr.Error(), func(t *testing.T) {
+			svc := &fakeService{cards: threeCards(), layoutErr: domainErr}
+
+			req := authedRequest(http.MethodPost, "/cards/layout",
+				`{"layout":[{"id":"a","slot":18,"span":1},{"id":"b","slot":18,"span":1},{"id":"c","slot":19,"span":1}]}`)
+			rec := httptest.NewRecorder()
+			LayoutHandler(svc).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+			}
+			body := rec.Body.String()
+			if !strings.Contains(body, "datastar-patch-elements") {
+				t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
+			}
+			if !strings.Contains(body, `id="card-list"`) {
+				t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
+			}
+			assertOrder(t, body, "a", "b", "c") // authoritative column, not the rejected layout
+		})
+	}
+}
+
+// POST /cards/bounds carries {"start","end"} (slot indexes), delegates to the
+// core SetBounds, and responds with an element-patch of the column rendered at
+// the new extent so the grid resizes in the same round-trip.
+func TestBoundsDelegatesToCoreAndPatchesColumnAtNewExtent(t *testing.T) {
+	svc := &fakeService{cards: threeCards()}
+
+	req := authedRequest(http.MethodPost, "/cards/bounds", `{"start":17,"end":21}`)
+	rec := httptest.NewRecorder()
+	BoundsHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner {
+		t.Errorf("core SetBounds called with owner %q, want %q", svc.gotOwner, testOwner)
+	}
+	if svc.gotBounds != (cards.Bounds{Start: 17, End: 21}) {
+		t.Errorf("core SetBounds called with %+v, want {17 21}", svc.gotBounds)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "datastar-patch-elements") {
+		t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
+	}
+	if !strings.Contains(body, `id="card-list"`) {
+		t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
+	}
+	for _, want := range []string{`data-day-start="17"`, `data-day-end="21"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("patch missing %q — column must render at the new extent; body:\n%s", want, body)
+		}
+	}
+}
+
+// A rejected bounds change (outside hard limits, or a shrink onto occupied
+// slots) responds 200 with the column re-rendered at the *current* bounds —
+// the plan is re-shown, nothing is lost silently.
+func TestBoundsRejectionPatchesCurrentExtent(t *testing.T) {
+	for _, domainErr := range []error{cards.ErrInvalidBounds, cards.ErrBoundsOccupied} {
+		t.Run(domainErr.Error(), func(t *testing.T) {
+			svc := &fakeService{cards: threeCards(), boundsErr: domainErr}
+
+			req := authedRequest(http.MethodPost, "/cards/bounds", `{"start":19,"end":20}`)
+			rec := httptest.NewRecorder()
+			BoundsHandler(svc).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+			}
+			body := rec.Body.String()
+			if !strings.Contains(body, `id="card-list"`) {
+				t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
+			}
+			// Current (default) bounds, not the rejected ones.
+			for _, want := range []string{`data-day-start="18"`, `data-day-end="34"`} {
+				if !strings.Contains(body, want) {
+					t.Errorf("patch missing %q; body:\n%s", want, body)
+				}
+			}
+			assertOrder(t, body, "a", "b", "c")
+		})
+	}
+}
+
 // When the core rejects the order (stale / non-permutation), the response is a
 // patch of the *current authoritative* column. The dropped card visibly snaps
 // back because the server re-asserts truth — no client-side rollback machinery,
@@ -392,7 +594,7 @@ func TestResizeRejectionPatchesAuthoritativeColumn(t *testing.T) {
 // regression shipped once.
 func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	var b strings.Builder
-	if err := components.CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
+	if err := components.CardColumn(threeCards(), testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
@@ -416,7 +618,7 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 		{ID: "b", Label: "Bravo", Position: 1, Span: 1},
 	}
 	var b strings.Builder
-	if err := components.CardColumn(cs).Render(context.Background(), &b); err != nil {
+	if err := components.CardColumn(cs, testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
@@ -436,7 +638,7 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 // can never leak into the reorder wire payload.
 func TestColumnRendersStretchSlotRail(t *testing.T) {
 	var b strings.Builder
-	if err := components.CardColumn(threeCards()).Render(context.Background(), &b); err != nil {
+	if err := components.CardColumn(threeCards(), testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
@@ -445,6 +647,22 @@ func TestColumnRendersStretchSlotRail(t *testing.T) {
 	}
 	if last, first := strings.LastIndex(body, `class="card"`), strings.Index(body, `class="slot"`); first < last {
 		t.Errorf("slots must render after the cards; body:\n%s", body)
+	}
+}
+
+// The column carries the owner's day bounds as data attributes on #card-list,
+// so every morph re-asserts the grid extent the client renders and drags
+// against — bounds and cards can never drift apart across patches.
+func TestColumnRendersDayBounds(t *testing.T) {
+	var b strings.Builder
+	if err := components.CardColumn(threeCards(), testBounds).Render(context.Background(), &b); err != nil {
+		t.Fatalf("render column: %v", err)
+	}
+	body := b.String()
+	for _, want := range []string{`data-day-start="18"`, `data-day-end="34"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("column missing %q; body:\n%s", want, body)
+		}
 	}
 }
 

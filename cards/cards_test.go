@@ -417,6 +417,10 @@ func TestSetLayout_PublishesEvent(t *testing.T) {
 	if last := e.Cards[len(e.Cards)-1]; last.ID != a.ID || last.Position != 30 {
 		t.Fatalf("published layout tail = {%s,%d}, want {%s,30}", last.ID, last.Position, a.ID)
 	}
+	// Subscribers render the grid from the event alone, so it must carry bounds.
+	if e.Bounds != (cards.Bounds{Start: cards.DefaultDayStart, End: cards.DefaultDayEnd}) {
+		t.Fatalf("published bounds = %+v, want default day", e.Bounds)
+	}
 }
 
 // Concurrent layout mutations serialize on FOR UPDATE: every submission is a

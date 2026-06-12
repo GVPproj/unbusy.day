@@ -15,13 +15,13 @@ import (
 // data-id order; the Datastar listener copies it into $order and @posts (which
 // ships signals as the JSON body {"order": [...]}). The response patch renders
 // the order the drop already left in the DOM, so the morph is a visual no-op.
-templ CardsPage(cs []cards.Card) {
+templ CardsPage(cs []cards.Card, b cards.Bounds) {
 	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles(), components.ThemeStyles()) {
 		<div class="shell" data-signals:_navopen="false">
 			@components.SideNav()
 			@components.ThemeModal()
 			<main class="column">
-				@components.CardColumn(cs)
+				@components.CardColumn(cs, b)
 				@components.DragInit()
 			</main>
 		</div>

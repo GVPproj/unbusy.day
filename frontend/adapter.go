@@ -27,8 +27,22 @@ var keepaliveInterval = 25 * time.Second
 // Postgres.
 type CardService interface {
 	List(ctx context.Context, owner string) ([]cards.Card, error)
+	Bounds(ctx context.Context, owner string) (cards.Bounds, error)
+	SetLayout(ctx context.Context, owner string, layout []cards.Placement) (*cards.LayoutResult, error)
+	SetBounds(ctx context.Context, owner string, start, end int) error
 	Reorder(ctx context.Context, owner string, order []string) (*cards.ReorderResult, error)
 	Resize(ctx context.Context, owner, id string, span int) (*cards.ResizeResult, error)
+}
+
+// snapshot reads the owner's authoritative column and day bounds — the pair
+// every render needs.
+func snapshot(ctx context.Context, svc CardService, owner string) ([]cards.Card, cards.Bounds, error) {
+	cs, err := svc.List(ctx, owner)
+	if err != nil {
+		return nil, cards.Bounds{}, err
+	}
+	b, err := svc.Bounds(ctx, owner)
+	return cs, b, err
 }
 
 // PageHandler serves the column page, server-rendered from the core service's
@@ -36,7 +50,7 @@ type CardService interface {
 // document honest while the Datastar/Motion bundles edge-cache on their CDNs.
 func PageHandler(svc CardService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cs, err := svc.List(r.Context(), ownerFrom(r.Context()))
+		cs, b, err := snapshot(r.Context(), svc, ownerFrom(r.Context()))
 		if err != nil {
 			log.Printf("ds page list: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -44,8 +58,103 @@ func PageHandler(svc CardService) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := routes.CardsPage(cs).Render(r.Context(), w); err != nil {
+		if err := routes.CardsPage(cs, b).Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
+		}
+	})
+}
+
+// layoutSignals is the Datastar signals body the drag/resize gestures @post:
+// the full proposed layout after the client-computed push (ADR 0005).
+type layoutSignals struct {
+	Layout []cards.Placement `json:"layout"`
+}
+
+// LayoutHandler is the one mutation endpoint for the Day Plan: it submits the
+// whole client-computed layout to the core and responds with an SSE
+// element-patch of the committed column.
+func LayoutHandler(svc CardService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig layoutSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+
+		owner := ownerFrom(r.Context())
+		res, err := svc.SetLayout(r.Context(), owner, sig.Layout)
+		var cs []cards.Card
+		switch {
+		case errors.Is(err, cards.ErrNotSameCards), errors.Is(err, cards.ErrOutOfBounds),
+			errors.Is(err, cards.ErrOverlap), errors.Is(err, cards.ErrInvalidSpan):
+			// Rollback at 200: patch back the authoritative column so the
+			// rejected gesture visibly snaps back (house convention).
+			cs, err = svc.List(r.Context(), owner)
+			if err != nil {
+				log.Printf("ds layout rollback list: %v", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+		case err != nil:
+			log.Printf("ds layout: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		default:
+			cs = res.Cards
+		}
+
+		b, err := svc.Bounds(r.Context(), owner)
+		if err != nil {
+			log.Printf("ds layout bounds: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		sse := datastar.NewSSE(w, r)
+		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
+			log.Printf("ds layout patch: %v", err)
+		}
+	})
+}
+
+// boundsSignals is the Datastar signals body the bounds-settings UI @posts:
+// the day's new extent as slot indexes from 00:00.
+type boundsSignals struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
+}
+
+// BoundsHandler edits the owner's day extent and responds with an
+// element-patch of the column rendered at the (possibly unchanged) committed
+// bounds — success resizes the grid, rejection re-asserts the current plan.
+func BoundsHandler(svc CardService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig boundsSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+
+		owner := ownerFrom(r.Context())
+		err := svc.SetBounds(r.Context(), owner, sig.Start, sig.End)
+		switch {
+		case errors.Is(err, cards.ErrInvalidBounds), errors.Is(err, cards.ErrBoundsOccupied):
+			// Rejection at 200: the snapshot below re-renders the current
+			// extent, so the plan is re-shown unchanged (house convention).
+		case err != nil:
+			log.Printf("ds bounds: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		cs, b, err := snapshot(r.Context(), svc, owner)
+		if err != nil {
+			log.Printf("ds bounds snapshot: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		sse := datastar.NewSSE(w, r)
+		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
+			log.Printf("ds bounds patch: %v", err)
 		}
 	})
 }
@@ -90,8 +199,14 @@ func ReorderHandler(svc CardService) http.Handler {
 			cs = res.Cards
 		}
 
+		b, err := svc.Bounds(r.Context(), owner)
+		if err != nil {
+			log.Printf("ds reorder bounds: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
+		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
 			log.Printf("ds reorder patch: %v", err)
 		}
 	})
@@ -135,8 +250,14 @@ func ResizeHandler(svc CardService) http.Handler {
 			cs = res.Cards
 		}
 
+		b, err := svc.Bounds(r.Context(), owner)
+		if err != nil {
+			log.Printf("ds resize bounds: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
+		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
 			log.Printf("ds resize patch: %v", err)
 		}
 	})
@@ -167,12 +288,12 @@ func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 
 		sse := datastar.NewSSE(w, r)
 
-		cs, err := svc.List(r.Context(), owner)
+		cs, b, err := snapshot(r.Context(), svc, owner)
 		if err != nil {
 			log.Printf("ds events list: %v", err)
 			return
 		}
-		if err := sse.PatchElementTempl(components.CardColumn(cs)); err != nil {
+		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
 			return
 		}
 
@@ -183,7 +304,7 @@ func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 			case <-r.Context().Done():
 				return
 			case e := <-sub.Events:
-				if err := sse.PatchElementTempl(components.CardColumn(e.Cards)); err != nil {
+				if err := sse.PatchElementTempl(components.CardColumn(e.Cards, e.Bounds)); err != nil {
 					return
 				}
 			case <-ticker.C:
