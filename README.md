@@ -1,10 +1,8 @@
 # hello-cards
 
-A minimal full-stack reference app validating the production architecture for a
-Trello-like multi-tenant product with live, optimistic UI over flaky networks:
-a **Go-only stack** with business logic living exactly once on the server,
-Postgres as source of truth, SSE for live reads, and a server-rendered
-**Datastar + templ** frontend.
+[![CI/CD](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml/badge.svg)](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/GVPproj/unbusy.day)](https://goreportcard.com/report/github.com/GVPproj/unbusy.day)
+Have a structured day.  Time-block your schedule, track some progress, no rush.
 
 ## License
 
@@ -37,28 +35,12 @@ Service CLIs (needed at M3+):
 
 ## Quickstart
 
-```bash
-# One-time
-brew install go-task lefthook gitleaks docker
-go install github.com/air-verse/air@latest
-go install github.com/a-h/templ/cmd/templ@latest
-lefthook install                  # wires pre-commit gitleaks hook
-cp .env.example .env
-
-# Day-to-day
-task dev                          # Postgres + templ watch + Go hot reload
-curl localhost:8080/healthz       # → 200 OK
-```
-
-### Linux (Debian / Ubuntu / Mint)
-
-Install Go-based tools with `go install` (they land in
-`$(go env GOPATH)/bin` — ensure it's on your `PATH`), and the system clients
-via `apt`. Install `docker` via your distro's usual method.
+Install `go`, `docker`, `psql`, `git`, `curl`, and `jq` via your OS package
+manager. The rest is OS-neutral `go install` (binaries land in
+`$(go env GOPATH)/bin` — ensure it's on your `PATH`):
 
 ```bash
 # One-time
-sudo apt-get update && sudo apt-get install -y postgresql-client jq curl git
 go install github.com/go-task/task/v3/cmd/task@latest
 go install github.com/air-verse/air@latest
 go install github.com/a-h/templ/cmd/templ@latest
@@ -66,6 +48,10 @@ go install github.com/evilmartians/lefthook@latest
 go install github.com/zricethezav/gitleaks/v8@latest   # note: zricethezav, not gitleaks
 lefthook install                  # wires pre-commit gitleaks hook
 cp .env.example .env
+
+# Day-to-day
+task dev                          # Postgres + templ watch + Go hot reload
+curl localhost:8080/healthz       # → 200 OK
 ```
 
 ## Contributing
