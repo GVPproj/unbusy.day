@@ -12,6 +12,9 @@ tasks:
     desc: "Postgres (compose) + templ watch/proxy driving the Go server (browse :7331)"
     cmds:
       - docker compose up -d --wait
+      # Apply pending migrations before serving (goose, run-once, no-op when
+      # current) — mirrors Fly's release step and survives `task nuke`.
+      - go run . migrate
       # templ owns the whole dev loop: it watches .templ and .go files,
       # regenerates, (re)runs the server, and auto-reloads the browser via
       # the proxy on :7331. Text-only .templ edits (CSS in styles.templ,

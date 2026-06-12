@@ -10,7 +10,7 @@ A minimal full-stack Go app (module `github.com/GVPproj/unbusy.day`, app name `h
 
 Day-to-day uses [go-task](https://taskfile.dev) (`task`):
 
-- `task dev` — full dev loop: starts Postgres (compose), runs `templ generate --watch` with a reload proxy on **:7331** driving `go run .` on :8080. Browse **:7331**, not :8080. Do **not** run `air` alongside it (air rebuilds on every `.templ` edit and defeats templ's text-only fast path).
+- `task dev` — full dev loop: starts Postgres (compose), applies pending migrations, runs `templ generate --watch` with a reload proxy on **:7331** driving `go run .` on :8080. Browse **:7331**, not :8080. Do **not** run `air` alongside it (air rebuilds on every `.templ` edit and defeats templ's text-only fast path).
 - `task test` — `go test ./...`. Run a single test: `go test ./cards -run TestReorder`. Note CI runs `go test -race ./...`.
 - `task migrate` — applies pending migrations against `$DATABASE_URL` via the binary's `migrate` subcommand (`go run . migrate`; goose, run-once, safe to re-run).
 - `task templ` — one-shot `templ generate`. **Never run this while `task dev` is up** — non-watch generation deletes the watch session's literal cache and the running server 500s on every render until restarted.
