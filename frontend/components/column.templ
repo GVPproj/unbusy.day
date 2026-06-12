@@ -21,7 +21,7 @@ templ ColumnStyles() {
 			border-radius: var(--radius);
 			padding: var(--card-pad);
 			box-shadow: var(--shadow-rest);
-			font-weight: 500;
+			font-weight: 600;
 			cursor: grab;
 			user-select: none;
 			touch-action: none;
@@ -32,7 +32,10 @@ templ ColumnStyles() {
 			   paints full-size on first load. Unit approximation of heightFor();
 			   DragInit overwrites style.height with measured pixels on gesture. */
 			&.stretched {
-				height: calc(var(--span) * (1lh + 2 * var(--card-pad)) + (var(--span) - 1) * var(--gap));
+				height: calc(
+					var(--span) * (1lh + 2 * var(--card-pad)) + (var(--span) - 1) *
+						var(--gap)
+				);
 			}
 
 			&.dragging {
