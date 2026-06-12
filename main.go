@@ -57,6 +57,8 @@ func main() {
 	// fans every mutation to all subscribers as element patches, and the
 	// reorder endpoint commits a drop and patches the column back.
 	mux.Handle("GET /{$}", ds.PageHandler(svc))
+	mux.Handle("GET /login", ds.LoginPageHandler())
+	mux.Handle("POST /login", ds.LoginActionHandler())
 	mux.Handle("GET /events", ds.EventsHandler(svc, broker))
 	mux.Handle("POST /cards/reorder", ds.ReorderHandler(svc))
 	mux.Handle("POST /cards/resize", ds.ResizeHandler(svc))

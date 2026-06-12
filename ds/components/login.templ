@@ -1,0 +1,13 @@
+package components
+
+// LoginPage is a placeholder login view: one button that @posts to /login.
+// The server answers with a Datastar redirect to the main view; no auth yet.
+templ LoginPage() {
+	@Layout("hello-cards — log in", "") {
+		<main class="column">
+			<h1>hello-cards</h1>
+			<p class="status">No credentials yet — just step through.</p>
+			<button data-on:click="@post('/login')">Log in</button>
+		</main>
+	}
+}
