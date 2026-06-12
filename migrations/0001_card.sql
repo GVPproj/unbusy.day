@@ -1,3 +1,4 @@
+-- +goose Up
 -- card table with a DEFERRABLE unique on position so the bulk reorder UPDATE
 -- doesn't trip the constraint on intermediate per-row states. Idempotent:
 -- safe to re-run via `task migrate`.

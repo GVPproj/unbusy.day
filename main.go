@@ -21,6 +21,17 @@ func main() {
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
 	}
+	// `hello-cards migrate` applies embedded migrations and exits. Fly's
+	// release_command runs this before the rollout so schema lands ahead of
+	// the new binary (expand-then-deploy).
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		if err := runMigrations(ctx, dbURL); err != nil {
+			log.Fatalf("migrate: %v", err)
+		}
+		log.Println("migrations applied")
+		return
+	}
+
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		log.Fatalf("pgxpool: %v", err)
@@ -28,17 +39,6 @@ func main() {
 	defer pool.Close()
 	if err := pool.Ping(ctx); err != nil {
 		log.Fatalf("ping db: %v", err)
-	}
-
-	// `hello-cards migrate` applies embedded migrations and exits. Fly's
-	// release_command runs this before the rollout so schema lands ahead of
-	// the new binary (expand-then-deploy).
-	if len(os.Args) > 1 && os.Args[1] == "migrate" {
-		if err := runMigrations(ctx, pool); err != nil {
-			log.Fatalf("migrate: %v", err)
-		}
-		log.Println("migrations applied")
-		return
 	}
 
 	broker := pubsub.New()

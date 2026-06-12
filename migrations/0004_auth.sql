@@ -1,3 +1,4 @@
+-- +goose Up
 -- Auth + per-user tenancy (ADRs 0001–0003). Additive + idempotent: safe to
 -- re-run via `task migrate`, and safe to land before the code that reads it —
 -- the running binary's explicit column lists never read owner_id, and it
@@ -40,8 +41,10 @@ ALTER TABLE card ADD COLUMN IF NOT EXISTS owner_id TEXT REFERENCES "user"(id) ON
 DELETE FROM card WHERE owner_id IS NULL;
 
 ALTER TABLE card DROP CONSTRAINT IF EXISTS card_position_unique;
+-- +goose StatementBegin
 DO $$ BEGIN
   ALTER TABLE card ADD CONSTRAINT card_owner_position_unique
     UNIQUE (owner_id, position) DEFERRABLE INITIALLY DEFERRED;
 EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
+-- +goose StatementEnd

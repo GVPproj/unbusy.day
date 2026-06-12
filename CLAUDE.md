@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A minimal full-stack reference app (module `github.com/GVPproj/unbusy.day`, app name `hello-cards`) validating the production architecture for a Trello-like, multi-tenant product with live, optimistic UI over flaky networks. The stack is deliberately **Go-only**: business logic lives exactly once on the server, Postgres is the source of truth, SSE carries live reads, and the frontend is server-rendered **Datastar + templ** — there is no JS build step, no SPA, no client-side business logic.
+A minimal full-stack Go app (module `github.com/GVPproj/unbusy.day`, app name `hello-cards`) — the production architecture for a Trello-like, multi-tenant product with live, optimistic UI over flaky networks. The stack is deliberately **Go-only**: business logic lives exactly once on the server, Postgres is the source of truth, SSE carries live reads, and the frontend is server-rendered **Datastar + templ** — there is no JS build step, no SPA, no client-side business logic.
 
 ## Commands
 
@@ -12,7 +12,7 @@ Day-to-day uses [go-task](https://taskfile.dev) (`task`):
 
 - `task dev` — full dev loop: starts Postgres (compose), runs `templ generate --watch` with a reload proxy on **:7331** driving `go run .` on :8080. Browse **:7331**, not :8080. Do **not** run `air` alongside it (air rebuilds on every `.templ` edit and defeats templ's text-only fast path).
 - `task test` — `go test ./...`. Run a single test: `go test ./cards -run TestReorder`. Note CI runs `go test -race ./...`.
-- `task migrate` — applies `migrations/*.sql` in order against `$DATABASE_URL` via `psql` (idempotent; safe to re-run).
+- `task migrate` — applies pending migrations against `$DATABASE_URL` via the binary's `migrate` subcommand (`go run . migrate`; goose, run-once, safe to re-run).
 - `task templ` — one-shot `templ generate`. **Never run this while `task dev` is up** — non-watch generation deletes the watch session's literal cache and the running server 500s on every render until restarted.
 - `task up` / `task down` / `task nuke` — Postgres lifecycle (`nuke` deletes the data volume).
 - `task build` — `templ generate` + `go build -o tmp/hello-cards .`.
@@ -34,9 +34,14 @@ Key invariant: **page render and patch render share one templ component** (`comp
 
 Domain rejections (`cards.ErrNotPermutation`, `cards.ErrInvalidSpan`) are surfaced as **200 + a re-render of the authoritative column**, not a 4xx. The rejected optimistic change visibly snaps back because the server patches the truth back over it. (Datastar applying patches on error statuses is unverified, and there's no separate client rollback path.)
 
-### Migrations are expand-then-deploy by construction
+### Migrations are run-once via goose (ADR 0004)
 
-All migrations are additive + idempotent (`ADD COLUMN IF NOT EXISTS`, etc.). The running binary uses **explicit column lists** (`SELECT id, label, position, span`), never `SELECT *`, so a migration can land before the code that reads a new column, and a migration alone never changes the wire shape. Exposing a new field always needs a code change + deploy.
+Migrations are plain `.sql` files in `migrations/`, embedded via `go:embed` and applied exactly once per database by goose (`github.com/pressly/goose/v3` as a library; versions recorded in `goose_db_version`). The Fly release command and `task migrate` both run the binary's `migrate` subcommand.
+
+- **New migrations are plain DDL** — no `IF NOT EXISTS` / `DO $$ EXCEPTION` idempotency scaffolding. Each file needs a `-- +goose Up` header; wrap multi-statement `DO $$ … $$` blocks in `-- +goose StatementBegin` / `-- +goose StatementEnd`.
+- **Timestamp-versioned filenames** for new migrations (e.g. via `goose create <name> sql`) so concurrent branches can't collide. The legacy `0001`–`0004` names stay as-is; their idempotent bodies are what lets goose baseline pre-goose databases automatically.
+- **Forward-only**: no Down sections, no rollback tooling. Fix mistakes with a new forward migration; reset a broken local schema with `task nuke` + re-migrate. An applied file is history — editing it does nothing.
+- **Expand-then-deploy is preserved by discipline, not re-runnability**: keep DDL additive and keep the binary on explicit column lists (`SELECT id, label, position, span`), never `SELECT *`, so a migration can land before the code that reads a new column and never changes the wire shape by itself.
 
 ## Frontend gotchas (Datastar / templ)
 

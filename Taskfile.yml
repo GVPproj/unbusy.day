@@ -44,14 +44,9 @@ tasks:
       - docker compose down -v
 
   migrate:
-    desc: "Apply SQL migrations against $DATABASE_URL (psql)"
+    desc: "Apply pending migrations against $DATABASE_URL (goose, run-once)"
     cmds:
-      - |
-        for f in migrations/*.sql; do
-          [ -f "$f" ] || continue
-          echo "→ $f"
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
-        done
+      - go run . migrate
 
   templ:
     desc: "Generate templ Go files"

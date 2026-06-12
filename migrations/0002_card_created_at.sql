@@ -1,3 +1,4 @@
+-- +goose Up
 -- Additive + idempotent: safe to re-run via `task migrate`, and the running
 -- binary's explicit column lists (`SELECT id, label, position`) are untouched,
 -- so it can be applied before the code knows about the column. Wire payloads

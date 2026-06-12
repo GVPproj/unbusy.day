@@ -2,37 +2,46 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"fmt"
+	"io/fs"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 // migrations/*.sql is embedded so the scratch runtime image (no shell, no
-// psql) can apply schema on the Fly release_command. ReadDir returns names
-// lexically sorted, which is the apply order (0001, 0002, …).
+// psql) can apply schema on the Fly release_command.
 //
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// runMigrations applies every migrations/*.sql in order. Each file is sent as
-// one simple-protocol Exec so multi-statement files (e.g. the DO $$ … $$ block
-// in 0003) run whole, the same way `psql -f` applies them. Migrations are
-// additive + idempotent, so re-applying the full set is safe.
-func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	entries, err := migrationsFS.ReadDir("migrations")
+// runMigrations applies pending migrations exactly once each via goose,
+// recording versions in goose_db_version. Forward-only: no Down sections.
+func runMigrations(ctx context.Context, dbURL string) error {
+	db, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		return fmt.Errorf("read migrations: %w", err)
+		return fmt.Errorf("open db: %w", err)
 	}
-	for _, e := range entries {
-		sql, err := migrationsFS.ReadFile("migrations/" + e.Name())
-		if err != nil {
-			return fmt.Errorf("read %s: %w", e.Name(), err)
-		}
-		if _, err := pool.Exec(ctx, string(sql), pgx.QueryExecModeSimpleProtocol); err != nil {
-			return fmt.Errorf("apply %s: %w", e.Name(), err)
-		}
+	defer db.Close()
+
+	sub, err := fs.Sub(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("sub fs: %w", err)
+	}
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, sub)
+	if err != nil {
+		return fmt.Errorf("goose provider: %w", err)
+	}
+	results, err := provider.Up(ctx)
+	// Report applied files even on failure so a bad migration is diagnosable
+	// from Fly release logs alone.
+	for _, r := range results {
+		fmt.Printf("migrate: applied %s\n", r.Source.Path)
+	}
+	if err != nil {
+		return fmt.Errorf("goose up: %w", err)
 	}
 	return nil
 }
