@@ -20,6 +20,43 @@ templ LoginStyles() {
 			margin-bottom: 0.5rem;
 		}
 
+		.login-amoeba {
+			position: relative;
+			width: 100%;
+			min-height: 100svh;
+			display: grid;
+			place-items: center;
+			overflow: hidden;
+		}
+
+		.login-amoeba-svg {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			/* On phones 150vw wins, so the blob bleeds well past the screen
+			   edges; the wrap's overflow:hidden clips it without scrollbars. */
+			width: min(1000px, max(95vmin, 150vw));
+			height: min(1000px, max(95vmin, 150vw));
+			translate: -50% -50%;
+			color: var(--column-bg);
+			animation: login-amoeba-spin 90s linear infinite;
+		}
+
+		.login-amoeba-content {
+			position: relative;
+			width: min(20rem, calc(100vw - 2rem));
+			padding: clamp(2rem, 10vmin, 6rem) 0;
+		}
+
+		@keyframes login-amoeba-spin {
+			to { transform: rotate(360deg); }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.login-amoeba-svg { animation: none; }
+			.login-amoeba-svg animate { display: none; }
+		}
+
 		.login-main h1 {
 			font-size: 1.5rem;
 			font-weight: 700;
@@ -108,6 +145,32 @@ templ LoginStyles() {
 			color: var(--ink-error);
 		}
 	</style>
+}
+
+// LoginAmoeba wraps the login content in an undulating amoeboid backdrop: a
+// large SVG blob morphing via SMIL while slowly rotating (prototype winner b).
+templ LoginAmoeba() {
+	<div class="login-amoeba">
+		<svg class="login-amoeba-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+			<path fill="currentColor">
+				<animate
+					attributeName="d"
+					dur="14s"
+					repeatCount="indefinite"
+					values="M300,60 C420,70 520,160 510,300 C500,440 400,540 290,535 C180,530 80,440 85,295 C90,150 180,50 300,60 Z;
+						M310,75 C430,95 530,190 500,310 C470,430 380,555 270,540 C160,525 70,420 90,290 C110,160 190,55 310,75 Z;
+						M295,55 C400,50 515,150 520,285 C525,420 420,525 300,545 C180,565 95,455 80,310 C65,165 190,60 295,55 Z;
+						M300,60 C420,70 520,160 510,300 C500,440 400,540 290,535 C180,530 80,440 85,295 C90,150 180,50 300,60 Z"
+				></animate>
+			</path>
+		</svg>
+		<div class="login-amoeba-content">
+			<div class="login-logo">
+				@UBLogo("153", "66")
+			</div>
+			@LoginEmailForm()
+		</div>
+	</div>
 }
 
 // LoginEmailForm is step 1: the stable #login-form id is the morph anchor

@@ -11,11 +11,8 @@ import (
 // along with $code on /login/verify.
 templ LoginPage() {
 	@layouts.Layout("unbusy.day — log in", "", components.LoginStyles()) {
-		<main class="column login-main">
-			<div class="login-logo">
-				@components.UBLogo("153", "66")
-			</div>
-			@components.LoginEmailForm()
+		<main class="login-main">
+			@components.LoginAmoeba()
 		</main>
 	}
 }
