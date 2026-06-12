@@ -1,7 +1,7 @@
 // Login-flow adapter tests: a fake AuthService stands in for *auth.Service
 // (the DB is the system boundary); templ rendering is real, pinning the
 // observable wire behavior of the OTP flow.
-package ds
+package frontend
 
 import (
 	"context"

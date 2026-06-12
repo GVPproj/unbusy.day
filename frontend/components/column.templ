@@ -1,15 +1,11 @@
 package components
 
-import (
-	"strconv"
+import "github.com/GVPproj/unbusy.day/cards"
 
-	"github.com/GVPproj/unbusy.day/cards"
-)
-
-// columnStyles is the card column's stylesheet, co-located with the markup
-// it styles and included once in <head> by Layout. Tokens come from
-// baseStyles' :root block.
-templ columnStyles() {
+// ColumnStyles is the card column's stylesheet, co-located with the markup
+// it styles and passed to Layout's <head> by the cards route. Tokens come
+// from baseStyles' :root block.
+templ ColumnStyles() {
 	<style>
 		.cards {
 			list-style: none;
@@ -33,7 +29,7 @@ templ columnStyles() {
 
 			/* Persisted stretch height, server-rendered so a stretched card
 			   paints full-size on first load. Unit approximation of heightFor();
-			   dragInit overwrites style.height with measured pixels on gesture. */
+			   DragInit overwrites style.height with measured pixels on gesture. */
 			&.stretched {
 				height: calc(var(--span) * (1lh + 2 * var(--card-pad)) + (var(--span) - 1) * var(--gap));
 			}
@@ -86,7 +82,7 @@ templ columnStyles() {
 		/* one empty row of the stretch rail. The dashes live on an inset
 		   ::before and the li itself carries no padding/border, so animating
 		   height to 0 (with overflow hidden) collapses it completely. The
-		   calc height is the pre-JS approximation of a card row; dragInit
+		   calc height is the pre-JS approximation of a card row; DragInit
 		   pins it to the measured card height on load. */
 		.slot {
 			height: calc(1lh + 2 * var(--card-pad));
@@ -115,7 +111,7 @@ templ columnStyles() {
 
 // CardColumn is the patch fragment: the stable #card-list id is the
 // outer-morph anchor every SSE patch and reorder response lands on, and the
-// data-id attributes are what dragInit reads post-drop to build the new order.
+// data-id attributes are what DragInit reads post-drop to build the new order.
 // Page render and patch render share this component so they can't drift apart.
 //
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
@@ -141,25 +137,6 @@ templ CardColumn(cs []cards.Card) {
 	</ul>
 }
 
-// card is one draggable list item. data-id is the stable order/idiomorph key;
-// data-span (also --span + .stretched) persists the height so a stretched card
-// paints full-size on first load. The grip starts a resize gesture (see dragInit).
-templ card(c cards.Card) {
-	<li class={ "card", templ.KV("stretched", spanOr1(c.Span) > 1) } data-id={ c.ID } data-span={ strconv.Itoa(spanOr1(c.Span)) } style={ "--span:" + strconv.Itoa(spanOr1(c.Span)) }>
-		{ c.Label }
-		<span class="grip" aria-hidden="true"></span>
-	</li>
-}
-
-// spanOr1 floors a card's span at 1, so a zero-valued Span renders the
-// baseline height rather than data-span="0".
-func spanOr1(span int) int {
-	if span < 1 {
-		return 1
-	}
-	return span
-}
-
 // extraSpans is the total slots cards have grown into (sum of span-1). The
 // bottom-most extraSpans rows render collapsed (.consumed) to balance the rail.
 func extraSpans(cs []cards.Card) int {
@@ -177,7 +154,7 @@ templ slot(collapsed bool) {
 	<li class={ "slot", templ.KV("consumed", collapsed) } aria-hidden="true"></li>
 }
 
-// dragInit is the Motion-powered drag, reimplementing dnd-kit's feel: it
+// DragInit is the Motion-powered drag, reimplementing dnd-kit's feel: it
 // transforms the REAL <li> under the pointer (not a floating ghost) so the
 // drag feels like picking the card up.
 //
@@ -192,13 +169,13 @@ templ slot(collapsed bool) {
 // It also owns the stretch gesture (grip drag): the card height snaps span by
 // span to the spring while the bottom-most open slot collapses or reopens in
 // the same spring, so the column height holds steady. Spans persist and re-render
-// into every morph; a MutationObserver re-seeds dragInit's data-id→span cache from data-span.
+// into every morph; a MutationObserver re-seeds DragInit's data-id→span cache from data-span.
 //
 // Wire contract: the Datastar listener copies evt.detail.order into $order and
 // @posts; the response patch renders the order the drop already left in the
 // DOM, so the outer morph is a visual no-op. Listeners are delegated to
 // #card-list, which the morph preserves, so the wiring survives every patch.
-templ dragInit() {
+templ DragInit() {
 	<script type="module">
 		import { animate, motionValue, styleEffect } from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
 

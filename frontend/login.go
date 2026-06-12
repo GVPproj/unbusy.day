@@ -1,4 +1,4 @@
-package ds
+package frontend
 
 import (
 	"context"
@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/auth"
-	"github.com/GVPproj/unbusy.day/ds/components"
+	"github.com/GVPproj/unbusy.day/frontend/components"
+	"github.com/GVPproj/unbusy.day/frontend/routes"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
@@ -31,7 +32,7 @@ func LoginPageHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := components.LoginPage().Render(r.Context(), w); err != nil {
+		if err := routes.LoginPage().Render(r.Context(), w); err != nil {
 			http.Error(w, "render login page", http.StatusInternalServerError)
 		}
 	})

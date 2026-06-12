@@ -1,7 +1,7 @@
 // Package ds is the Datastar + templ frontend: the server-rendered route tree
 // (page, events stream, reorder) driving the cards service and pub/sub.
 // /_smoke is a wiring canary for the pinned Datastar SDK + templ versions.
-package ds
+package frontend
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/cards"
-	"github.com/GVPproj/unbusy.day/ds/components"
+	"github.com/GVPproj/unbusy.day/frontend/components"
+	"github.com/GVPproj/unbusy.day/frontend/routes"
 	"github.com/GVPproj/unbusy.day/pubsub"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -43,14 +44,14 @@ func PageHandler(svc CardService) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := components.CardsPage(cs).Render(r.Context(), w); err != nil {
+		if err := routes.CardsPage(cs).Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
 		}
 	})
 }
 
 // reorderSignals is the Datastar signals body @post ships: the $order signal
-// set from the data-id order dragInit commits on drop.
+// set from the data-id order DragInit commits on drop.
 type reorderSignals struct {
 	Order []string `json:"order"`
 }

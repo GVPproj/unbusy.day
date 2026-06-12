@@ -9,7 +9,7 @@ import (
 
 	"github.com/GVPproj/unbusy.day/auth"
 	"github.com/GVPproj/unbusy.day/cards"
-	"github.com/GVPproj/unbusy.day/ds"
+	"github.com/GVPproj/unbusy.day/frontend"
 	"github.com/GVPproj/unbusy.day/pubsub"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -60,18 +60,18 @@ func main() {
 	// pub/sub: the page renders the authoritative order, the events stream
 	// fans every mutation to all subscribers as element patches, and the
 	// reorder endpoint commits a drop and patches the column back.
-	mux.Handle("GET /{$}", ds.RequireSession(authSvc, ds.PageHandler(svc)))
-	mux.Handle("GET /login", ds.LoginPageHandler())
-	mux.Handle("POST /login/code", ds.RequestCodeHandler(authSvc))
-	mux.Handle("POST /login/verify", ds.VerifyCodeHandler(authSvc, svc, secureCookies))
-	mux.Handle("POST /logout", ds.LogoutHandler(authSvc, secureCookies))
-	mux.Handle("GET /events", ds.RequireSession(authSvc, ds.EventsHandler(svc, broker)))
-	mux.Handle("POST /cards/reorder", ds.RequireSession(authSvc, ds.ReorderHandler(svc)))
-	mux.Handle("POST /cards/resize", ds.RequireSession(authSvc, ds.ResizeHandler(svc)))
+	mux.Handle("GET /{$}", frontend.RequireSession(authSvc, frontend.PageHandler(svc)))
+	mux.Handle("GET /login", frontend.LoginPageHandler())
+	mux.Handle("POST /login/code", frontend.RequestCodeHandler(authSvc))
+	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, svc, secureCookies))
+	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, secureCookies))
+	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(svc, broker)))
+	mux.Handle("POST /cards/reorder", frontend.RequireSession(authSvc, frontend.ReorderHandler(svc)))
+	mux.Handle("POST /cards/resize", frontend.RequireSession(authSvc, frontend.ResizeHandler(svc)))
 
 	// Wiring canary for the pinned Datastar SDK + templ versions.
-	mux.Handle("GET /_smoke", ds.SmokeHandler())
-	mux.Handle("GET /_smoke/events", ds.SmokeEventsHandler())
+	mux.Handle("GET /_smoke", frontend.SmokeHandler())
+	mux.Handle("GET /_smoke/events", frontend.SmokeEventsHandler())
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -1,18 +1,19 @@
-package components
+package layouts
 
 // Layout is the document shell: the pinned Datastar CDN script, the shared
 // inline stylesheet, and the live-stream opener. Motion isn't loaded here —
-// dragInit ESM-imports its own pinned copy, so only pages with a draggable
+// DragInit ESM-imports its own pinned copy, so only pages with a draggable
 // list pay for it. Pages render into the body slot via { children... }.
 //
-// Styles are co-located: each component file owns a *Styles block, and they
-// are all gathered here in <head> — never inside a patched fragment, so SSE
-// patches don't re-ship CSS.
+// Styles are co-located: each component file owns a *Styles block, and routes
+// pass the ones their page needs via the variadic styles param. They render
+// here in <head> — never inside a patched fragment, so SSE patches don't
+// re-ship CSS.
 //
 // streamInit is the body's `data-init` expression — not the RC-era
 // `data-on-load`, which is a silent no-op on v1.0.2. It runs when the body
 // enters the DOM, opening the page's SSE stream on load.
-templ Layout(title string, streamInit string) {
+templ Layout(title string, streamInit string, styles ...templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -20,8 +21,9 @@ templ Layout(title string, streamInit string) {
 			<title>{ title }</title>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
 			@baseStyles()
-			@columnStyles()
-			@loginStyles()
+			for _, s := range styles {
+				@s
+			}
 		</head>
 		<body
 			if streamInit != "" {

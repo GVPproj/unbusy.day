@@ -1,4 +1,4 @@
-package ds
+package frontend
 
 import (
 	"net/http"

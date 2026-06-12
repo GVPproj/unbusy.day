@@ -1,0 +1,19 @@
+package routes
+
+import (
+	"github.com/GVPproj/unbusy.day/frontend/components"
+	"github.com/GVPproj/unbusy.day/frontend/layouts"
+)
+
+// LoginPage is the passwordless OTP flow (ADR 0001). Step 1 collects the
+// email; the server answers /login/code by patching #login-form into the
+// code-entry step. Signals are global, so $email survives the morph and rides
+// along with $code on /login/verify.
+templ LoginPage() {
+	@layouts.Layout("hello-cards — log in", "", components.LoginStyles()) {
+		<main class="column">
+			<h1>hello-cards</h1>
+			@components.LoginEmailForm()
+		</main>
+	}
+}

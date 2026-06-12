@@ -2,7 +2,7 @@
 // boundary, so a fake CardService stands in for *cards.Service; the pub/sub
 // Broker and templ rendering are real — tests pin observable wire behavior
 // (frames, fragment ids, order), not SDK internals.
-package ds
+package frontend
 
 import (
 	"bufio"
@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/cards"
-	"github.com/GVPproj/unbusy.day/ds/components"
+	"github.com/GVPproj/unbusy.day/frontend/components"
 	"github.com/GVPproj/unbusy.day/pubsub"
 )
 
@@ -98,7 +98,7 @@ func threeCards() []cards.Card {
 
 // assertOrder checks that the ids appear in body in the given order — the
 // observable contract of a server-rendered column, without pinning markup
-// details beyond the data-id anchors dragInit reads.
+// details beyond the data-id anchors DragInit reads.
 func assertOrder(t *testing.T, body string, ids ...string) {
 	t.Helper()
 	last := -1
@@ -409,7 +409,7 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 }
 
 // Each card carries its persisted span as data-span; default cards render
-// data-span="1". dragInit re-asserts heights from this after every patch.
+// data-span="1". DragInit re-asserts heights from this after every patch.
 func TestColumnRendersPersistedSpan(t *testing.T) {
 	cs := []cards.Card{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 2},
@@ -432,7 +432,7 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 
 // The column renders one empty slot per card, all after the cards, so every
 // morph re-asserts the same baseline (span-1 cards, fully open rail) that
-// dragInit's spans map then re-applies onto. Slots carry no data-id, so they
+// DragInit's spans map then re-applies onto. Slots carry no data-id, so they
 // can never leak into the reorder wire payload.
 func TestColumnRendersStretchSlotRail(t *testing.T) {
 	var b strings.Builder
