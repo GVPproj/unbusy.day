@@ -6,6 +6,113 @@ import (
 	"github.com/GVPproj/unbusy.day/cards"
 )
 
+// columnStyles is the card column's stylesheet, co-located with the markup
+// it styles and included once in <head> by Layout. Tokens come from
+// baseStyles' :root block.
+templ columnStyles() {
+	<style>
+		.cards {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			gap: var(--gap);
+		}
+
+		.card {
+			background: var(--surface);
+			border-radius: var(--radius);
+			padding: var(--card-pad);
+			box-shadow: var(--shadow-rest);
+			cursor: grab;
+			user-select: none;
+			touch-action: none;
+			/* anchor for the grip; also the z-index context .dragging needs */
+			position: relative;
+
+			/* Persisted stretch height, server-rendered so a stretched card
+			   paints full-size on first load. Unit approximation of heightFor();
+			   dragInit overwrites style.height with measured pixels on gesture. */
+			&.stretched {
+				height: calc(var(--span) * (1lh + 2 * var(--card-pad)) + (var(--span) - 1) * var(--gap));
+			}
+
+			&.dragging {
+				cursor: grabbing;
+				opacity: 0.85;
+				box-shadow: var(--shadow-lift);
+				/* the held card is the real node transformed in place — it must
+				   paint above the siblings springing past underneath it */
+				z-index: 1;
+			}
+
+			&.resizing {
+				box-shadow: var(--shadow-lift);
+				z-index: 1;
+			}
+
+			&:hover .grip::after,
+			&.resizing .grip::after {
+				opacity: 1;
+			}
+		}
+
+		/* stretch handle along the card's bottom edge; the bar fades in on
+		   hover as the affordance */
+		.grip {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 10px;
+			cursor: ns-resize;
+
+			&::after {
+				content: "";
+				position: absolute;
+				left: 50%;
+				bottom: 3px;
+				width: 28px;
+				height: 3px;
+				border-radius: 2px;
+				transform: translateX(-50%);
+				background: var(--grip-bar);
+				opacity: 0;
+				transition: opacity 120ms;
+			}
+		}
+
+		/* one empty row of the stretch rail. The dashes live on an inset
+		   ::before and the li itself carries no padding/border, so animating
+		   height to 0 (with overflow hidden) collapses it completely. The
+		   calc height is the pre-JS approximation of a card row; dragInit
+		   pins it to the measured card height on load. */
+		.slot {
+			height: calc(1lh + 2 * var(--card-pad));
+			border-radius: var(--radius);
+			position: relative;
+			overflow: hidden;
+
+			/* a rail row a stretched card has grown into — collapsed flush
+			   (height 0, negative margin eats the gap) so the column height
+			   holds. Matches apply(). */
+			&.consumed {
+				height: 0;
+				margin-top: calc(-1 * var(--gap));
+			}
+
+			&::before {
+				content: "";
+				position: absolute;
+				inset: 0;
+				border: 2px dashed var(--rail-border);
+				border-radius: var(--radius);
+			}
+		}
+	</style>
+}
+
 // CardColumn is the patch fragment: the stable #card-list id is the
 // outer-morph anchor every SSE patch and reorder response lands on, and the
 // data-id attributes are what dragInit reads post-drop to build the new order.

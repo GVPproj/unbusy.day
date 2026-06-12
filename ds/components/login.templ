@@ -1,5 +1,15 @@
 package components
 
+// loginStyles is the login flow's stylesheet, co-located here and included
+// in <head> by Layout.
+templ loginStyles() {
+	<style>
+		.status.error {
+			color: var(--ink-error);
+		}
+	</style>
+}
+
 // LoginPage is the passwordless OTP flow (ADR 0001). Step 1 collects the
 // email; the server answers /login/code by patching #login-form into the
 // code-entry step. Signals are global, so $email survives the morph and rides

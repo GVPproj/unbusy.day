@@ -5,6 +5,10 @@ package components
 // dragInit ESM-imports its own pinned copy, so only pages with a draggable
 // list pay for it. Pages render into the body slot via { children... }.
 //
+// Styles are co-located: each component file owns a *Styles block, and they
+// are all gathered here in <head> — never inside a patched fragment, so SSE
+// patches don't re-ship CSS.
+//
 // streamInit is the body's `data-init` expression — not the RC-era
 // `data-on-load`, which is a silent no-op on v1.0.2. It runs when the body
 // enters the DOM, opening the page's SSE stream on load.
@@ -15,7 +19,9 @@ templ Layout(title string, streamInit string) {
 			<meta charset="utf-8"/>
 			<title>{ title }</title>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
-			@styles()
+			@baseStyles()
+			@columnStyles()
+			@loginStyles()
 		</head>
 		<body
 			if streamInit != "" {
@@ -25,4 +31,58 @@ templ Layout(title string, streamInit string) {
 			{ children... }
 		</body>
 	</html>
+}
+
+// baseStyles owns the design tokens (:root custom properties, available to
+// every style block below) plus the reset and the page shell shared by the
+// cards and login pages.
+templ baseStyles() {
+	<style>
+		:root {
+			--bg: #f3f7f4;
+			--ink: #1b3d2f;
+			--ink-muted: #5f8270;
+			--ink-error: #a33b2e;
+			--surface: #fff;
+			--column-bg: #dfeee5;
+			--rail-border: #b9d4c4;
+			--shadow-rest: 0 1px 1px rgba(16, 61, 41, 0.25);
+			--shadow-lift: 0 4px 8px rgba(16, 61, 41, 0.25);
+			--grip-bar: rgba(16, 61, 41, 0.2);
+			--gap: 0.5rem;
+			--card-pad: 0.75rem;
+			--radius: 4px;
+			--radius-lg: 8px;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family: system-ui, sans-serif;
+			background: var(--bg);
+			color: var(--ink);
+		}
+
+		.column {
+			max-width: 320px;
+			margin: 3rem auto;
+			padding: 1rem;
+			background: var(--column-bg);
+			border-radius: var(--radius-lg);
+
+			& h1 {
+				font-size: 1rem;
+				margin: 0 0 0.75rem;
+			}
+		}
+
+		.status {
+			margin: 0 0 0.75rem;
+			color: var(--ink-muted);
+			font-size: 0.875rem;
+		}
+	</style>
 }
