@@ -21,8 +21,6 @@ templ CardsPage(cs []cards.Card) {
 			@components.SideNav()
 			@components.ThemeModal()
 			<main class="column">
-				<h1>hello-cards — datastar</h1>
-				<p class="status">Drag to reorder. Your other tabs' reorders land as server patches.</p>
 				@components.CardColumn(cs)
 				@components.DragInit()
 			</main>

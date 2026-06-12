@@ -69,6 +69,10 @@ func main() {
 	mux.Handle("POST /cards/reorder", frontend.RequireSession(authSvc, frontend.ReorderHandler(svc)))
 	mux.Handle("POST /cards/resize", frontend.RequireSession(authSvc, frontend.ResizeHandler(svc)))
 
+	// Embedded frontend assets (drag.js). Session-free by design: a cached
+	// asset is not user data.
+	mux.Handle("GET /static/", frontend.StaticHandler())
+
 	// Wiring canary for the pinned Datastar SDK + templ versions.
 	mux.Handle("GET /_smoke", frontend.SmokeHandler())
 	mux.Handle("GET /_smoke/events", frontend.SmokeEventsHandler())
