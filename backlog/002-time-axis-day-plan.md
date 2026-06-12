@@ -1,6 +1,6 @@
 # 002 — Time-axis Day Plan: slot placement with push semantics
 
-Status: in-progress (server core + frontend adapter done; grid rendering, drag.js, bounds UI pending)
+Status: in-progress (server core + frontend adapter + grid rendering done; drag.js, bounds UI pending)
 Labels: ready-for-agent
 Date: 2026-06-12
 
