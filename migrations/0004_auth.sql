@@ -43,5 +43,5 @@ ALTER TABLE card DROP CONSTRAINT IF EXISTS card_position_unique;
 DO $$ BEGIN
   ALTER TABLE card ADD CONSTRAINT card_owner_position_unique
     UNIQUE (owner_id, position) DEFERRABLE INITIALLY DEFERRED;
-EXCEPTION WHEN duplicate_object THEN NULL;
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
