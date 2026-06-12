@@ -16,13 +16,15 @@ import (
 // ships signals as the JSON body {"order": [...]}). The response patch renders
 // the order the drop already left in the DOM, so the morph is a visual no-op.
 templ CardsPage(cs []cards.Card) {
-	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.ColumnStyles()) {
-		<main class="column">
-			<h1>hello-cards — datastar</h1>
-			<p class="status">Drag to reorder. Your other tabs' reorders land as server patches.</p>
-			<button data-on:click="@post('/logout')">Log out</button>
-			@components.CardColumn(cs)
-			@components.DragInit()
-		</main>
+	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles()) {
+		<div class="shell" data-signals:_navopen="false">
+			@components.SideNav()
+			<main class="column">
+				<h1>hello-cards — datastar</h1>
+				<p class="status">Drag to reorder. Your other tabs' reorders land as server patches.</p>
+				@components.CardColumn(cs)
+				@components.DragInit()
+			</main>
+		</div>
 	}
 }

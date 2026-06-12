@@ -1,0 +1,143 @@
+package components
+
+// NavStyles owns the icon-rail nav and the page shell that hosts it.
+// Desktop: a slim sticky rail on the left; mobile (≤768px): right-side
+// off-canvas drawer behind a fixed hamburger, closed via the scrim. Tokens come from baseStyles.
+templ NavStyles() {
+	<style>
+		.shell {
+			display: flex;
+			min-height: 100vh;
+		}
+
+		.shell .column {
+			width: 100%;
+		}
+
+		.sidenav {
+			width: 68px;
+			flex-shrink: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			padding: 0.75rem 0.5rem;
+			background: var(--ink);
+			color: var(--bg);
+			position: sticky;
+			top: 0;
+			height: 100vh;
+		}
+
+		.nav-brand {
+			font-weight: 700;
+			font-size: 1.25rem;
+			text-align: center;
+			margin-bottom: 0.75rem;
+		}
+
+		.navlink {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 2px;
+			padding: 0.5rem 0.25rem;
+			border: none;
+			border-radius: var(--radius);
+			background: none;
+			color: inherit;
+			text-decoration: none;
+			font: inherit;
+			font-size: 0.65rem;
+			cursor: pointer;
+		}
+
+		.navlink .ico {
+			font-size: 1.1rem;
+			line-height: 1;
+		}
+
+		.navlink:hover,
+		.navlink.active {
+			background: rgba(255, 255, 255, 0.15);
+		}
+
+		.nav-logout {
+			margin-top: auto;
+		}
+
+		.nav-toggle {
+			display: none;
+			position: fixed;
+			top: 0.6rem;
+			right: 0.6rem;
+			z-index: 12;
+			font-size: 1.25rem;
+			padding: 0.3rem 0.55rem;
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius);
+			background: var(--surface);
+			color: var(--ink);
+			cursor: pointer;
+			box-shadow: var(--shadow-rest);
+		}
+
+		.nav-scrim {
+			display: none;
+			position: fixed;
+			inset: 0;
+			z-index: 9;
+			background: rgba(16, 61, 41, 0.35);
+		}
+
+		@media (max-width: 768px) {
+			.nav-toggle {
+				display: block;
+			}
+
+			.nav-scrim.open {
+				display: block;
+			}
+
+			.sidenav {
+				position: fixed;
+				inset: 0 0 0 auto;
+				z-index: 10;
+				width: 200px;
+				transform: translateX(100%);
+				transition: transform 200ms ease;
+				box-shadow: var(--shadow-lift);
+			}
+
+			.sidenav.open {
+				transform: translateX(0);
+			}
+
+			.sidenav .navlink {
+				flex-direction: row;
+				gap: 0.6rem;
+				font-size: 0.9rem;
+				padding: 0.5rem 0.75rem;
+			}
+		}
+	</style>
+}
+
+// SideNav is the icon-rail nav. The host page provides the $_navopen signal
+// (underscore = local-only, kept out of @post signal bodies). Today/Archive are placeholder links
+// until those pages exist. Logout pins to the rail's bottom.
+templ SideNav() {
+	<button
+		class="nav-toggle"
+		data-on:click="$_navopen = !$_navopen"
+		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
+		aria-label="Toggle menu"
+	>☰</button>
+	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
+	<nav class="sidenav" data-class:open="$_navopen">
+		<div class="nav-brand" title="unbusy.day">u.</div>
+		<a class="navlink active" href="/"><span class="ico">▦</span><span class="lbl">Boards</span></a>
+		<a class="navlink" href="#"><span class="ico">☀</span><span class="lbl">Today</span></a>
+		<a class="navlink" href="#"><span class="ico">▤</span><span class="lbl">Archive</span></a>
+		<button class="navlink nav-logout" data-on:click="@post('/logout')"><span class="ico">⏻</span><span class="lbl">Log out</span></button>
+	</nav>
+}
