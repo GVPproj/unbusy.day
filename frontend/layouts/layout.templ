@@ -45,6 +45,29 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 // driven by the $_theme signal — swapping the attribute hot-swaps every color.
 templ baseStyles() {
 	<style>
+		/* Zen Maru Gothic (SIL OFL, latin subset) — self-hosted from /static/fonts */
+		@font-face {
+			font-family: "Zen Maru Gothic";
+			font-style: normal;
+			font-weight: 400;
+			font-display: swap;
+			src: url(/static/fonts/zen-maru-gothic-400-latin.woff2) format("woff2");
+		}
+		@font-face {
+			font-family: "Zen Maru Gothic";
+			font-style: normal;
+			font-weight: 500;
+			font-display: swap;
+			src: url(/static/fonts/zen-maru-gothic-500-latin.woff2) format("woff2");
+		}
+		@font-face {
+			font-family: "Zen Maru Gothic";
+			font-style: normal;
+			font-weight: 700;
+			font-display: swap;
+			src: url(/static/fonts/zen-maru-gothic-700-latin.woff2) format("woff2");
+		}
+
 		/* Solarized Light (default) */
 		:root, body[data-theme="solarized-light"] {
 			--bg: #fdf6e3;
@@ -112,7 +135,7 @@ templ baseStyles() {
 
 		body {
 			margin: 0;
-			font-family: system-ui, sans-serif;
+			font-family: "Zen Maru Gothic", system-ui, sans-serif;
 			background: var(--bg);
 			color: var(--ink);
 		}
