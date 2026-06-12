@@ -355,6 +355,12 @@ templ dragInit() {
 			}
 			if (r.span === 1) spans.delete(r.el.dataset.id);
 			else spans.set(r.el.dataset.id, r.span);
+			// Write the committed span into the persisted attributes now —
+			// otherwise clearing the inline height for span 1 lets the stale
+			// .stretched/--span CSS snap the card back until the patch lands.
+			r.el.dataset.span = r.span;
+			r.el.style.setProperty('--span', r.span);
+			r.el.classList.toggle('stretched', r.span > 1);
 			// Hand final styles to the one stable-state writer. Also covers a
 			// mid-gesture clobber: if a patch replaced the children, apply()
 			// targets the fresh nodes by the same ids.
