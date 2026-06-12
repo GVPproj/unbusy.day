@@ -10,7 +10,7 @@ A minimal full-stack Go app (module `github.com/GVPproj/unbusy.day`, app name `h
 
 Day-to-day uses [go-task](https://taskfile.dev) (`task`):
 
-- `task dev` — full dev loop: starts Postgres (compose), applies pending migrations, runs `templ generate --watch` with a reload proxy on **:7331** driving `go run .` on :8080. Browse **:7331**, not :8080. Do **not** run `air` alongside it (air rebuilds on every `.templ` edit and defeats templ's text-only fast path).
+- `task dev` — full dev loop: starts Postgres (compose), applies pending migrations, runs `templ generate --watch` with a reload proxy on **:7331** driving `go run .` on `$PORT` (default :8080; set `PORT` in `.env`). Browse **:7331**, not the app port. Do **not** run `air` alongside it (air rebuilds on every `.templ` edit and defeats templ's text-only fast path).
 - `task test` — `go test ./...`. Run a single test: `go test ./cards -run TestReorder`. Note CI runs `go test -race ./...`.
 - `task migrate` — applies pending migrations against `$DATABASE_URL` via the binary's `migrate` subcommand (`go run . migrate`; goose, run-once, safe to re-run).
 - `task templ` — one-shot `templ generate`. **Never run this while `task dev` is up** — non-watch generation deletes the watch session's literal cache and the running server 500s on every render until restarted.
@@ -25,7 +25,7 @@ Three layers, each a package, wired in `main.go`:
 
 - **`cards/`** — the transport-agnostic core `Service` over a `pgxpool.Pool`. All mutation logic (reorder, resize) lives here exactly once; adapters never touch SQL. `Reorder` validates that the incoming order is a true permutation of current ids and commits via a single bulk `UPDATE … FROM (VALUES …)` under `SELECT … FOR UPDATE`. `Resize` persists a card's `span` (height in slots). Both fan a full-state `cards.Event` out to the broker **post-commit** so subscribers never see uncommitted state. The `Publisher` interface is the seam to pub/sub (nil Publisher = skip fan-out, used in unit tests).
 - **`pubsub/`** — an in-process fan-out `Broker` (implements `cards.Publisher`). **Single-machine only** — non-blocking delivery drops slow consumers, who recover on EventSource reconnect. There is no event history/ring buffer; recovery is a full snapshot re-render on the read path. Cross-instance fan-out would require an external bus (LISTEN/NOTIFY or Redis) and is explicitly out of scope.
-- **`frontend/`** — the Datastar + templ frontend adapter (route handlers). `PageHandler` server-renders the authoritative column; `EventsHandler` is the live SSE read path (first frame is the full current column, so any (re)connect is made whole by one render); `ReorderHandler`/`ResizeHandler` are the mutation endpoints, each responding with an SSE element-patch of the committed column. templ views are split into `frontend/layouts/` (document shell; routes pass page styles in), `frontend/routes/` (page-level views), and `frontend/components/` (fragments/patch targets). `RequireSession` middleware gates `/`, `/events`, and the mutation endpoints, stashing the owner id in the request context.
+- **`frontend/`** — the Datastar + templ frontend adapter (route handlers). `PageHandler` server-renders the authoritative column; `EventsHandler` is the live SSE read path (first frame is the full current column, so any (re)connect is made whole by one render); `ReorderHandler`/`ResizeHandler` are the mutation endpoints, each responding with an SSE element-patch of the committed column. templ views are split into `frontend/layouts/` (document shell; routes pass page styles in), `frontend/routes/` (page-level views), and `frontend/components/` (fragments/patch targets); component styles are colocated in their `.templ` files. `frontend/static/` is a `go:embed`-served folder (mounted at `/static/`) holding the few real JS files (currently `drag.js`). `RequireSession` middleware gates `/`, `/events`, and the mutation endpoints, stashing the owner id in the request context.
 - **`auth/`** — passwordless email-OTP auth over DB-backed sessions (ADRs 0001/0002 in `docs/adr/`). The `Mailer` interface is the email seam; dev uses `LogMailer` (code lands on stdout — no email service needed locally). The allowlist is the `user` table; sessions are opaque tokens in an HttpOnly SameSite=Lax cookie, revoked by row delete. Cards are owner-scoped and the broker is user-keyed (ADR 0003); new users get starter cards seeded on first login.
 
 Key invariant: **page render and patch render share one templ component** (`components.CardColumn`) so the initial load and every SSE patch can't drift. The `#card-list` element id is the stable idiomorph anchor every patch lands on; `data-id` attributes are the reorder identity keys.
@@ -46,14 +46,21 @@ Migrations are plain `.sql` files in `migrations/`, embedded via `go:embed` and 
 ## Frontend gotchas (Datastar / templ)
 
 - Datastar **keyed** attributes use a **colon** between plugin and key (`data-on:reorder`, `data-signals:order`). The dash form is silently skipped as a nonexistent plugin — no error. See `frontend/components/column.templ`.
-- The drag/resize interaction (`dragInit` in `column.templ`) is a Motion-powered script that transforms the real `<li>` under the pointer (not a ghost), then commits the DOM reorder in one synchronous FLIP frame before dispatching the `reorder` event. Card `span`/slot state is persisted and re-rendered into every morph (`data-span`, `--span`, `.stretched`, `.consumed`) so server render and client gesture agree and morphs stay idempotent.
+- The drag/resize interaction lives in `frontend/static/drag.js` (loaded as a module by the `DragInit` component in `column.templ`): a Motion-powered script (Motion pinned via CDN import) that transforms the real `<li>` under the pointer (not a ghost), then commits the DOM reorder in one synchronous FLIP frame before dispatching the `reorder` event. Listeners are delegated to `#card-list` so wiring survives morphs. Card `span`/slot state is persisted and re-rendered into every morph (`data-span`, `--span`, `.stretched`, `.consumed`) so server render and client gesture agree and morphs stay idempotent.
 - `/_smoke` + `/_smoke/events` are a wiring canary for the pinned Datastar SDK + templ versions — keep them working when bumping those deps.
+
+## Theming & HTML practices
+
+- **Prefer native HTML over JS/signal plumbing.** The theme picker (`frontend/components/theme.templ`) is the exemplar: a native `<dialog>` opened declaratively via `commandfor="theme-modal" command="show-modal"` buttons — no open/close signal, `closedby="any"` for light dismiss, Esc free from the platform. New UI should reach for native elements/invoker commands first and add Datastar signals only for state the server cares about.
+- Theming is CSS custom properties scoped by `body[data-theme="…"]` in `frontend/layouts/layout.templ` (Solarized Light, Solarized Dark Osaka, Catppuccin Mocha). Picking a theme writes the `$_theme` signal, which the body mirrors into `data-theme` and persists to localStorage — the swap is live. New styles must use the existing tokens (`--bg`, `--ink`, `--surface`, `--accent`, …), never hardcoded colors.
+- Navigation (`frontend/components/nav.templ`) is a desktop icon rail that becomes a mobile hamburger + off-canvas drawer (`$_navopen` signal) at ≤768px.
 
 ## Code style
 
 - **Keep comments succinct — 1 or 2 lines.** (Some existing comments run longer than this; new code should not.)
 - **Prefer the Go standard library.** Don't add a dependency until it's demonstrably necessary; the current deps (templ, pgx, datastar-go) are the deliberate minimum.
-- **Follow Datastar 1.x best practices and consult their docs** (https://data-star.dev) rather than guessing at attribute/SDK behavior.
+- **Always check the docs before writing Datastar or templ code** — Datastar 1.x (https://data-star.dev) and templ (https://templ.guide) — rather than guessing at attribute/SDK/template behavior. Both libraries are young and their APIs shift; verified docs beat training-data memory.
+- **Use modern, semantic HTML first** — native `<dialog>`, invoker commands (`commandfor`/`command`), real buttons/forms — before adding custom JS or signal state. See the theme modal for the house style.
 
 ## Conventions & deploy
 
