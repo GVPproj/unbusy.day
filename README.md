@@ -9,43 +9,18 @@
 
 Have a structured day. Time-block your schedule, track some progress, no rush.
 
-## Prerequisites
-
-Local toolchain (no login needed):
-
-- `go` ≥ 1.26
-- `docker` + `compose`
-- `psql` (Postgres client)
-- `task` (go-task), `air`, `templ`
-- `lefthook`, `gitleaks`
-- `git`, `curl`, `jq`
-
-Service CLIs (needed at M3+):
-
-- `flyctl` — `fly auth login` (deploy)
-- `neonctl` — `neon auth` (Postgres provisioning)
-- `gh` — `gh auth login` (fast-follow CI)
-- Cloudflare — no CLI; `CLOUDFLARE_API_TOKEN` env + `curl`
-
 ## Quickstart
 
-Install `go`, `docker`, `psql`, `git`, `curl`, and `jq` via your OS package
-manager. The rest is OS-neutral `go install` (binaries land in
-`$(go env GOPATH)/bin` — ensure it's on your `PATH`):
+Requires `go` ≥ 1.26, `docker` + `compose`, and a few Go tools:
 
 ```bash
 # One-time
 go install github.com/go-task/task/v3/cmd/task@latest
-go install github.com/air-verse/air@latest
 go install github.com/a-h/templ/cmd/templ@latest
-go install github.com/evilmartians/lefthook@latest
-go install github.com/zricethezav/gitleaks/v8@latest   # note: zricethezav, not gitleaks
-lefthook install                  # wires pre-commit gitleaks hook
 cp .env.example .env
 
 # Day-to-day
 task dev                          # Postgres + templ watch + Go hot reload
-curl localhost:8080/healthz       # → 200 OK
 ```
 
 ## Contributing
