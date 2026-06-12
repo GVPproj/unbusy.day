@@ -138,6 +138,7 @@ templ SideNav() {
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div class="nav-brand" title="unbusy.day">u.</div>
 		<a class="navlink active" href="/"><span class="ico">▦</span><span class="lbl">Boards</span></a>
+		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span class="ico">◷</span><span class="lbl">Day</span></button>
 		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span class="ico">◐</span><span class="lbl">Theme</span></button>
 		<button class="navlink nav-logout" data-on:click="@post('/logout')"><span class="ico">⏻</span><span class="lbl">Log out</span></button>
 	</nav>

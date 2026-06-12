@@ -11,15 +11,16 @@ import (
 // end, leaving the tab silently deaf.
 //
 // Server-driven by design: DragInit's Motion drag owns the gesture and, once
-// the drop commits, dispatches a `reorder` CustomEvent with the committed
-// data-id order; the Datastar listener copies it into $order and @posts (which
-// ships signals as the JSON body {"order": [...]}). The response patch renders
-// the order the drop already left in the DOM, so the morph is a visual no-op.
+// the drop commits, dispatches a `layout` CustomEvent with the full committed
+// layout; the Datastar listener copies it into $layout and @posts (which ships
+// signals as the JSON body {"layout": [...]}). The response patch renders the
+// layout the drop already left in the DOM, so the morph is a visual no-op.
 templ CardsPage(cs []cards.Card, b cards.Bounds) {
-	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles(), components.ThemeStyles()) {
+	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles(), components.ThemeStyles(), components.BoundsStyles()) {
 		<div class="shell" data-signals:_navopen="false">
 			@components.SideNav()
 			@components.ThemeModal()
+			@components.BoundsModal(b)
 			<main class="column">
 				@components.CardColumn(cs, b)
 				@components.DragInit()
