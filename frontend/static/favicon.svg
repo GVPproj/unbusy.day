@@ -1,0 +1,11 @@
+<!-- "ub.d" wordmark favicon — same strokes as frontend/components/logo.templ. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 2 51 22" fill="none" stroke="#586e75" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+	<style>
+		@media (prefers-color-scheme: dark) {
+			svg { stroke: #b8b32a; }
+		}
+	</style>
+	<path d="M5 9 C4 17, 6 21, 9.5 20.5 C13 20, 15 15, 15.5 9 C15 15, 14.5 20, 17 21 C19 21.8, 21 19, 22 15 L25 4 C24 11, 23.5 18, 24.5 20.5 C25.5 23, 30 22, 32 18.5 C34 15, 32 12, 28.5 14 C26.5 15.2, 25 17.5, 24.5 20.5 C25.5 23, 27.5 22.7, 29.5 21.5"></path>
+	<path d="M35 20.5 L35.01 20.5"></path>
+	<path d="M45.5 14 C45 10.8, 40 11.2, 38.5 14.5 C37 18, 39.5 21.8, 42.8 21 C44.8 20.4, 45.8 17.5, 46.3 14.5 C47.2 11, 48 7, 48.5 4 C48 11, 47.5 18, 48.5 20.5 C49 21.8, 50.5 21.5, 51.5 20"></path>
+</svg>
