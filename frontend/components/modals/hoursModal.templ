@@ -6,9 +6,9 @@ import (
 	"github.com/GVPproj/unbusy.day/cards"
 )
 
-// BoundsStyles owns the day-bounds editor dialog. Same native-<dialog> shape
+// HoursStyles owns the day-bounds editor dialog. Same native-<dialog> shape
 // as the theme modal; tokens come from baseStyles.
-templ BoundsStyles() {
+templ HoursStyles() {
 	<style>
 		.bounds-modal {
 			width: min(320px, calc(100vw - 2rem));
@@ -93,11 +93,11 @@ func clockLabel(s int) string {
 	return strconv.Itoa(s/2) + ":00"
 }
 
-// BoundsModal is the day-bounds editor: a native <dialog> opened by any
+// HoursModal is the day-bounds editor: a native <dialog> opened by any
 // command/commandfor button targeting #bounds-modal (theme-modal house style).
 // The selects cover the hard 5:00–18:00 limits; the server still enforces
 // them and rejects shrink-into-occupied with a re-render of the truth.
-templ BoundsModal(b cards.Bounds) {
+templ HoursModal(b cards.Bounds) {
 	<dialog
 		id="bounds-modal"
 		class="bounds-modal"
@@ -105,7 +105,7 @@ templ BoundsModal(b cards.Bounds) {
 		data-signals:start={ strconv.Itoa(b.Start) }
 		data-signals:end={ strconv.Itoa(b.End) }
 	>
-		<h2>Day</h2>
+		<h2>Hours</h2>
 		<label class="bounds-field">
 			Start
 			<select data-on:change="$start = +evt.target.value">

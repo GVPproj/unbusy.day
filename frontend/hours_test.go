@@ -16,9 +16,9 @@ import (
 // The modal offers every legal half-hour boundary (start 5:00–17:30, end
 // 5:30–18:00) and pre-selects the owner's current bounds, so opening it shows
 // the day as configured.
-func TestBoundsModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
+func TestHoursModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
 	var b strings.Builder
-	if err := modals.BoundsModal(testBounds).Render(context.Background(), &b); err != nil {
+	if err := modals.HoursModal(testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render bounds modal: %v", err)
 	}
 	body := b.String()
@@ -55,9 +55,9 @@ func TestBoundsModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
 // selects write them back as numbers (select values are strings; BoundsHandler
 // decodes ints), and Save @posts /cards/bounds. Keyed attributes must use the
 // verified colon form — the dash form is a silent no-op (see the column test).
-func TestBoundsModalWiresSignalsToBoundsEndpoint(t *testing.T) {
+func TestHoursModalWiresSignalsToBoundsEndpoint(t *testing.T) {
 	var b strings.Builder
-	if err := modals.BoundsModal(testBounds).Render(context.Background(), &b); err != nil {
+	if err := modals.HoursModal(testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render bounds modal: %v", err)
 	}
 	body := b.String()
@@ -82,7 +82,7 @@ func TestBoundsModalWiresSignalsToBoundsEndpoint(t *testing.T) {
 
 // GET / hosts the bounds modal seeded with the owner's bounds, plus a
 // declarative opener (command/commandfor — no open signal, house style).
-func TestPageHostsBoundsModalWithOpener(t *testing.T) {
+func TestPageHostsHoursModalWithOpener(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 
 	req := authedRequest(http.MethodGet, "/", "")
