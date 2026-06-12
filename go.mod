@@ -1,4 +1,4 @@
-module github.com/grahamvanpelt/unbusy.day
+module github.com/GVPproj/unbusy.day
 
 go 1.26.0
 

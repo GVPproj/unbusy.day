@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/grahamvanpelt/unbusy.day/auth"
-	"github.com/grahamvanpelt/unbusy.day/cards"
-	"github.com/grahamvanpelt/unbusy.day/ds"
-	"github.com/grahamvanpelt/unbusy.day/pubsub"
+	"github.com/GVPproj/unbusy.day/auth"
+	"github.com/GVPproj/unbusy.day/cards"
+	"github.com/GVPproj/unbusy.day/ds"
+	"github.com/GVPproj/unbusy.day/pubsub"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

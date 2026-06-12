@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A minimal full-stack reference app (module `github.com/grahamvanpelt/unbusy.day`, app name `hello-cards`) validating the production architecture for a Trello-like, multi-tenant product with live, optimistic UI over flaky networks. The stack is deliberately **Go-only**: business logic lives exactly once on the server, Postgres is the source of truth, SSE carries live reads, and the frontend is server-rendered **Datastar + templ** — there is no JS build step, no SPA, no client-side business logic.
+A minimal full-stack reference app (module `github.com/GVPproj/unbusy.day`, app name `hello-cards`) validating the production architecture for a Trello-like, multi-tenant product with live, optimistic UI over flaky networks. The stack is deliberately **Go-only**: business logic lives exactly once on the server, Postgres is the source of truth, SSE carries live reads, and the frontend is server-rendered **Datastar + templ** — there is no JS build step, no SPA, no client-side business logic.
 
 ## Commands
 

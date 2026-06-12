@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/grahamvanpelt/unbusy.day/auth"
+	"github.com/GVPproj/unbusy.day/auth"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/grahamvanpelt/unbusy.day/cards"
+	"github.com/GVPproj/unbusy.day/cards"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

@@ -7,7 +7,7 @@ package pubsub
 import (
 	"sync"
 
-	"github.com/grahamvanpelt/unbusy.day/cards"
+	"github.com/GVPproj/unbusy.day/cards"
 )
 
 // Broker fans cards.Events to the owner's live subscribers. It implements

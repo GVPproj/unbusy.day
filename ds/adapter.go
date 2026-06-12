@@ -11,9 +11,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/grahamvanpelt/unbusy.day/cards"
-	"github.com/grahamvanpelt/unbusy.day/ds/components"
-	"github.com/grahamvanpelt/unbusy.day/pubsub"
+	"github.com/GVPproj/unbusy.day/cards"
+	"github.com/GVPproj/unbusy.day/ds/components"
+	"github.com/GVPproj/unbusy.day/pubsub"
 	"github.com/starfederation/datastar-go/datastar"
 )
 

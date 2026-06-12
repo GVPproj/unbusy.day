@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/grahamvanpelt/unbusy.day/auth"
-	"github.com/grahamvanpelt/unbusy.day/ds/components"
+	"github.com/GVPproj/unbusy.day/auth"
+	"github.com/GVPproj/unbusy.day/ds/components"
 	"github.com/starfederation/datastar-go/datastar"
 )
 

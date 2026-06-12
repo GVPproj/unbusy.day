@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grahamvanpelt/unbusy.day/auth"
+	"github.com/GVPproj/unbusy.day/auth"
 )
 
 type fakeAuth struct {

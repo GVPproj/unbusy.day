@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grahamvanpelt/unbusy.day/cards"
-	"github.com/grahamvanpelt/unbusy.day/pubsub"
+	"github.com/GVPproj/unbusy.day/cards"
+	"github.com/GVPproj/unbusy.day/pubsub"
 )
 
 func recv(t *testing.T, ch <-chan cards.Event) cards.Event {

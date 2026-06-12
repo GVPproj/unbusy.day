@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/grahamvanpelt/unbusy.day/auth"
+	"github.com/GVPproj/unbusy.day/auth"
 )
 
 // SessionCookie carries the opaque session token (ADR 0002).
