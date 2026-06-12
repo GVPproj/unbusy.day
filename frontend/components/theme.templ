@@ -1,26 +1,15 @@
 package components
 
-// ThemeStyles owns the theme-picker modal: a centered dialog over a scrim,
-// with one swatch-preview button per theme. Tokens come from baseStyles.
+// ThemeStyles owns the theme-picker: a native <dialog> (top layer, Esc,
+// focus trap come free) with one swatch-preview button per theme. Tokens
+// come from baseStyles.
 templ ThemeStyles() {
 	<style>
-		.theme-scrim {
-			display: none;
-			position: fixed;
-			inset: 0;
-			z-index: 20;
-			background: var(--scrim);
-		}
-
-		.theme-scrim.open {
-			display: grid;
-			place-items: center;
-		}
-
 		.theme-modal {
 			width: min(320px, calc(100vw - 2rem));
 			padding: 1rem;
 			background: var(--surface);
+			color: var(--ink);
 			border: 1px solid var(--rail-border);
 			border-radius: var(--radius-lg);
 			box-shadow: var(--shadow-lift);
@@ -29,6 +18,10 @@ templ ThemeStyles() {
 				font-size: 1rem;
 				margin: 0 0 0.75rem;
 			}
+		}
+
+		.theme-modal::backdrop {
+			background: var(--scrim);
 		}
 
 		.theme-option {
@@ -92,17 +85,17 @@ templ themeOption(id string, label string, swatch string) {
 	</button>
 }
 
-// ThemeModal is the picker dialog, toggled by the host page's $_thememodal
-// signal. Picking a theme writes $_theme, which the layout body mirrors into
-// data-theme (and localStorage), so the swap is live without closing.
+// ThemeModal is a native <dialog>, opened declaratively by any
+// command/commandfor button targeting #theme-modal — no open/close signal.
+// closedby="any" adds light dismiss (click outside) where supported; Esc
+// always works. Picking a theme writes $_theme, which the layout body mirrors
+// into data-theme (and localStorage), so the swap is live without closing.
 templ ThemeModal() {
-	<div class="theme-scrim" data-class:open="$_thememodal" data-on:click="evt.target === el && ($_thememodal = false)">
-		<div class="theme-modal">
-			<h2>Theme</h2>
-			@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
-			@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
-			@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
-			<button class="theme-close" data-on:click="$_thememodal = false">Done</button>
-		</div>
-	</div>
+	<dialog id="theme-modal" class="theme-modal" closedby="any">
+		<h2>Theme</h2>
+		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
+		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
+		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
+		<button class="theme-close" commandfor="theme-modal" command="close">Done</button>
+	</dialog>
 }
