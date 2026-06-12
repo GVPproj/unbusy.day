@@ -145,7 +145,7 @@ func TestRequireSessionGate(t *testing.T) {
 		t.Errorf("page: want 303 → /login, got %d → %q", rec.Code, rec.Header().Get("Location"))
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/cards/reorder", nil)
+	req = httptest.NewRequest(http.MethodPost, "/cards/layout", nil)
 	rec = httptest.NewRecorder()
 	RequireSession(a, next).ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {

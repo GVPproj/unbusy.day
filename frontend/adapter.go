@@ -30,8 +30,6 @@ type CardService interface {
 	Bounds(ctx context.Context, owner string) (cards.Bounds, error)
 	SetLayout(ctx context.Context, owner string, layout []cards.Placement) (*cards.LayoutResult, error)
 	SetBounds(ctx context.Context, owner string, start, end int) error
-	Reorder(ctx context.Context, owner string, order []string) (*cards.ReorderResult, error)
-	Resize(ctx context.Context, owner, id string, span int) (*cards.ResizeResult, error)
 }
 
 // snapshot reads the owner's authoritative column and day bounds — the pair
@@ -155,110 +153,6 @@ func BoundsHandler(svc CardService) http.Handler {
 		sse := datastar.NewSSE(w, r)
 		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
 			log.Printf("ds bounds patch: %v", err)
-		}
-	})
-}
-
-// reorderSignals is the Datastar signals body @post ships: the $order signal
-// set from the data-id order DragInit commits on drop.
-type reorderSignals struct {
-	Order []string `json:"order"`
-}
-
-// ReorderHandler is the mutation endpoint. The response is an SSE
-// element-patch of the committed column, so the dragging client settles on
-// the server's order in the same round-trip.
-func ReorderHandler(svc CardService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig reorderSignals
-		if err := datastar.ReadSignals(r, &sig); err != nil {
-			http.Error(w, "invalid signals body", http.StatusBadRequest)
-			return
-		}
-
-		owner := ownerFrom(r.Context())
-		res, err := svc.Reorder(r.Context(), owner, sig.Order)
-		var cs []cards.Card
-		switch {
-		case errors.Is(err, cards.ErrNotPermutation):
-			// Rollback: patch back the authoritative column so the rejected
-			// drop visibly snaps back. 200 + hypermedia truth, not 4xx —
-			// Datastar applying patches on error statuses is unverified, and
-			// there is no client rollback code to signal anyway.
-			cs, err = svc.List(r.Context(), owner)
-			if err != nil {
-				log.Printf("ds reorder rollback list: %v", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-		case err != nil:
-			log.Printf("ds reorder: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		default:
-			cs = res.Cards
-		}
-
-		b, err := svc.Bounds(r.Context(), owner)
-		if err != nil {
-			log.Printf("ds reorder bounds: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
-			log.Printf("ds reorder patch: %v", err)
-		}
-	})
-}
-
-// resizeSignals is the Datastar signals body the grip-resize gesture @posts:
-// the card's id and its new span in slots.
-type resizeSignals struct {
-	ID   string `json:"id"`
-	Span int    `json:"span"`
-}
-
-// ResizeHandler persists a card's height and, like ReorderHandler, responds
-// with an SSE element-patch of the committed column.
-func ResizeHandler(svc CardService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig resizeSignals
-		if err := datastar.ReadSignals(r, &sig); err != nil {
-			http.Error(w, "invalid signals body", http.StatusBadRequest)
-			return
-		}
-
-		owner := ownerFrom(r.Context())
-		res, err := svc.Resize(r.Context(), owner, sig.ID, sig.Span)
-		var cs []cards.Card
-		switch {
-		case errors.Is(err, cards.ErrInvalidSpan):
-			// Rollback at 200: patch back the authoritative column so the
-			// over-shrunk card snaps back. Same path as a rejected reorder.
-			cs, err = svc.List(r.Context(), owner)
-			if err != nil {
-				log.Printf("ds resize rollback list: %v", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-		case err != nil:
-			log.Printf("ds resize: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		default:
-			cs = res.Cards
-		}
-
-		b, err := svc.Bounds(r.Context(), owner)
-		if err != nil {
-			log.Printf("ds resize bounds: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.CardColumn(cs, b)); err != nil {
-			log.Printf("ds resize patch: %v", err)
 		}
 	})
 }

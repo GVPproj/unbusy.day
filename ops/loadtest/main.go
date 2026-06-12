@@ -7,13 +7,13 @@
 // origin TCP connection (HTTP/2 would multiplex many streams over few conns
 // and hide the FD/conn ceiling we are trying to measure).
 //
-// The frontend is Datastar + templ: the /events stream and the reorder
+// The frontend is Datastar + templ: the /events stream and the layout
 // response are SSE `event: datastar-patch-elements` frames (full-column
-// renders), the reorder POST ships its order as a Datastar signals JSON body,
-// and the authoritative order is read from the data-id attributes in the
-// server-rendered page at /.
+// renders), the layout POST ships its placements as a Datastar signals JSON
+// body, and the authoritative layout is read from the data-id/slot/span
+// attributes in the server-rendered page at /.
 //
-// The ramp opens connections in steps, holds, and at peak fires a real reorder
+// The ramp opens connections in steps, holds, and at peak fires a real layout
 // and measures how fast + how COMPLETELY the mutation fans out to every held
 // subscriber — the degradation that triggers scale-out is not "connections
 // refused" but "fan-out stops reaching everyone".
@@ -220,22 +220,21 @@ func holdConn(ctx context.Context, client *http.Client, base string, st *stats, 
 	}
 }
 
-// fanoutProbe fires a real reorder and measures how long until the held fleet
+// fanoutProbe fires a real layout commit and measures how long until the held fleet
 // observes it: time-to-first-event and time-to-90%-of-active. This is the
 // load-bearing signal — a healthy machine fans out to ~everyone fast.
 func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stats) {
 	active := st.active.Load()
-	order, err := currentOrder(ctx, client, base)
+	layout, err := currentLayout(ctx, client, base)
 	if err != nil {
-		fmt.Printf("[probe] skipped: read order failed: %v\n", err)
+		fmt.Printf("[probe] skipped: read layout failed: %v\n", err)
 		return
 	}
-	rotated := append(order[1:], order[0]) // a rotation is always a valid permutation
 
 	e0 := st.events.Load()
 	t0 := time.Now()
-	if err := postReorder(ctx, client, base, rotated); err != nil {
-		fmt.Printf("[probe] reorder POST failed: %v\n", err)
+	if err := postLayout(ctx, client, base, layout); err != nil {
+		fmt.Printf("[probe] layout POST failed: %v\n", err)
 		return
 	}
 	postLatency := time.Since(t0)
@@ -270,15 +269,22 @@ func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stat
 	}
 }
 
-// dataIDRe pulls card ids out of the server-rendered page in document order.
-// Only cards carry data-id; the stretch-rail slots don't, so they never enter
-// the order.
-var dataIDRe = regexp.MustCompile(`data-id="([^"]+)"`)
+// placement mirrors cards.Placement's wire shape in the layout signals body.
+type placement struct {
+	ID   string `json:"id"`
+	Slot int    `json:"slot"`
+	Span int    `json:"span"`
+}
 
-// currentOrder reads the authoritative card order from the rendered page at /.
+// cardRe pulls each card's id/span/slot out of the server-rendered page in
+// document order. Only cards carry data-id; the day-grid slots don't, so they
+// never enter the layout.
+var cardRe = regexp.MustCompile(`data-id="([^"]+)" data-span="(\d+)" data-slot="(\d+)"`)
+
+// currentLayout reads the authoritative layout from the rendered page at /.
 // There is no JSON read endpoint — the Datastar frontend is HTML over the
-// wire — so we scrape the data-id attributes the column renders.
-func currentOrder(ctx context.Context, client *http.Client, base string) ([]string, error) {
+// wire — so we scrape the placement attributes the column renders.
+func currentLayout(ctx context.Context, client *http.Client, base string) ([]placement, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/", nil)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -293,22 +299,27 @@ func currentOrder(ctx context.Context, client *http.Client, base string) ([]stri
 	if err != nil {
 		return nil, err
 	}
-	matches := dataIDRe.FindAllSubmatch(html, -1)
+	matches := cardRe.FindAllSubmatch(html, -1)
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no card data-id found in page")
+		return nil, fmt.Errorf("no card placements found in page")
 	}
-	ids := make([]string, len(matches))
+	layout := make([]placement, len(matches))
 	for i, m := range matches {
-		ids[i] = string(m[1])
+		span, _ := strconv.Atoi(string(m[2]))
+		slot, _ := strconv.Atoi(string(m[3]))
+		layout[i] = placement{ID: string(m[1]), Slot: slot, Span: span}
 	}
-	return ids, nil
+	return layout, nil
 }
 
-func postReorder(ctx context.Context, client *http.Client, base string, order []string) error {
+// postLayout re-submits the current layout verbatim: SetLayout publishes on
+// every commit, so an identity layout still exercises the full fan-out path
+// while always passing validation.
+func postLayout(ctx context.Context, client *http.Client, base string, layout []placement) error {
 	// Datastar reads a non-GET body as the signals JSON object directly, so
-	// the {"order":[...]} signals body is the whole request body.
-	payload, _ := json.Marshal(map[string][]string{"order": order})
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/cards/reorder", strings.NewReader(string(payload)))
+	// the {"layout":[...]} signals body is the whole request body.
+	payload, _ := json.Marshal(map[string][]placement{"layout": layout})
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/cards/layout", strings.NewReader(string(payload)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -317,7 +328,7 @@ func postReorder(ctx context.Context, client *http.Client, base string, order []
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("reorder status %d", resp.StatusCode)
+		return fmt.Errorf("layout status %d", resp.StatusCode)
 	}
 	return nil
 }

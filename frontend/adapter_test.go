@@ -23,18 +23,13 @@ import (
 // requested order to the in-memory cards like the real service does, or
 // returns reorderErr if set.
 type fakeService struct {
-	cards      []cards.Card
-	bounds     cards.Bounds
-	listErr    error
-	reorderErr error
-	resizeErr  error
-	layoutErr  error
-	boundsErr  error
+	cards     []cards.Card
+	bounds    cards.Bounds
+	listErr   error
+	layoutErr error
+	boundsErr error
 
 	gotOwner  string            // owner passed to the last mutation, for asserting scoping
-	gotOrder  []string          // order passed to Reorder, for asserting delegation
-	gotID     string            // id passed to Resize
-	gotSpan   int               // span passed to Resize
 	gotLayout []cards.Placement // layout passed to SetLayout
 	gotBounds cards.Bounds      // bounds passed to SetBounds
 }
@@ -81,41 +76,6 @@ func (f *fakeService) Bounds(ctx context.Context, owner string) (cards.Bounds, e
 		return testBounds, nil
 	}
 	return f.bounds, nil
-}
-
-func (f *fakeService) Reorder(ctx context.Context, owner string, order []string) (*cards.ReorderResult, error) {
-	f.gotOwner, f.gotOrder = owner, order
-	if f.reorderErr != nil {
-		return nil, f.reorderErr
-	}
-	byID := make(map[string]cards.Card, len(f.cards))
-	for _, c := range f.cards {
-		byID[c.ID] = c
-	}
-	out := make([]cards.Card, 0, len(order))
-	for i, id := range order {
-		c := byID[id]
-		c.Position = i
-		out = append(out, c)
-	}
-	f.cards = out
-	return &cards.ReorderResult{Cards: out}, nil
-}
-
-func (f *fakeService) Resize(ctx context.Context, owner, id string, span int) (*cards.ResizeResult, error) {
-	f.gotOwner, f.gotID, f.gotSpan = owner, id, span
-	if f.resizeErr != nil {
-		return nil, f.resizeErr
-	}
-	out := make([]cards.Card, len(f.cards))
-	copy(out, f.cards)
-	for i := range out {
-		if out[i].ID == id {
-			out[i].Span = span
-		}
-	}
-	f.cards = out
-	return &cards.ResizeResult{Cards: out}, nil
 }
 
 // testOwner is the authenticated user id tests inject in place of
@@ -339,72 +299,6 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	}
 }
 
-// POST /cards/reorder carries the order as Datastar signals (JSON body
-// {"order": [...]}, what @post ships), delegates to the core mutation, and
-// responds with an SSE element-patch of the post-mutation column so the
-// dragging client settles on the committed order. The patch must anchor on
-// #card-list — without that id the outer morph is a silent no-op.
-func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
-	svc := &fakeService{cards: threeCards()}
-
-	req := authedRequest(http.MethodPost, "/cards/reorder", `{"order":["c","a","b"]}`)
-	rec := httptest.NewRecorder()
-	ReorderHandler(svc).ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
-	}
-	if got, want := strings.Join(svc.gotOrder, ","), "c,a,b"; got != want {
-		t.Errorf("core Reorder called with %q, want %q", got, want)
-	}
-	if svc.gotOwner != testOwner {
-		t.Errorf("core Reorder called with owner %q, want %q", svc.gotOwner, testOwner)
-	}
-
-	body := rec.Body.String()
-	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
-		t.Errorf("content-type: want text/event-stream prefix, got %q", ct)
-	}
-	if !strings.Contains(body, "datastar-patch-elements") {
-		t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
-	}
-	if !strings.Contains(body, `id="card-list"`) {
-		t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
-	}
-	assertOrder(t, body, "c", "a", "b")
-}
-
-// POST /cards/resize carries {"id","span"}, delegates to the core mutation, and
-// responds with an SSE element-patch of the column anchored on #card-list.
-func TestResizeDelegatesToCoreAndPatchesColumn(t *testing.T) {
-	svc := &fakeService{cards: threeCards()}
-
-	req := authedRequest(http.MethodPost, "/cards/resize", `{"id":"b","span":2}`)
-	rec := httptest.NewRecorder()
-	ResizeHandler(svc).ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
-	}
-	if svc.gotOwner != testOwner {
-		t.Errorf("core Resize called with owner %q, want %q", svc.gotOwner, testOwner)
-	}
-	if svc.gotID != "b" || svc.gotSpan != 2 {
-		t.Errorf("core Resize called with (%q,%d), want (\"b\",2)", svc.gotID, svc.gotSpan)
-	}
-
-	body := rec.Body.String()
-	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
-		t.Errorf("content-type: want text/event-stream prefix, got %q", ct)
-	}
-	if !strings.Contains(body, "datastar-patch-elements") {
-		t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
-	}
-	if !strings.Contains(body, `id="card-list"`) {
-		t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
-	}
-}
-
 // POST /cards/layout carries the full proposed layout as Datastar signals
 // ({"layout":[{id,slot,span},...]}, what the drag/resize gestures @post once
 // the client computes the push), delegates to the core SetLayout, and responds
@@ -539,52 +433,6 @@ func TestBoundsRejectionPatchesCurrentExtent(t *testing.T) {
 			assertOrder(t, body, "a", "b", "c")
 		})
 	}
-}
-
-// When the core rejects the order (stale / non-permutation), the response is a
-// patch of the *current authoritative* column. The dropped card visibly snaps
-// back because the server re-asserts truth — no client-side rollback machinery,
-// the point of the server-driven choice.
-func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
-	svc := &fakeService{cards: threeCards(), reorderErr: cards.ErrNotPermutation}
-
-	req := authedRequest(http.MethodPost, "/cards/reorder", `{"order":["c","a","zzz"]}`)
-	rec := httptest.NewRecorder()
-	ReorderHandler(svc).ServeHTTP(rec, req)
-
-	// 200, not 4xx: the response is hypermedia ("here is the truth"), and the
-	// patch application is only verified on OK responses.
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
-	}
-
-	body := rec.Body.String()
-	if !strings.Contains(body, "datastar-patch-elements") {
-		t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
-	}
-	assertOrder(t, body, "a", "b", "c") // authoritative order, not the rejected one
-}
-
-// A rejected span (below the floor) patches back the authoritative column at
-// 200 — the over-shrunk card snaps back. Same contract as a rejected reorder.
-func TestResizeRejectionPatchesAuthoritativeColumn(t *testing.T) {
-	svc := &fakeService{cards: threeCards(), resizeErr: cards.ErrInvalidSpan}
-
-	req := authedRequest(http.MethodPost, "/cards/resize", `{"id":"b","span":0}`)
-	rec := httptest.NewRecorder()
-	ResizeHandler(svc).ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, "datastar-patch-elements") {
-		t.Errorf("missing datastar-patch-elements event; body:\n%s", body)
-	}
-	if !strings.Contains(body, `id="card-list"`) {
-		t.Errorf("patch missing #card-list morph anchor; body:\n%s", body)
-	}
-	assertOrder(t, body, "a", "b", "c") // authoritative column, not the rejected resize
 }
 
 // Keyed Datastar attributes separate plugin and key with a COLON on v1.0.2

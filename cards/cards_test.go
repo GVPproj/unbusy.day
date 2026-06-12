@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	mrand "math/rand"
 	"os"
 	"slices"
 	"sync"
@@ -121,160 +120,21 @@ func TestOwnersAreIsolated(t *testing.T) {
 		}
 	}
 
-	// Reordering a with b's ids is not a permutation of a's cards.
-	if _, err := svc.Reorder(ctx, a, idsOf(bcs)); !errors.Is(err, cards.ErrNotPermutation) {
-		t.Fatalf("cross-owner reorder: want ErrNotPermutation, got %v", err)
+	// A layout submitted under a's scope with b's ids is not a's card set, so
+	// nothing of b's can be moved or resized through a.
+	layout := make([]cards.Placement, len(bcs))
+	for i, c := range bcs {
+		layout[i] = cards.Placement{ID: c.ID, Slot: c.Position, Span: c.Span + 1}
 	}
-
-	// Resizing b's card under a's scope is a no-op on b's data.
-	if _, err := svc.Resize(ctx, a, bcs[0].ID, 3); err != nil {
-		t.Fatalf("cross-owner resize: %v", err)
+	if _, err := svc.SetLayout(ctx, a, layout); !errors.Is(err, cards.ErrNotSameCards) {
+		t.Fatalf("cross-owner layout: want ErrNotSameCards, got %v", err)
 	}
 	after, err := svc.List(ctx, b)
 	if err != nil {
 		t.Fatalf("list b after: %v", err)
 	}
 	if got := spanOf(after, bcs[0].ID); got != 1 {
-		t.Fatalf("cross-owner resize leaked: span = %d, want 1", got)
-	}
-}
-
-// 100 random reorders must never trip the unique-on-(owner,position)
-// constraint — exercises the bulk UPDATE against the DEFERRABLE unique.
-func TestReorder_Fuzz(t *testing.T) {
-	pool := newPool(t)
-	svc := cards.NewService(pool, nil)
-	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
-
-	initial, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(initial) == 0 {
-		t.Fatalf("seed missing")
-	}
-	ids := idsOf(initial)
-
-	rng := mrand.New(mrand.NewSource(1))
-	for i := range 100 {
-		rng.Shuffle(len(ids), func(a, b int) { ids[a], ids[b] = ids[b], ids[a] })
-		order := append([]string(nil), ids...)
-
-		res, err := svc.Reorder(ctx, owner, order)
-		if err != nil {
-			t.Fatalf("iter %d order=%v: %v", i, order, err)
-		}
-		if len(res.Cards) != len(order) {
-			t.Fatalf("iter %d: got %d cards, want %d", i, len(res.Cards), len(order))
-		}
-		for j, c := range res.Cards {
-			if c.ID != order[j] || c.Position != j {
-				t.Fatalf("iter %d pos %d: got {%s,%d}, want {%s,%d}",
-					i, j, c.ID, c.Position, order[j], j)
-			}
-		}
-	}
-}
-
-func TestReorder_RejectsNonPermutation(t *testing.T) {
-	pool := newPool(t)
-	svc := cards.NewService(pool, nil)
-	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
-
-	initial, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(initial) < 2 {
-		t.Fatalf("need ≥2 seed cards")
-	}
-	a := initial[0].ID
-
-	cases := map[string][]string{
-		"too short":  {a},
-		"too long":   append(append([]string{}, idsOf(initial)...), "extra"),
-		"unknown id": replaceAt(idsOf(initial), 0, "zzz-not-real"),
-		"duplicate":  fillWith(a, len(initial)),
-		"empty":      {},
-	}
-	for name, order := range cases {
-		t.Run(name, func(t *testing.T) {
-			_, err := svc.Reorder(ctx, owner, order)
-			if !errors.Is(err, cards.ErrNotPermutation) {
-				t.Fatalf("want ErrNotPermutation, got %v", err)
-			}
-		})
-	}
-}
-
-// After a resize, List reflects the new span; other cards stay at default 1.
-func TestResize_PersistsSpan(t *testing.T) {
-	pool := newPool(t)
-	svc := cards.NewService(pool, nil)
-	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
-
-	initial, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(initial) < 2 {
-		t.Fatalf("need ≥2 seed cards")
-	}
-	// Last card: growing it stays clear of the EXCLUDE overlap backstop.
-	id := initial[len(initial)-1].ID
-	other := initial[0].ID
-
-	res, err := svc.Resize(ctx, owner, id, 3)
-	if err != nil {
-		t.Fatalf("resize: %v", err)
-	}
-	if got := spanOf(res.Cards, id); got != 3 {
-		t.Fatalf("resize result span for %s = %d, want 3", id, got)
-	}
-	if got := spanOf(res.Cards, other); got != 1 {
-		t.Fatalf("untouched card %s span = %d, want default 1", other, got)
-	}
-
-	after, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list after resize: %v", err)
-	}
-	if got := spanOf(after, id); got != 3 {
-		t.Fatalf("persisted span for %s = %d, want 3", id, got)
-	}
-}
-
-// A span below one slot is rejected with ErrInvalidSpan and persists nothing.
-func TestResize_RejectsSpanBelowOne(t *testing.T) {
-	pool := newPool(t)
-	svc := cards.NewService(pool, nil)
-	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
-
-	initial, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(initial) == 0 {
-		t.Fatalf("seed missing")
-	}
-	id := initial[0].ID
-
-	for _, span := range []int{0, -1} {
-		if _, err := svc.Resize(ctx, owner, id, span); !errors.Is(err, cards.ErrInvalidSpan) {
-			t.Fatalf("Resize(%d): want ErrInvalidSpan, got %v", span, err)
-		}
-	}
-
-	after, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list after reject: %v", err)
-	}
-	if got := spanOf(after, id); got != 1 {
-		t.Fatalf("rejected resize must not persist: span for %s = %d, want 1", id, got)
+		t.Fatalf("cross-owner layout leaked: span = %d, want 1", got)
 	}
 }
 
@@ -562,38 +422,6 @@ type capturePub struct{ events []cards.Event }
 
 func (c *capturePub) Publish(e cards.Event) { c.events = append(c.events, e) }
 
-// A committed resize fans out on the bus carrying the new span and the owner key.
-func TestResize_PublishesEvent(t *testing.T) {
-	pool := newPool(t)
-	pub := &capturePub{}
-	svc := cards.NewService(pool, pub)
-	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
-
-	initial, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(initial) == 0 {
-		t.Fatalf("seed missing")
-	}
-	// Last card: growing it stays clear of the EXCLUDE overlap backstop.
-	id := initial[len(initial)-1].ID
-
-	if _, err := svc.Resize(ctx, owner, id, 2); err != nil {
-		t.Fatalf("resize: %v", err)
-	}
-	if len(pub.events) != 1 {
-		t.Fatalf("want 1 published event, got %d", len(pub.events))
-	}
-	if pub.events[0].Owner != owner {
-		t.Fatalf("published owner = %q, want %q", pub.events[0].Owner, owner)
-	}
-	if got := spanOf(pub.events[0].Cards, id); got != 2 {
-		t.Fatalf("published span for %s = %d, want 2", id, got)
-	}
-}
-
 func spanOf(cs []cards.Card, id string) int {
 	for _, c := range cs {
 		if c.ID == id {
@@ -601,26 +429,4 @@ func spanOf(cs []cards.Card, id string) int {
 		}
 	}
 	return -1
-}
-
-func idsOf(cs []cards.Card) []string {
-	out := make([]string, len(cs))
-	for i, c := range cs {
-		out[i] = c.ID
-	}
-	return out
-}
-
-func replaceAt(s []string, i int, v string) []string {
-	out := append([]string(nil), s...)
-	out[i] = v
-	return out
-}
-
-func fillWith(v string, n int) []string {
-	out := make([]string, n)
-	for i := range out {
-		out[i] = v
-	}
-	return out
 }

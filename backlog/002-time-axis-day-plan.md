@@ -1,6 +1,6 @@
 # 002 — Time-axis Day Plan: slot placement with push semantics
 
-Status: in-progress (server core + frontend adapter + grid rendering + drag.js push done; bounds UI pending)
+Status: done
 Labels: ready-for-agent
 Date: 2026-06-12
 
@@ -81,15 +81,23 @@ Chunk 4 — drag.js push cascade — done via TDD on `feat/initTimeBlocks`.
   events removed. Keyed-attribute regression test updated to pin the new
   wiring and reject the old.
 
-Still to do (next chunks):
+Chunk 5 — bounds UI + legacy removal — done via TDD on `feat/initTimeBlocks`.
 
-- **Bounds editing UI** (native-HTML-first).
-- **Remove `Reorder`/`Resize`** from the service and the legacy
-  `/cards/reorder` + `/cards/resize` endpoints (now unwired from the UI).
-  ⚠ Until then the legacy resize endpoint can trip the new EXCLUDE
-  constraint; its tests resize the last card. `login_test.go` uses
-  `/cards/reorder` for the session-gate test — repoint it at
-  `/cards/layout` when removing.
+- **Bounds editing UI** (`frontend/components/bounds.templ`): a native
+  `<dialog id="bounds-modal">` in the theme-modal house style, opened by a
+  "Day" nav button via `commandfor`/`command`. Two `<select>`s cover the hard
+  5:00–18:00 half-hour range (start 10–35, end 11–36), pre-selected at the
+  owner's bounds; `data-on:change` writes `$start`/`$end` as numbers (select
+  values are strings, BoundsHandler decodes ints) and Save `@post`s the
+  existing `/cards/bounds`. Render tests pin range, pre-selection, and the
+  colon-form keyed-attribute wiring; a page test pins modal + opener.
+- **Legacy removal**: `Reorder`/`Resize` (+ result types, `ErrNotPermutation`,
+  `validatePermutation`) gone from the service; `ReorderHandler`/
+  `ResizeHandler` + `/cards/reorder` + `/cards/resize` routes gone; the
+  owner-isolation test now drives `SetLayout` (`ErrNotSameCards`); the
+  session-gate test repointed at `/cards/layout`; ops/loadtest's fan-out probe
+  now scrapes id/slot/span and re-posts the identity layout to `/cards/layout`
+  (SetLayout publishes on every commit, so the probe still measures fan-out).
 
 ## Problem Statement
 

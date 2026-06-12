@@ -109,12 +109,12 @@ templ ColumnStyles() {
 }
 
 // CardColumn is the patch fragment: the stable #card-list id is the
-// outer-morph anchor every SSE patch and reorder response lands on, and the
+// outer-morph anchor every SSE patch and layout response lands on, and the
 // data-id attributes are what DragInit reads post-gesture to build the layout.
 // Page render and patch render share this component so they can't drift apart.
 //
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
-// (`data-on:reorder`, `data-signals:order`) — the dash forms are looked up as
+// (`data-on:layout`, `data-signals:layout`) — the dash forms are looked up as
 // nonexistent plugin names and silently skipped (no error).
 templ CardColumn(cs []cards.Card, b cards.Bounds) {
 	<ul

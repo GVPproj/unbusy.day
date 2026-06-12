@@ -68,10 +68,6 @@ func main() {
 	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(svc, broker)))
 	mux.Handle("POST /cards/layout", frontend.RequireSession(authSvc, frontend.LayoutHandler(svc)))
 	mux.Handle("POST /cards/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(svc)))
-	// Legacy list-era endpoints; drag.js still posts these until it switches
-	// to /cards/layout, then they and the core Reorder/Resize go.
-	mux.Handle("POST /cards/reorder", frontend.RequireSession(authSvc, frontend.ReorderHandler(svc)))
-	mux.Handle("POST /cards/resize", frontend.RequireSession(authSvc, frontend.ResizeHandler(svc)))
 
 	// Embedded frontend assets (drag.js). Session-free by design: a cached
 	// asset is not user data.
