@@ -15,7 +15,8 @@ templ CardsPage(cs []cards.Card) {
 	@Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})") {
 		<main class="column">
 			<h1>hello-cards — datastar</h1>
-			<p class="status">Drag to reorder. Other clients' reorders land as server patches.</p>
+			<p class="status">Drag to reorder. Your other tabs' reorders land as server patches.</p>
+			<button data-on:click="@post('/logout')">Log out</button>
 			@CardColumn(cs)
 			@dragInit()
 		</main>

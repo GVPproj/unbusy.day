@@ -27,20 +27,21 @@ type fakeService struct {
 	reorderErr error
 	resizeErr  error
 
+	gotOwner string   // owner passed to the last mutation, for asserting scoping
 	gotOrder []string // order passed to Reorder, for asserting delegation
 	gotID    string   // id passed to Resize
 	gotSpan  int      // span passed to Resize
 }
 
-func (f *fakeService) List(ctx context.Context) ([]cards.Card, error) {
+func (f *fakeService) List(ctx context.Context, owner string) ([]cards.Card, error) {
 	if f.listErr != nil {
 		return nil, f.listErr
 	}
 	return f.cards, nil
 }
 
-func (f *fakeService) Reorder(ctx context.Context, order []string) (*cards.ReorderResult, error) {
-	f.gotOrder = order
+func (f *fakeService) Reorder(ctx context.Context, owner string, order []string) (*cards.ReorderResult, error) {
+	f.gotOwner, f.gotOrder = owner, order
 	if f.reorderErr != nil {
 		return nil, f.reorderErr
 	}
@@ -58,8 +59,8 @@ func (f *fakeService) Reorder(ctx context.Context, order []string) (*cards.Reord
 	return &cards.ReorderResult{Cards: out}, nil
 }
 
-func (f *fakeService) Resize(ctx context.Context, id string, span int) (*cards.ResizeResult, error) {
-	f.gotID, f.gotSpan = id, span
+func (f *fakeService) Resize(ctx context.Context, owner, id string, span int) (*cards.ResizeResult, error) {
+	f.gotOwner, f.gotID, f.gotSpan = owner, id, span
 	if f.resizeErr != nil {
 		return nil, f.resizeErr
 	}
@@ -72,6 +73,19 @@ func (f *fakeService) Resize(ctx context.Context, id string, span int) (*cards.R
 	}
 	f.cards = out
 	return &cards.ResizeResult{Cards: out}, nil
+}
+
+// testOwner is the authenticated user id tests inject in place of
+// RequireSession. Deliberately unguessable so a hardcoded owner in a handler
+// can't pass by coincidence.
+const testOwner = "test-owner-7f3a"
+
+// authedRequest is an httptest request carrying the owner RequireSession
+// would have stashed.
+func authedRequest(method, target string, body string) *http.Request {
+	req := httptest.NewRequest(method, target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req.WithContext(withOwner(req.Context(), testOwner))
 }
 
 func threeCards() []cards.Card {
@@ -106,7 +120,10 @@ func assertOrder(t *testing.T, body string, ids ...string) {
 // The connection dies with the test via context cancellation.
 func openEvents(t *testing.T, h http.Handler) (*http.Response, *bufio.Reader) {
 	t.Helper()
-	srv := httptest.NewServer(h)
+	// Stand in for RequireSession: handlers read the owner from the context.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r.WithContext(withOwner(r.Context(), testOwner)))
+	}))
 	t.Cleanup(srv.Close)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -204,7 +221,7 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	_, br := openEvents(t, EventsHandler(svc, broker))
 	readFrame(t, br) // connect snapshot (covered by its own test)
 
-	broker.Publish(cards.Event{Cards: []cards.Card{
+	broker.Publish(cards.Event{Owner: testOwner, Cards: []cards.Card{
 		{ID: "b", Label: "Bravo", Position: 0},
 		{ID: "c", Label: "Charlie", Position: 1},
 		{ID: "a", Label: "Alpha", Position: 2},
@@ -264,9 +281,7 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 
-	req := httptest.NewRequest(http.MethodPost, "/cards/reorder",
-		strings.NewReader(`{"order":["c","a","b"]}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := authedRequest(http.MethodPost, "/cards/reorder", `{"order":["c","a","b"]}`)
 	rec := httptest.NewRecorder()
 	ReorderHandler(svc).ServeHTTP(rec, req)
 
@@ -275,6 +290,9 @@ func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 	}
 	if got, want := strings.Join(svc.gotOrder, ","), "c,a,b"; got != want {
 		t.Errorf("core Reorder called with %q, want %q", got, want)
+	}
+	if svc.gotOwner != testOwner {
+		t.Errorf("core Reorder called with owner %q, want %q", svc.gotOwner, testOwner)
 	}
 
 	body := rec.Body.String()
@@ -295,14 +313,15 @@ func TestReorderDelegatesToCoreAndPatchesNewOrder(t *testing.T) {
 func TestResizeDelegatesToCoreAndPatchesColumn(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 
-	req := httptest.NewRequest(http.MethodPost, "/cards/resize",
-		strings.NewReader(`{"id":"b","span":2}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := authedRequest(http.MethodPost, "/cards/resize", `{"id":"b","span":2}`)
 	rec := httptest.NewRecorder()
 	ResizeHandler(svc).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner {
+		t.Errorf("core Resize called with owner %q, want %q", svc.gotOwner, testOwner)
 	}
 	if svc.gotID != "b" || svc.gotSpan != 2 {
 		t.Errorf("core Resize called with (%q,%d), want (\"b\",2)", svc.gotID, svc.gotSpan)
@@ -327,9 +346,7 @@ func TestResizeDelegatesToCoreAndPatchesColumn(t *testing.T) {
 func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), reorderErr: cards.ErrNotPermutation}
 
-	req := httptest.NewRequest(http.MethodPost, "/cards/reorder",
-		strings.NewReader(`{"order":["c","a","zzz"]}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := authedRequest(http.MethodPost, "/cards/reorder", `{"order":["c","a","zzz"]}`)
 	rec := httptest.NewRecorder()
 	ReorderHandler(svc).ServeHTTP(rec, req)
 
@@ -351,9 +368,7 @@ func TestReorderRejectionPatchesAuthoritativeOrder(t *testing.T) {
 func TestResizeRejectionPatchesAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{cards: threeCards(), resizeErr: cards.ErrInvalidSpan}
 
-	req := httptest.NewRequest(http.MethodPost, "/cards/resize",
-		strings.NewReader(`{"id":"b","span":0}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := authedRequest(http.MethodPost, "/cards/resize", `{"id":"b","span":0}`)
 	rec := httptest.NewRecorder()
 	ResizeHandler(svc).ServeHTTP(rec, req)
 
@@ -439,7 +454,7 @@ func TestColumnRendersStretchSlotRail(t *testing.T) {
 func TestPageRendersColumnInServiceOrder(t *testing.T) {
 	svc := &fakeService{cards: threeCards()}
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := authedRequest(http.MethodGet, "/", "")
 	rec := httptest.NewRecorder()
 	PageHandler(svc).ServeHTTP(rec, req)
 

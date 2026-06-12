@@ -26,15 +26,15 @@ func firstID(e cards.Event) string {
 	return e.Cards[0].ID
 }
 
-// One published event fans out to every subscriber.
+// One published event fans out to every subscriber of its owner.
 func TestPublishFansOutToAllSubscribers(t *testing.T) {
 	b := pubsub.New()
-	a := b.Subscribe()
+	a := b.Subscribe("u1")
 	defer a.Close()
-	c := b.Subscribe()
+	c := b.Subscribe("u1")
 	defer c.Close()
 
-	b.Publish(cards.Event{Cards: []cards.Card{{ID: "a"}}})
+	b.Publish(cards.Event{Owner: "u1", Cards: []cards.Card{{ID: "a"}}})
 
 	if got := firstID(recv(t, a.Events)); got != "a" {
 		t.Fatalf("sub a card = %q, want a", got)
@@ -49,9 +49,9 @@ func TestPublishFansOutToAllSubscribers(t *testing.T) {
 // reconnect) rather than blocking the origin.
 func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	b := pubsub.New()
-	slow := b.Subscribe() // never read
+	slow := b.Subscribe("u1") // never read
 	defer slow.Close()
-	fast := b.Subscribe()
+	fast := b.Subscribe("u1")
 	defer fast.Close()
 
 	// Far more events than any channel buffer; if Publish blocked on slow,
@@ -59,7 +59,7 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for range 1000 {
-			b.Publish(cards.Event{Cards: []cards.Card{{ID: "a"}}})
+			b.Publish(cards.Event{Owner: "u1", Cards: []cards.Card{{ID: "a"}}})
 		}
 		close(done)
 	}()
@@ -80,12 +80,33 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 // Tracer: a subscriber receives an event published after it subscribed.
 func TestSubscribeReceivesPublishedEvent(t *testing.T) {
 	b := pubsub.New()
-	sub := b.Subscribe()
+	sub := b.Subscribe("u1")
 	defer sub.Close()
 
-	b.Publish(cards.Event{Cards: []cards.Card{{ID: "a"}}})
+	b.Publish(cards.Event{Owner: "u1", Cards: []cards.Card{{ID: "a"}}})
 
 	if got := firstID(recv(t, sub.Events)); got != "a" {
 		t.Fatalf("card = %q, want a", got)
+	}
+}
+
+// Keyed fan-out (ADR 0003): another user's subscriber never receives the
+// event — its connection doesn't even wake.
+func TestPublishIsScopedToOwner(t *testing.T) {
+	b := pubsub.New()
+	mine := b.Subscribe("u1")
+	defer mine.Close()
+	other := b.Subscribe("u2")
+	defer other.Close()
+
+	b.Publish(cards.Event{Owner: "u1", Cards: []cards.Card{{ID: "a"}}})
+
+	if got := firstID(recv(t, mine.Events)); got != "a" {
+		t.Fatalf("owner sub card = %q, want a", got)
+	}
+	select {
+	case e := <-other.Events:
+		t.Fatalf("foreign subscriber received %+v", e)
+	case <-time.After(50 * time.Millisecond):
 	}
 }

@@ -1,13 +1,38 @@
 package components
 
-// LoginPage is a placeholder login view: one button that @posts to /login.
-// The server answers with a Datastar redirect to the main view; no auth yet.
+// LoginPage is the passwordless OTP flow (ADR 0001). Step 1 collects the
+// email; the server answers /login/code by patching #login-form into the
+// code-entry step. Signals are global, so $email survives the morph and rides
+// along with $code on /login/verify.
 templ LoginPage() {
 	@Layout("hello-cards — log in", "") {
 		<main class="column">
 			<h1>hello-cards</h1>
-			<p class="status">No credentials yet — just step through.</p>
-			<button data-on:click="@post('/login')">Log in</button>
+			@LoginEmailForm()
 		</main>
 	}
+}
+
+// LoginEmailForm is step 1: the stable #login-form id is the morph anchor
+// both steps patch onto.
+templ LoginEmailForm() {
+	<div id="login-form" data-signals:email="''" data-signals:code="''">
+		<p class="status">Enter your email and we'll send a one-time code.</p>
+		<input type="email" placeholder="you@example.com" autocomplete="email" data-bind:email/>
+		<button data-on:click="@post('/login/code')">Send code</button>
+	</div>
+}
+
+// LoginCodeForm is step 2, patched in over #login-form. The response is
+// identical whether a code was actually sent (no account enumeration). A
+// failed verify re-patches it with a generic error.
+templ LoginCodeForm(errMsg string) {
+	<div id="login-form">
+		<p class="status">If that address is registered, a 6-digit code is on its way.</p>
+		if errMsg != "" {
+			<p class="status error">{ errMsg }</p>
+		}
+		<input inputmode="numeric" autocomplete="one-time-code" placeholder="123456" data-bind:code/>
+		<button data-on:click="@post('/login/verify')">Verify</button>
+	</div>
 }

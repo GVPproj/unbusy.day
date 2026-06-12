@@ -25,9 +25,9 @@ var keepaliveInterval = 25 * time.Second
 // *cards.Service satisfies it. The seam keeps the handlers testable without
 // Postgres.
 type CardService interface {
-	List(ctx context.Context) ([]cards.Card, error)
-	Reorder(ctx context.Context, order []string) (*cards.ReorderResult, error)
-	Resize(ctx context.Context, id string, span int) (*cards.ResizeResult, error)
+	List(ctx context.Context, owner string) ([]cards.Card, error)
+	Reorder(ctx context.Context, owner string, order []string) (*cards.ReorderResult, error)
+	Resize(ctx context.Context, owner, id string, span int) (*cards.ResizeResult, error)
 }
 
 // PageHandler serves the column page, server-rendered from the core service's
@@ -35,7 +35,7 @@ type CardService interface {
 // document honest while the Datastar/Motion bundles edge-cache on their CDNs.
 func PageHandler(svc CardService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cs, err := svc.List(r.Context())
+		cs, err := svc.List(r.Context(), ownerFrom(r.Context()))
 		if err != nil {
 			log.Printf("ds page list: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -66,7 +66,8 @@ func ReorderHandler(svc CardService) http.Handler {
 			return
 		}
 
-		res, err := svc.Reorder(r.Context(), sig.Order)
+		owner := ownerFrom(r.Context())
+		res, err := svc.Reorder(r.Context(), owner, sig.Order)
 		var cs []cards.Card
 		switch {
 		case errors.Is(err, cards.ErrNotPermutation):
@@ -74,7 +75,7 @@ func ReorderHandler(svc CardService) http.Handler {
 			// drop visibly snaps back. 200 + hypermedia truth, not 4xx —
 			// Datastar applying patches on error statuses is unverified, and
 			// there is no client rollback code to signal anyway.
-			cs, err = svc.List(r.Context())
+			cs, err = svc.List(r.Context(), owner)
 			if err != nil {
 				log.Printf("ds reorder rollback list: %v", err)
 				http.Error(w, "internal error", http.StatusInternalServerError)
@@ -112,13 +113,14 @@ func ResizeHandler(svc CardService) http.Handler {
 			return
 		}
 
-		res, err := svc.Resize(r.Context(), sig.ID, sig.Span)
+		owner := ownerFrom(r.Context())
+		res, err := svc.Resize(r.Context(), owner, sig.ID, sig.Span)
 		var cs []cards.Card
 		switch {
 		case errors.Is(err, cards.ErrInvalidSpan):
 			// Rollback at 200: patch back the authoritative column so the
 			// over-shrunk card snaps back. Same path as a rejected reorder.
-			cs, err = svc.List(r.Context())
+			cs, err = svc.List(r.Context(), owner)
 			if err != nil {
 				log.Printf("ds resize rollback list: %v", err)
 				http.Error(w, "internal error", http.StatusInternalServerError)
@@ -152,16 +154,19 @@ func EventsHandler(svc CardService, broker *pubsub.Broker) http.Handler {
 		// SSE is long-lived: no per-connection write deadline.
 		_ = rc.SetWriteDeadline(time.Time{})
 
+		owner := ownerFrom(r.Context())
+
 		// Subscribe before the snapshot so a mutation committed in between is
 		// waiting on the channel rather than lost. Frames are full-state
 		// renders, so the worst interleaving is one redundant patch — never a
-		// silently missed order.
-		sub := broker.Subscribe()
+		// silently missed order. The subscription is owner-keyed: only this
+		// user's mutations wake this connection.
+		sub := broker.Subscribe(owner)
 		defer sub.Close()
 
 		sse := datastar.NewSSE(w, r)
 
-		cs, err := svc.List(r.Context())
+		cs, err := svc.List(r.Context(), owner)
 		if err != nil {
 			log.Printf("ds events list: %v", err)
 			return

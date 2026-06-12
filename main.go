@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/grahamvanpelt/unbusy.day/auth"
 	"github.com/grahamvanpelt/unbusy.day/cards"
 	"github.com/grahamvanpelt/unbusy.day/ds"
 	"github.com/grahamvanpelt/unbusy.day/pubsub"
@@ -42,6 +43,9 @@ func main() {
 
 	broker := pubsub.New()
 	svc := cards.NewService(pool, broker)
+	authSvc := auth.NewService(pool, auth.LogMailer{})
+	// Secure cookies in production only (ADR 0002) — Fly sets FLY_APP_NAME.
+	secureCookies := os.Getenv("FLY_APP_NAME") != ""
 
 	mux := http.NewServeMux()
 
@@ -56,12 +60,14 @@ func main() {
 	// pub/sub: the page renders the authoritative order, the events stream
 	// fans every mutation to all subscribers as element patches, and the
 	// reorder endpoint commits a drop and patches the column back.
-	mux.Handle("GET /{$}", ds.PageHandler(svc))
+	mux.Handle("GET /{$}", ds.RequireSession(authSvc, ds.PageHandler(svc)))
 	mux.Handle("GET /login", ds.LoginPageHandler())
-	mux.Handle("POST /login", ds.LoginActionHandler())
-	mux.Handle("GET /events", ds.EventsHandler(svc, broker))
-	mux.Handle("POST /cards/reorder", ds.ReorderHandler(svc))
-	mux.Handle("POST /cards/resize", ds.ResizeHandler(svc))
+	mux.Handle("POST /login/code", ds.RequestCodeHandler(authSvc))
+	mux.Handle("POST /login/verify", ds.VerifyCodeHandler(authSvc, svc, secureCookies))
+	mux.Handle("POST /logout", ds.LogoutHandler(authSvc, secureCookies))
+	mux.Handle("GET /events", ds.RequireSession(authSvc, ds.EventsHandler(svc, broker)))
+	mux.Handle("POST /cards/reorder", ds.RequireSession(authSvc, ds.ReorderHandler(svc)))
+	mux.Handle("POST /cards/resize", ds.RequireSession(authSvc, ds.ResizeHandler(svc)))
 
 	// Wiring canary for the pinned Datastar SDK + templ versions.
 	mux.Handle("GET /_smoke", ds.SmokeHandler())
