@@ -71,6 +71,10 @@ jobs:
       - name: Test
         run: go test -race ./...
 
+      # Pure-logic JS units (the push cascade, ADR 0005) — runner's node, no deps.
+      - name: Test JS
+        run: node --test frontend/jstest/*.test.js
+
   deploy:
     name: Deploy (Fly)
     needs: test

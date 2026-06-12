@@ -598,12 +598,12 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
-	for _, attr := range []string{`data-on:reorder=`, `data-signals:order=`} {
+	for _, attr := range []string{`data-on:layout=`, `data-signals:layout=`} {
 		if !strings.Contains(body, attr) {
 			t.Errorf("column missing verified keyed attribute %q; body:\n%s", attr, body)
 		}
 	}
-	for _, stale := range []string{`data-on-reorder`, `data-signals-order`} {
+	for _, stale := range []string{`data-on-layout`, `data-signals-layout`, `data-on:reorder`, `data-on:cardresize`} {
 		if strings.Contains(body, stale) {
 			t.Errorf("column carries dash-form attribute %q — a silent no-op on Datastar v1.0.2; body:\n%s", stale, body)
 		}
@@ -611,7 +611,7 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 }
 
 // Each card carries its persisted span as data-span; default cards render
-// data-span="1". DragInit re-asserts heights from this after every patch.
+// data-span="1". drag.js reads slot/span from these to seed each gesture.
 func TestColumnRendersPersistedSpan(t *testing.T) {
 	cs := []cards.Card{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 2},

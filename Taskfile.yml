@@ -67,9 +67,10 @@ tasks:
       - go build -o tmp/hello-cards .
 
   test:
-    desc: "Run Go tests"
+    desc: "Run Go tests and JS unit tests"
     cmds:
       - go test ./...
+      - node --test frontend/jstest/*.test.js
 
   fmt:
     desc: "Format Go code"

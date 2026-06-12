@@ -1,66 +1,46 @@
-// Motion-powered drag + stretch for #card-list: transforms the real <li>
-// (no ghost), commits reorder as a FLIP, then dispatches reorder/cardresize.
-// Listeners are delegated to #card-list (morph-stable) so wiring survives patches.
+// Motion-powered drag + stretch for the #card-list day grid: transforms the
+// real <li> (no ghost), previews the client-computed push cascade live
+// (push.js, ADR 0005), commits as a FLIP, then dispatches one `layout` event
+// carrying the full resulting layout. Listeners are delegated to #card-list
+// (morph-stable) so wiring survives patches.
 import { animate, motionValue, styleEffect } from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
+import { pushLayout } from "./push.js";
 
 const list = document.getElementById('card-list');
 const SPRING = { type: 'spring', stiffness: 600, damping: 38 };
-const GAP = parseFloat(getComputedStyle(list).rowGap);
-// Natural span-1 card height. The probe may be server-rendered stretched,
-// so divide its height back down by its span — measuring raw would inflate CARD_H.
-const probe = list.querySelector('.card');
-const probeSpan = parseInt(probe.dataset.span, 10) || 1;
-const CARD_H = (probe.getBoundingClientRect().height - (probeSpan - 1) * GAP) / probeSpan;
-const PITCH = CARD_H + GAP;
-const heightFor = (span) => CARD_H + (span - 1) * PITCH;
 
-// Card id -> span in slots (absent = 1); cache of the persisted data-span,
-// re-seeded from the DOM after every morph. During a gesture the map leads.
-const spans = new Map();
-const spanOf = (el) => spans.get(el.dataset.id) || 1;
 const cardsIn = () => [...list.children].filter((c) => c.classList.contains('card'));
-const slotsIn = () => [...list.children].filter((c) => c.classList.contains('slot'));
-const extraSpans = () => cardsIn().reduce((n, c) => n + spanOf(c) - 1, 0);
+const boundsNow = () => ({ start: parseInt(list.dataset.dayStart, 10), end: parseInt(list.dataset.dayEnd, 10) });
+const placementOf = (c) => ({ id: c.dataset.id, slot: parseInt(c.dataset.slot, 10), span: parseInt(c.dataset.span, 10) || 1 });
+const layoutIn = () => cardsIn().map(placementOf);
 
-// Called only when no gesture is in flight, so it never clobbers an in-progress span.
-function syncSpansFromDOM() {
+// Row pitch from consecutive slot rows — every slot is a real fixed-height
+// grid row now, so geometry is measured, never derived from a probe card.
+function slotPitch() {
+	const slots = [...list.querySelectorAll(':scope > .slot')];
+	if (slots.length > 1) return slots[1].getBoundingClientRect().top - slots[0].getBoundingClientRect().top;
+	return slots[0].getBoundingClientRect().height;
+}
+
+// Write a committed layout into the persisted attributes and grid placement —
+// the same shape the server renders, so the patch lands as a no-op morph.
+function writeLayout(layout, dayStart) {
+	const by = new Map(layout.map((p) => [p.id, p]));
 	for (const c of cardsIn()) {
-		const s = parseInt(c.dataset.span, 10) || 1;
-		if (s > 1) spans.set(c.dataset.id, s);
-		else spans.delete(c.dataset.id);
+		const p = by.get(c.dataset.id);
+		if (!p) continue;
+		c.dataset.slot = p.slot;
+		c.dataset.span = p.span;
+		c.style.gridRow = (p.slot - dayStart + 1) + ' / span ' + p.span;
 	}
 }
+
+const sameLayout = (a, b) =>
+	a.every((p) => { const q = b.find((x) => x.id === p.id); return q && q.slot === p.slot && q.span === p.span; });
 
 let drag = null;
 let resize = null;
 let settling = false;
-
-// The one writer of stable stretch styles: card heights from the spans map,
-// bottom-most slots collapsed (height 0, -GAP margin) to balance them.
-// Disconnects the observer around its own writes so it never observes itself.
-function apply() {
-	observer.disconnect();
-	for (const c of cardsIn()) {
-		const s = spanOf(c);
-		c.style.height = s === 1 ? '' : heightFor(s) + 'px';
-	}
-	const open = slotsIn().length - extraSpans();
-	slotsIn().forEach((slot, i) => {
-		const consumed = i >= open;
-		slot.style.height = consumed ? '0px' : CARD_H + 'px';
-		slot.style.marginTop = consumed ? -GAP + 'px' : '';
-	});
-	observer.observe(list, OBSERVED);
-}
-
-// On morph, re-seed the cache and re-assert stretch styles. Watching
-// data-span (not just style) is what makes a foreign resize land.
-const OBSERVED = { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'data-span'] };
-const observer = new MutationObserver(() => {
-	if (drag || resize || settling) return;
-	syncSpansFromDOM();
-	apply();
-});
 
 list.addEventListener('pointerdown', (e) => {
 	if (drag || resize || settling || e.button !== 0) return;
@@ -76,191 +56,164 @@ list.addEventListener('pointermove', (e) => {
 	if (drag && e.pointerId === drag.pointerId) {
 		drag.x.set(e.clientX - drag.startX);
 		drag.y.set(e.clientY - drag.startY);
-		shiftSiblings(targetFor(drag.y.get()));
+		previewDrag(drag.orig.slot + Math.round(drag.y.get() / drag.pitch));
 	} else if (resize && e.pointerId === resize.pointerId) {
-		const span = resize.startSpan + Math.round((e.clientY - resize.startY) / PITCH);
-		snapTo(Math.max(1, Math.min(resize.max, span)));
+		previewResize(resize.orig.span + Math.round((e.clientY - resize.startY) / resize.pitch));
 	}
 });
 
 list.addEventListener('pointerup', (e) => { settleDrag(e, true); settleResize(e, true); });
 list.addEventListener('pointercancel', (e) => { settleDrag(e, false); settleResize(e, false); });
 
-// ---- drag to reorder ----------------------------------------------
+// Per-gesture motionValues for every other card, NOT animate(element, …):
+// teardown wipes style.transform behind Motion's back, and animate(element)
+// would resume from Motion's stale cached y and teleport a sibling.
+function sibsFor(el) {
+	const sibs = new Map();
+	for (const c of cardsIn()) {
+		if (c === el) continue;
+		const v = motionValue(0);
+		sibs.set(c, { v, detach: styleEffect(c, { y: v }), anim: null });
+	}
+	return sibs;
+}
+
+// Spring every other card to its slot delta under layout `lay` (the live
+// push preview); identical for drag and resize.
+function springSibs(g, lay) {
+	const by = new Map(lay.map((p) => [p.id, p]));
+	g.sibs.forEach((s, c) => {
+		const from = parseInt(c.dataset.slot, 10);
+		const to = by.get(c.dataset.id).slot;
+		if (s.anim) s.anim.stop();
+		s.anim = animate(s.v, (to - from) * g.pitch, SPRING);
+	});
+}
+
+// ---- drag to a slot --------------------------------------------------
 
 function startDrag(e, el) {
-	const cards = cardsIn();
+	const orig = placementOf(el);
 	const x = motionValue(0);
 	const y = motionValue(0);
 	drag = {
-		el, cards, x, y,
-		// Measured per-card: stretched cards mean no uniform step.
-		pitch: cards.map((c) => c.getBoundingClientRect().height + GAP),
+		el, orig, x, y,
+		bounds: boundsNow(),
+		current: layoutIn(),
+		pitch: slotPitch(),
 		detach: styleEffect(el, { x, y }),
-		sibs: new Map(),
+		sibs: sibsFor(el),
+		// last layout the cascade accepted — what an invalid pointer snaps to
+		valid: { slot: orig.slot, layout: layoutIn() },
 		pointerId: e.pointerId,
-		from: cards.indexOf(el),
-		to: cards.indexOf(el),
 		startX: e.clientX,
 		startY: e.clientY,
 	};
-	// Per-drag motionValues, NOT animate(element, …): teardown wipes
-	// style.transform behind Motion's back, and animate(element) would
-	// resume from Motion's stale cached y and teleport a sibling.
-	for (const c of cards) {
-		if (c === el) continue;
-		const v = motionValue(0);
-		drag.sibs.set(c, { v, detach: styleEffect(c, { y: v }), anim: null });
-	}
 	el.classList.add('dragging');
 }
 
-// Signed translate landing the held card at index `to`: summed pitches of passed cards.
-function offsetFor(d, to) {
-	let off = 0;
-	for (let i = d.from + 1; i <= to; i++) off += d.pitch[i];
-	for (let i = to; i < d.from; i++) off -= d.pitch[i];
-	return off;
-}
-
-// Index the pointer offset has dragged the card into — crossings happen
-// halfway through each passed card's pitch.
-function targetFor(dy) {
+// Preview the cascade at `slot`: clamp into the day, keep the last valid
+// layout when the push rejects, so invalid drops snap to legal positions.
+function previewDrag(slot) {
 	const d = drag;
-	let to = d.from;
-	while (to + 1 < d.cards.length && dy > offsetFor(d, to) + d.pitch[to + 1] / 2) to++;
-	while (to > 0 && dy < offsetFor(d, to) - d.pitch[to - 1] / 2) to--;
-	return to;
-}
-
-// Spring displaced cards one held-card-pitch out of the way of landing index `to`.
-function shiftSiblings(to) {
-	if (to === drag.to) return;
-	drag.to = to;
-	const dodge = drag.pitch[drag.from];
-	drag.cards.forEach((card, i) => {
-		if (card === drag.el) return;
-		let y = 0;
-		if (i > drag.from && i <= to) y = -dodge;
-		else if (i < drag.from && i >= to) y = dodge;
-		const s = drag.sibs.get(card);
-		if (s.anim) s.anim.stop();
-		s.anim = animate(s.v, y, SPRING);
-	});
+	slot = Math.max(d.bounds.start, Math.min(d.bounds.end - d.orig.span, slot));
+	if (slot === d.valid.slot) return;
+	const lay = pushLayout(d.bounds, d.current, { id: d.orig.id, slot, span: d.orig.span });
+	if (!lay) return;
+	d.valid = { slot, layout: lay };
+	springSibs(d, lay);
 }
 
 async function settleDrag(e, commit) {
 	if (!drag || e.pointerId !== drag.pointerId) return;
 	const d = drag;
-	if (!commit) shiftSiblings(d.from); // cancelled: spring everyone home
+	if (!commit) d.valid = { slot: d.orig.slot, layout: d.current };
+	springSibs(d, d.valid.layout);
 	drag = null;
 	settling = true;
 	try {
 		// land the held card AND let in-flight sibling springs finish
 		await Promise.all([
 			animate(d.x, 0, SPRING),
-			animate(d.y, offsetFor(d, d.to), SPRING),
+			animate(d.y, (d.valid.slot - d.orig.slot) * d.pitch, SPRING),
 			...[...d.sibs.values()].map((s) => s.anim),
 		]);
 	} finally {
-		// Teardown and the DOM reorder below share one synchronous
-		// frame: same pixels, new layout (FLIP).
+		// Teardown and the layout write below share one synchronous frame:
+		// same pixels, new grid placement (FLIP).
 		d.detach();
 		d.sibs.forEach((s) => { if (s.anim) s.anim.stop(); s.detach(); });
-		d.cards.forEach((c) => { c.style.transform = ''; });
+		d.el.style.transform = '';
+		d.sibs.forEach((_, c) => { c.style.transform = ''; });
 		d.el.classList.remove('dragging');
+		if (d.el.parentElement === list) writeLayout(d.valid.layout, d.bounds.start);
 		settling = false;
 	}
-	if (d.to === d.from) return;
-	// A foreign patch may have replaced the children mid-drag — the
-	// server's order already won, so don't re-append detached nodes.
-	if (d.cards.some((c) => c.parentElement !== list)) return;
-	const order = [...d.cards];
-	order.splice(d.from, 1);
-	order.splice(d.to, 0, d.el);
-	// Reinsert ahead of the slot rail so slots stay at the bottom.
-	const firstSlot = list.querySelector(':scope > .slot');
-	order.forEach((c) => list.insertBefore(c, firstSlot));
-	list.dispatchEvent(new CustomEvent('reorder', {
-		detail: { order: order.map((c) => c.dataset.id) },
-	}));
+	if (sameLayout(d.valid.layout, d.current)) return;
+	// A foreign patch may have replaced the children mid-drag — the server's
+	// layout already won, so don't dispatch a stale one.
+	if (d.el.parentElement !== list) return;
+	list.dispatchEvent(new CustomEvent('layout', { detail: { layout: d.valid.layout } }));
 }
 
-// ---- stretch / compress ---------------------------------------------
+// ---- stretch / compress ----------------------------------------------
 
-// Grip drag. motionValues are per-gesture (the Motion cache gotcha above —
-// apply() rewrites these styles behind Motion's back).
 function startResize(e, el) {
-	const slots = slotsIn();
-	const span = spanOf(el);
+	const orig = placementOf(el);
+	const pitch = slotPitch();
 	const h = motionValue(el.getBoundingClientRect().height);
 	resize = {
-		el, h, span,
-		startSpan: span,
-		// shared pool: a card may grow by however many slots are open
-		max: span + Math.max(0, slots.length - extraSpans()),
+		el, orig, h, pitch,
+		bounds: boundsNow(),
+		current: layoutIn(),
 		hAnim: null,
 		detach: styleEffect(el, { height: h }),
-		slots: slots.map((slot) => {
-			const sh = motionValue(slot.getBoundingClientRect().height);
-			const sm = motionValue(parseFloat(getComputedStyle(slot).marginTop) || 0);
-			return { sh, sm, detach: styleEffect(slot, { height: sh, marginTop: sm }), anims: [] };
-		}),
+		sibs: sibsFor(el),
+		valid: { span: orig.span, layout: layoutIn() },
 		pointerId: e.pointerId,
 		startY: e.clientY,
 	};
 	el.classList.add('resizing');
 }
 
-// Spring the card to the snapped span; the slot rail collapses in the same
-// spring so the column bottom barely moves.
-function snapTo(span) {
-	if (span === resize.span) return;
-	resize.span = span;
-	if (resize.hAnim) resize.hAnim.stop();
-	resize.hAnim = animate(resize.h, heightFor(span), SPRING);
-	const open = resize.slots.length - (extraSpans() - (resize.startSpan - 1)) - (span - 1);
-	resize.slots.forEach((s, i) => {
-		const consumed = i >= open;
-		s.anims.forEach((a) => a.stop());
-		s.anims = [
-			animate(s.sh, consumed ? 0 : CARD_H, SPRING),
-			animate(s.sm, consumed ? -GAP : 0, SPRING),
-		];
-	});
+// Preview the grown/shrunk span: clamp to the day end, keep the last valid
+// layout when growing would push a card past the bottom.
+function previewResize(span) {
+	const r = resize;
+	span = Math.max(1, Math.min(r.bounds.end - r.orig.slot, span));
+	if (span === r.valid.span) return;
+	const lay = pushLayout(r.bounds, r.current, { id: r.orig.id, slot: r.orig.slot, span });
+	if (!lay) return;
+	r.valid = { span, layout: lay };
+	if (r.hAnim) r.hAnim.stop();
+	r.hAnim = animate(r.h, span * r.pitch, SPRING);
+	springSibs(r, lay);
 }
 
 async function settleResize(e, commit) {
 	if (!resize || e.pointerId !== resize.pointerId) return;
-	if (!commit) snapTo(resize.startSpan); // cancelled: spring back
 	const r = resize;
+	if (!commit) {
+		r.valid = { span: r.orig.span, layout: r.current };
+		if (r.hAnim) r.hAnim.stop();
+		r.hAnim = animate(r.h, r.orig.span * r.pitch, SPRING);
+		springSibs(r, r.current);
+	}
 	resize = null;
 	settling = true;
 	try {
-		await Promise.all([r.hAnim, ...r.slots.flatMap((s) => s.anims)].filter(Boolean));
+		await Promise.all([r.hAnim, ...[...r.sibs.values()].map((s) => s.anim)].filter(Boolean));
 	} finally {
 		if (r.hAnim) r.hAnim.stop();
 		r.detach();
-		r.slots.forEach((s) => { s.anims.forEach((a) => a.stop()); s.detach(); });
+		r.sibs.forEach((s) => { if (s.anim) s.anim.stop(); s.detach(); });
+		r.el.style.height = '';
+		r.sibs.forEach((_, c) => { c.style.transform = ''; });
 		r.el.classList.remove('resizing');
+		if (r.el.parentElement === list) writeLayout(r.valid.layout, r.bounds.start);
 		settling = false;
 	}
-	if (r.span === 1) spans.delete(r.el.dataset.id);
-	else spans.set(r.el.dataset.id, r.span);
-	// Write the committed span into the persisted attributes now, or stale
-	// .stretched/--span CSS snaps the card back until the patch lands.
-	r.el.dataset.span = r.span;
-	r.el.style.setProperty('--span', r.span);
-	r.el.classList.toggle('stretched', r.span > 1);
-	// Also covers a mid-gesture clobber: apply() targets fresh nodes by id.
-	apply();
-	// Skip a no-op gesture (a plain tap).
-	if (r.span !== r.startSpan && r.el.parentElement === list) {
-		list.dispatchEvent(new CustomEvent('cardresize', {
-			detail: { id: r.el.dataset.id, span: r.span },
-		}));
-	}
+	if (sameLayout(r.valid.layout, r.current)) return;
+	if (r.el.parentElement !== list) return;
+	list.dispatchEvent(new CustomEvent('layout', { detail: { layout: r.valid.layout } }));
 }
-
-syncSpansFromDOM();
-apply();

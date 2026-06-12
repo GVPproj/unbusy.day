@@ -1,6 +1,6 @@
 # 002 — Time-axis Day Plan: slot placement with push semantics
 
-Status: in-progress (server core + frontend adapter + grid rendering done; drag.js, bounds UI pending)
+Status: in-progress (server core + frontend adapter + grid rendering + drag.js push done; bounds UI pending)
 Labels: ready-for-agent
 Date: 2026-06-12
 
@@ -59,15 +59,37 @@ Chunk 3 — grid rendering — done via TDD on `feat/initTimeBlocks`.
   consumed slots) — drag/resize gestures are visually broken until the
   drag.js chunk lands. Legacy reorder/resize wiring on `#card-list` kept.
 
+Chunk 4 — drag.js push cascade — done via TDD on `feat/initTimeBlocks`.
+
+- **Pure cascade module** (`frontend/static/push.js`): `pushLayout(bounds,
+  current, moved) -> layout | null` — ascending sweep pushes overlapped cards
+  down by the minimum distance, gaps absorb, null = reject (any card past day
+  end, or the moved run itself out of bounds). TDD'd with `node --test` in
+  `frontend/jstest/push.test.js` (10 tests: gap absorb, chain push, straddle,
+  grow-as-push, exact fit at end, identity no-op, both reject paths). Tests
+  live outside `static/` so they aren't embedded/served. `task test` and CI
+  now run them (runner node, no deps).
+- **drag.js rewritten for the slot grid**: pitch measured from consecutive
+  `.slot` rows (probe-card/consumed-slot math gone, MutationObserver gone —
+  the server renders all geometry inline). Both gestures preview the cascade
+  live (siblings spring to their pushed slots), clamp into bounds, and hold
+  the last valid layout when the push rejects (invalid drops snap to legal
+  positions, story 17). Commit writes data-slot/data-span/grid-row in the
+  FLIP frame and dispatches one `layout` event with the full layout.
+- **Column wiring switched**: `data-signals:layout` + `data-on:layout` →
+  `@post('/cards/layout')`; order/id/span signals and reorder/cardresize
+  events removed. Keyed-attribute regression test updated to pin the new
+  wiring and reject the old.
+
 Still to do (next chunks):
 
-- **drag.js**: client-side push cascade (down, min distance, gaps first,
-  reject-at-bottom aborts), slot-grid geometry.
 - **Bounds editing UI** (native-HTML-first).
-- **Remove `Reorder`/`Resize`** from the service once the adapter switches to
-  `SetLayout`. ⚠ Until then the legacy resize endpoint can trip the new
-  EXCLUDE constraint (resizing a card into its neighbour now 500s instead of
-  snapping back); their tests were patched to resize the last card.
+- **Remove `Reorder`/`Resize`** from the service and the legacy
+  `/cards/reorder` + `/cards/resize` endpoints (now unwired from the UI).
+  ⚠ Until then the legacy resize endpoint can trip the new EXCLUDE
+  constraint; its tests resize the last card. `login_test.go` uses
+  `/cards/reorder` for the session-gate test — repoint it at
+  `/cards/layout` when removing.
 
 ## Problem Statement
 

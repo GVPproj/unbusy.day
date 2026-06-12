@@ -110,7 +110,7 @@ templ ColumnStyles() {
 
 // CardColumn is the patch fragment: the stable #card-list id is the
 // outer-morph anchor every SSE patch and reorder response lands on, and the
-// data-id attributes are what DragInit reads post-drop to build the new order.
+// data-id attributes are what DragInit reads post-gesture to build the layout.
 // Page render and patch render share this component so they can't drift apart.
 //
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
@@ -122,11 +122,8 @@ templ CardColumn(cs []cards.Card, b cards.Bounds) {
 		class="cards"
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
-		data-signals:order="[]"
-		data-signals:id="''"
-		data-signals:span="1"
-		data-on:reorder="$order = evt.detail.order; @post('/cards/reorder')"
-		data-on:cardresize="$id = evt.detail.id; $span = evt.detail.span; @post('/cards/resize')"
+		data-signals:layout="[]"
+		data-on:layout="$layout = evt.detail.layout; @post('/cards/layout')"
 	>
 		for s := b.Start; s < b.End; s++ {
 			@slot(s, b.Start)
