@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/ub-logo.svg" width="220" alt="ub.d — the unbusy.day wordmark">
+</p>
+
 # unbusy.day
 
 [![CI/CD](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml/badge.svg)](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml)

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 55 26" fill="none" aria-label="ub.d">
+  <!-- Standalone "ub.d" wordmark for the README (kept in sync with frontend/components/logo.templ).
+       Rendered via <img>, so colors are explicit (no currentColor) and the sway animates an inner
+       group inside a padded viewBox to avoid clipping. -->
+  <style>
+    .mark { stroke: #2a2440; }
+    @media (prefers-color-scheme: dark) {
+      .mark { stroke: #c4b5fd; }
+    }
+    .sway {
+      animation: sway 5.9s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    @keyframes sway {
+      0%, 100% { transform: rotate(-2.5deg) translateY(0) scale(1.03, 0.97); }
+      25% { transform: rotate(0deg) translateY(-2px) scale(0.98, 1.02); }
+      50% { transform: rotate(2.5deg) translateY(0) scale(1.03, 0.97); }
+      75% { transform: rotate(0deg) translateY(2px) scale(0.98, 1.02); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sway { animation: none; }
+    }
+  </style>
+  <g class="sway mark" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 9 C4 17, 6 21, 9.5 20.5 C13 20, 15 15, 15.5 9 C15 15, 14.5 20, 17 21 C19 21.8, 21 19, 22 15 L25 4 C24 11, 23.5 18, 24.5 20.5 C25.5 23, 30 22, 32 18.5 C34 15, 32 12, 28.5 14 C26.5 15.2, 25 17.5, 24.5 20.5 C25.5 23, 27.5 22.7, 29.5 21.5"></path>
+    <path d="M35 20.5 L35.01 20.5"></path>
+    <path d="M45.5 14 C45 10.8, 40 11.2, 38.5 14.5 C37 18, 39.5 21.8, 42.8 21 C44.8 20.4, 45.8 17.5, 46.3 14.5 C47.2 11, 48 7, 48.5 4 C48 11, 47.5 18, 48.5 20.5 C49 21.8, 50.5 21.5, 51.5 20"></path>
+  </g>
+</svg>
