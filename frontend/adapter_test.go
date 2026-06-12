@@ -506,7 +506,7 @@ func TestColumnRendersEverySlotInDay(t *testing.T) {
 }
 
 // Each slot carries a time gutter label: hour slots read like "9:00", half-hour
-// slots read ":30" — the paper time-block-notebook axis.
+// slots like "9:30" — the paper time-block-notebook axis.
 func TestColumnRendersTimeGutter(t *testing.T) {
 	var b strings.Builder
 	if err := components.CardColumn(threeCards(), testBounds).Render(context.Background(), &b); err != nil {
@@ -518,7 +518,7 @@ func TestColumnRendersTimeGutter(t *testing.T) {
 			t.Errorf("gutter missing hour label %q; body:\n%s", want, body)
 		}
 	}
-	if got, want := strings.Count(body, ">:30<"), (testBounds.End-testBounds.Start)/2; got != want {
+	if got, want := strings.Count(body, ":30<"), (testBounds.End-testBounds.Start)/2; got != want {
 		t.Errorf("want %d half-hour marks, got %d; body:\n%s", want, got, body)
 	}
 }

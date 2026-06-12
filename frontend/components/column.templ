@@ -101,7 +101,7 @@ templ ColumnStyles() {
 		.gutter {
 			width: 3.5rem;
 			padding-top: 2px;
-			font-size: 0.7rem;
+			font-size: 0.875rem;
 			color: var(--nav-icon);
 			user-select: none;
 		}
@@ -148,7 +148,7 @@ templ slot(s, dayStart int) {
 // text: hours as "9:00", half-hours as the ":30" tick.
 func timeLabel(s int) string {
 	if s%2 == 1 {
-		return ":30"
+		return strconv.Itoa(s/2) + ":30"
 	}
 	return strconv.Itoa(s/2) + ":00"
 }

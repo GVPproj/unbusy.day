@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/GVPproj/unbusy.day/cards"
 	"github.com/GVPproj/unbusy.day/frontend/components"
+	"github.com/GVPproj/unbusy.day/frontend/components/modals"
 	"github.com/GVPproj/unbusy.day/frontend/layouts"
 )
 
@@ -16,11 +17,11 @@ import (
 // signals as the JSON body {"layout": [...]}). The response patch renders the
 // layout the drop already left in the DOM, so the morph is a visual no-op.
 templ CardsPage(cs []cards.Card, b cards.Bounds) {
-	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles(), components.ThemeStyles(), components.BoundsStyles()) {
+	@layouts.Layout("hello-cards — Datastar + templ", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles(), modals.ThemeStyles(), modals.BoundsStyles()) {
 		<div class="shell" data-signals:_navopen="false">
 			@components.SideNav()
-			@components.ThemeModal()
-			@components.BoundsModal(b)
+			@modals.ThemeModal()
+			@modals.BoundsModal(b)
 			<main class="column">
 				@components.CardColumn(cs, b)
 				@components.DragInit()

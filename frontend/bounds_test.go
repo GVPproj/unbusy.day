@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GVPproj/unbusy.day/frontend/components"
+	"github.com/GVPproj/unbusy.day/frontend/components/modals"
 )
 
 // The modal offers every legal half-hour boundary (start 5:00–17:30, end
@@ -18,7 +18,7 @@ import (
 // the day as configured.
 func TestBoundsModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
 	var b strings.Builder
-	if err := components.BoundsModal(testBounds).Render(context.Background(), &b); err != nil {
+	if err := modals.BoundsModal(testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render bounds modal: %v", err)
 	}
 	body := b.String()
@@ -57,7 +57,7 @@ func TestBoundsModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
 // verified colon form — the dash form is a silent no-op (see the column test).
 func TestBoundsModalWiresSignalsToBoundsEndpoint(t *testing.T) {
 	var b strings.Builder
-	if err := components.BoundsModal(testBounds).Render(context.Background(), &b); err != nil {
+	if err := modals.BoundsModal(testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render bounds modal: %v", err)
 	}
 	body := b.String()
