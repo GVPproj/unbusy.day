@@ -6,143 +6,156 @@ import "fmt"
 // Layout's <head> by the login route.
 templ LoginStyles() {
 	<style>
-		.login-main {
-			min-height: 100svh;
-			display: flex;
-			flex-direction: column;
-			justify-content: center;
-			margin: 0 auto;
-			text-align: center;
-		}
+		/* Login is a self-contained leaf, so its styles are @scope-d to the
+		   .login-main subtree (the frontend's @scope pilot). Inside the scope
+		   bare element selectors are unambiguous — one form, one email input,
+		   one button, the status <p>s — so they carry no class names.
+		   Structural classes (.login-amoeba*, .otp*) stay, since several sibling
+		   divs/spans/inputs would otherwise collide. @keyframes is global by
+		   name, so it lives outside the scope. */
+		@scope (.login-main) {
+			:scope {
+				min-height: 100svh;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				margin: 0 auto;
+				text-align: center;
+			}
 
-		.login-logo {
-			color: var(--accent);
-			margin-bottom: 0.5rem;
-		}
+			p {
+				margin: 0;
+				color: var(--ink-muted);
+				font-size: 0.875rem;
+				font-weight: 500;
+			}
 
-		.login-amoeba {
-			position: relative;
-			width: 100%;
-			min-height: 100svh;
-			display: grid;
-			place-items: center;
-			overflow: hidden;
-		}
+			p.error {
+				color: var(--ink-error);
+			}
 
-		.login-amoeba-svg {
-			position: absolute;
-			left: 50%;
-			top: 50%;
-			/* On phones 150vw wins, so the blob bleeds well past the screen
-			   edges; the wrap's overflow:hidden clips it without scrollbars. */
-			width: min(1000px, max(95vmin, 150vw));
-			height: min(1000px, max(95vmin, 150vw));
-			translate: -50% -50%;
-			color: var(--column-bg);
-			animation: login-amoeba-spin 90s linear infinite;
-		}
+			form {
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+			}
 
-		.login-amoeba-content {
-			position: relative;
-			width: min(20rem, calc(100vw - 2rem));
-			padding: clamp(2rem, 10vmin, 6rem) 0;
+			/* 16px minimum so iOS Safari doesn't zoom on focus. */
+			input[type="email"] {
+				font: inherit;
+				font-size: 1.125rem;
+				font-weight: 500;
+				padding: 0.6rem 0.75rem;
+				text-align: center;
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius);
+				background: var(--surface);
+				color: var(--ink);
+			}
+
+			button {
+				font: inherit;
+				font-size: 1rem;
+				font-weight: 700;
+				padding: 0.6rem;
+				border: none;
+				border-radius: var(--radius);
+				background: var(--accent);
+				color: var(--bg);
+				cursor: pointer;
+			}
+
+			.login-logo {
+				color: var(--accent);
+				margin-bottom: 0.5rem;
+			}
+
+			.login-amoeba {
+				position: relative;
+				width: 100%;
+				min-height: 100svh;
+				display: grid;
+				place-items: center;
+				overflow: hidden;
+			}
+
+			.login-amoeba-svg {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				/* On phones 150vw wins, so the blob bleeds well past the screen
+				   edges; the wrap's overflow:hidden clips it without scrollbars. */
+				width: min(1000px, max(95vmin, 150vw));
+				height: min(1000px, max(95vmin, 150vw));
+				translate: -50% -50%;
+				color: var(--column-bg);
+				animation: login-amoeba-spin 90s linear infinite;
+			}
+
+			.login-amoeba-content {
+				position: relative;
+				width: min(20rem, calc(100vw - 2rem));
+				padding: clamp(2rem, 10vmin, 6rem) 0;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.login-amoeba-svg {
+					animation: none;
+				}
+				.login-amoeba-svg animate {
+					display: none;
+				}
+			}
+
+			/* OTP comb: one invisible real input (keeps one-time-code autofill +
+			   paste) overlaid on six display boxes mirroring $code. */
+			.otp {
+				position: relative;
+				display: flex;
+				gap: 0.4rem;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.otp-real {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				opacity: 0;
+				font-size: 1.125rem; /* still ≥16px so iOS won't zoom */
+				caret-color: transparent;
+				cursor: pointer;
+			}
+
+			.otp-box {
+				width: 2.25rem;
+				height: 2.75rem;
+				display: grid;
+				place-items: center;
+				font-size: 1.25rem;
+				font-weight: 700;
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius);
+				background: var(--surface);
+				color: var(--ink);
+			}
+
+			.otp:focus-within .otp-box.active {
+				border-color: var(--accent);
+			}
+
+			.otp-dash {
+				color: var(--ink-muted);
+				font-weight: 700;
+				user-select: none;
+			}
 		}
 
 		@keyframes login-amoeba-spin {
-			to { transform: rotate(360deg); }
-		}
-
-		@media (prefers-reduced-motion: reduce) {
-			.login-amoeba-svg { animation: none; }
-			.login-amoeba-svg animate { display: none; }
-		}
-
-		.login-main h1 {
-			font-size: 1.5rem;
-			font-weight: 700;
-		}
-
-		.login-main .status {
-			font-weight: 500;
-		}
-
-		#login-form {
-			display: flex;
-			flex-direction: column;
-			gap: 0.75rem;
-		}
-
-		/* 16px minimum so iOS Safari doesn't zoom on focus. */
-		#login-form input[type="email"] {
-			font: inherit;
-			font-size: 1.125rem;
-			font-weight: 500;
-			padding: 0.6rem 0.75rem;
-			text-align: center;
-			border: 1px solid var(--rail-border);
-			border-radius: var(--radius);
-			background: var(--surface);
-			color: var(--ink);
-		}
-
-		/* OTP comb: one invisible real input (keeps one-time-code autofill +
-		   paste) overlaid on six display boxes mirroring $code. */
-		.otp {
-			position: relative;
-			display: flex;
-			gap: 0.4rem;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.otp-real {
-			position: absolute;
-			inset: 0;
-			width: 100%;
-			height: 100%;
-			opacity: 0;
-			font-size: 1.125rem; /* still ≥16px so iOS won't zoom */
-			caret-color: transparent;
-			cursor: pointer;
-		}
-
-		.otp-box {
-			width: 2.25rem;
-			height: 2.75rem;
-			display: grid;
-			place-items: center;
-			font-size: 1.25rem;
-			font-weight: 700;
-			border: 1px solid var(--rail-border);
-			border-radius: var(--radius);
-			background: var(--surface);
-			color: var(--ink);
-		}
-
-		.otp:focus-within .otp-box.active {
-			border-color: var(--accent);
-		}
-
-		.otp-dash {
-			color: var(--ink-muted);
-			font-weight: 700;
-			user-select: none;
-		}
-
-		#login-form button {
-			font: inherit;
-			font-size: 1rem;
-			font-weight: 700;
-			padding: 0.6rem;
-			border: none;
-			border-radius: var(--radius);
-			background: var(--accent);
-			color: var(--bg);
-			cursor: pointer;
-		}
-
-		.status.error {
-			color: var(--ink-error);
+			to {
+				transform: rotate(360deg);
+			}
 		}
 	</style>
 }
@@ -178,7 +191,7 @@ templ LoginAmoeba() {
 // data-on:submit prevents the native submission.
 templ LoginEmailForm() {
 	<form id="login-form" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
-		<p class="status">Enter your email and we'll send a one-time code.</p>
+		<p>Enter your email.  We'll send a one-time code.</p>
 		<input type="email" placeholder="you@example.com" autocomplete="email" required data-bind:email/>
 		<button type="submit">Send code</button>
 	</form>
@@ -190,9 +203,9 @@ templ LoginEmailForm() {
 // verifies immediately; Enter/button stay as fallbacks.
 templ LoginCodeForm(errMsg string) {
 	<form id="login-form" data-on:submit="@post('/login/verify')">
-		<p class="status">If that address is registered, a 6-digit code is on its way.</p>
+		<p>A 6-digit code is on its way.</p>
 		if errMsg != "" {
-			<p class="status error">{ errMsg }</p>
+			<p class="error">{ errMsg }</p>
 		}
 		@otpInput()
 		<button type="submit">Verify</button>

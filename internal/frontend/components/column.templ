@@ -11,6 +11,22 @@ import (
 // from baseStyles' :root block.
 templ ColumnStyles() {
 	<style>
+		/* The block column shell — the <main class="column"> wrapper. Centered
+		   and width-capped; nav.templ's `.shell .column` lets it fill the lane
+		   beside the sidenav. */
+		.column {
+			max-width: 320px;
+			margin: 3rem auto;
+			padding: 1rem;
+			background: var(--column-bg);
+			border-radius: var(--radius-lg);
+
+			& h1 {
+				font-size: 1rem;
+				margin: 0 0 0.75rem;
+			}
+		}
+
 		/* The day grid: a time-gutter column plus the block lane, one fixed-height
 		   row per 30-minute slot. Slots and blocks address rows by clock slot
 		   relative to the day start, so geometry is the markup, not JS math. */

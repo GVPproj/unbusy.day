@@ -41,9 +41,10 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 }
 
 // baseStyles owns the design tokens (:root custom properties, available to
-// every style block below) plus the reset and the page shell shared by the
-// blocks and login pages. Themes override the color tokens via body[data-theme],
-// driven by the $_theme signal — swapping the attribute hot-swaps every color.
+// every style block below), the reset, and the shared body shell. Page-specific
+// classes live in their owning component's *Styles block, not here. Themes
+// override the color tokens via body[data-theme], driven by the $_theme signal
+// — swapping the attribute hot-swaps every color.
 templ baseStyles() {
 	<style>
 		/* Zen Maru Gothic (SIL OFL, latin subset) — self-hosted from /static/fonts */
@@ -141,23 +142,5 @@ templ baseStyles() {
 			color: var(--ink);
 		}
 
-		.column {
-			max-width: 320px;
-			margin: 3rem auto;
-			padding: 1rem;
-			background: var(--column-bg);
-			border-radius: var(--radius-lg);
-
-			& h1 {
-				font-size: 1rem;
-				margin: 0 0 0.75rem;
-			}
-		}
-
-		.status {
-			margin: 0 0 0.75rem;
-			color: var(--ink-muted);
-			font-size: 0.875rem;
-		}
-	</style>
+		</style>
 }
