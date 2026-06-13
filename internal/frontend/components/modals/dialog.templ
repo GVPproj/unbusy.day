@@ -1,7 +1,7 @@
 package modals
 
 // DialogStyles owns the shared native-<dialog> chrome (ADR 0006): the box,
-// the backdrop scrim, the h2, and the blur-fade open/close transition. Every
+// the backdrop scrim, the h2, and the blur-fade open transition. Every
 // app dialog carries the `app-dialog` class alongside its own leaf class, so
 // each modal's own @scope block only holds content-specific rules. Tokens come
 // from baseStyles.
@@ -17,20 +17,14 @@ templ DialogStyles() {
 				border-radius: var(--radius-lg);
 				box-shadow: var(--shadow-lift);
 
-				/* Open = resting state; blur/fade in on entry. allow-discrete on
-				   display + overlay so the exit animates instead of popping. */
+				/* Entry only: blur/fade in on open. Close is instant — the UA's
+				   display:none takes over with no exit transition, so no discrete
+				   display/overlay delay (and no top-layer flash on Safari ≤26.1). */
 				opacity: 1;
 				filter: blur(0);
 				transition:
 					opacity 0.3s ease,
-					filter 0.3s ease,
-					display 0.3s allow-discrete,
-					overlay 0.3s allow-discrete;
-
-				&:not([open]) {
-					opacity: 0;
-					filter: blur(8px);
-				}
+					filter 0.3s ease;
 
 				@starting-style {
 					&[open] {
@@ -43,10 +37,7 @@ templ DialogStyles() {
 			:scope::backdrop {
 				background: var(--scrim);
 				opacity: 1;
-				transition:
-					opacity 0.3s ease,
-					display 0.3s allow-discrete,
-					overlay 0.3s allow-discrete;
+				transition: opacity 0.3s ease;
 
 				@starting-style {
 					opacity: 0;
@@ -67,4 +58,11 @@ templ DialogStyles() {
 			}
 		}
 	</style>
+}
+
+// DialogInit loads the invoker-command fallback so the commandfor/command
+// open/close buttons work on browsers without the Invoker Commands API
+// (stable Safari only from 26.2). No-op where the platform supports it.
+templ DialogInit() {
+	<script type="module" src="/static/invoker-fallback.js"></script>
 }

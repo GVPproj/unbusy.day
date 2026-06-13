@@ -22,6 +22,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@components.SideNav()
 			@modals.ThemeModal()
 			@modals.HoursModal(b)
+			@modals.DialogInit()
 			<main class="column">
 				@components.BlockColumn(cs, b)
 				@components.DragInit()
