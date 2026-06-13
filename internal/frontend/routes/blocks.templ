@@ -1,0 +1,31 @@
+package routes
+
+import (
+	"github.com/GVPproj/unbusy.day/internal/block"
+	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
+	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
+)
+
+// BlocksPage is the full document. retry 'always' matches EventSource
+// semantics: Datastar's default 'auto' never reconnects after a *clean* stream
+// end, leaving the tab silently deaf.
+//
+// Server-driven by design: DragInit's Motion drag owns the gesture and, once
+// the drop commits, dispatches a `layout` CustomEvent with the full committed
+// layout; the Datastar listener copies it into $layout and @posts (which ships
+// signals as the JSON body {"layout": [...]}). The response patch renders the
+// layout the drop already left in the DOM, so the morph is a visual no-op.
+templ BlocksPage(cs []block.Block, b block.Bounds) {
+	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})", components.NavStyles(), components.ColumnStyles(), modals.ThemeStyles(), modals.HoursStyles()) {
+		<div class="shell" data-signals:_navopen="false">
+			@components.SideNav()
+			@modals.ThemeModal()
+			@modals.HoursModal(b)
+			<main class="column">
+				@components.BlockColumn(cs, b)
+				@components.DragInit()
+			</main>
+		</div>
+	}
+}

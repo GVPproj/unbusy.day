@@ -1,0 +1,126 @@
+package modals
+
+import (
+	"strconv"
+
+	"github.com/GVPproj/unbusy.day/internal/block"
+)
+
+// HoursStyles owns the day-bounds editor dialog. Same native-<dialog> shape
+// as the theme modal; tokens come from baseStyles.
+templ HoursStyles() {
+	<style>
+		.bounds-modal {
+			width: min(320px, calc(100vw - 2rem));
+			padding: 1rem;
+			background: var(--surface);
+			color: var(--ink);
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius-lg);
+			box-shadow: var(--shadow-lift);
+
+			& h2 {
+				font-size: 1rem;
+				margin: 0 0 0.75rem;
+			}
+		}
+
+		.bounds-modal::backdrop {
+			background: var(--scrim);
+		}
+
+		.bounds-field {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.6rem;
+			margin-bottom: var(--gap);
+			font-size: 0.9rem;
+
+			& select {
+				padding: 0.35rem 0.5rem;
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius);
+				background: var(--bg);
+				color: inherit;
+				font: inherit;
+				font-size: 0.9rem;
+			}
+		}
+
+		.bounds-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: var(--gap);
+			margin-top: 0.25rem;
+
+			& button {
+				padding: 0.35rem 0.75rem;
+				border: none;
+				border-radius: var(--radius);
+				font: inherit;
+				font-size: 0.85rem;
+				cursor: pointer;
+			}
+		}
+
+		.bounds-save {
+			background: var(--accent);
+			color: var(--bg);
+		}
+
+		.bounds-cancel {
+			background: none;
+			color: inherit;
+			border: 1px solid var(--rail-border) !important;
+		}
+	</style>
+}
+
+// boundsOptions renders one select's half-hour options, current pre-selected.
+templ boundsOptions(from, to, current int) {
+	for s := from; s <= to; s++ {
+		<option value={ strconv.Itoa(s) } selected?={ s == current }>{ clockLabel(s) }</option>
+	}
+}
+
+// clockLabel renders a slot index (30-min steps from 00:00) as a clock time
+// ("9:00", "9:30") — full times, unlike the gutter's ":30" tick.
+func clockLabel(s int) string {
+	if s%2 == 1 {
+		return strconv.Itoa(s/2) + ":30"
+	}
+	return strconv.Itoa(s/2) + ":00"
+}
+
+// HoursModal is the day-bounds editor: a native <dialog> opened by any
+// command/commandfor button targeting #bounds-modal (theme-modal house style).
+// The selects cover the hard 5:00–18:00 limits; the server still enforces
+// them and rejects shrink-into-occupied with a re-render of the truth.
+templ HoursModal(b block.Bounds) {
+	<dialog
+		id="bounds-modal"
+		class="bounds-modal"
+		closedby="any"
+		data-signals:start={ strconv.Itoa(b.Start) }
+		data-signals:end={ strconv.Itoa(b.End) }
+	>
+		<h2>Hours</h2>
+		<label class="bounds-field">
+			Start
+			<select data-on:change="$start = +evt.target.value">
+				@boundsOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
+			</select>
+		</label>
+		<label class="bounds-field">
+			End
+			<select data-on:change="$end = +evt.target.value">
+				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
+			</select>
+		</label>
+		<div class="bounds-actions">
+			<button class="bounds-cancel" commandfor="bounds-modal" command="close">Cancel</button>
+			<button class="bounds-save" commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
+		</div>
+	</dialog>
+}

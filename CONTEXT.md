@@ -7,12 +7,12 @@ A person who can log in. Identified by their **email address** (the email *is*
 the identity; there are no usernames or passwords). A User privately owns a
 Day Plan.
 
-## Card
-A single item on a User's Day Plan. Owned by exactly one User. Occupies a
+## Block
+A single time block on a User's Day Plan. Owned by exactly one User. Occupies a
 contiguous run of Slots: a starting Slot plus a span (number of Slots tall).
-A Card is anchored to the clock, not to the top of the plan — changing the
-Day Plan's bounds never moves a Card's time.
-(Legacy meaning — a dense position ordering Cards top-down — is being replaced
+A Block is anchored to the clock, not to the top of the plan — changing the
+Day Plan's bounds never moves a Block's time. (Replaces the retired term
+**Card**, and with it the legacy dense top-down position ordering — superseded
 by Slot placement.)
 
 ## Day Plan
@@ -23,7 +23,7 @@ time on half-hour boundaries, set and modified by the User; the number of
 Slots is derived from those bounds, never set directly. Bounds lie within a
 single day — no midnight wrap — starting no earlier than 5:00 and ending no
 later than 18:00 (for now). The day can only shrink into empty Slots: a
-bounds change that would leave any Card outside the Day Plan is rejected. Eventually the User's current time of day will be
+bounds change that would leave any Block outside the Day Plan is rejected. Eventually the User's current time of day will be
 indicated live on the plan. (Replaces the retired term **Board**.)
 
 ## Template (future)
@@ -32,13 +32,13 @@ yet; named here so "one rolling Day Plan" isn't read as "one layout forever."
 
 ## Slot
 One 30-minute interval within a Day Plan, identified by the time it begins. A
-Slot is either empty or covered by exactly one Card — Cards never overlap.
+Slot is either empty or covered by exactly one Block — Blocks never overlap.
 
 ## Push
-What happens when a Card is placed (moved or grown) onto occupied Slots: each
-overlapped Card is pushed *down* (later in the day) by the minimum distance
+What happens when a Block is placed (moved or grown) onto occupied Slots: each
+overlapped Block is pushed *down* (later in the day) by the minimum distance
 that clears the overlap, consuming empty Slots before displacing further
-Cards. A placement whose push would force any Card past the end of the Day
+Blocks. A placement whose push would force any Block past the end of the Day
 Plan is rejected whole — nothing moves.
 
 ## Allowlist

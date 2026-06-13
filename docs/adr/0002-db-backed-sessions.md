@@ -21,5 +21,5 @@ don't apply — and we need real revocation.
 - One indexed primary-key `SELECT` per request to resolve the session. Negligible
   on one machine already doing DB round-trips.
 - 30-day **absolute** expiry (no sliding), so the read path takes no write.
-- Cookie: HttpOnly, SameSite=Lax (baseline CSRF defense for the `/cards/*`
+- Cookie: HttpOnly, SameSite=Lax (baseline CSRF defense for the `/blocks/*`
   POSTs), Secure in production only (off on `http://localhost`).

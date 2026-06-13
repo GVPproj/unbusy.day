@@ -14,7 +14,7 @@ tasks:
       - docker compose up -d --wait
       # Apply pending migrations before serving (goose, run-once, no-op when
       # current) — mirrors Fly's release step and survives `task nuke`.
-      - go run . migrate
+      - go run ./cmd/unbusy migrate
       # templ owns the whole dev loop: it watches .templ and .go files,
       # regenerates, (re)runs the server, and auto-reloads the browser via
       # the proxy on :7331. Text-only .templ edits (CSS in styles.templ,
@@ -28,7 +28,7 @@ tasks:
       # a stale error page.
       - |
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
-        templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ."
+        templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
 
   up:
     desc: "Start local Postgres in the background"
@@ -49,7 +49,7 @@ tasks:
   migrate:
     desc: "Apply pending migrations against $DATABASE_URL (goose, run-once)"
     cmds:
-      - go run . migrate
+      - go run ./cmd/unbusy migrate
 
   templ:
     desc: "Generate templ Go files"
@@ -64,13 +64,13 @@ tasks:
     desc: "Build the Go binary"
     deps: [templ]
     cmds:
-      - go build -o tmp/hello-cards .
+      - go build -o tmp/hello-cards ./cmd/unbusy
 
   test:
     desc: "Run Go tests and JS unit tests"
     cmds:
       - go test ./...
-      - node --test frontend/jstest/*.test.js
+      - node --test internal/frontend/jstest/*.test.js
 
   fmt:
     desc: "Format Go code"

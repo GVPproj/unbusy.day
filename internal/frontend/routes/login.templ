@@ -1,0 +1,18 @@
+package routes
+
+import (
+	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
+)
+
+// LoginPage is the passwordless OTP flow (ADR 0001). Step 1 collects the
+// email; the server answers /login/code by patching #login-form into the
+// code-entry step. Signals are global, so $email survives the morph and rides
+// along with $code on /login/verify.
+templ LoginPage() {
+	@layouts.Layout("unbusy.day — log in", "", components.LoginStyles()) {
+		<main class="login-main">
+			@components.LoginAmoeba()
+		</main>
+	}
+}

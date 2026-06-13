@@ -13,7 +13,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN templ generate
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/hello-cards .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/hello-cards ./cmd/unbusy
 
 # --- Runtime: scratch (no shell, no libc) ---
 FROM scratch

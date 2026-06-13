@@ -73,7 +73,7 @@ jobs:
 
       # Pure-logic JS units (the push cascade, ADR 0005) — runner's node, no deps.
       - name: Test JS
-        run: node --test frontend/jstest/*.test.js
+        run: node --test internal/frontend/jstest/*.test.js
 
   deploy:
     name: Deploy (Fly)

@@ -62,10 +62,10 @@ type stats struct {
 
 func main() {
 	var (
-		url      = flag.String("url", "https://hello-cards.fly.dev", "origin base URL")
-		stepsCSV = flag.String("steps", "250,500,1000,1500,2000", "cumulative concurrent targets")
-		hold     = flag.Duration("hold", 12*time.Second, "hold time per step")
-		peakHold = flag.Duration("peak-hold", 45*time.Second, "hold at final step (cross a 25s keepalive boundary)")
+		url       = flag.String("url", "https://hello-cards.fly.dev", "origin base URL")
+		stepsCSV  = flag.String("steps", "250,500,1000,1500,2000", "cumulative concurrent targets")
+		hold      = flag.Duration("hold", 12*time.Second, "hold time per step")
+		peakHold  = flag.Duration("peak-hold", 45*time.Second, "hold at final step (cross a 25s keepalive boundary)")
 		dialBurst = flag.Int("burst", 100, "max simultaneous in-flight dials when ramping")
 		probeEach = flag.Bool("probe-each", false, "fire a fan-out probe at the end of every step (maps the ~1s sync SLO vs load)")
 	)
@@ -269,17 +269,17 @@ func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stat
 	}
 }
 
-// placement mirrors cards.Placement's wire shape in the layout signals body.
+// placement mirrors block.Placement's wire shape in the layout signals body.
 type placement struct {
 	ID   string `json:"id"`
 	Slot int    `json:"slot"`
 	Span int    `json:"span"`
 }
 
-// cardRe pulls each card's id/span/slot out of the server-rendered page in
-// document order. Only cards carry data-id; the day-grid slots don't, so they
+// blockRe pulls each block's id/span/slot out of the server-rendered page in
+// document order. Only blocks carry data-id; the day-grid slots don't, so they
 // never enter the layout.
-var cardRe = regexp.MustCompile(`data-id="([^"]+)" data-span="(\d+)" data-slot="(\d+)"`)
+var blockRe = regexp.MustCompile(`data-id="([^"]+)" data-span="(\d+)" data-slot="(\d+)"`)
 
 // currentLayout reads the authoritative layout from the rendered page at /.
 // There is no JSON read endpoint — the Datastar frontend is HTML over the
@@ -299,9 +299,9 @@ func currentLayout(ctx context.Context, client *http.Client, base string) ([]pla
 	if err != nil {
 		return nil, err
 	}
-	matches := cardRe.FindAllSubmatch(html, -1)
+	matches := blockRe.FindAllSubmatch(html, -1)
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no card placements found in page")
+		return nil, fmt.Errorf("no block placements found in page")
 	}
 	layout := make([]placement, len(matches))
 	for i, m := range matches {
@@ -319,7 +319,7 @@ func postLayout(ctx context.Context, client *http.Client, base string, layout []
 	// Datastar reads a non-GET body as the signals JSON object directly, so
 	// the {"layout":[...]} signals body is the whole request body.
 	payload, _ := json.Marshal(map[string][]placement{"layout": layout})
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/cards/layout", strings.NewReader(string(payload)))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/blocks/layout", strings.NewReader(string(payload)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
