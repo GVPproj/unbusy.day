@@ -11,115 +11,121 @@ import (
 // from baseStyles' :root block.
 templ ColumnStyles() {
 	<style>
-		/* The block column shell — the <main class="column"> wrapper. Centered
-		   and width-capped; nav.templ's `.shell .column` lets it fill the lane
-		   beside the sidenav. */
-		.column {
-			max-width: 320px;
-			margin: 3rem auto;
-			padding: 1rem;
-			background: var(--column-bg);
-			border-radius: var(--radius-lg);
+		/* Scoped to the <main class="column"> leaf (ADR 0006). Inside the scope
+		   the heading is the unambiguous bare `h1`; the grid structures (.blocks,
+		   .block, .slot, .gutter, .grip) keep their class names since several
+		   sibling <li>/<span> would otherwise collide. nav.templ's `.shell
+		   .column` (outside this scope) lets the column fill the lane beside the
+		   sidenav. */
+		@scope (.column) {
+			:scope {
+				max-width: 320px;
+				margin: 3rem auto;
+				padding: 1rem;
+				background: var(--column-bg);
+				border-radius: var(--radius-lg);
+			}
 
-			& h1 {
+			h1 {
 				font-size: 1rem;
 				margin: 0 0 0.75rem;
 			}
-		}
 
-		/* The day grid: a time-gutter column plus the block lane, one fixed-height
-		   row per 30-minute slot. Slots and blocks address rows by clock slot
-		   relative to the day start, so geometry is the markup, not JS math. */
-		.blocks {
-			list-style: none;
-			margin: 0;
-			padding: 0;
-			display: grid;
-			grid-template-columns: 3.5rem 1fr;
-			grid-auto-rows: var(--slot-h, calc(1lh + 2 * var(--block-pad)));
-		}
-
-		.block {
-			grid-column: 2;
-			background: var(--surface);
-			border-radius: var(--radius);
-			padding: var(--block-pad);
-			box-shadow: var(--shadow-rest);
-			font-weight: 600;
-			cursor: grab;
-			user-select: none;
-			touch-action: none;
-			/* anchor for the grip; also the z-index context .dragging needs */
-			position: relative;
-
-			&.dragging {
-				cursor: grabbing;
-				opacity: 0.85;
-				box-shadow: var(--shadow-lift);
-				/* the held block is the real node transformed in place — it must
-				   paint above the siblings springing past underneath it */
-				z-index: 1;
+			/* The day grid: a time-gutter column plus the block lane, one
+			   fixed-height row per 30-minute slot. Slots and blocks address rows
+			   by clock slot relative to the day start, so geometry is the markup,
+			   not JS math. */
+			.blocks {
+				list-style: none;
+				margin: 0;
+				padding: 0;
+				display: grid;
+				grid-template-columns: 3.5rem 1fr;
+				grid-auto-rows: var(--slot-h, calc(1lh + 2 * var(--block-pad)));
 			}
 
-			&.resizing {
-				box-shadow: var(--shadow-lift);
-				z-index: 1;
+			.block {
+				grid-column: 2;
+				background: var(--surface);
+				border-radius: var(--radius);
+				padding: var(--block-pad);
+				box-shadow: var(--shadow-rest);
+				font-weight: 600;
+				cursor: grab;
+				user-select: none;
+				touch-action: none;
+				/* anchor for the grip; also the z-index context .dragging needs */
+				position: relative;
+
+				&.dragging {
+					cursor: grabbing;
+					opacity: 0.85;
+					box-shadow: var(--shadow-lift);
+					/* the held block is the real node transformed in place — it must
+					   paint above the siblings springing past underneath it */
+					z-index: 1;
+				}
+
+				&.resizing {
+					box-shadow: var(--shadow-lift);
+					z-index: 1;
+				}
+
+				&:hover .grip::after,
+				&.resizing .grip::after {
+					opacity: 1;
+				}
 			}
 
-			&:hover .grip::after,
-			&.resizing .grip::after {
-				opacity: 1;
-			}
-		}
-
-		/* stretch handle along the block's bottom edge; the bar fades in on
-		   hover as the affordance */
-		.grip {
-			position: absolute;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			height: 10px;
-			cursor: ns-resize;
-
-			&::after {
-				content: "";
+			/* stretch handle along the block's bottom edge; the bar fades in on
+			   hover as the affordance */
+			.grip {
 				position: absolute;
-				left: 50%;
-				bottom: 3px;
-				width: 28px;
-				height: 3px;
-				border-radius: 2px;
-				transform: translateX(-50%);
-				background: var(--nav-icon);
-				opacity: 0;
-				transition: opacity 120ms;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				height: 10px;
+				cursor: ns-resize;
+
+				&::after {
+					content: "";
+					position: absolute;
+					left: 50%;
+					bottom: 3px;
+					width: 28px;
+					height: 3px;
+					border-radius: 2px;
+					transform: translateX(-50%);
+					background: var(--nav-icon);
+					opacity: 0;
+					transition: opacity 120ms;
+				}
 			}
-		}
 
-		/* one 30-minute row of the day grid: full-width so the rule line spans
-		   gutter and lane; hour lines solid, :30 lines faint. */
-		.slot {
-			grid-column: 1 / -1;
-			border-top: 1px solid var(--rail-border);
-			display: flex;
-			align-items: start;
+			/* one 30-minute row of the day grid: full-width so the rule line spans
+			   gutter and lane; hour lines solid, :30 lines faint. */
+			.slot {
+				grid-column: 1 / -1;
+				border-top: 1px solid var(--rail-border);
+				display: flex;
+				align-items: start;
 
-			&[data-slot$="1"],
-			&[data-slot$="3"],
-			&[data-slot$="5"],
-			&[data-slot$="7"],
-			&[data-slot$="9"] {
-				border-top-style: dashed;
+				&[data-slot$="1"],
+				&[data-slot$="3"],
+				&[data-slot$="5"],
+				&[data-slot$="7"],
+				&[data-slot$="9"] {
+					border-top-style: dashed;
+				}
 			}
-		}
 
-		.gutter {
-			width: 3.5rem;
-			padding-top: 2px;
-			font-size: 0.875rem;
-			color: var(--nav-icon);
-			user-select: none;
+			.gutter {
+				width: 3.5rem;
+				padding-top: 2px;
+				font-size: 0.875rem;
+				color: var(--nav-icon);
+				user-select: none;
+			}
 		}
 	</style>
 }

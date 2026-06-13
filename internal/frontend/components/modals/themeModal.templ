@@ -5,70 +5,76 @@ package modals
 // come from baseStyles.
 templ ThemeStyles() {
 	<style>
-		.theme-modal {
-			width: min(320px, calc(100vw - 2rem));
-			padding: 1rem;
-			background: var(--surface);
-			color: var(--ink);
-			border: 1px solid var(--rail-border);
-			border-radius: var(--radius-lg);
-			box-shadow: var(--shadow-lift);
+		/* Scoped to the .theme-modal <dialog> leaf (ADR 0006): all bare tags —
+		   `h2`, the lone `span` swatch, and `button`. The trailing Done button is
+		   the `button:last-child`; the option `.active` ring comes from a runtime
+		   data-class, not a styling hook. */
+		@scope (.theme-modal) {
+			:scope {
+				width: min(320px, calc(100vw - 2rem));
+				padding: 1rem;
+				background: var(--surface);
+				color: var(--ink);
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius-lg);
+				box-shadow: var(--shadow-lift);
+			}
 
-			& h2 {
+			:scope::backdrop {
+				background: var(--scrim);
+			}
+
+			h2 {
 				font-size: 1rem;
 				margin: 0 0 0.75rem;
 			}
-		}
 
-		.theme-modal::backdrop {
-			background: var(--scrim);
-		}
+			/* The theme-option rows: every button except the trailing Done. */
+			button {
+				display: flex;
+				align-items: center;
+				gap: 0.6rem;
+				width: 100%;
+				padding: 0.5rem 0.6rem;
+				margin-bottom: var(--gap);
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius);
+				background: none;
+				color: inherit;
+				font: inherit;
+				font-size: 0.9rem;
+				cursor: pointer;
+				text-align: left;
 
-		.theme-option {
-			display: flex;
-			align-items: center;
-			gap: 0.6rem;
-			width: 100%;
-			padding: 0.5rem 0.6rem;
-			margin-bottom: var(--gap);
-			border: 1px solid var(--rail-border);
-			border-radius: var(--radius);
-			background: none;
-			color: inherit;
-			font: inherit;
-			font-size: 0.9rem;
-			cursor: pointer;
-			text-align: left;
-		}
+				&:not(:last-child):hover {
+					box-shadow: var(--shadow-rest);
+				}
 
-		.theme-option:hover {
-			box-shadow: var(--shadow-rest);
-		}
+				&.active {
+					border-color: var(--accent);
+					outline: 1px solid var(--accent);
+				}
+			}
 
-		.theme-option.active {
-			border-color: var(--accent);
-			outline: 1px solid var(--accent);
-		}
+			span {
+				width: 1.4rem;
+				height: 1.4rem;
+				flex-shrink: 0;
+				border-radius: 50%;
+				border: 1px solid var(--rail-border);
+			}
 
-		.theme-swatch {
-			width: 1.4rem;
-			height: 1.4rem;
-			flex-shrink: 0;
-			border-radius: 50%;
-			border: 1px solid var(--rail-border);
-		}
-
-		.theme-close {
-			display: block;
-			margin: 0.25rem 0 0 auto;
-			padding: 0.35rem 0.75rem;
-			border: none;
-			border-radius: var(--radius);
-			background: var(--accent);
-			color: var(--bg);
-			font: inherit;
-			font-size: 0.85rem;
-			cursor: pointer;
+			/* Done — last button; overrides the option styling above. */
+			button:last-child {
+				display: block;
+				width: auto;
+				margin: 0.25rem 0 0 auto;
+				padding: 0.35rem 0.75rem;
+				border: none;
+				background: var(--accent);
+				color: var(--bg);
+				font-size: 0.85rem;
+			}
 		}
 	</style>
 }
@@ -76,11 +82,10 @@ templ ThemeStyles() {
 // themeOption is one row in the picker; swatch shows the theme's bg/column split.
 templ themeOption(id string, label string, swatch string) {
 	<button
-		class="theme-option"
 		data-class:active={ "$_theme === '" + id + "'" }
 		data-on:click={ "$_theme = '" + id + "'" }
 	>
-		<span class="theme-swatch" style={ "background: " + swatch }></span>
+		<span style={ "background: " + swatch }></span>
 		{ label }
 	</button>
 }
@@ -96,6 +101,6 @@ templ ThemeModal() {
 		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
 		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
 		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
-		<button class="theme-close" commandfor="theme-modal" command="close">Done</button>
+		<button commandfor="theme-modal" command="close">Done</button>
 	</dialog>
 }

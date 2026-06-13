@@ -10,69 +10,78 @@ import (
 // as the theme modal; tokens come from baseStyles.
 templ HoursStyles() {
 	<style>
-		.bounds-modal {
-			width: min(320px, calc(100vw - 2rem));
-			padding: 1rem;
-			background: var(--surface);
-			color: var(--ink);
-			border: 1px solid var(--rail-border);
-			border-radius: var(--radius-lg);
-			box-shadow: var(--shadow-lift);
+		/* Scoped to the .bounds-modal <dialog> leaf (ADR 0006): every selector is
+		   a bare tag — one `h2`, two `label`s, one action `div`. The two buttons
+		   are told apart by source order (Cancel first, Save last), so
+		   :first-child/:last-child also out-specify the `div button` reset with no
+		   !important needed. */
+		@scope (.bounds-modal) {
+			:scope {
+				width: min(320px, calc(100vw - 2rem));
+				padding: 1rem;
+				background: var(--surface);
+				color: var(--ink);
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius-lg);
+				box-shadow: var(--shadow-lift);
+			}
 
-			& h2 {
+			:scope::backdrop {
+				background: var(--scrim);
+			}
+
+			h2 {
 				font-size: 1rem;
 				margin: 0 0 0.75rem;
 			}
-		}
 
-		.bounds-modal::backdrop {
-			background: var(--scrim);
-		}
-
-		.bounds-field {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 0.6rem;
-			margin-bottom: var(--gap);
-			font-size: 0.9rem;
-
-			& select {
-				padding: 0.35rem 0.5rem;
-				border: 1px solid var(--rail-border);
-				border-radius: var(--radius);
-				background: var(--bg);
-				color: inherit;
-				font: inherit;
+			label {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 0.6rem;
+				margin-bottom: var(--gap);
 				font-size: 0.9rem;
+
+				& select {
+					padding: 0.35rem 0.5rem;
+					border: 1px solid var(--rail-border);
+					border-radius: var(--radius);
+					background: var(--bg);
+					color: inherit;
+					font: inherit;
+					font-size: 0.9rem;
+				}
 			}
-		}
 
-		.bounds-actions {
-			display: flex;
-			justify-content: flex-end;
-			gap: var(--gap);
-			margin-top: 0.25rem;
+			div {
+				display: flex;
+				justify-content: flex-end;
+				gap: var(--gap);
+				margin-top: 0.25rem;
 
-			& button {
-				padding: 0.35rem 0.75rem;
-				border: none;
-				border-radius: var(--radius);
-				font: inherit;
-				font-size: 0.85rem;
-				cursor: pointer;
+				& button {
+					padding: 0.35rem 0.75rem;
+					border: none;
+					border-radius: var(--radius);
+					font: inherit;
+					font-size: 0.85rem;
+					cursor: pointer;
+				}
+
+				/* Cancel (first) and Save (last); :first/last-child also out-specify
+				   the `& button` reset, so the cancel border needs no !important. */
+				& button:first-child {
+					background: none;
+					color: inherit;
+					border: 1px solid var(--rail-border);
+				}
+
+				& button:last-child {
+					background: var(--accent);
+					color: var(--bg);
+				}
 			}
-		}
-
-		.bounds-save {
-			background: var(--accent);
-			color: var(--bg);
-		}
-
-		.bounds-cancel {
-			background: none;
-			color: inherit;
-			border: 1px solid var(--rail-border) !important;
 		}
 	</style>
 }
@@ -106,21 +115,21 @@ templ HoursModal(b block.Bounds) {
 		data-signals:end={ strconv.Itoa(b.End) }
 	>
 		<h2>Hours</h2>
-		<label class="bounds-field">
+		<label>
 			Start
 			<select data-on:change="$start = +evt.target.value">
 				@boundsOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
 			</select>
 		</label>
-		<label class="bounds-field">
+		<label>
 			End
 			<select data-on:change="$end = +evt.target.value">
 				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
-		<div class="bounds-actions">
-			<button class="bounds-cancel" commandfor="bounds-modal" command="close">Cancel</button>
-			<button class="bounds-save" commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
+		<div>
+			<button commandfor="bounds-modal" command="close">Cancel</button>
+			<button commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
 		</div>
 	</dialog>
 }

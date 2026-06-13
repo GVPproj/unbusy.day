@@ -5,6 +5,14 @@ package components
 // off-canvas drawer behind a fixed hamburger, closed via the scrim. Tokens come from baseStyles.
 templ NavStyles() {
 	<style>
+		/* .shell is the page wrapper hosting nav, modals and column, so it stays
+		   global and unscoped — bare-tag rules under it would bleed into the
+		   modals (ADR 0006). The toggle and scrim are siblings of the nav, also
+		   global. Only the .sidenav subtree is @scope-d, confining the otherwise
+		   navlinks. Inside it only .navlink keeps a class (4 repeated, mixed
+		   <a>/<button>); the brand is the lone <div>, the icon is each link's
+		   first <span>, the label span carries no styles, and logout is the last
+		   navlink — so all are bare. */
 		.shell {
 			display: flex;
 			min-height: 100vh;
@@ -12,60 +20,6 @@ templ NavStyles() {
 
 		.shell .column {
 			width: 100%;
-		}
-
-		.sidenav {
-			width: 68px;
-			flex-shrink: 0;
-			display: flex;
-			flex-direction: column;
-			gap: 0.25rem;
-			padding: 0.75rem 0.5rem;
-			background: var(--nav-bg);
-			color: var(--nav-ink);
-			position: sticky;
-			top: 0;
-			height: 100vh;
-		}
-
-		.nav-brand {
-			font-weight: 700;
-			font-size: 1.25rem;
-			text-align: center;
-			margin-bottom: 0.75rem;
-			color: var(--nav-icon);
-		}
-
-		.navlink {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			gap: 2px;
-			padding: 0.5rem 0.25rem;
-			border: none;
-			border-radius: var(--radius);
-			background: none;
-			color: inherit;
-			text-decoration: none;
-			font: inherit;
-			font-size: 0.75rem;
-			cursor: pointer;
-			font-weight: 700;
-		}
-
-		.navlink .ico {
-			font-size: 1.4rem;
-			line-height: 1;
-			color: var(--nav-icon);
-		}
-
-		.navlink:hover,
-		.navlink.active {
-			background: var(--nav-hover);
-		}
-
-		.nav-logout {
-			margin-top: auto;
 		}
 
 		.nav-toggle {
@@ -100,26 +54,84 @@ templ NavStyles() {
 			.nav-scrim.open {
 				display: block;
 			}
+		}
 
-			.sidenav {
-				position: fixed;
-				inset: 0 0 0 auto;
-				z-index: 10;
-				width: 200px;
-				transform: translateX(100%);
-				transition: transform 200ms ease;
-				box-shadow: var(--shadow-lift);
+		@scope (.sidenav) {
+			:scope {
+				width: 68px;
+				flex-shrink: 0;
+				display: flex;
+				flex-direction: column;
+				gap: 0.25rem;
+				padding: 0.75rem 0.5rem;
+				background: var(--nav-bg);
+				color: var(--nav-ink);
+				position: sticky;
+				top: 0;
+				height: 100vh;
 			}
 
-			.sidenav.open {
-				transform: translateX(0);
+			div {
+				font-weight: 700;
+				font-size: 1.25rem;
+				text-align: center;
+				margin-bottom: 0.75rem;
+				color: var(--nav-icon);
 			}
 
-			.sidenav .navlink {
-				flex-direction: row;
-				gap: 0.6rem;
-				font-size: 0.9rem;
-				padding: 0.5rem 0.75rem;
+			.navlink {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 2px;
+				padding: 0.5rem 0.25rem;
+				border: none;
+				border-radius: var(--radius);
+				background: none;
+				color: inherit;
+				text-decoration: none;
+				font: inherit;
+				font-size: 0.75rem;
+				cursor: pointer;
+				font-weight: 700;
+
+				& span:first-child {
+					font-size: 1.4rem;
+					line-height: 1;
+					color: var(--nav-icon);
+				}
+
+				&:hover,
+				&.active {
+					background: var(--nav-hover);
+				}
+
+				&:last-child {
+					margin-top: auto;
+				}
+			}
+
+			@media (max-width: 768px) {
+				:scope {
+					position: fixed;
+					inset: 0 0 0 auto;
+					z-index: 10;
+					width: 200px;
+					transform: translateX(100%);
+					transition: transform 200ms ease;
+					box-shadow: var(--shadow-lift);
+				}
+
+				:scope.open {
+					transform: translateX(0);
+				}
+
+				.navlink {
+					flex-direction: row;
+					gap: 0.6rem;
+					font-size: 0.9rem;
+					padding: 0.5rem 0.75rem;
+				}
 			}
 		}
 	</style>
@@ -137,12 +149,12 @@ templ SideNav() {
 	>☰</button>
 	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
-		<div class="nav-brand" title="unbusy.day">
+		<div title="unbusy.day">
 			@UBLogo("51", "22")
 		</div>
-		<a class="navlink active" href="/"><span class="ico">▦</span><span class="lbl">Blocks</span></a>
-		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span class="ico">◷</span><span class="lbl">Hours</span></button>
-		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span class="ico">◐</span><span class="lbl">Theme</span></button>
-		<button class="navlink nav-logout" data-on:click="@post('/logout')"><span class="ico">⏻</span><span class="lbl">Log out</span></button>
+		<a class="navlink active" href="/"><span>▦</span><span>Blocks</span></a>
+		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span>◷</span><span>Hours</span></button>
+		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span>◐</span><span>Theme</span></button>
+		<button class="navlink" data-on:click="@post('/logout')"><span>⏻</span><span>Log out</span></button>
 	</nav>
 }
