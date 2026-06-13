@@ -51,7 +51,7 @@ Migrations are plain `.sql` files in `internal/migrate/migrations/`, embedded vi
 
 ## Theming & HTML practices
 
-- **Prefer native HTML over JS/signal plumbing.** The theme picker (`frontend/components/theme.templ`) is the exemplar: a native `<dialog>` opened declaratively via `commandfor="theme-modal" command="show-modal"` buttons — no open/close signal, `closedby="any"` for light dismiss, Esc free from the platform. New UI should reach for native elements/invoker commands first and add Datastar signals only for state the server cares about.
+- **Prefer native HTML over JS/signal plumbing.** The theme picker (`frontend/components/modals/theme.templ`) is the exemplar: a native `<dialog>` opened declaratively via `commandfor="theme-modal" command="show-modal"` buttons — no open/close signal, `closedby="any"` for light dismiss, Esc free from the platform. New UI should reach for native elements/invoker commands first and add Datastar signals only for state the server cares about.
 - Theming is CSS custom properties scoped by `body[data-theme="…"]` in `frontend/layouts/layout.templ` (Solarized Light, Solarized Dark Osaka, Catppuccin Mocha). Picking a theme writes the `$_theme` signal, which the body mirrors into `data-theme` and persists to localStorage — the swap is live. New styles must use the existing tokens (`--bg`, `--ink`, `--surface`, `--accent`, …), never hardcoded colors.
 - Navigation (`frontend/components/nav.templ`) is a desktop icon rail that becomes a mobile hamburger + off-canvas drawer (`$_navopen` signal) at ≤768px.
 
@@ -61,6 +61,7 @@ Migrations are plain `.sql` files in `internal/migrate/migrations/`, embedded vi
 - **Prefer the Go standard library.** Don't add a dependency until it's demonstrably necessary; the current deps (templ, pgx, datastar-go) are the deliberate minimum.
 - **Always check the docs before writing Datastar or templ code** — Datastar 1.x (https://data-star.dev) and templ (https://templ.guide) — rather than guessing at attribute/SDK/template behavior. Both libraries are young and their APIs shift; verified docs beat training-data memory.
 - **Use modern, semantic HTML first** — native `<dialog>`, invoker commands (`commandfor`/`command`), real buttons/forms — before adding custom JS or signal state. See the theme modal for the house style.
+- **templ file/symbol naming.** One file per feature, lowercase, named after the feature (`column.templ`, `nav.templ`); the base file holds the primary exported component. Parts of that feature go in prefix-grouped siblings (`column_block.templ`) so they sort together — same package, no exporting. A folder (subpackage) is only for a self-contained unit with a small exported API (`modals/`); reserve it for a real boundary, not for grouping. Exported components are PascalCase and form the package's public surface; parts/helpers stay camelCase (unexported). Each feature owns a `<Feature>Styles` component for its scoped CSS, co-located in the base file until the file grows unwieldy.
 
 ## Conventions & deploy
 
