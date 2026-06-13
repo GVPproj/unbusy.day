@@ -6,35 +6,16 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// HoursStyles owns the day-bounds editor dialog. Same native-<dialog> shape
-// as the theme modal; tokens come from baseStyles.
+// HoursStyles owns the day-bounds editor's content: two time selects and the
+// Cancel/Save action row. The dialog box, backdrop, h2, and open/close
+// animation come from the shared DialogStyles; tokens come from baseStyles.
 templ HoursStyles() {
 	<style>
-		/* Scoped to the .bounds-modal <dialog> leaf (ADR 0006): every selector is
-		   a bare tag — one `h2`, two `label`s, one action `div`. The two buttons
-		   are told apart by source order (Cancel first, Save last), so
-		   :first-child/:last-child also out-specify the `div button` reset with no
-		   !important needed. */
+		/* Scoped to the .bounds-modal <dialog> leaf (ADR 0006): two `label`s and
+		   one action `div`. The two buttons are told apart by source order (Cancel
+		   first, Save last), so :first-child/:last-child also out-specify the
+		   `div button` reset with no !important needed. */
 		@scope (.bounds-modal) {
-			:scope {
-				width: min(320px, calc(100vw - 2rem));
-				padding: 1rem;
-				background: var(--surface);
-				color: var(--ink);
-				border: 1px solid var(--rail-border);
-				border-radius: var(--radius-lg);
-				box-shadow: var(--shadow-lift);
-			}
-
-			:scope::backdrop {
-				background: var(--scrim);
-			}
-
-			h2 {
-				font-size: 1rem;
-				margin: 0 0 0.75rem;
-			}
-
 			label {
 				display: flex;
 				align-items: center;
@@ -109,7 +90,7 @@ func clockLabel(s int) string {
 templ HoursModal(b block.Bounds) {
 	<dialog
 		id="bounds-modal"
-		class="bounds-modal"
+		class="app-dialog bounds-modal"
 		closedby="any"
 		data-signals:start={ strconv.Itoa(b.Start) }
 		data-signals:end={ strconv.Itoa(b.End) }

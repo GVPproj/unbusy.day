@@ -1,34 +1,15 @@
 package modals
 
-// ThemeStyles owns the theme-picker: a native <dialog> (top layer, Esc,
-// focus trap come free) with one swatch-preview button per theme. Tokens
-// come from baseStyles.
+// ThemeStyles owns the theme-picker's content: one swatch-preview button per
+// theme. The dialog box, backdrop, h2, and open/close animation come from the
+// shared DialogStyles; tokens come from baseStyles.
 templ ThemeStyles() {
 	<style>
-		/* Scoped to the .theme-modal <dialog> leaf (ADR 0006): all bare tags —
-		   `h2`, the lone `span` swatch, and `button`. The trailing Done button is
-		   the `button:last-child`; the option `.active` ring comes from a runtime
+		/* Scoped to the .theme-modal <dialog> leaf (ADR 0006): the lone `span`
+		   swatch and the `button`s. The trailing Done button is the
+		   `button:last-child`; the option `.active` ring comes from a runtime
 		   data-class, not a styling hook. */
 		@scope (.theme-modal) {
-			:scope {
-				width: min(320px, calc(100vw - 2rem));
-				padding: 1rem;
-				background: var(--surface);
-				color: var(--ink);
-				border: 1px solid var(--rail-border);
-				border-radius: var(--radius-lg);
-				box-shadow: var(--shadow-lift);
-			}
-
-			:scope::backdrop {
-				background: var(--scrim);
-			}
-
-			h2 {
-				font-size: 1rem;
-				margin: 0 0 0.75rem;
-			}
-
 			/* The theme-option rows: every button except the trailing Done. */
 			button {
 				display: flex;
@@ -96,7 +77,7 @@ templ themeOption(id string, label string, swatch string) {
 // always works. Picking a theme writes $_theme, which the layout body mirrors
 // into data-theme (and localStorage), so the swap is live without closing.
 templ ThemeModal() {
-	<dialog id="theme-modal" class="theme-modal" closedby="any">
+	<dialog id="theme-modal" class="app-dialog theme-modal" closedby="any">
 		<h2>Theme</h2>
 		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
 		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")

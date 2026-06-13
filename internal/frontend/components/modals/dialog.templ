@@ -1,0 +1,70 @@
+package modals
+
+// DialogStyles owns the shared native-<dialog> chrome (ADR 0006): the box,
+// the backdrop scrim, the h2, and the blur-fade open/close transition. Every
+// app dialog carries the `app-dialog` class alongside its own leaf class, so
+// each modal's own @scope block only holds content-specific rules. Tokens come
+// from baseStyles.
+templ DialogStyles() {
+	<style>
+		@scope (.app-dialog) {
+			:scope {
+				width: min(320px, calc(100vw - 2rem));
+				padding: 1rem;
+				background: var(--surface);
+				color: var(--ink);
+				border: 1px solid var(--rail-border);
+				border-radius: var(--radius-lg);
+				box-shadow: var(--shadow-lift);
+
+				/* Open = resting state; blur/fade in on entry. allow-discrete on
+				   display + overlay so the exit animates instead of popping. */
+				opacity: 1;
+				filter: blur(0);
+				transition:
+					opacity 0.3s ease,
+					filter 0.3s ease,
+					display 0.3s allow-discrete,
+					overlay 0.3s allow-discrete;
+
+				&:not([open]) {
+					opacity: 0;
+					filter: blur(8px);
+				}
+
+				@starting-style {
+					&[open] {
+						opacity: 0;
+						filter: blur(8px);
+					}
+				}
+			}
+
+			:scope::backdrop {
+				background: var(--scrim);
+				opacity: 1;
+				transition:
+					opacity 0.3s ease,
+					display 0.3s allow-discrete,
+					overlay 0.3s allow-discrete;
+
+				@starting-style {
+					opacity: 0;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				:scope,
+				:scope::backdrop {
+					transition-duration: 0.01s;
+					filter: none;
+				}
+			}
+
+			h2 {
+				font-size: 1rem;
+				margin: 0 0 0.75rem;
+			}
+		}
+	</style>
+}
