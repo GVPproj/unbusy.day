@@ -9,12 +9,10 @@ tasks:
       - task --list
 
   dev:
-    desc: "Postgres (compose) + templ watch/proxy driving the Go server (browse :7331)"
+    desc: "templ watch/proxy driving the Go server over a local SQLite file (browse :7331)"
     cmds:
-      - docker compose up -d --wait
-      # Apply pending migrations before serving (goose, run-once, no-op when
-      # current) — mirrors Fly's release step and survives `task nuke`.
-      - go run ./cmd/unbusy migrate
+      # No external DB: DATABASE_URL points at a local SQLite file (.env). The
+      # app migrates on boot, so no separate migrate step is needed here.
       # templ owns the whole dev loop: it watches .templ and .go files,
       # regenerates, (re)runs the server, and auto-reloads the browser via
       # the proxy on :7331. Text-only .templ edits (CSS in styles.templ,
@@ -29,22 +27,6 @@ tasks:
       - |
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
-
-  up:
-    desc: "Start local Postgres in the background"
-    cmds:
-      - docker compose up -d --wait
-
-  down:
-    desc: "Stop local Postgres (keeps volume)"
-    cmds:
-      - docker compose down
-
-  nuke:
-    desc: "Stop Postgres and delete the data volume"
-    prompt: "This will erase local dev data. Continue?"
-    cmds:
-      - docker compose down -v
 
   migrate:
     desc: "Apply pending migrations against $DATABASE_URL (goose, run-once)"

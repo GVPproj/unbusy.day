@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -15,9 +16,6 @@ import (
 	"math/big"
 	"strings"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // SessionTTL is the absolute (non-sliding) session lifetime.
@@ -44,12 +42,19 @@ type Session struct {
 }
 
 type Service struct {
-	pool   *pgxpool.Pool
+	db     *sql.DB
 	mailer Mailer
 }
 
-func NewService(pool *pgxpool.Pool, mailer Mailer) *Service {
-	return &Service{pool: pool, mailer: mailer}
+func NewService(db *sql.DB, mailer Mailer) *Service {
+	return &Service{db: db, mailer: mailer}
+}
+
+// formatTime renders a timestamp as UTC RFC3339 TEXT — fixed-width and
+// string-sortable, so `expires_at`/`created_at` comparisons work as plain
+// string `<`/`>` in SQLite.
+func formatTime(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
 }
 
 // RequestCode issues a login code for email and mails it. Unknown emails and
@@ -58,8 +63,8 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 	email = normalizeEmail(email)
 
 	var userID string
-	err := s.pool.QueryRow(ctx, `SELECT id FROM "user" WHERE email = $1`, email).Scan(&userID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM "user" WHERE email = ?`, email).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
 		log.Printf("auth: uninvited user %s, skipping OTP", email)
 		return nil // identical no-op for unknown emails
 	}
@@ -72,20 +77,28 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		return err
 	}
 
+	// Interval/now() math moves into Go: concrete timestamps passed as params.
+	now := time.Now()
+	nowStr := formatTime(now)
+	expiresAt := formatTime(now.Add(codeTTL))
+	throttleCutoff := formatTime(now.Add(-requestThrottle))
+
 	// One active code per user; the WHERE guard is the ~60s request throttle.
 	// Zero rows written means throttled — same nil response, no email.
-	tag, err := s.pool.Exec(ctx, `
+	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO login_code (user_id, code_hash, attempts, expires_at, created_at)
-		VALUES ($1, $2, 0, now() + $3::interval, now())
+		VALUES (?, ?, 0, ?, ?)
 		ON CONFLICT (user_id) DO UPDATE
-		SET code_hash = EXCLUDED.code_hash, attempts = 0,
-		    expires_at = EXCLUDED.expires_at, created_at = now()
-		WHERE login_code.created_at < now() - $4::interval`,
-		userID, hashCode(code), codeTTL.String(), requestThrottle.String())
+		SET code_hash = excluded.code_hash, attempts = 0,
+		    expires_at = excluded.expires_at, created_at = excluded.created_at
+		WHERE login_code.created_at < ?`,
+		userID, hashCode(code), expiresAt, nowStr, throttleCutoff)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 {
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n == 0 {
 		return nil // throttled
 	}
 	return s.mailer.SendCode(ctx, email, code)
@@ -95,43 +108,42 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session, error) {
 	email = normalizeEmail(email)
 
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback()
 
-	// FOR UPDATE serialises concurrent verifies so the attempt counter races no one.
+	// The immediate write lock (_txlock=immediate) serialises concurrent verifies
+	// so the attempt counter races no one — no row-level FOR UPDATE needed.
 	var userID, codeHash string
-	var attempts int
-	var expired bool
-	err = tx.QueryRow(ctx, `
-		SELECT u.id, lc.code_hash, lc.attempts, lc.expires_at < now()
+	var attempts, expired int
+	err = tx.QueryRowContext(ctx, `
+		SELECT u.id, lc.code_hash, lc.attempts, lc.expires_at < ?
 		FROM "user" u JOIN login_code lc ON lc.user_id = u.id
-		WHERE u.email = $1
-		FOR UPDATE OF lc`, email).Scan(&userID, &codeHash, &attempts, &expired)
-	if errors.Is(err, pgx.ErrNoRows) {
+		WHERE u.email = ?`, formatTime(time.Now()), email).Scan(&userID, &codeHash, &attempts, &expired)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrInvalidCode
 	}
 	if err != nil {
 		return nil, err
 	}
-	if expired || attempts >= maxAttempts {
+	if expired != 0 || attempts >= maxAttempts {
 		return nil, ErrInvalidCode
 	}
 
 	if subtle.ConstantTimeCompare([]byte(hashCode(strings.TrimSpace(code))), []byte(codeHash)) != 1 {
-		if _, err := tx.Exec(ctx, `UPDATE login_code SET attempts = attempts + 1 WHERE user_id = $1`, userID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE login_code SET attempts = attempts + 1 WHERE user_id = ?`, userID); err != nil {
 			return nil, err
 		}
-		if err := tx.Commit(ctx); err != nil {
+		if err := tx.Commit(); err != nil {
 			return nil, err
 		}
 		return nil, ErrInvalidCode
 	}
 
 	// Single use: the code dies in the same tx that births the session.
-	if _, err := tx.Exec(ctx, `DELETE FROM login_code WHERE user_id = $1`, userID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM login_code WHERE user_id = ?`, userID); err != nil {
 		return nil, err
 	}
 
@@ -139,15 +151,20 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 	if err != nil {
 		return nil, err
 	}
-	var expiresAt time.Time
-	err = tx.QueryRow(ctx, `
+	// pgx auto-decoded RETURNING expires_at; with TEXT storage we parse it back.
+	var expiresStr string
+	err = tx.QueryRowContext(ctx, `
 		INSERT INTO session (token, user_id, expires_at)
-		VALUES ($1, $2, now() + $3::interval)
-		RETURNING expires_at`, token, userID, SessionTTL.String()).Scan(&expiresAt)
+		VALUES (?, ?, ?)
+		RETURNING expires_at`, token, userID, formatTime(time.Now().Add(SessionTTL))).Scan(&expiresStr)
 	if err != nil {
 		return nil, err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	expiresAt, err := time.Parse(time.RFC3339, expiresStr)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return &Session{Token: token, UserID: userID, ExpiresAt: expiresAt}, nil
@@ -157,9 +174,9 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 // SELECT per request, no write (absolute expiry, ADR 0002).
 func (s *Service) UserForSession(ctx context.Context, token string) (string, error) {
 	var userID string
-	err := s.pool.QueryRow(ctx,
-		`SELECT user_id FROM session WHERE token = $1 AND expires_at > now()`, token).Scan(&userID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	err := s.db.QueryRowContext(ctx,
+		`SELECT user_id FROM session WHERE token = ? AND expires_at > ?`, token, formatTime(time.Now())).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNoSession
 	}
 	if err != nil {
@@ -170,7 +187,7 @@ func (s *Service) UserForSession(ctx context.Context, token string) (string, err
 
 // Logout revokes the session — immediate and authoritative (ADR 0002).
 func (s *Service) Logout(ctx context.Context, token string) error {
-	_, err := s.pool.Exec(ctx, `DELETE FROM session WHERE token = $1`, token)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM session WHERE token = ?`, token)
 	return err
 }
 

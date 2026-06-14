@@ -28,3 +28,6 @@ Thumbs.db
 .vscode/
 *.swp
 *~
+
+# compiled binary (go build ./cmd/unbusy default output)
+/unbusy

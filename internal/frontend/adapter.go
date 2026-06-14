@@ -24,7 +24,7 @@ var keepaliveInterval = 25 * time.Second
 
 // BlockService is the frontend's view of the core blocks service;
 // *block.Service satisfies it. The seam keeps the handlers testable without
-// Postgres.
+// a real database.
 type BlockService interface {
 	List(ctx context.Context, owner string) ([]block.Block, error)
 	Bounds(ctx context.Context, owner string) (block.Bounds, error)

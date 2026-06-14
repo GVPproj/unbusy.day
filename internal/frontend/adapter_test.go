@@ -19,7 +19,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 )
 
-// fakeService implements BlockService without Postgres. Reorder applies the
+// fakeService implements BlockService without a real database. Reorder applies the
 // requested order to the in-memory blocks like the real service does, or
 // returns reorderErr if set.
 type fakeService struct {

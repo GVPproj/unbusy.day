@@ -1,18 +1,21 @@
-// Integration tests over real Postgres (the DB is the system boundary).
-// Skipped without DATABASE_URL, like the block tests.
+// Integration tests over an ephemeral SQLite database (the DB is the system
+// boundary). No external container needed; the file dies with the temp dir.
 package auth_test
 
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/auth"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/GVPproj/unbusy.day/internal/migrate"
+	_ "modernc.org/sqlite"
 )
 
 // captureMailer records sent codes — the dev seam under test control.
@@ -23,22 +26,25 @@ func (m *captureMailer) SendCode(_ context.Context, _, code string) error {
 	return nil
 }
 
-func newPool(t *testing.T) *pgxpool.Pool {
+// newDB returns a handle to an ephemeral SQLite database with the schema
+// migrated in.
+func newDB(t *testing.T) *sql.DB {
 	t.Helper()
-	url := os.Getenv("DATABASE_URL")
-	if url == "" {
-		t.Skip("DATABASE_URL not set — start `task up` and `task migrate`")
+	path := filepath.Join(t.TempDir(), "auth_test.db")
+	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate"
+	if err := migrate.Run(context.Background(), dsn); err != nil {
+		t.Fatalf("migrate: %v", err)
 	}
-	pool, err := pgxpool.New(context.Background(), url)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		t.Fatalf("connect: %v", err)
+		t.Fatalf("open: %v", err)
 	}
-	t.Cleanup(pool.Close)
-	return pool
+	t.Cleanup(func() { _ = db.Close() })
+	return db
 }
 
 // newUser inserts a throwaway allowlisted user and returns its email.
-func newUser(t *testing.T, pool *pgxpool.Pool) string {
+func newUser(t *testing.T, db *sql.DB) string {
 	t.Helper()
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
@@ -46,24 +52,21 @@ func newUser(t *testing.T, pool *pgxpool.Pool) string {
 	}
 	id := "test-" + hex.EncodeToString(b)
 	email := id + "@example.test"
-	if _, err := pool.Exec(context.Background(),
-		`INSERT INTO "user" (id, email) VALUES ($1, $2)`, id, email); err != nil {
+	if _, err := db.ExecContext(context.Background(),
+		`INSERT INTO "user" (id, email) VALUES (?, ?)`, id, email); err != nil {
 		t.Fatalf("insert test user: %v", err)
 	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), `DELETE FROM "user" WHERE id = $1`, id)
-	})
 	return email
 }
 
 // The full happy path: request → mail → verify → session resolves → logout
 // revokes. Also pins single use: a redeemed code never verifies twice.
 func TestRequestVerifyLogout(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("request: %v", err)
@@ -105,9 +108,9 @@ func TestRequestVerifyLogout(t *testing.T) {
 
 // Unknown emails get an identical no-op: nil error, no mail (no enumeration).
 func TestRequestCodeUnknownEmailIsSilentNoOp(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 
 	if err := svc.RequestCode(context.Background(), "nobody@example.test"); err != nil {
 		t.Fatalf("want nil for unknown email, got %v", err)
@@ -119,11 +122,11 @@ func TestRequestCodeUnknownEmailIsSilentNoOp(t *testing.T) {
 
 // A second request inside the ~60s throttle window sends nothing (still nil).
 func TestRequestCodeThrottled(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("request: %v", err)
@@ -144,16 +147,16 @@ func TestRequestCodeThrottled(t *testing.T) {
 // Once the ~60s window passes, a new request issues a fresh code that
 // verifies; the superseded code is dead (one active code per user).
 func TestRequestCodeThrottleReleases(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	backdateCode(t, pool, email, "created_at", "61 seconds")
+	backdateCode(t, db, email, "created_at", 61*time.Second)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("second request: %v", err)
@@ -169,25 +172,46 @@ func TestRequestCodeThrottleReleases(t *testing.T) {
 	}
 }
 
-// backdateCode shifts the user's login_code timestamps into the past — the
-// only way to test time-dependent paths without clock injection.
-func backdateCode(t *testing.T, pool *pgxpool.Pool, email, column string, by string) {
+// backdateCode shifts one of the user's login_code timestamps into the past —
+// the only way to test time-dependent paths without clock injection. Timestamps
+// are RFC3339 TEXT, so the shift is read-parse-rewrite in Go.
+func backdateCode(t *testing.T, db *sql.DB, email, column string, by time.Duration) {
 	t.Helper()
-	tag, err := pool.Exec(context.Background(), `
-		UPDATE login_code SET `+column+` = `+column+` - $2::interval
-		WHERE user_id = (SELECT id FROM "user" WHERE email = $1)`, email, by)
-	if err != nil || tag.RowsAffected() != 1 {
-		t.Fatalf("backdate %s: rows=%d err=%v", column, tag.RowsAffected(), err)
+	shiftColumn(t, db,
+		`SELECT `+column+` FROM login_code WHERE user_id = (SELECT id FROM "user" WHERE email = ?)`,
+		`UPDATE login_code SET `+column+` = ? WHERE user_id = (SELECT id FROM "user" WHERE email = ?)`,
+		email, by)
+}
+
+// shiftColumn reads a TEXT RFC3339 timestamp via sel, subtracts by, and writes
+// it back via upd. Both queries bind email as their final/only WHERE param.
+func shiftColumn(t *testing.T, db *sql.DB, sel, upd, email string, by time.Duration) {
+	t.Helper()
+	var cur string
+	if err := db.QueryRowContext(context.Background(), sel, email).Scan(&cur); err != nil {
+		t.Fatalf("read timestamp: %v", err)
+	}
+	ts, err := time.Parse(time.RFC3339, cur)
+	if err != nil {
+		t.Fatalf("parse timestamp %q: %v", cur, err)
+	}
+	shifted := ts.Add(-by).UTC().Format(time.RFC3339)
+	res, err := db.ExecContext(context.Background(), upd, shifted, email)
+	if err != nil {
+		t.Fatalf("shift timestamp: %v", err)
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		t.Fatalf("shift timestamp: rows=%d", n)
 	}
 }
 
 // An expired session no longer resolves (absolute 30-day expiry, ADR 0002).
 func TestUserForSessionExpired(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("request: %v", err)
@@ -197,12 +221,10 @@ func TestUserForSessionExpired(t *testing.T) {
 		t.Fatalf("verify: %v", err)
 	}
 
-	tag, err := pool.Exec(ctx, `
-		UPDATE session SET expires_at = expires_at - '31 days'::interval
-		WHERE token = $1`, sess.Token)
-	if err != nil || tag.RowsAffected() != 1 {
-		t.Fatalf("backdate session: rows=%d err=%v", tag.RowsAffected(), err)
-	}
+	shiftColumn(t, db,
+		`SELECT expires_at FROM session WHERE token = ?`,
+		`UPDATE session SET expires_at = ? WHERE token = ?`,
+		sess.Token, 31*24*time.Hour)
 
 	if _, err := svc.UserForSession(ctx, sess.Token); !errors.Is(err, auth.ErrNoSession) {
 		t.Fatalf("expired session: want ErrNoSession, got %v", err)
@@ -211,16 +233,16 @@ func TestUserForSessionExpired(t *testing.T) {
 
 // An expired code never verifies, even when it's the right code.
 func TestVerifyCodeExpired(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	backdateCode(t, pool, email, "expires_at", "11 minutes")
+	backdateCode(t, db, email, "expires_at", 11*time.Minute)
 
 	if _, err := svc.VerifyCode(ctx, email, mailer.codes[0]); !errors.Is(err, auth.ErrInvalidCode) {
 		t.Fatalf("expired code: want ErrInvalidCode, got %v", err)
@@ -230,11 +252,11 @@ func TestVerifyCodeExpired(t *testing.T) {
 // Email is matched case/whitespace-insensitively and the code survives
 // stray whitespace — what users actually paste from a mail client.
 func TestVerifyCodeNormalizesInput(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, "  "+strings.ToUpper(email)+" "); err != nil {
 		t.Fatalf("request with messy email: %v", err)
@@ -250,11 +272,11 @@ func TestVerifyCodeNormalizesInput(t *testing.T) {
 
 // After 5 failed attempts even the right code is dead.
 func TestVerifyCodeAttemptLimit(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(pool, mailer)
+	svc := auth.NewService(db, mailer)
 	ctx := context.Background()
-	email := newUser(t, pool)
+	email := newUser(t, db)
 
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("request: %v", err)

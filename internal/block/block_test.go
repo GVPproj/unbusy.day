@@ -3,35 +3,39 @@ package block_test
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
-	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/GVPproj/unbusy.day/internal/migrate"
+	_ "modernc.org/sqlite"
 )
 
-func newPool(t *testing.T) *pgxpool.Pool {
+// newDB returns a handle to an ephemeral SQLite database with the schema
+// migrated in. No external container needed; the file dies with the temp dir.
+func newDB(t *testing.T) *sql.DB {
 	t.Helper()
-	url := os.Getenv("DATABASE_URL")
-	if url == "" {
-		t.Skip("DATABASE_URL not set — start `task up` and `task migrate`")
+	path := filepath.Join(t.TempDir(), "block_test.db")
+	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate"
+	if err := migrate.Run(context.Background(), dsn); err != nil {
+		t.Fatalf("migrate: %v", err)
 	}
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, url)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		t.Fatalf("connect: %v", err)
+		t.Fatalf("open: %v", err)
 	}
-	t.Cleanup(pool.Close)
-	return pool
+	t.Cleanup(func() { _ = db.Close() })
+	return db
 }
 
 // newOwner creates a throwaway user and seeds their starter block. Cleanup
 // deletes the user; the blocks go with it (ON DELETE CASCADE).
-func newOwner(t *testing.T, pool *pgxpool.Pool, svc *block.Service) string {
+func newOwner(t *testing.T, db *sql.DB, svc *block.Service) string {
 	t.Helper()
 	ctx := context.Background()
 	b := make([]byte, 8)
@@ -39,11 +43,11 @@ func newOwner(t *testing.T, pool *pgxpool.Pool, svc *block.Service) string {
 		t.Fatalf("rand: %v", err)
 	}
 	id := "test-" + hex.EncodeToString(b)
-	if _, err := pool.Exec(ctx, `INSERT INTO "user" (id, email) VALUES ($1, $2)`, id, id+"@example.test"); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO "user" (id, email) VALUES (?, ?)`, id, id+"@example.test"); err != nil {
 		t.Fatalf("insert test user: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), `DELETE FROM "user" WHERE id = $1`, id)
+		_, _ = db.ExecContext(context.Background(), `DELETE FROM "user" WHERE id = ?`, id)
 	})
 	if err := svc.Seed(ctx, id); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -53,10 +57,10 @@ func newOwner(t *testing.T, pool *pgxpool.Pool, svc *block.Service) string {
 
 // Seed is first-login-only: a second call must not duplicate the starter block.
 func TestSeed_Idempotent(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	if err := svc.Seed(ctx, owner); err != nil {
 		t.Fatalf("re-seed: %v", err)
@@ -73,10 +77,10 @@ func TestSeed_Idempotent(t *testing.T) {
 // Starter blocks land in the first slots after the default day start (9:00),
 // span 1 each, so a new user's plan is valid against their bounds.
 func TestSeed_PlacesStarterBlocksAtDayStart(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	cs, err := svc.List(ctx, owner)
 	if err != nil {
@@ -98,11 +102,11 @@ func TestSeed_PlacesStarterBlocksAtDayStart(t *testing.T) {
 // Owner scoping (ADR 0003): one user's mutations never touch or read
 // another's blocks, and both owners can hold position 0.
 func TestOwnersAreIsolated(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	a := newOwner(t, pool, svc)
-	b := newOwner(t, pool, svc)
+	a := newOwner(t, db, svc)
+	b := newOwner(t, db, svc)
 
 	acs, err := svc.List(ctx, a)
 	if err != nil {
@@ -141,10 +145,10 @@ func TestOwnersAreIsolated(t *testing.T) {
 // A valid full layout (a move into a gap plus a grow) commits and is what
 // List returns afterwards, ordered by slot.
 func TestSetLayout_CommitsAndListReflects(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	initial, err := svc.List(ctx, owner)
 	if err != nil {
@@ -191,11 +195,11 @@ func TestSetLayout_CommitsAndListReflects(t *testing.T) {
 // A rejected layout surfaces its typed domain error, persists nothing, and
 // fans nothing out.
 func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	pub := &capturePub{}
-	svc := block.NewService(pool, pub)
+	svc := block.NewService(db, pub)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	initial, err := svc.List(ctx, owner)
 	if err != nil {
@@ -246,13 +250,49 @@ func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
 	}
 }
 
+// Overlap regression: the Postgres gist EXCLUDE backstop is gone under SQLite,
+// so ValidateLayout is the sole overlap guard. An overlapping layout must still
+// reject whole and persist nothing — including the case where the overlapping
+// rows would have committed had only the DB-level constraint been relied on.
+func TestSetLayout_OverlapRejectedWithoutDBBackstop(t *testing.T) {
+	db := newDB(t)
+	svc := block.NewService(db, nil)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	initial, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	a, b, c := initial[0], initial[1], initial[2]
+
+	// a spans slots 20–21; b sits on 21 — a direct overlap ValidateLayout catches.
+	overlap := []block.Placement{
+		{ID: a.ID, Slot: 20, Span: 2},
+		{ID: b.ID, Slot: 21, Span: 1},
+		{ID: c.ID, Slot: 30, Span: 1},
+	}
+	if _, err := svc.SetLayout(ctx, owner, overlap); !errors.Is(err, block.ErrOverlap) {
+		t.Fatalf("want ErrOverlap, got %v", err)
+	}
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	for i := range after {
+		if after[i] != initial[i] {
+			t.Fatalf("overlap rejection must persist nothing: block %d = %+v, want %+v", i, after[i], initial[i])
+		}
+	}
+}
+
 // A committed layout fans out one event carrying the owner key and new layout.
 func TestSetLayout_PublishesEvent(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	pub := &capturePub{}
-	svc := block.NewService(pool, pub)
+	svc := block.NewService(db, pub)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	initial, err := svc.List(ctx, owner)
 	if err != nil {
@@ -286,10 +326,10 @@ func TestSetLayout_PublishesEvent(t *testing.T) {
 // Concurrent layout mutations serialize on FOR UPDATE: every submission is a
 // valid layout, so all succeed and the final state is exactly one of them.
 func TestSetLayout_ConcurrentMutationsSerialize(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	initial, err := svc.List(ctx, owner)
 	if err != nil {
@@ -343,11 +383,11 @@ func TestSetLayout_ConcurrentMutationsSerialize(t *testing.T) {
 // Bounds may shrink into empty slots; the change persists and fans out an
 // event carrying the new bounds so live tabs re-render the grid.
 func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
-	pool := newPool(t)
+	db := newDB(t)
 	pub := &capturePub{}
-	svc := block.NewService(pool, pub)
+	svc := block.NewService(db, pub)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc) // starter blocks at 18,19,20
+	owner := newOwner(t, db, svc) // starter blocks at 18,19,20
 
 	if err := svc.SetBounds(ctx, owner, 17, 21); err != nil {
 		t.Fatalf("setbounds: %v", err)
@@ -370,10 +410,10 @@ func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
 // A shrink that would strand a block outside the day is rejected whole, on
 // either side, and persists nothing.
 func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc) // starter blocks at 18,19,20
+	owner := newOwner(t, db, svc) // starter blocks at 18,19,20
 
 	cases := map[string][2]int{
 		"start side": {19, 34},
@@ -397,10 +437,10 @@ func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
 
 // Hard limits: start ≥ 5:00, end ≤ 18:00, end > start.
 func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
-	pool := newPool(t)
-	svc := block.NewService(pool, nil)
+	db := newDB(t)
+	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, pool, svc)
+	owner := newOwner(t, db, svc)
 
 	cases := map[string][2]int{
 		"before 5:00":    {9, 34},

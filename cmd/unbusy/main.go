@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend"
 	"github.com/GVPproj/unbusy.day/internal/migrate"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "modernc.org/sqlite"
 )
 
 func main() {
@@ -22,9 +23,9 @@ func main() {
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
 	}
-	// `hello-cards migrate` applies embedded migrations and exits. Fly's
-	// release_command runs this before the rollout so schema lands ahead of
-	// the new binary (expand-then-deploy).
+	// `hello-cards migrate` applies embedded migrations and exits. Kept for
+	// manual/ops use; the app also migrates on boot (below) since the SQLite
+	// file lives on the volume the app machine mounts.
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		if err := migrate.Run(ctx, dbURL); err != nil {
 			log.Fatalf("migrate: %v", err)
@@ -33,25 +34,30 @@ func main() {
 		return
 	}
 
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		log.Fatalf("pgxpool: %v", err)
+	// Migrate on boot: the SQLite file is colocated on the volume this machine
+	// mounts, so schema lands against the real database before serving.
+	if err := migrate.Run(ctx, dbURL); err != nil {
+		log.Fatalf("migrate: %v", err)
 	}
-	defer pool.Close()
-	if err := pool.Ping(ctx); err != nil {
+
+	db, err := sql.Open("sqlite", dbURL)
+	if err != nil {
+		log.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
 		log.Fatalf("ping db: %v", err)
 	}
 
 	broker := pubsub.New()
-	svc := block.NewService(pool, broker)
-	authSvc := auth.NewService(pool, auth.LogMailer{})
+	svc := block.NewService(db, broker)
+	authSvc := auth.NewService(db, auth.LogMailer{})
 	// Secure cookies in production only (ADR 0002) — Fly sets FLY_APP_NAME.
 	secureCookies := os.Getenv("FLY_APP_NAME") != ""
 
 	mux := http.NewServeMux()
 
-	// In-process 200 only. Never query Postgres here — Fly's health check
-	// fires every few seconds and a DB ping would defeat Neon's scale-to-zero.
+	// In-process 200 only — a liveness probe, not a DB readiness check.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok\n"))

@@ -11,7 +11,8 @@ Have a structured day. Time-block your schedule, track some progress, no rush.
 
 ## Quickstart
 
-Requires `go` ≥ 1.26, `docker` + `compose`, and a few Go tools:
+Requires `go` ≥ 1.26 and a few Go tools (no Docker — the database is a local
+SQLite file):
 
 ```bash
 # One-time
@@ -20,7 +21,7 @@ go install github.com/a-h/templ/cmd/templ@latest
 cp .env.example .env
 
 # Day-to-day
-task dev                          # Postgres + templ watch + Go hot reload
+task dev                          # SQLite + templ watch + Go hot reload
 ```
 
 ## Contributing
@@ -33,3 +34,9 @@ PRs welcome. Sign commits with `git commit -s` (DCO) — see
 Licensed under [FSL-1.1-Apache-2.0](./LICENSE.md): free to read, self-host,
 and contribute to, but not to offer as a competing commercial service. Each
 release converts to Apache-2.0 after two years.
+
+## todo
+
+bounds control / compress
+cards crud
+
