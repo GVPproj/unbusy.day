@@ -16,30 +16,16 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
-    # cards_test.go exercises the real DEFERRABLE-unique reorder against
-    # Postgres (it skips without DATABASE_URL). Mirror local dev: a Postgres
-    # service + the same migrations/*.sql applied via psql.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: hello_cards
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d hello_cards"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 20
-
     env:
-      # Service is reachable on localhost:5432. sslmode=disable: local CI PG.
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hello_cards?sslmode=disable
+      # Local SQLite file (ADR 0007) — no DB container. The driver won't create
+      # the parent dir, so the tmp/ step below makes it before migrate.
+      DATABASE_URL: file:./tmp/unbusy.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create db dir
+        run: mkdir -p tmp
 
       - name: Set up Go
         uses: actions/setup-go@v5
