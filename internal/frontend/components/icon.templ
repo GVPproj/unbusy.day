@@ -2,9 +2,10 @@ package components
 
 // Icon set is a second axis alongside the color theme: $_iconset (mirrored to
 // :root[data-iconset] + localStorage by the layout) selects "solar" (chunky bold
-// duotone) or "pixel" (8-bit pixelarticons). Both sets ship in the DOM; CSS in
-// IconStyles shows one and hides the other, so the swap is live and needs no
-// server round-trip. Both draw with currentColor, so --nav-icon themes them.
+// duotone), "tabler" (2px line) or "pixel" (8-bit
+// pixelarticons). All sets ship in the DOM; CSS in IconStyles shows one and hides
+// the rest, so the swap is live and needs no server round-trip. All draw with
+// currentColor, so --nav-icon themes them.
 //
 // All SVGs use a 24-unit viewBox and render at 24px (IconStyles) — the integer
 // size that maps the pixel grid 1:1 to device pixels so 8-bit edges stay crisp.
@@ -15,34 +16,41 @@ templ IconStyles() {
 	<style>
 		.icon { width: 24px; height: 24px; display: block; }
 		.icon-pixel { image-rendering: pixelated; }
-		/* Default (no/unknown data-iconset) shows solar; pixel is opt-in. */
-		.icon-pixel { display: none; }
+		/* Default (no/unknown data-iconset) shows solar; the rest are opt-in. */
+		.icon-pixel, .icon-tabler { display: none; }
 		:root[data-iconset="pixel"] .icon-solar { display: none; }
 		:root[data-iconset="pixel"] .icon-pixel { display: block; }
+		:root[data-iconset="tabler"] .icon-solar { display: none; }
+		:root[data-iconset="tabler"] .icon-tabler { display: block; }
 	</style>
 }
 
 templ IconMenu() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M20 7H4m16 5H4m16 5H4"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-tabler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24"><path fill="currentColor" d="M20 18H4v-2h16zm0-5H4v-2h16zm0-5H4V6h16z"/></svg>`)
 }
 
 templ IconHours() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-tabler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0"/><path d="M12 7v5l3 3"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`)
 }
 
 templ IconTheme() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M22 12c0 5.523-4.477 10-10 10a10 10 0 0 1-3.321-.564A9 9 0 0 1 8 18a8.97 8.97 0 0 1 2.138-5.824A6.5 6.5 0 0 0 15.5 15a6.5 6.5 0 0 0 5.567-3.143c.24-.396.933-.32.933.143" clip-rule="evenodd" opacity=".5"/><path fill="currentColor" d="M2 12c0 4.359 2.789 8.066 6.679 9.435A9 9 0 0 1 8 18c0-2.221.805-4.254 2.138-5.824A6.47 6.47 0 0 1 9 8.5a6.5 6.5 0 0 1 3.143-5.567C12.54 2.693 12.463 2 12 2C6.477 2 2 6.477 2 12"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-tabler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454z"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24"><path fill="currentColor" d="M18 22H8v-2h10zM8 20H6v-2h2zm12 0h-2v-2h2zM6 18H4v-2h2zm16 0h-2v-4h-2v-2h2v-2h2zM4 16H2V6h2zm14 0h-6v-2h6zm-6-2h-2v-2h2zm-2-2H8V6h2zM6 6H4V4h2zm8-2h-2v2h-2V4H6V2h8z"/></svg>`)
 }
 
 templ IconBlocks() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24"><path fill="currentColor" d="M2 6.5c0-2.121 0-3.182.659-3.841S4.379 2 6.5 2s3.182 0 3.841.659S11 4.379 11 6.5s0 3.182-.659 3.841S8.621 11 6.5 11s-3.182 0-3.841-.659S2 8.621 2 6.5m11 11c0-2.121 0-3.182.659-3.841S15.379 13 17.5 13s3.182 0 3.841.659S22 15.379 22 17.5s0 3.182-.659 3.841S19.621 22 17.5 22s-3.182 0-3.841-.659S13 19.621 13 17.5"/><path fill="currentColor" d="M2 17.5c0-2.121 0-3.182.659-3.841S4.379 13 6.5 13s3.182 0 3.841.659S11 15.379 11 17.5s0 3.182-.659 3.841S8.621 22 6.5 22s-3.182 0-3.841-.659S2 19.621 2 17.5m11-11c0-2.121 0-3.182.659-3.841S15.379 2 17.5 2s3.182 0 3.841.659S22 4.379 22 6.5s0 3.182-.659 3.841S19.621 11 17.5 11s-3.182 0-3.841-.659S13 8.621 13 6.5"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-tabler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24"><path fill="currentColor" d="M2 2h20v20H2zm2 2v4h4V4zm6 0v4h4V4zm6 0v4h4V4zm4 6h-4v4h4zm0 6h-4v4h4zm-6 4v-4h-4v4zm-6 0v-4H4v4zm-4-6h4v-4H4zm6-4v4h4v-4z"/></svg>`)
 }
 
 templ IconLogout() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24"><path fill="currentColor" d="M8.792 5.147a.75.75 0 0 0-.584-1.382A9.75 9.75 0 0 0 2.25 12.75c0 5.385 4.365 9.75 9.75 9.75s9.75-4.365 9.75-9.75a9.75 9.75 0 0 0-5.958-8.985a.75.75 0 1 0-.584 1.382A8.253 8.253 0 0 1 12 21A8.25 8.25 0 0 1 8.792 5.147" opacity=".5"/><path fill="currentColor" d="M12.75 2.75a.75.75 0 0 0-1.5 0v4a.75.75 0 0 0 1.5 0z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-tabler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6a7.75 7.75 0 1 0 10 0"/><path d="M12 4v8"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24"><path fill="currentColor" d="M6 20h12v2H6zM18 6h2v2h-2zM4 6h2v2H4zm2-2h2v2H6zm10 0h2v2h-2zM4 18h2v2H4zm14 0h2v2h-2zM2 8h2v10H2zm18 0h2v10h-2zm-9-6h2v9h-2z"/></svg>`)
 }
