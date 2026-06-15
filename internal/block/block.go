@@ -42,6 +42,9 @@ var ErrInvalidSpan = errors.New("span must be at least 1")
 // ErrEmptyLabel signals a create with a blank label.
 var ErrEmptyLabel = errors.New("block label is required")
 
+// ErrBlockNotFound signals a delete of a block this owner doesn't own.
+var ErrBlockNotFound = errors.New("block not found")
+
 type Service struct {
 	db  *sql.DB
 	pub Publisher
@@ -147,6 +150,51 @@ func (s *Service) Create(ctx context.Context, owner, label string, slot int) (*C
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
 	return &CreateResult{Blocks: bs}, nil
+}
+
+// DeleteResult is the post-delete column returned to the caller.
+type DeleteResult struct {
+	Blocks []Block `json:"blocks"`
+}
+
+// Delete removes the owner's block by id, then fans out the new column. It
+// rejects an id the owner doesn't own (ErrBlockNotFound) — same
+// write-transaction and post-commit fan-out shape as Create.
+func (s *Service) Delete(ctx context.Context, owner, id string) (*DeleteResult, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	bounds, err := queryBounds(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	res, err := tx.ExecContext(ctx,
+		`DELETE FROM block WHERE id = ? AND owner_id = ?`, id, owner)
+	if err != nil {
+		return nil, err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return nil, err
+	} else if n == 0 {
+		return nil, ErrBlockNotFound
+	}
+
+	bs, err := queryBlocks(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted delete.
+	if s.pub != nil {
+		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
+	}
+	return &DeleteResult{Blocks: bs}, nil
 }
 
 // SetLayout replaces the owner's whole layout in one mutation (ADR 0005): the

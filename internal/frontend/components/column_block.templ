@@ -18,6 +18,15 @@ templ blockItem(c block.Block, dayStart int) {
 		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) }
 	>
 		{ c.Label }
+		<button
+			type="button"
+			class="block-delete"
+			aria-label={ "Delete " + c.Label }
+			data-on:pointerdown="evt.stopPropagation()"
+			data-on:click={ "$deleteid = '" + c.ID + "'; @post('/blocks/delete')" }
+		>
+			@IconX()
+		</button>
 		<span class="grip" aria-hidden="true"></span>
 	</li>
 }

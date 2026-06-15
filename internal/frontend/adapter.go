@@ -31,6 +31,7 @@ type BlockService interface {
 	SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.LayoutResult, error)
 	SetBounds(ctx context.Context, owner string, start, end int) error
 	Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error)
+	Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error)
 }
 
 // snapshot reads the owner's authoritative column and day bounds — the pair
@@ -199,6 +200,46 @@ func CreateHandler(svc BlockService) http.Handler {
 		bs, b, err := snapshot(r.Context(), svc, owner)
 		if err != nil {
 			log.Printf("ds create snapshot: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		patchColumn(w, r, bs, b)
+	})
+}
+
+// deleteSignals is the Datastar signals body the per-block delete button
+// @posts: the id of the block to remove, written by the button on click.
+type deleteSignals struct {
+	ID string `json:"deleteid"`
+}
+
+// DeleteHandler removes the clicked block and responds with an element-patch
+// of the committed column. An unknown id (ErrBlockNotFound) re-renders the
+// authoritative column at 200, so a stale click simply yields to the truth
+// (house convention).
+func DeleteHandler(svc BlockService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig deleteSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+
+		owner := ownerFrom(r.Context())
+		_, err := svc.Delete(r.Context(), owner, sig.ID)
+		switch {
+		case errors.Is(err, block.ErrBlockNotFound):
+			// Rejection at 200: the snapshot below re-renders the current column.
+			log.Printf("200 rejection delete: %v", err)
+		case err != nil:
+			log.Printf("ds delete: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		bs, b, err := snapshot(r.Context(), svc, owner)
+		if err != nil {
+			log.Printf("ds delete snapshot: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

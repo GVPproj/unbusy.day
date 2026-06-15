@@ -29,12 +29,14 @@ type fakeService struct {
 	layoutErr error
 	boundsErr error
 	createErr error
+	deleteErr error
 
 	gotOwner  string            // owner passed to the last mutation, for asserting scoping
 	gotLayout []block.Placement // layout passed to SetLayout
 	gotBounds block.Bounds      // bounds passed to SetBounds
 	gotLabel  string            // label passed to Create
 	gotSlot   int               // slot passed to Create
+	gotID     string            // id passed to Delete
 }
 
 func (f *fakeService) Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error) {
@@ -46,6 +48,21 @@ func (f *fakeService) Create(ctx context.Context, owner, label string, slot int)
 	f.blocks = append(f.blocks, c)
 	sort.Slice(f.blocks, func(i, j int) bool { return f.blocks[i].Position < f.blocks[j].Position })
 	return &block.CreateResult{Blocks: f.blocks}, nil
+}
+
+func (f *fakeService) Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error) {
+	f.gotOwner, f.gotID = owner, id
+	if f.deleteErr != nil {
+		return nil, f.deleteErr
+	}
+	out := f.blocks[:0]
+	for _, c := range f.blocks {
+		if c.ID != id {
+			out = append(out, c)
+		}
+	}
+	f.blocks = out
+	return &block.DeleteResult{Blocks: f.blocks}, nil
 }
 
 func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end int) error {

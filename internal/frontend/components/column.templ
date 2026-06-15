@@ -77,6 +77,41 @@ templ ColumnStyles() {
 				}
 			}
 
+			/* per-block delete: an X pinned to the block's right edge, its icon
+			   box sized to the label's line so the two align vertically. Hidden at
+			   rest; fades in on block hover or its own keyboard focus. */
+			.block-delete {
+				position: absolute;
+				top: var(--block-pad);
+				right: var(--block-pad);
+				appearance: none;
+				background: transparent;
+				border: none;
+				padding: 0;
+				cursor: pointer;
+				color: var(--nav-icon);
+				opacity: 0;
+				transition: opacity 120ms;
+
+				.icon {
+					width: 1.5rem;
+					height: 1.5rem;
+				}
+
+				&:hover {
+					color: var(--accent);
+				}
+			}
+
+			.block:hover .block-delete,
+			.block-delete:focus-visible {
+				opacity: 1;
+			}
+
+			.block-delete:focus-visible {
+				outline: none;
+			}
+
 			/* stretch handle along the block's bottom edge; the bar fades in on
 			   hover as the affordance */
 			.grip {
@@ -186,6 +221,7 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"
+		data-signals:deleteid="''"
 		data-on:layout="$layout = evt.detail.layout; @post('/blocks/layout')"
 	>
 		{{ occupied := block.OccupiedSlots(cs) }}
