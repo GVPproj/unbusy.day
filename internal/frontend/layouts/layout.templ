@@ -103,9 +103,13 @@ templ baseStyles() {
 		:root,
 		:root[data-feeling="cozy"] {
 			--font-family: "Zen Maru Gothic", system-ui, sans-serif;
+			--line-height: 1.5;
 		}
+		/* Gohu's bitmap metrics sit tight; give it extra leading so rows
+		   breathe like cozy. */
 		:root[data-feeling="pixel"] {
 			--font-family: "Gohu", ui-monospace, monospace;
+			--line-height: 1.9;
 		}
 
 		/* Solarized Light (default) */
@@ -177,6 +181,7 @@ templ baseStyles() {
 		body {
 			margin: 0;
 			font-family: var(--font-family);
+			line-height: var(--line-height);
 			background: var(--bg);
 			color: var(--ink);
 		}
