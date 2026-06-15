@@ -128,7 +128,7 @@ templ NavStyles() {
 				.navlink {
 					flex-direction: row;
 					gap: 0.6rem;
-					font-size: 0.9rem;
+					font-size: 1rem;
 					padding: 0.5rem 0.75rem;
 				}
 			}
@@ -145,15 +145,31 @@ templ SideNav() {
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		aria-label="Toggle menu"
-	><span class="navicon">@IconMenu()</span></button>
+	>
+		<span class="navicon">
+			@IconMenu()
+		</span>
+	</button>
 	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div title="unbusy.day">
 			@UBLogo("51", "22")
 		</div>
 		<!-- <a class="navlink active" href="/"><span class="navicon">@IconBlocks()</span><span>Blocks</span></a> -->
-		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span class="navicon">@IconHours()</span><span>Hours</span></button>
-		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span class="navicon">@IconTheme()</span><span>Theme</span></button>
-		<button class="navlink" data-on:click="@post('/logout')"><span class="navicon">@IconLogout()</span><span>Log out</span></button>
+		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="navicon">
+				@IconHours()
+			</span><span>Working Hours</span>
+		</button>
+		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="navicon">
+				@IconTheme()
+			</span><span>Theme</span>
+		</button>
+		<button class="navlink" data-on:click="@post('/logout')">
+			<span class="navicon">
+				@IconLogout()
+			</span><span>Log out</span>
+		</button>
 	</nav>
 }

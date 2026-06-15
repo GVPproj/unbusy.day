@@ -1,7 +1,7 @@
 package components
 
 // Icon set is a second axis alongside the color theme: $_iconset (mirrored to
-// body[data-iconset] + localStorage by the layout) selects "solar" (chunky bold
+// :root[data-iconset] + localStorage by the layout) selects "solar" (chunky bold
 // duotone) or "pixel" (8-bit pixelarticons). Both sets ship in the DOM; CSS in
 // IconStyles shows one and hides the other, so the swap is live and needs no
 // server round-trip. Both draw with currentColor, so --nav-icon themes them.
@@ -17,8 +17,8 @@ templ IconStyles() {
 		.icon-pixel { image-rendering: pixelated; }
 		/* Default (no/unknown data-iconset) shows solar; pixel is opt-in. */
 		.icon-pixel { display: none; }
-		body[data-iconset="pixel"] .icon-solar { display: none; }
-		body[data-iconset="pixel"] .icon-pixel { display: block; }
+		:root[data-iconset="pixel"] .icon-solar { display: none; }
+		:root[data-iconset="pixel"] .icon-pixel { display: block; }
 	</style>
 }
 

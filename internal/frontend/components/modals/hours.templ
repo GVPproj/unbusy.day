@@ -95,7 +95,7 @@ templ HoursModal(b block.Bounds) {
 		data-signals:start={ strconv.Itoa(b.Start) }
 		data-signals:end={ strconv.Itoa(b.End) }
 	>
-		<h2>Hours</h2>
+		<h2>Working Hours</h2>
 		<label>
 			Start
 			<select data-on:change="$start = +evt.target.value">

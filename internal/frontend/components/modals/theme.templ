@@ -123,7 +123,7 @@ templ iconOption(id string, label string, pixel bool, preview templ.Component) {
 // command/commandfor button targeting #theme-modal — no open/close signal.
 // closedby="any" adds light dismiss (click outside) where supported; Esc
 // always works. The two sections write $_colorscheme and $_iconset, which the
-// layout body mirrors into data-colorscheme/data-iconset (and localStorage), so
+// layout <html> mirrors into data-colorscheme/data-iconset (and localStorage), so
 // both swaps are live without closing.
 templ ThemeModal() {
 	<dialog id="theme-modal" class="app-dialog theme-modal" closedby="any">
