@@ -179,7 +179,7 @@ templ LoginAmoeba() {
 		</svg>
 		<div class="login-amoeba-content">
 			<div class="login-logo">
-				@UBLogo("153", "66")
+				@UBLogo("153", "66", 0.8)
 			</div>
 			@LoginEmailForm()
 		</div>
@@ -191,7 +191,7 @@ templ LoginAmoeba() {
 // data-on:submit prevents the native submission.
 templ LoginEmailForm() {
 	<form id="login-form" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
-		<p>Enter your email.  We'll send a one-time code.</p>
+		<p>We'll email you a one-time code.</p>
 		<input type="email" placeholder="you@example.com" autocomplete="email" required data-bind:email/>
 		<button type="submit">Send code</button>
 	</form>
