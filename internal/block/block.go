@@ -90,6 +90,8 @@ type LayoutResult struct {
 // client computes the push, the server enforces the invariants via
 // ValidateLayout inside the write transaction (SQLite serializes writes).
 func (s *Service) SetLayout(ctx context.Context, owner string, layout []Placement) (*LayoutResult, error) {
+	// _txlock=immediate takes the write lock at BeginTx, so these reads can't be
+	// invalidated by a concurrent writer before we validate and commit.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -154,14 +156,15 @@ func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) e
 		return ErrInvalidBounds
 	}
 
+	// _txlock=immediate takes the write lock at BeginTx, so a concurrent layout
+	// mutation can't slip a block outside the new bounds between this check and
+	// commit.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// SQLite serializes writes, so a concurrent layout mutation can't slip a
-	// block outside the new bounds between this check and commit.
 	bs, err := queryBlocks(ctx, tx, owner)
 	if err != nil {
 		return err
@@ -194,9 +197,9 @@ type querier interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// queryBlocks reads the owner's blocks in position order. SQLite serializes
-// writes at the database level, so no row-level lock is needed inside a tx. The
-// explicit column list lives here once — keep it in sync with scanBlocks.
+// queryBlocks reads the owner's blocks in position order. Runs on both the
+// render path (db) and inside a mutation tx. The explicit column list lives
+// here once — keep it in sync with scanBlocks.
 func queryBlocks(ctx context.Context, q querier, owner string) ([]Block, error) {
 	rows, err := q.QueryContext(ctx,
 		`SELECT id, label, position, span FROM block WHERE owner_id = ? ORDER BY position`, owner)

@@ -251,9 +251,9 @@ func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
 }
 
 // Overlap regression: the Postgres gist EXCLUDE backstop is gone under SQLite,
-// so ValidateLayout is the sole overlap guard. An overlapping layout must still
-// reject whole and persist nothing — including the case where the overlapping
-// rows would have committed had only the DB-level constraint been relied on.
+// so ValidateLayout is the sole overlap guard. An overlapping layout must reject
+// whole and persist nothing through the full service path (not just the unit
+// validator), since nothing downstream would catch it.
 func TestSetLayout_OverlapRejectedWithoutDBBackstop(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -323,9 +323,10 @@ func TestSetLayout_PublishesEvent(t *testing.T) {
 	}
 }
 
-// Concurrent layout mutations serialize on FOR UPDATE: every submission is a
-// valid layout, so all succeed and the final state is exactly one of them.
-func TestSetLayout_ConcurrentMutationsSerialize(t *testing.T) {
+// Concurrent layout mutations serialize on SQLite's write lock (_txlock=immediate
+// + busy_timeout): every submission is a valid layout, so all succeed and the
+// final state is exactly one of them — no torn or interleaved layout survives.
+func TestSetLayout_ConcurrentMutationsLastWriterWins(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
 	ctx := context.Background()
@@ -346,11 +347,9 @@ func TestSetLayout_ConcurrentMutationsSerialize(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make([]error, len(layouts))
 	for i, l := range layouts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, errs[i] = svc.SetLayout(ctx, owner, l)
-		}()
+		})
 	}
 	wg.Wait()
 	for i, err := range errs {
@@ -387,7 +386,7 @@ func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
 	pub := &capturePub{}
 	svc := block.NewService(db, pub)
 	ctx := context.Background()
-	owner := newOwner(t, db, svc) // starter blocks at 18,19,20
+	owner := newOwner(t, db, svc) // starter blocks at DefaultDayStart, +1, +2
 
 	if err := svc.SetBounds(ctx, owner, 17, 21); err != nil {
 		t.Fatalf("setbounds: %v", err)
@@ -413,7 +412,7 @@ func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
 	ctx := context.Background()
-	owner := newOwner(t, db, svc) // starter blocks at 18,19,20
+	owner := newOwner(t, db, svc) // starter blocks at DefaultDayStart, +1, +2
 
 	cases := map[string][2]int{
 		"start side": {19, 34},
