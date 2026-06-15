@@ -124,6 +124,10 @@ templ NavStyles() {
 				:scope.open {
 					transform: translateX(0);
 				}
+				.nav-logo {
+					align-self: flex-start;
+					margin-left: 1rem;
+				}
 
 				.navlink {
 					flex-direction: row;
@@ -152,7 +156,7 @@ templ SideNav() {
 	</button>
 	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
-		<div title="unbusy.day">
+		<div title="unbusy.day" class="nav-logo">
 			@UBLogo("51", "22", 0.35)
 		</div>
 		<!-- <a class="navlink active" href="/"><span class="navicon">@IconBlocks()</span><span>Blocks</span></a> -->
