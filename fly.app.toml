@@ -14,6 +14,9 @@ primary_region = "sjc"
   dockerfile = "Dockerfile"
 
 [env]
+  # Behind Fly's HTTPS-terminating proxy (force_https below), so session cookies
+  # get the Secure attribute (ADR 0002). Host-agnostic flag, not a Fly signal.
+  SECURE_COOKIES = "1"
   # SQLite file on the mounted volume, with the same pragmas as local dev (WAL,
   # busy_timeout, foreign_keys, immediate write-txn locking).
   # flyctl warns that DATABASE_URL "may be sensitive" — false positive: it

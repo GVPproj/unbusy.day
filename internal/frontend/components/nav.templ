@@ -152,7 +152,7 @@ templ SideNav() {
 		<div title="unbusy.day">
 			@UBLogo("51", "22")
 		</div>
-		<a class="navlink active" href="/"><span>▦</span><span>Blocks</span></a>
+		<!-- <a class="navlink active" href="/"><span>▦</span><span>Blocks</span></a> -->
 		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span>◷</span><span>Hours</span></button>
 		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span>◐</span><span>Theme</span></button>
 		<button class="navlink" data-on:click="@post('/logout')"><span>⏻</span><span>Log out</span></button>

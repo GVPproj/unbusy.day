@@ -51,8 +51,10 @@ func main() {
 	broker := pubsub.New()
 	svc := block.NewService(db, broker)
 	authSvc := auth.NewService(db, auth.LogMailer{})
-	// Secure cookies in production only (ADR 0002) — Fly sets FLY_APP_NAME.
-	secureCookies := os.Getenv("FLY_APP_NAME") != ""
+	// Secure cookies in production (ADR 0002). Set SECURE_COOKIES=1 wherever the
+	// app sits behind HTTPS (Fly does so via fly.app.toml); host-agnostic so
+	// self-hosters get the same protection without a Fly-specific signal.
+	secureCookies := os.Getenv("SECURE_COOKIES") == "1"
 
 	mux := http.NewServeMux()
 
