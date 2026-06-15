@@ -19,9 +19,11 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 		lang="en"
 		data-signals:_colorscheme="localStorage.getItem('colorscheme') || 'solarized-light'"
 		data-signals:_iconset="localStorage.getItem('iconset') || 'solar'"
+		data-signals:_font="localStorage.getItem('font') || 'zen-maru'"
 		data-attr:data-colorscheme="$_colorscheme"
 		data-attr:data-iconset="$_iconset"
-		data-effect="localStorage.setItem('colorscheme', $_colorscheme); localStorage.setItem('iconset', $_iconset)"
+		data-attr:data-font="$_font"
+		data-effect="localStorage.setItem('colorscheme', $_colorscheme); localStorage.setItem('iconset', $_iconset); localStorage.setItem('font', $_font)"
 	>
 		<head>
 			<meta charset="utf-8"/>
@@ -35,6 +37,7 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 					var d = document.documentElement;
 					d.setAttribute("data-colorscheme", localStorage.getItem("colorscheme") || "solarized-light");
 					d.setAttribute("data-iconset", localStorage.getItem("iconset") || "solar");
+					d.setAttribute("data-font", localStorage.getItem("font") || "zen-maru");
 				})();
 			</script>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
@@ -81,6 +84,51 @@ templ baseStyles() {
 			font-weight: 700;
 			font-display: swap;
 			src: url(/static/fonts/zen-maru-gothic-700-latin.woff2) format("woff2");
+		}
+
+		/* Terminess — Terminus (TTF) latin subset (SIL OFL), self-hosted.
+		   Bitmap-derived monospace; only 400/700 ship, 500 falls back to 400. */
+		@font-face {
+			font-family: "Terminess";
+			font-style: normal;
+			font-weight: 400;
+			font-display: swap;
+			src: url(/static/fonts/terminess-400-latin.woff2) format("woff2");
+		}
+		@font-face {
+			font-family: "Terminess";
+			font-style: normal;
+			font-weight: 700;
+			font-display: swap;
+			src: url(/static/fonts/terminess-700-latin.woff2) format("woff2");
+		}
+
+		/* Pixelify Sans — soft, readable pixel font (SIL OFL), self-hosted
+		   latin subset (400/700). */
+		@font-face {
+			font-family: "Pixelify Sans";
+			font-style: normal;
+			font-weight: 400;
+			font-display: swap;
+			src: url(/static/fonts/pixelify-sans-400-latin.woff2) format("woff2");
+		}
+		@font-face {
+			font-family: "Pixelify Sans";
+			font-style: normal;
+			font-weight: 700;
+			font-display: swap;
+			src: url(/static/fonts/pixelify-sans-700-latin.woff2) format("woff2");
+		}
+
+		/* Font tokens — overridden per data-font, driven by $_font. */
+		:root, :root[data-font="zen-maru"] {
+			--font-family: "Zen Maru Gothic", system-ui, sans-serif;
+		}
+		:root[data-font="terminess"] {
+			--font-family: "Terminess", ui-monospace, monospace;
+		}
+		:root[data-font="pixelify"] {
+			--font-family: "Pixelify Sans", system-ui, sans-serif;
 		}
 
 		/* Solarized Light (default) */
@@ -150,7 +198,7 @@ templ baseStyles() {
 
 		body {
 			margin: 0;
-			font-family: "Zen Maru Gothic", system-ui, sans-serif;
+			font-family: var(--font-family);
 			background: var(--bg);
 			color: var(--ink);
 		}

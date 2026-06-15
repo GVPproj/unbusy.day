@@ -119,6 +119,18 @@ templ iconOption(id string, label string, pixel bool, preview templ.Component) {
 	</button>
 }
 
+// fontOption is one row in the font picker; the label renders in its own font
+// so the preview is the option itself. Writes $_font, mirrored to data-font.
+templ fontOption(id string, label string, family string) {
+	<button
+		data-class:active={ "$_font === '" + id + "'" }
+		data-on:click={ "$_font = '" + id + "'" }
+		style={ "font-family: " + family }
+	>
+		{ label }
+	</button>
+}
+
 // ThemeModal is a native <dialog>, opened declaratively by any
 // command/commandfor button targeting #theme-modal — no open/close signal.
 // closedby="any" adds light dismiss (click outside) where supported; Esc
@@ -135,6 +147,10 @@ templ ThemeModal() {
 		<h3>Icons</h3>
 		@iconOption("solar", "Solar (bold)", false, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2 6.5c0-2.121 0-3.182.659-3.841S4.379 2 6.5 2s3.182 0 3.841.659S11 4.379 11 6.5s0 3.182-.659 3.841S8.621 11 6.5 11s-3.182 0-3.841-.659S2 8.621 2 6.5m11 11c0-2.121 0-3.182.659-3.841S15.379 13 17.5 13s3.182 0 3.841.659S22 15.379 22 17.5s0 3.182-.659 3.841S19.621 22 17.5 22s-3.182 0-3.841-.659S13 19.621 13 17.5"/><path fill="currentColor" d="M2 17.5c0-2.121 0-3.182.659-3.841S4.379 13 6.5 13s3.182 0 3.841.659S11 15.379 11 17.5s0 3.182-.659 3.841S8.621 22 6.5 22s-3.182 0-3.841-.659S2 19.621 2 17.5m11-11c0-2.121 0-3.182.659-3.841S15.379 2 17.5 2s3.182 0 3.841.659S22 4.379 22 6.5s0 3.182-.659 3.841S19.621 11 17.5 11s-3.182 0-3.841-.659S13 8.621 13 6.5"/></svg>`))
 		@iconOption("pixel", "Pixel (8-bit)", true, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2 2h20v20H2zm2 2v4h4V4zm6 0v4h4V4zm6 0v4h4V4zm4 6h-4v4h4zm0 6h-4v4h4zm-6 4v-4h-4v4zm-6 0v-4H4v4zm-4-6h4v-4H4zm6-4v4h4v-4z"/></svg>`))
+		<h3>Font</h3>
+		@fontOption("zen-maru", "Zen Maru Gothic", "'Zen Maru Gothic', system-ui, sans-serif")
+		@fontOption("terminess", "Terminess", "'Terminess', ui-monospace, monospace")
+		@fontOption("pixelify", "Pixelify Sans", "'Pixelify Sans', system-ui, sans-serif")
 		<button commandfor="theme-modal" command="close">Done</button>
 	</dialog>
 }
