@@ -138,9 +138,9 @@ templ ThemeModal() {
 	<dialog id="theme-modal" class="app-dialog theme-modal" closedby="any">
 		<h2>Theme</h2>
 		<h3>Colours</h3>
-		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
-		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
-		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
+		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)")
+		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, hsl(192, 100%, 5%) 50%, hsl(192, 100%, 10%) 50%)")
+		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)")
 		<h3>Feeling</h3>
 		@feelingOption("bubble", "Bubble", "Zen Maru Gothic, system-ui, sans-serif", false, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`))
 		@feelingOption("computer", "Computer", "Terminess, ui-monospace, monospace", false, templ.Raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0"/><path d="M12 7v5l3 3"/></svg>`))
