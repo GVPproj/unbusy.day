@@ -28,10 +28,24 @@ type fakeService struct {
 	listErr   error
 	layoutErr error
 	boundsErr error
+	createErr error
 
 	gotOwner  string            // owner passed to the last mutation, for asserting scoping
 	gotLayout []block.Placement // layout passed to SetLayout
 	gotBounds block.Bounds      // bounds passed to SetBounds
+	gotLabel  string            // label passed to Create
+	gotSlot   int               // slot passed to Create
+}
+
+func (f *fakeService) Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error) {
+	f.gotOwner, f.gotLabel, f.gotSlot = owner, label, slot
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
+	c := block.Block{ID: "new", Label: label, Position: slot, Span: 1}
+	f.blocks = append(f.blocks, c)
+	sort.Slice(f.blocks, func(i, j int) bool { return f.blocks[i].Position < f.blocks[j].Position })
+	return &block.CreateResult{Blocks: f.blocks}, nil
 }
 
 func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end int) error {
@@ -429,6 +443,56 @@ func TestBoundsRejectionPatchesCurrentExtent(t *testing.T) {
 				if !strings.Contains(body, want) {
 					t.Errorf("patch missing %q; body:\n%s", want, body)
 				}
+			}
+			assertOrder(t, body, "a", "b", "c")
+		})
+	}
+}
+
+// CreateHandler delegates to the core with the modal's slot and label, then
+// patches the committed column carrying the new block.
+func TestCreateDelegatesToCoreAndPatchesColumn(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+
+	req := authedRequest(http.MethodPost, "/blocks", `{"addslot":30,"addlabel":"Deep Work"}`)
+	rec := httptest.NewRecorder()
+	CreateHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner {
+		t.Errorf("core Create called with owner %q, want %q", svc.gotOwner, testOwner)
+	}
+	if svc.gotLabel != "Deep Work" || svc.gotSlot != 30 {
+		t.Errorf("core Create called with {%q,%d}, want {Deep Work,30}", svc.gotLabel, svc.gotSlot)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="block-list"`) {
+		t.Errorf("patch missing #block-list morph anchor; body:\n%s", body)
+	}
+	if !strings.Contains(body, "Deep Work") {
+		t.Errorf("patch missing the new block label; body:\n%s", body)
+	}
+}
+
+// A rejected create (empty label, occupied or out-of-bounds slot) responds 200
+// with the current column re-rendered — the optimistic intent yields to truth.
+func TestCreateRejectionPatchesCurrentColumn(t *testing.T) {
+	for _, domainErr := range []error{block.ErrEmptyLabel, block.ErrOverlap, block.ErrOutOfBounds} {
+		t.Run(domainErr.Error(), func(t *testing.T) {
+			svc := &fakeService{blocks: threeBlocks(), createErr: domainErr}
+
+			req := authedRequest(http.MethodPost, "/blocks", `{"addslot":18,"addlabel":"X"}`)
+			rec := httptest.NewRecorder()
+			CreateHandler(svc).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+			}
+			body := rec.Body.String()
+			if !strings.Contains(body, `id="block-list"`) {
+				t.Errorf("patch missing #block-list morph anchor; body:\n%s", body)
 			}
 			assertOrder(t, body, "a", "b", "c")
 		})

@@ -30,6 +30,7 @@ type BlockService interface {
 	Bounds(ctx context.Context, owner string) (block.Bounds, error)
 	SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.LayoutResult, error)
 	SetBounds(ctx context.Context, owner string, start, end int) error
+	Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error)
 }
 
 // snapshot reads the owner's authoritative column and day bounds — the pair
@@ -155,6 +156,49 @@ func BoundsHandler(svc BlockService) http.Handler {
 		bs, b, err := snapshot(r.Context(), svc, owner)
 		if err != nil {
 			log.Printf("ds bounds snapshot: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		patchColumn(w, r, bs, b)
+	})
+}
+
+// createSignals is the Datastar signals body the new-block modal @posts:
+// the target slot and the typed label.
+type createSignals struct {
+	Slot  int    `json:"addslot"`
+	Label string `json:"addlabel"`
+}
+
+// CreateHandler inserts a new block at the modal's slot and responds with an
+// element-patch of the committed column. A domain rejection (empty label,
+// occupied or out-of-bounds slot) re-renders the authoritative column at 200,
+// so the modal's optimistic intent simply yields to the truth (house
+// convention).
+func CreateHandler(svc BlockService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig createSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+
+		owner := ownerFrom(r.Context())
+		_, err := svc.Create(r.Context(), owner, sig.Label, sig.Slot)
+		switch {
+		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrOutOfBounds),
+			errors.Is(err, block.ErrOverlap):
+			// Rejection at 200: the snapshot below re-renders the current column.
+			log.Printf("200 rejection create: %v", err)
+		case err != nil:
+			log.Printf("ds create: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		bs, b, err := snapshot(r.Context(), svc, owner)
+		if err != nil {
+			log.Printf("ds create snapshot: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

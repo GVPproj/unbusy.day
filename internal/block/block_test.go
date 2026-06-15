@@ -456,6 +456,84 @@ func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
 	}
 }
 
+// Create inserts a span-1 block at a free slot, returns it in the committed
+// column ordered by slot, and fans out one event carrying the new column.
+func TestCreate_InsertsBlockAndPublishes(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc) // starter blocks at DefaultDayStart, +1, +2
+
+	// Slot 30 is free (after the three starter blocks).
+	res, err := svc.Create(ctx, owner, "  Deep Work  ", 30)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if len(res.Blocks) != 4 {
+		t.Fatalf("want 4 blocks after create, got %d", len(res.Blocks))
+	}
+	last := res.Blocks[len(res.Blocks)-1]
+	if last.Label != "Deep Work" { // label is trimmed
+		t.Fatalf("created label = %q, want %q", last.Label, "Deep Work")
+	}
+	if last.Position != 30 || last.Span != 1 {
+		t.Fatalf("created block = {%d,%d}, want {30,1}", last.Position, last.Span)
+	}
+
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if len(after) != 4 {
+		t.Fatalf("want 4 persisted blocks, got %d", len(after))
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+	if e := pub.events[0]; e.Owner != owner || len(e.Blocks) != 4 {
+		t.Fatalf("published event = {owner %q, %d blocks}, want {%q, 4}", e.Owner, len(e.Blocks), owner)
+	}
+}
+
+// Create rejects an empty (or whitespace-only) label, an out-of-bounds slot,
+// and a slot already covered by a block — each persists nothing and fans out
+// nothing.
+func TestCreate_Rejections(t *testing.T) {
+	cases := map[string]struct {
+		label string
+		slot  int
+		want  error
+	}{
+		"empty label":   {"   ", 30, block.ErrEmptyLabel},
+		"out of bounds": {"X", block.DefaultDayEnd, block.ErrOutOfBounds},
+		"slot occupied": {"X", block.DefaultDayStart, block.ErrOverlap},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			db := newDB(t)
+			pub := &capturePub{}
+			svc := block.NewService(db, pub)
+			ctx := context.Background()
+			owner := newOwner(t, db, svc)
+
+			if _, err := svc.Create(ctx, owner, tc.label, tc.slot); !errors.Is(err, tc.want) {
+				t.Fatalf("want %v, got %v", tc.want, err)
+			}
+			after, err := svc.List(ctx, owner)
+			if err != nil {
+				t.Fatalf("list after: %v", err)
+			}
+			if len(after) != 3 {
+				t.Fatalf("rejected create must persist nothing: got %d blocks", len(after))
+			}
+			if len(pub.events) != 0 {
+				t.Fatalf("rejected create must not fan out: got %d events", len(pub.events))
+			}
+		})
+	}
+}
+
 // capturePub records every published Event so a test can assert fan-out.
 type capturePub struct{ events []block.Event }
 

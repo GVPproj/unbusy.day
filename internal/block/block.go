@@ -39,6 +39,9 @@ type Publisher interface {
 // ErrInvalidSpan signals a span below the one-slot floor.
 var ErrInvalidSpan = errors.New("span must be at least 1")
 
+// ErrEmptyLabel signals a create with a blank label.
+var ErrEmptyLabel = errors.New("block label is required")
+
 type Service struct {
 	db  *sql.DB
 	pub Publisher
@@ -84,6 +87,66 @@ func (s *Service) Seed(ctx context.Context, owner string) error {
 // LayoutResult is the post-mutation column returned to the caller.
 type LayoutResult struct {
 	Blocks []Block `json:"blocks"`
+}
+
+// CreateResult is the post-create column returned to the caller.
+type CreateResult struct {
+	Blocks []Block `json:"blocks"`
+}
+
+// Create inserts a new span-1 block labeled at slot for owner. It rejects a
+// blank label, a slot outside the day's bounds, or a slot already covered by a
+// block — same write-transaction and post-commit fan-out shape as SetLayout.
+func (s *Service) Create(ctx context.Context, owner, label string, slot int) (*CreateResult, error) {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return nil, ErrEmptyLabel
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	bounds, err := queryBounds(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if slot < bounds.Start || slot >= bounds.End {
+		return nil, ErrOutOfBounds
+	}
+	current, err := queryBlocks(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if OccupiedSlots(current)[slot] {
+		return nil, ErrOverlap
+	}
+
+	id, err := newID()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO block (id, label, position, span, owner_id) VALUES (?, ?, ?, 1, ?)`,
+		id, label, slot, owner); err != nil {
+		return nil, err
+	}
+
+	bs, err := queryBlocks(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted insert.
+	if s.pub != nil {
+		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
+	}
+	return &CreateResult{Blocks: bs}, nil
 }
 
 // SetLayout replaces the owner's whole layout in one mutation (ADR 0005): the

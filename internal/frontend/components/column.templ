@@ -207,7 +207,14 @@ templ slot(s, dayStart int, occupied bool) {
 	<li class="slot" data-slot={ strconv.Itoa(s) } style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }>
 		<span class="gutter" aria-hidden="true">{ timeLabel(s) }</span>
 		if !occupied {
-			<button type="button" class="slot-add" aria-label={ "Add block at " + timeLabel(s) }>
+			<button
+				type="button"
+				class="slot-add"
+				commandfor="create-modal"
+				command="show-modal"
+				data-on:click={ "$addslot = " + strconv.Itoa(s) }
+				aria-label={ "Add block at " + timeLabel(s) }
+			>
 				@IconPlus()
 			</button>
 		}
