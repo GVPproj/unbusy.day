@@ -13,11 +13,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN templ generate
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/hello-cards ./cmd/unbusy
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/unbusy ./cmd/unbusy
 
 # --- Runtime: scratch (no shell, no libc) ---
 FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /out/hello-cards /hello-cards
+COPY --from=build /out/unbusy /unbusy
 EXPOSE 8080
-ENTRYPOINT ["/hello-cards"]
+ENTRYPOINT ["/unbusy"]

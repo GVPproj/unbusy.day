@@ -46,7 +46,7 @@ tasks:
     desc: "Build the Go binary"
     deps: [templ]
     cmds:
-      - go build -o tmp/hello-cards ./cmd/unbusy
+      - go build -o tmp/unbusy ./cmd/unbusy
 
   test:
     desc: "Run Go tests and JS unit tests"

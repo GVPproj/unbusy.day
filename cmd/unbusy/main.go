@@ -23,9 +23,8 @@ func main() {
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
 	}
-	// `hello-cards migrate` applies embedded migrations and exits. Kept for
-	// manual/ops use; the app also migrates on boot (below) since the SQLite
-	// file lives on the volume the app machine mounts.
+
+	// `unbusy migrate` applies migrations and exits — an ops escape hatch.
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		if err := migrate.Run(ctx, dbURL); err != nil {
 			log.Fatalf("migrate: %v", err)
@@ -34,8 +33,8 @@ func main() {
 		return
 	}
 
-	// Migrate on boot: the SQLite file is colocated on the volume this machine
-	// mounts, so schema lands against the real database before serving.
+	// Migrate on boot: this machine mounts the volume holding the SQLite file,
+	// so schema lands against the real database before serving.
 	if err := migrate.Run(ctx, dbURL); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
@@ -97,7 +96,7 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	log.Printf("hello-cards listening on :%s", port)
+	log.Printf("unbusy listening on :%s", port)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
