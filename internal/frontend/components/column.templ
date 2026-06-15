@@ -126,6 +126,47 @@ templ ColumnStyles() {
 				color: var(--gutter-ink);
 				user-select: none;
 			}
+
+			/* Empty-slot "add" affordance: the lane half of each empty slot is a
+			   focusable button. On hover/focus it paints a block-shaped dashed
+			   outline with a centered + (the "ghost block" look) — a placeholder
+			   of what dropping here would create. */
+			.slot-add {
+				flex: 1;
+				align-self: stretch;
+				appearance: none;
+				background: transparent;
+				border: 1px dashed transparent;
+				border-radius: var(--radius);
+				margin: 2px 0;
+				padding: 0;
+				cursor: pointer;
+				display: grid;
+				place-items: center;
+
+				.icon {
+					width: 18px;
+					height: 18px;
+					color: var(--accent);
+					opacity: 0;
+					transition: opacity 120ms;
+				}
+
+				&:hover,
+				&:focus-visible {
+					border-color: var(--accent);
+					background: color-mix(in srgb, var(--accent) 8%, transparent);
+				}
+
+				&:hover .icon,
+				&:focus-visible .icon {
+					opacity: 1;
+				}
+
+				&:focus-visible {
+					outline: none;
+				}
+			}
 		}
 	</style>
 }
@@ -163,6 +204,9 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 templ slot(s, dayStart int) {
 	<li class="slot" data-slot={ strconv.Itoa(s) } style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }>
 		<span class="gutter" aria-hidden="true">{ timeLabel(s) }</span>
+		<button type="button" class="slot-add" aria-label={ "Add block at " + timeLabel(s) }>
+			@IconPlus()
+		</button>
 	</li>
 }
 
