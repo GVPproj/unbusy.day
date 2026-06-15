@@ -163,7 +163,7 @@ func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) e
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	bs, err := queryBlocks(ctx, tx, owner)
 	if err != nil {
@@ -227,7 +227,7 @@ func newID() (string, error) {
 }
 
 func scanBlocks(rows *sql.Rows) ([]Block, error) {
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Block
 	for rows.Next() {
 		var c Block

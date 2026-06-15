@@ -145,6 +145,7 @@ func BoundsHandler(svc BlockService) http.Handler {
 		case errors.Is(err, block.ErrInvalidBounds), errors.Is(err, block.ErrBoundsOccupied):
 			// Rejection at 200: the snapshot below re-renders the current
 			// extent, so the plan is re-shown unchanged (house convention).
+			log.Printf("200 rejection bounds: %v", err)
 		case err != nil:
 			log.Printf("ds bounds: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
