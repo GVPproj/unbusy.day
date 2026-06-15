@@ -45,6 +45,35 @@ templ ThemeStyles() {
 				border: 1px solid var(--rail-border);
 			}
 
+			/* Icon-set option preview: square, no swatch ring; shows the set's
+			   own glyph at a legible size in --nav-icon. Overrides the round
+			   swatch span above. */
+			.icon-preview {
+				width: auto;
+				height: auto;
+				border: none;
+				border-radius: 0;
+				line-height: 0;
+				color: var(--nav-icon);
+			}
+
+			.icon-preview svg {
+				width: 22px;
+				height: 22px;
+				display: block;
+			}
+
+			.icon-preview.pixel svg {
+				image-rendering: pixelated;
+			}
+
+			h3 {
+				margin: 0.75rem 0 0.5rem;
+				font-size: 0.8rem;
+				font-weight: 700;
+				color: var(--ink-muted);
+			}
+
 			/* Done — last button; overrides the option styling above. */
 			button:last-child {
 				display: block;
@@ -63,10 +92,29 @@ templ ThemeStyles() {
 // themeOption is one row in the picker; swatch shows the theme's bg/column split.
 templ themeOption(id string, label string, swatch string) {
 	<button
-		data-class:active={ "$_theme === '" + id + "'" }
-		data-on:click={ "$_theme = '" + id + "'" }
+		data-class:active={ "$_colorscheme === '" + id + "'" }
+		data-on:click={ "$_colorscheme = '" + id + "'" }
 	>
 		<span style={ "background: " + swatch }></span>
+		{ label }
+	</button>
+}
+
+// iconOption is one row in the icon-set picker; preview is the set's own glyph
+// (always shown, not subject to the live data-iconset toggle). pixel adds the
+// pixelated rendering hint for the 8-bit set.
+templ iconOption(id string, label string, pixel bool, preview templ.Component) {
+	<button
+		data-class:active={ "$_iconset === '" + id + "'" }
+		data-on:click={ "$_iconset = '" + id + "'" }
+	>
+		if pixel {
+			<span class="icon-preview pixel">@preview
+</span>
+		} else {
+			<span class="icon-preview">@preview
+</span>
+		}
 		{ label }
 	</button>
 }
@@ -74,14 +122,19 @@ templ themeOption(id string, label string, swatch string) {
 // ThemeModal is a native <dialog>, opened declaratively by any
 // command/commandfor button targeting #theme-modal — no open/close signal.
 // closedby="any" adds light dismiss (click outside) where supported; Esc
-// always works. Picking a theme writes $_theme, which the layout body mirrors
-// into data-theme (and localStorage), so the swap is live without closing.
+// always works. The two sections write $_colorscheme and $_iconset, which the
+// layout body mirrors into data-colorscheme/data-iconset (and localStorage), so
+// both swaps are live without closing.
 templ ThemeModal() {
 	<dialog id="theme-modal" class="app-dialog theme-modal" closedby="any">
 		<h2>Theme</h2>
+		<h3>Colorscheme</h3>
 		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
 		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
 		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
+		<h3>Icons</h3>
+		@iconOption("solar", "Solar (bold)", false, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2 6.5c0-2.121 0-3.182.659-3.841S4.379 2 6.5 2s3.182 0 3.841.659S11 4.379 11 6.5s0 3.182-.659 3.841S8.621 11 6.5 11s-3.182 0-3.841-.659S2 8.621 2 6.5m11 11c0-2.121 0-3.182.659-3.841S15.379 13 17.5 13s3.182 0 3.841.659S22 15.379 22 17.5s0 3.182-.659 3.841S19.621 22 17.5 22s-3.182 0-3.841-.659S13 19.621 13 17.5"/><path fill="currentColor" d="M2 17.5c0-2.121 0-3.182.659-3.841S4.379 13 6.5 13s3.182 0 3.841.659S11 15.379 11 17.5s0 3.182-.659 3.841S8.621 22 6.5 22s-3.182 0-3.841-.659S2 19.621 2 17.5m11-11c0-2.121 0-3.182.659-3.841S15.379 2 17.5 2s3.182 0 3.841.659S22 4.379 22 6.5s0 3.182-.659 3.841S19.621 11 17.5 11s-3.182 0-3.841-.659S13 8.621 13 6.5"/></svg>`))
+		@iconOption("pixel", "Pixel (8-bit)", true, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2 2h20v20H2zm2 2v4h4V4zm6 0v4h4V4zm6 0v4h4V4zm4 6h-4v4h4zm0 6h-4v4h4zm-6 4v-4h-4v4zm-6 0v-4H4v4zm-4-6h4v-4H4zm6-4v4h4v-4z"/></svg>`))
 		<button commandfor="theme-modal" command="close">Done</button>
 	</dialog>
 }

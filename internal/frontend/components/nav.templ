@@ -95,9 +95,8 @@ templ NavStyles() {
 				cursor: pointer;
 				font-weight: 700;
 
-				& span:first-child {
-					font-size: 1.4rem;
-					line-height: 1;
+				& .navicon {
+					line-height: 0;
 					color: var(--nav-icon);
 				}
 
@@ -146,15 +145,15 @@ templ SideNav() {
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		aria-label="Toggle menu"
-	>☰</button>
+	><span class="navicon">@IconMenu()</span></button>
 	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div title="unbusy.day">
 			@UBLogo("51", "22")
 		</div>
-		<!-- <a class="navlink active" href="/"><span>▦</span><span>Blocks</span></a> -->
-		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span>◷</span><span>Hours</span></button>
-		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span>◐</span><span>Theme</span></button>
-		<button class="navlink" data-on:click="@post('/logout')"><span>⏻</span><span>Log out</span></button>
+		<!-- <a class="navlink active" href="/"><span class="navicon">@IconBlocks()</span><span>Blocks</span></a> -->
+		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false"><span class="navicon">@IconHours()</span><span>Hours</span></button>
+		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false"><span class="navicon">@IconTheme()</span><span>Theme</span></button>
+		<button class="navlink" data-on:click="@post('/logout')"><span class="navicon">@IconLogout()</span><span>Log out</span></button>
 	</nav>
 }

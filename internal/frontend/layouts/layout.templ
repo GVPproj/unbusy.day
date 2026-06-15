@@ -28,9 +28,11 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 			}
 		</head>
 		<body
-			data-signals:_theme="localStorage.getItem('theme') || 'solarized-light'"
-			data-attr:data-theme="$_theme"
-			data-effect="localStorage.setItem('theme', $_theme)"
+			data-signals:_colorscheme="localStorage.getItem('colorscheme') || 'solarized-light'"
+			data-signals:_iconset="localStorage.getItem('iconset') || 'solar'"
+			data-attr:data-colorscheme="$_colorscheme"
+			data-attr:data-iconset="$_iconset"
+			data-effect="localStorage.setItem('colorscheme', $_colorscheme); localStorage.setItem('iconset', $_iconset)"
 			if streamInit != "" {
 				data-init={ streamInit }
 			}
@@ -43,7 +45,7 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 // baseStyles owns the design tokens (:root custom properties, available to
 // every style block below), the reset, and the shared body shell. Page-specific
 // classes live in their owning component's *Styles block, not here. Themes
-// override the color tokens via body[data-theme], driven by the $_theme signal
+// override the color tokens via body[data-colorscheme], driven by $_colorscheme
 // — swapping the attribute hot-swaps every color.
 templ baseStyles() {
 	<style>
@@ -71,7 +73,7 @@ templ baseStyles() {
 		}
 
 		/* Solarized Light (default) */
-		:root, body[data-theme="solarized-light"] {
+		:root, body[data-colorscheme="solarized-light"] {
 			--bg: #fdf6e3;
 			--ink: #46595f;
 			--ink-muted: #93a1a1;
@@ -94,7 +96,7 @@ templ baseStyles() {
 		}
 
 		/* Solarized Dark Osaka (craftzdog's solarized-osaka.nvim palette) */
-		body[data-theme="solarized-osaka"] {
+		body[data-colorscheme="solarized-osaka"] {
 			--bg: #001419;
 			--ink: #b5c2c3;
 			--ink-muted: #576d74;
@@ -113,7 +115,7 @@ templ baseStyles() {
 		}
 
 		/* Catppuccin Mocha */
-		body[data-theme="catppuccin-mocha"] {
+		body[data-colorscheme="catppuccin-mocha"] {
 			--bg: #1e1e2e;
 			--ink: #dce2f7;
 			--ink-muted: #a6adc8;
