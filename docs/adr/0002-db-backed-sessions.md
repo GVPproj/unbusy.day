@@ -1,9 +1,9 @@
-# Server-side sessions in Postgres, not stateless cookies
+# Server-side sessions in the database, not stateless cookies
 
 A login is represented by a row in a `session` table keyed by an opaque,
 high-entropy `crypto/rand` token carried in an HttpOnly cookie. We did **not**
 use a stateless signed/encrypted cookie (JWT-style) that carries identity on the
-client. Postgres is already the source of truth and we run a single always-on
+client. The database is already the source of truth and we run a single always-on
 machine, so the usual reasons to go stateless (many instances, no shared store)
 don't apply — and we need real revocation.
 

@@ -16,6 +16,9 @@ primary_region = "sjc"
 [env]
   # SQLite file on the mounted volume, with the same pragmas as local dev (WAL,
   # busy_timeout, foreign_keys, immediate write-txn locking).
+  # flyctl warns that DATABASE_URL "may be sensitive" — false positive: it
+  # matches the name, not the value. This is a credential-free local file path,
+  # not a network DSN, so it stays in [env] (self-documenting) rather than a secret.
   DATABASE_URL = "file:/data/unbusy.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate"
 
 # The volume holding the SQLite file. Create once in the app's region with:

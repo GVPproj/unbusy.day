@@ -6,7 +6,8 @@ idempotent forever" to run-once version tracking with
 `migrations/*.sql` file applies exactly once per database and is recorded in
 `goose_db_version`; new migrations are plain DDL with no `IF NOT EXISTS` /
 `DO $$ EXCEPTION` scaffolding. Forward-only: no Down sections, ever — mistakes
-are fixed by new forward migrations, broken local schemas by `task nuke`.
+are fixed by new forward migrations, broken local schemas by `task nuke`
+(deletes the `tmp/` `.db` file and its WAL sidecars; re-migrates on next run).
 
 ## Context
 
@@ -35,8 +36,8 @@ blocking all deployment.
 - The deploy interface is unchanged: Fly's release command still runs the
   binary's `migrate` subcommand; `task migrate` now invokes it too
   (`go run . migrate`), dropping the local psql dependency.
-- goose bridges to `database/sql` via pgx's stdlib adapter for the migration
-  run only; the app's `pgxpool` usage is untouched.
+- goose runs as a library against `database/sql` over the `modernc.org/sqlite`
+  driver (`DialectSQLite3`); the app's own DB access is untouched.
 - New migrations: plain DDL, timestamp-versioned filenames
   (`goose create x sql`-style) so concurrent branches can't collide; 0001–0004
   keep their names so history, ADRs, and incident notes still point at real

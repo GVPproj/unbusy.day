@@ -16,7 +16,7 @@ Day-to-day uses [go-task](https://taskfile.dev) (`task`):
 - `task templ` — one-shot `templ generate`. **Never run this while `task dev` is up** — non-watch generation deletes the watch session's literal cache and the running server 500s on every render until restarted.
 - `task build` — `templ generate` + `go build -o tmp/hello-cards ./cmd/unbusy`.
 
-There is no database container to manage: the SQLite file lives under `tmp/` (git-ignored), is created and migrated on boot, and is reset by deleting it. `templ generate` must run before `go vet`/`go build`/`go test` on a clean checkout: `*_templ.go` is git-ignored and generated (regenerated in dev, in the Docker build, and in CI).
+There is no database container to manage: the SQLite file lives under `tmp/` (git-ignored), is created and migrated on boot, and is reset with `task nuke`. `templ generate` must run before `go vet`/`go build`/`go test` on a clean checkout: `*_templ.go` is git-ignored and generated (regenerated in dev, in the Docker build, and in CI).
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Migrations are plain `.sql` files in `internal/migrate/migrations/`, embedded vi
 
 - **New migrations are plain DDL** — no `IF NOT EXISTS` / `DO $$ EXCEPTION` idempotency scaffolding. Each file needs a `-- +goose Up` header; wrap multi-statement `DO $$ … $$` blocks in `-- +goose StatementBegin` / `-- +goose StatementEnd`.
 - **Timestamp-versioned filenames** for new migrations (e.g. via `goose create <name> sql`) so concurrent branches can't collide. The legacy `0001`–`0004` names stay as-is; their idempotent bodies are what lets goose baseline pre-goose databases automatically.
-- **Forward-only**: no Down sections, no rollback tooling. Fix mistakes with a new forward migration; reset a broken local schema by deleting the `tmp/` `.db` file and re-running. An applied file is history — editing it does nothing.
+- **Forward-only**: no Down sections, no rollback tooling. Fix mistakes with a new forward migration; reset a broken local schema with `task nuke` (deletes the `tmp/` `.db` file and WAL sidecars; re-migrates on next run). An applied file is history — editing it does nothing.
 - **Expand-then-deploy is preserved by discipline, not re-runnability**: keep DDL additive and keep the binary on explicit column lists (`SELECT id, label, position, span`), never `SELECT *`, so a migration can land before the code that reads a new column and never changes the wire shape by itself.
 
 ## Frontend gotchas (Datastar / templ)

@@ -58,3 +58,12 @@ tasks:
     desc: "Format Go code"
     cmds:
       - go fmt ./...
+
+  nuke:
+    desc: "Delete the local SQLite file (and WAL sidecars); next run re-migrates"
+    cmds:
+      # Strip the file: scheme and ?query from the DSN, then remove the db plus
+      # its -wal/-shm sidecars. App recreates and migrates on next boot.
+      - |
+        db="${DATABASE_URL#file:}"; db="${db%%\?*}"
+        rm -f "$db" "$db-wal" "$db-shm"
