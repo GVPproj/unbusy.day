@@ -1,3 +1,4 @@
+// Package migrate embeds the SQL migrations and applies them via goose.
 package migrate
 
 import (
@@ -17,7 +18,7 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// runMigrations applies pending migrations exactly once each via goose,
+// Run applies pending migrations exactly once each via goose,
 // recording versions in goose_db_version. Forward-only: no Down sections.
 func Run(ctx context.Context, dbURL string) error {
 	db, err := sql.Open("sqlite", dbURL)
