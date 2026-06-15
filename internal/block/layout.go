@@ -41,6 +41,22 @@ type Placement struct {
 	Span int    `json:"span"`
 }
 
+// OccupiedSlots returns the set of slot indices covered by any block, each
+// block claiming [Position, Position+span) with span floored at 1.
+func OccupiedSlots(cs []Block) map[int]bool {
+	occupied := make(map[int]bool)
+	for _, c := range cs {
+		span := c.Span
+		if span < 1 {
+			span = 1
+		}
+		for s := c.Position; s < c.Position+span; s++ {
+			occupied[s] = true
+		}
+	}
+	return occupied
+}
+
 // ValidateLayout checks a proposed full layout against the Day Plan invariants
 // (ADR 0005): same block set as current, every run within bounds, no overlaps.
 // Pure — no DB or transport dependencies.

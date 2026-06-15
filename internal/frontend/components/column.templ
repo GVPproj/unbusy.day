@@ -188,8 +188,9 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		data-signals:layout="[]"
 		data-on:layout="$layout = evt.detail.layout; @post('/blocks/layout')"
 	>
+		{{ occupied := block.OccupiedSlots(cs) }}
 		for s := b.Start; s < b.End; s++ {
-			@slot(s, b.Start)
+			@slot(s, b.Start, occupied[s])
 		}
 		for _, c := range cs {
 			@blockItem(c, b.Start)
@@ -200,13 +201,16 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 // slot is one 30-minute row of the day grid, carrying its clock-slot index
 // and time gutter label. The explicit grid-row keeps auto-placement from
 // skipping rows blocks occupy. Slots have no data-id, so they never enter the
-// layout wire payload.
-templ slot(s, dayStart int) {
+// layout wire payload. The "add" button renders only for free slots, so it
+// never sits in the tab order behind the block that covers this row.
+templ slot(s, dayStart int, occupied bool) {
 	<li class="slot" data-slot={ strconv.Itoa(s) } style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }>
 		<span class="gutter" aria-hidden="true">{ timeLabel(s) }</span>
-		<button type="button" class="slot-add" aria-label={ "Add block at " + timeLabel(s) }>
-			@IconPlus()
-		</button>
+		if !occupied {
+			<button type="button" class="slot-add" aria-label={ "Add block at " + timeLabel(s) }>
+				@IconPlus()
+			</button>
+		}
 	</li>
 }
 

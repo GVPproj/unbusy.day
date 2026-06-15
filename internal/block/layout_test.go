@@ -148,3 +148,58 @@ func TestValidateLayout_RejectsBlockSetMismatch(t *testing.T) {
 		})
 	}
 }
+
+// A span-1 block occupies exactly its position slot.
+func TestOccupiedSlots_SingleBlock(t *testing.T) {
+	got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: 1}})
+	want := map[int]bool{20: true}
+	if len(got) != len(want) || !got[20] {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+}
+
+// A multi-slot block occupies every slot in [Position, Position+Span).
+func TestOccupiedSlots_MultiSpanBlock(t *testing.T) {
+	got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: 3}})
+	for _, s := range []int{20, 21, 22} {
+		if !got[s] {
+			t.Fatalf("slot %d: want occupied, got %v", s, got)
+		}
+	}
+	if len(got) != 3 {
+		t.Fatalf("want 3 slots, got %v", got)
+	}
+}
+
+// A zero or negative span is floored to one occupied slot, matching spanOr1.
+func TestOccupiedSlots_FloorsSpanAtOne(t *testing.T) {
+	for _, span := range []int{0, -1} {
+		got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: span}})
+		if len(got) != 1 || !got[20] {
+			t.Fatalf("span %d: want {20}, got %v", span, got)
+		}
+	}
+}
+
+// Multiple blocks union their occupied slots; gaps between them stay free.
+func TestOccupiedSlots_UnionsBlocks(t *testing.T) {
+	got := block.OccupiedSlots([]block.Block{
+		{ID: "a", Position: 18, Span: 2}, // 18,19
+		{ID: "b", Position: 22, Span: 1}, // 22
+	})
+	for _, s := range []int{18, 19, 22} {
+		if !got[s] {
+			t.Fatalf("slot %d: want occupied, got %v", s, got)
+		}
+	}
+	if got[20] || got[21] || len(got) != 3 {
+		t.Fatalf("gap leaked: got %v", got)
+	}
+}
+
+// No blocks yields an empty set (every slot free).
+func TestOccupiedSlots_Empty(t *testing.T) {
+	if got := block.OccupiedSlots(nil); len(got) != 0 {
+		t.Fatalf("want empty, got %v", got)
+	}
+}
