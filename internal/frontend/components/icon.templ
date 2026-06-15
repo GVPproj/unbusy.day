@@ -1,11 +1,11 @@
 package components
 
-// Icon set is a second axis alongside the color theme: $_iconset (mirrored to
-// :root[data-iconset] + localStorage by the layout) selects "solar" (chunky bold
-// duotone), "tabler" (2px line) or "pixel" (8-bit
-// pixelarticons). All sets ship in the DOM; CSS in IconStyles shows one and hides
-// the rest, so the swap is live and needs no server round-trip. All draw with
-// currentColor, so --nav-icon themes them.
+// Icon set is paired with the font under one "feeling" axis alongside the color
+// theme: $_feeling (mirrored to :root[data-feeling] + localStorage by the layout)
+// selects "bubble" (solar — chunky bold duotone), "computer" (tabler — 2px line)
+// or "game" (pixel — 8-bit pixelarticons). All sets ship in the DOM; CSS in
+// IconStyles shows one and hides the rest, so the swap is live and needs no
+// server round-trip. All draw with currentColor, so --nav-icon themes them.
 //
 // All SVGs use a 24-unit viewBox and render at 24px (IconStyles) — the integer
 // size that maps the pixel grid 1:1 to device pixels so 8-bit edges stay crisp.
@@ -16,12 +16,12 @@ templ IconStyles() {
 	<style>
 		.icon { width: 24px; height: 24px; display: block; }
 		.icon-pixel { image-rendering: pixelated; }
-		/* Default (no/unknown data-iconset) shows solar; the rest are opt-in. */
+		/* Default (no/unknown data-feeling) shows solar; the rest are opt-in. */
 		.icon-pixel, .icon-tabler { display: none; }
-		:root[data-iconset="pixel"] .icon-solar { display: none; }
-		:root[data-iconset="pixel"] .icon-pixel { display: block; }
-		:root[data-iconset="tabler"] .icon-solar { display: none; }
-		:root[data-iconset="tabler"] .icon-tabler { display: block; }
+		:root[data-feeling="game"] .icon-solar { display: none; }
+		:root[data-feeling="game"] .icon-pixel { display: block; }
+		:root[data-feeling="computer"] .icon-solar { display: none; }
+		:root[data-feeling="computer"] .icon-tabler { display: block; }
 	</style>
 }
 

@@ -100,33 +100,30 @@ templ themeOption(id string, label string, swatch string) {
 	</button>
 }
 
-// iconOption is one row in the icon-set picker; preview is the set's own glyph
-// (always shown, not subject to the live data-iconset toggle). pixel adds the
-// pixelated rendering hint for the 8-bit set.
-templ iconOption(id string, label string, pixel bool, preview templ.Component) {
+// feelingOption is one row in the feeling picker. A feeling pairs an icon set
+// with a font: the preview shows the set's own glyph (always shown, not subject
+// to the live toggle) and renders the label in the feeling's font, so the row
+// previews both axes at once. Writes $_feeling, mirrored to data-feeling. pixel
+// adds the pixelated rendering hint for the 8-bit set.
+//
+// family must be UNQUOTED (CSS allows unquoted multi-word family names): templ
+// double-escapes quotes in a dynamic style attr (&#39; → &amp;#39;), which kills
+// the whole declaration so the preview falls back to the default font.
+templ feelingOption(id string, label string, family string, pixel bool, preview templ.Component) {
 	<button
-		data-class:active={ "$_iconset === '" + id + "'" }
-		data-on:click={ "$_iconset = '" + id + "'" }
-	>
-		if pixel {
-			<span class="icon-preview pixel">@preview
-</span>
-		} else {
-			<span class="icon-preview">@preview
-</span>
-		}
-		{ label }
-	</button>
-}
-
-// fontOption is one row in the font picker; the label renders in its own font
-// so the preview is the option itself. Writes $_font, mirrored to data-font.
-templ fontOption(id string, label string, family string) {
-	<button
-		data-class:active={ "$_font === '" + id + "'" }
-		data-on:click={ "$_font = '" + id + "'" }
+		data-class:active={ "$_feeling === '" + id + "'" }
+		data-on:click={ "$_feeling = '" + id + "'" }
 		style={ "font-family: " + family }
 	>
+		if pixel {
+			<span class="icon-preview pixel">
+				@preview
+			</span>
+		} else {
+			<span class="icon-preview">
+				@preview
+			</span>
+		}
 		{ label }
 	</button>
 }
@@ -134,24 +131,20 @@ templ fontOption(id string, label string, family string) {
 // ThemeModal is a native <dialog>, opened declaratively by any
 // command/commandfor button targeting #theme-modal — no open/close signal.
 // closedby="any" adds light dismiss (click outside) where supported; Esc
-// always works. The two sections write $_colorscheme and $_iconset, which the
-// layout <html> mirrors into data-colorscheme/data-iconset (and localStorage), so
+// always works. The two sections write $_colorscheme and $_feeling, which the
+// layout <html> mirrors into data-colorscheme/data-feeling (and localStorage), so
 // both swaps are live without closing.
 templ ThemeModal() {
 	<dialog id="theme-modal" class="app-dialog theme-modal" closedby="any">
 		<h2>Theme</h2>
-		<h3>Colorscheme</h3>
+		<h3>Colours</h3>
 		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, #fdf6e3 50%, #eee8d5 50%)")
 		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, #001419 50%, #002731 50%)")
 		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, #1e1e2e 50%, #313244 50%)")
-		<h3>Icons</h3>
-		@iconOption("solar", "Solar (bold)", false, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2 6.5c0-2.121 0-3.182.659-3.841S4.379 2 6.5 2s3.182 0 3.841.659S11 4.379 11 6.5s0 3.182-.659 3.841S8.621 11 6.5 11s-3.182 0-3.841-.659S2 8.621 2 6.5m11 11c0-2.121 0-3.182.659-3.841S15.379 13 17.5 13s3.182 0 3.841.659S22 15.379 22 17.5s0 3.182-.659 3.841S19.621 22 17.5 22s-3.182 0-3.841-.659S13 19.621 13 17.5"/><path fill="currentColor" d="M2 17.5c0-2.121 0-3.182.659-3.841S4.379 13 6.5 13s3.182 0 3.841.659S11 15.379 11 17.5s0 3.182-.659 3.841S8.621 22 6.5 22s-3.182 0-3.841-.659S2 19.621 2 17.5m11-11c0-2.121 0-3.182.659-3.841S15.379 2 17.5 2s3.182 0 3.841.659S22 4.379 22 6.5s0 3.182-.659 3.841S19.621 11 17.5 11s-3.182 0-3.841-.659S13 8.621 13 6.5"/></svg>`))
-		@iconOption("tabler", "Tabler (line)", false, templ.Raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>`))
-		@iconOption("pixel", "Pixel (8-bit)", true, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2 2h20v20H2zm2 2v4h4V4zm6 0v4h4V4zm6 0v4h4V4zm4 6h-4v4h4zm0 6h-4v4h4zm-6 4v-4h-4v4zm-6 0v-4H4v4zm-4-6h4v-4H4zm6-4v4h4v-4z"/></svg>`))
-		<h3>Font</h3>
-		@fontOption("zen-maru", "Zen Maru Gothic", "'Zen Maru Gothic', system-ui, sans-serif")
-		@fontOption("terminess", "Terminess", "'Terminess', ui-monospace, monospace")
-		@fontOption("pixelify", "Pixelify Sans", "'Pixelify Sans', system-ui, sans-serif")
+		<h3>Feeling</h3>
+		@feelingOption("bubble", "Bubble", "Zen Maru Gothic, system-ui, sans-serif", false, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`))
+		@feelingOption("computer", "Computer", "Terminess, ui-monospace, monospace", false, templ.Raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0"/><path d="M12 7v5l3 3"/></svg>`))
+		@feelingOption("game", "Game", "Pixelify Sans, system-ui, sans-serif", true, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`))
 		<button commandfor="theme-modal" command="close">Done</button>
 	</dialog>
 }
