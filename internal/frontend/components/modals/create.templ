@@ -1,19 +1,18 @@
 package modals
 
-// CreateStyles owns the new-block dialog's content: one text field and the
-// Cancel/Create action row. The dialog box, backdrop, h2, and open/close
-// animation come from the shared DialogStyles; tokens come from baseStyles.
+// CreateStyles owns the new-block dialog's content: the one text field. The
+// dialog box, backdrop, h2, footer action row, and open/close animation come
+// from the shared DialogStyles; tokens come from baseStyles.
 templ CreateStyles() {
 	<style>
-		/* Scoped to the .create-modal <dialog> leaf (ADR 0006): one `label`
-		   wrapping the name field, plus the trailing action `div` (Cancel first,
-		   Create last by source order). */
+		/* Scoped to the .create-modal <dialog> leaf (ADR 0006): just the one
+		   `label` wrapping the name field. The Cancel/Create footer is styled by
+		   the shared DialogStyles. */
 		@scope (.create-modal) {
 			label {
 				display: flex;
 				flex-direction: column;
 				gap: 0.4rem;
-				margin-bottom: var(--gap);
 				font-size: 0.9rem;
 
 				& input {
@@ -24,35 +23,6 @@ templ CreateStyles() {
 					color: inherit;
 					font: inherit;
 					font-size: 0.9rem;
-				}
-			}
-
-			div {
-				display: flex;
-				justify-content: flex-end;
-				gap: var(--gap);
-				margin-top: 0.25rem;
-
-				& button {
-					padding: 0.35rem 0.75rem;
-					border: none;
-					border-radius: var(--radius);
-					font: inherit;
-					font-size: 0.85rem;
-					cursor: pointer;
-				}
-
-				/* Cancel (first) and Create (last); :first/last-child out-specify
-				   the `& button` reset, so the cancel border needs no !important. */
-				& button:first-child {
-					background: none;
-					color: inherit;
-					border: 1px solid var(--rail-border);
-				}
-
-				& button:last-child {
-					background: var(--accent);
-					color: var(--bg);
 				}
 			}
 		}
@@ -84,13 +54,13 @@ templ CreateModal() {
 				data-bind:addlabel
 			/>
 		</label>
-		<div>
-			<button commandfor="create-modal" command="close">Cancel</button>
+		<footer>
+			<button class="secondary" commandfor="create-modal" command="close">Cancel</button>
 			<button
 				commandfor="create-modal"
 				command="close"
 				data-on:click="@post('/blocks'); $addlabel = ''"
 			>Create</button>
-		</div>
+		</footer>
 	</dialog>
 }

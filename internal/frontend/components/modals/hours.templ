@@ -6,22 +6,19 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// HoursStyles owns the day-bounds editor's content: two time selects and the
-// Cancel/Save action row. The dialog box, backdrop, h2, and open/close
-// animation come from the shared DialogStyles; tokens come from baseStyles.
+// HoursStyles owns the day-bounds editor's content: the two time selects. The
+// dialog box, backdrop, h2, footer action row, and open/close animation come
+// from the shared DialogStyles; tokens come from baseStyles.
 templ HoursStyles() {
 	<style>
-		/* Scoped to the .bounds-modal <dialog> leaf (ADR 0006): two `label`s and
-		   one action `div`. The two buttons are told apart by source order (Cancel
-		   first, Save last), so :first-child/:last-child also out-specify the
-		   `div button` reset with no !important needed. */
+		/* Scoped to the .bounds-modal <dialog> leaf (ADR 0006): just the two
+		   `label`s. The Cancel/Save footer is styled by the shared DialogStyles. */
 		@scope (.bounds-modal) {
 			label {
 				display: flex;
 				align-items: center;
 				justify-content: space-between;
 				gap: 0.6rem;
-				margin-bottom: var(--gap);
 				font-size: 0.9rem;
 
 				& select {
@@ -32,35 +29,6 @@ templ HoursStyles() {
 					color: inherit;
 					font: inherit;
 					font-size: 0.9rem;
-				}
-			}
-
-			div {
-				display: flex;
-				justify-content: flex-end;
-				gap: var(--gap);
-				margin-top: 0.25rem;
-
-				& button {
-					padding: 0.35rem 0.75rem;
-					border: none;
-					border-radius: var(--radius);
-					font: inherit;
-					font-size: 0.85rem;
-					cursor: pointer;
-				}
-
-				/* Cancel (first) and Save (last); :first/last-child also out-specify
-				   the `& button` reset, so the cancel border needs no !important. */
-				& button:first-child {
-					background: none;
-					color: inherit;
-					border: 1px solid var(--rail-border);
-				}
-
-				& button:last-child {
-					background: var(--accent);
-					color: var(--bg);
 				}
 			}
 		}
@@ -108,9 +76,9 @@ templ HoursModal(b block.Bounds) {
 				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
-		<div>
-			<button commandfor="bounds-modal" command="close">Cancel</button>
+		<footer>
+			<button class="secondary" commandfor="bounds-modal" command="close">Cancel</button>
 			<button commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
-		</div>
+		</footer>
 	</dialog>
 }

@@ -10,7 +10,7 @@ templ DialogStyles() {
 		@scope (.app-dialog) {
 			:scope {
 				width: min(320px, calc(100vw - 2rem));
-				padding: 1rem;
+				padding: 1rem 2rem;
 				background: var(--surface);
 				color: var(--ink);
 				border: 1px solid var(--rail-border);
@@ -34,6 +34,14 @@ templ DialogStyles() {
 				}
 			}
 
+			/* Only lay out when open — an unopened <dialog> stays display:none
+			   (the UA default); setting display unconditionally forces it visible. */
+			:scope[open] {
+				display: flex;
+				flex-direction: column;
+				gap: var(--gap);
+			}
+
 			:scope::backdrop {
 				background: var(--scrim);
 				opacity: 1;
@@ -54,7 +62,30 @@ templ DialogStyles() {
 
 			h2 {
 				font-size: 1rem;
-				margin: 0 0 0.75rem;
+				margin: 0;
+			}
+
+			footer {
+				display: flex;
+				justify-content: flex-end;
+				gap: var(--gap);
+
+				& button {
+					padding: 0.35rem 0.75rem;
+					border: none;
+					border-radius: var(--radius);
+					background: var(--accent);
+					color: var(--bg);
+					font: inherit;
+					font-size: 0.85rem;
+					cursor: pointer;
+				}
+
+				& button.secondary {
+					background: none;
+					color: inherit;
+					border: 1px solid var(--rail-border);
+				}
 			}
 		}
 	</style>
