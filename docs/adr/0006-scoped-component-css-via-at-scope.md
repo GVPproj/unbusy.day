@@ -1,5 +1,11 @@
 # Component CSS scoped per leaf via native @scope
 
+> **Partially superseded by ADR 0008.** The "want reusable cross-component class
+> names" revisit-trigger in the last sentence came true: we adopted utility-first
+> Tailwind v4 for the one-off/spacing/color 80%. The leaf-only `@scope` rule below
+> still governs the surviving structural CSS (the day grid and drag states in
+> `column.templ`).
+
 Component styles are co-located in each component's `*Styles` block but render
 into one shared `<head>`, so class names share a global namespace — a `.status`
 in login silently collided with a `.status` meant for another page. The fixes
