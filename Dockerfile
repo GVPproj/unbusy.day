@@ -5,7 +5,8 @@
 # --- Go build (+ templ generate) ---
 FROM golang:1.26-alpine AS build
 WORKDIR /src
-RUN apk add --no-cache git
+# git for go tooling; libstdc++/libgcc for the Tailwind standalone musl binary.
+RUN apk add --no-cache git libstdc++ libgcc
 # Pinned to the templ runtime version in go.mod — a CLI/runtime mismatch fails
 # generation rather than producing skewed output.
 RUN go install github.com/a-h/templ/cmd/templ@v0.3.1020
