@@ -1,18 +1,15 @@
 package components
 
-// NavStyles owns the icon-rail nav and the page shell that hosts it.
-// Desktop: a slim sticky rail on the left; mobile (≤768px): right-side
-// off-canvas drawer behind a fixed hamburger, closed via the scrim. Tokens come from baseStyles.
+// NavStyles owns the nav's surviving structural/stateful CSS (ADR 0006): the
+// global .shell page wrapper and the @scope-d rail↔drawer geometry. Desktop is
+// a slim sticky rail; mobile (≤768px) is a right-side off-canvas drawer whose
+// translateX open-state (toggled by data-class:open) is the stateful hook that
+// keeps this as named CSS. The toggle, scrim, brand, and navlink presentation
+// moved to inline utilities on the markup. Tokens come from baseStyles.
 templ NavStyles() {
 	<style>
-		/* .shell is the page wrapper hosting nav, modals and column, so it stays
-		   global and unscoped — bare-tag rules under it would bleed into the
-		   modals (ADR 0006). The toggle and scrim are siblings of the nav, also
-		   global. Only the .sidenav subtree is @scope-d, confining the otherwise
-		   navlinks. Inside it only .navlink keeps a class (4 repeated, mixed
-		   <a>/<button>); the brand is the lone <div>, the icon is each link's
-		   first <span>, the label span carries no styles, and logout is the last
-		   navlink — so all are bare. */
+		/* .shell wraps nav, modals and column, so it stays global and unscoped
+		   — bare-tag rules under it would bleed into the modals (ADR 0006). */
 		.shell {
 			display: flex;
 			min-height: 100vh;
@@ -20,40 +17,6 @@ templ NavStyles() {
 
 		.shell .column {
 			width: 100%;
-		}
-
-		.nav-toggle {
-			display: none;
-			position: fixed;
-			top: 0.6rem;
-			right: 0.6rem;
-			z-index: 12;
-			font-size: 1.25rem;
-			padding: 0.3rem 0.55rem;
-			border: 1px solid var(--rail-border);
-			border-radius: var(--radius);
-			background: var(--surface);
-			color: var(--ink);
-			cursor: pointer;
-			box-shadow: var(--shadow-rest);
-		}
-
-		.nav-scrim {
-			display: none;
-			position: fixed;
-			inset: 0;
-			z-index: 9;
-			background: var(--scrim);
-		}
-
-		@media (max-width: 768px) {
-			.nav-toggle {
-				display: block;
-			}
-
-			.nav-scrim.open {
-				display: block;
-			}
 		}
 
 		@scope (.sidenav) {
@@ -71,45 +34,6 @@ templ NavStyles() {
 				height: 100vh;
 			}
 
-			div {
-				font-weight: 700;
-				font-size: 1.25rem;
-				text-align: center;
-				margin-bottom: 0.75rem;
-				color: var(--nav-icon);
-			}
-
-			.navlink {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				gap: 2px;
-				padding: 0.5rem 0.25rem;
-				border: none;
-				border-radius: var(--radius);
-				background: none;
-				color: inherit;
-				text-decoration: none;
-				font: inherit;
-				font-size: 0.85rem;
-				cursor: pointer;
-				font-weight: 700;
-
-				& .navicon {
-					line-height: 0;
-					color: var(--nav-icon);
-				}
-
-				&:hover,
-				&.active {
-					background: var(--nav-hover);
-				}
-
-				&:last-child {
-					margin-top: auto;
-				}
-			}
-
 			@media (max-width: 768px) {
 				:scope {
 					position: fixed;
@@ -124,54 +48,48 @@ templ NavStyles() {
 				:scope.open {
 					transform: translateX(0);
 				}
-				.nav-logo {
-					align-self: flex-start;
-					margin-left: 1rem;
-				}
-
-				.navlink {
-					flex-direction: row;
-					gap: 0.6rem;
-					font-size: 1rem;
-					padding: 0.5rem 0.75rem;
-				}
 			}
 		}
 	</style>
 }
+
+// navlinkClasses is the shared rail-link styling (repeated across the mixed
+// <a>/<button> links): a centered icon-over-label stack on desktop that becomes
+// a row in the mobile drawer. Hover uses the un-bridged --nav-hover token.
+const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold cursor-pointer hover:bg-[var(--nav-hover)] max-md:flex-row max-md:gap-[0.6rem] max-md:px-3 max-md:text-base"
 
 // SideNav is the icon-rail nav. The host page provides the $_navopen signal
 // (underscore = local-only, kept out of @post signal bodies). Theme opens the
 // #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
 	<button
-		class="nav-toggle"
+		class="hidden max-md:block fixed top-[0.6rem] right-[0.6rem] z-[12] text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-[var(--shadow-rest)]"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		aria-label="Toggle menu"
 	>
-		<span class="navicon">
+		<span>
 			@IconMenu()
 		</span>
 	</button>
-	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
+	<div class="hidden fixed inset-0 z-[9] bg-[var(--scrim)] max-md:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
-		<div title="unbusy.day" class="nav-logo">
+		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-md:self-start max-md:ml-4">
 			@UBLogo("51", "22", 0.35)
 		</div>
-		<!-- <a class="navlink active" href="/"><span class="navicon">@IconBlocks()</span><span>Blocks</span></a> -->
-		<button class="navlink" commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="navicon">
+		<!-- <a class={ navlinkClasses } href="/"><span class="leading-[0] text-nav-icon">@IconBlocks()</span><span>Blocks</span></a> -->
+		<button class={ navlinkClasses } commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="leading-[0] text-nav-icon">
 				@IconHours()
 			</span><span>Working Hours</span>
 		</button>
-		<button class="navlink" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="navicon">
+		<button class={ navlinkClasses } commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="leading-[0] text-nav-icon">
 				@IconTheme()
 			</span><span>Theme</span>
 		</button>
-		<button class="navlink" data-on:click="@post('/logout')">
-			<span class="navicon">
+		<button class={ navlinkClasses + " mt-auto" } data-on:click="@post('/logout')">
+			<span class="leading-[0] text-nav-icon">
 				@IconLogout()
 			</span><span class="min-w-max">Log Out</span>
 		</button>
