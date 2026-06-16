@@ -20,10 +20,19 @@ var staticFS embed.FS
 // skips the Go rebuild — so without this a brand-new utility class never lands
 // until something forces a recompile.
 func StaticHandler() http.Handler {
+	var fs http.Handler
 	if os.Getenv("TEMPL_DEV_MODE") != "" {
 		// DirFS is rooted at internal/frontend so the "static/" path prefix
 		// matches the embedded layout; go run's CWD is the repo root.
-		return http.FileServerFS(os.DirFS("internal/frontend"))
+		fs = http.FileServerFS(os.DirFS("internal/frontend"))
+	} else {
+		fs = http.FileServerFS(staticFS)
 	}
-	return http.FileServerFS(staticFS)
+	// Embedded files have no reliable validators and the URLs are unversioned,
+	// so force revalidation each deploy — otherwise an edge/CDN (Cloudflare)
+	// keeps serving a stale drag.js past a deploy.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		fs.ServeHTTP(w, r)
+	})
 }
