@@ -63,7 +63,7 @@ const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none
 // #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
 	<button
-		class="hidden max-md:block fixed top-[0.6rem] right-[0.6rem] z-[12] text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-[var(--shadow-rest)]"
+		class="hidden max-md:block fixed top-[0.6rem] right-[0.6rem] z-12 text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		aria-label="Toggle menu"
@@ -72,24 +72,24 @@ templ SideNav() {
 			@IconMenu()
 		</span>
 	</button>
-	<div class="hidden fixed inset-0 z-[9] bg-[var(--scrim)] max-md:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
+	<div class="hidden fixed inset-0 z-9 bg-(--scrim) max-md:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-md:self-start max-md:ml-4">
 			@UBLogo("51", "22", 0.35)
 		</div>
-		<!-- <a class={ navlinkClasses } href="/"><span class="leading-[0] text-nav-icon">@IconBlocks()</span><span>Blocks</span></a> -->
+		<!-- <a class={ navlinkClasses } href="/"><span class="leading-0 text-nav-icon">@IconBlocks()</span><span>Blocks</span></a> -->
 		<button class={ navlinkClasses } commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="leading-[0] text-nav-icon">
+			<span class="leading-0 text-nav-icon">
 				@IconHours()
 			</span><span>Working Hours</span>
 		</button>
 		<button class={ navlinkClasses } commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="leading-[0] text-nav-icon">
+			<span class="leading-0 text-nav-icon">
 				@IconTheme()
 			</span><span>Theme</span>
 		</button>
 		<button class={ navlinkClasses + " mt-auto" } data-on:click="@post('/logout')">
-			<span class="leading-[0] text-nav-icon">
+			<span class="leading-0 text-nav-icon">
 				@IconLogout()
 			</span><span class="min-w-max">Log Out</span>
 		</button>
