@@ -3,11 +3,12 @@ package components
 import "fmt"
 
 // LoginStyles is the login flow's surviving structural/stateful CSS (ADR 0006):
-// the amoeba backdrop (an absolutely-positioned SVG blob that spins) and the OTP
-// comb (an invisible real input overlaid on six display boxes, with a
-// focus-within active state). The one-off element styling — the form, copy,
-// email input, button, logo — moved to inline utilities on the markup. It's
-// co-located here and passed to Layout's <head> by the login route. @keyframes
+// the amoeba backdrop (an absolutely-positioned SVG blob that spins) and the one
+// genuinely stateful OTP rule — the focus-within active-box highlight, which
+// reaches across elements and keys off the `active` class Datastar toggles. The
+// OTP boxes' presentation, the comb container, the dashes, the invisible real
+// input, and all other one-off styling moved to inline utilities on the markup.
+// Co-located here and passed to Layout's <head> by the login route. @keyframes
 // is global by name, so it lives outside the scope.
 templ LoginStyles() {
 	<style>
@@ -34,48 +35,11 @@ templ LoginStyles() {
 				}
 			}
 
-			/* OTP comb: one invisible real input (keeps one-time-code autofill +
-			   paste) overlaid on six display boxes mirroring $code. */
-			.otp {
-				position: relative;
-				display: flex;
-				gap: 0.4rem;
-				align-items: center;
-				justify-content: center;
-			}
-
-			.otp-real {
-				position: absolute;
-				inset: 0;
-				width: 100%;
-				height: 100%;
-				opacity: 0;
-				font-size: 1.125rem; /* still ≥16px so iOS won't zoom */
-				caret-color: transparent;
-				cursor: pointer;
-			}
-
-			.otp-box {
-				width: 2.25rem;
-				height: 2.75rem;
-				display: grid;
-				place-items: center;
-				font-size: 1.25rem;
-				font-weight: 700;
-				border: 1px solid var(--rail-border);
-				border-radius: var(--radius);
-				background: var(--surface);
-				color: var(--ink);
-			}
-
+			/* OTP comb stateful hook: the active box (its index === $code.length,
+			   toggled by data-class:active) highlights only while the real input
+			   is focused. Cross-element + class-driven, so it stays named CSS. */
 			.otp:focus-within .otp-box.active {
 				border-color: var(--accent);
-			}
-
-			.otp-dash {
-				color: var(--ink-muted);
-				font-weight: 700;
-				user-select: none;
 			}
 		}
 
@@ -125,7 +89,7 @@ templ LoginEmailForm() {
 			autocomplete="email"
 			required
 			data-bind:email
-			class="text-lg font-medium py-[0.6rem] px-3 text-center border border-rail-border rounded bg-surface text-ink"
+			class="h-12 text-lg font-medium px-3 text-center border border-rail-border rounded bg-surface text-ink"
 		/>
 		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Send code</button>
 	</form>
@@ -136,7 +100,7 @@ templ LoginEmailForm() {
 // failed verify re-patches it with a generic error. A complete 6-digit code
 // verifies immediately; Enter/button stay as fallbacks.
 templ LoginCodeForm(errMsg string) {
-	<form id="login-form" class="flex flex-col gap-4" data-on:submit="@post('/login/verify')">
+	<form id="login-form" class="flex flex-col gap-6" data-on:submit="@post('/login/verify')">
 		<p class="m-0 text-ink-muted text-sm font-medium">A 6-digit code is on its way.</p>
 		if errMsg != "" {
 			<p class="m-0 text-ink-error text-sm font-medium">{ errMsg }</p>
@@ -150,9 +114,9 @@ templ LoginCodeForm(errMsg string) {
 // input on top so autofill (one-time-code) and paste keep working. The input
 // handler strips non-digits and auto-submits when six are in.
 templ otpInput() {
-	<div class="otp">
+	<div class="otp relative flex gap-[0.4rem] items-center justify-center">
 		<input
-			class="otp-real"
+			class="absolute inset-0 w-full h-full opacity-0 text-lg caret-transparent cursor-pointer"
 			inputmode="numeric"
 			pattern="[0-9]*"
 			autocomplete="one-time-code"
@@ -167,7 +131,7 @@ templ otpInput() {
 		/>
 		for i := 0; i < 6; i++ {
 			if i > 0 {
-				<span class="otp-dash" aria-hidden="true">-</span>
+				<span class="text-ink-muted font-bold select-none" aria-hidden="true">-</span>
 			}
 			@otpBox(i)
 		}
@@ -176,7 +140,7 @@ templ otpInput() {
 
 templ otpBox(i int) {
 	<span
-		class="otp-box"
+		class="otp-box w-9 h-12 grid place-items-center text-xl font-bold border border-rail-border rounded bg-surface text-ink"
 		aria-hidden="true"
 		data-text={ fmt.Sprintf("$code[%d] || ''", i) }
 		data-class:active={ fmt.Sprintf("$code.length === %d", i) }
