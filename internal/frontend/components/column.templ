@@ -79,6 +79,23 @@ templ ColumnStyles() {
 				}
 			}
 
+				/* The label fills the block and truncates rather than bleeding
+				   past it: clamped to as many lines as the block has slots (--span),
+				   with padding-right clearing the delete X pinned top-right. A
+				   span-1 block gets a single ellipsised line; taller blocks wrap up
+				   to their height. */
+				.block-label {
+					flex: 1;
+					min-width: 0;
+					padding-right: 1.5rem;
+					overflow: hidden;
+					overflow-wrap: anywhere;
+					display: -webkit-box;
+					-webkit-box-orient: vertical;
+					-webkit-line-clamp: var(--span, 1);
+					line-clamp: var(--span, 1);
+				}
+
 			/* per-block delete: an X pinned to the block's right edge, its icon
 			   box sized to the label's line so the two align vertically. Hidden at
 			   rest; fades in on block hover or its own keyboard focus. */

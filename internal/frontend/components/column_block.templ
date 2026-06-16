@@ -15,9 +15,9 @@ templ blockItem(c block.Block, dayStart int) {
 		data-id={ c.ID }
 		data-span={ strconv.Itoa(spanOr1(c.Span)) }
 		data-slot={ strconv.Itoa(c.Position) }
-		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) }
+		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
 	>
-		{ c.Label }
+		<span class="block-label">{ c.Label }</span>
 		<button
 			type="button"
 			class="block-delete"
