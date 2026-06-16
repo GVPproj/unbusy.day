@@ -43,6 +43,16 @@ jobs:
       - name: Generate templ
         run: templ generate
 
+      # Tailwind v4 standalone — pinned identically in the Taskfile and Dockerfile
+      # (bump all three together). output.css is git-ignored and embedded by the
+      # Go build, so it must be generated before vet/build/test.
+      - name: Generate CSS (Tailwind)
+        run: |
+          curl -sL -o /usr/local/bin/tailwindcss \
+            https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.1/tailwindcss-linux-x64
+          chmod +x /usr/local/bin/tailwindcss
+          tailwindcss -i internal/frontend/input.css -o internal/frontend/static/output.css --minify
+
       - name: Apply migrations
         run: go run ./cmd/unbusy migrate
 

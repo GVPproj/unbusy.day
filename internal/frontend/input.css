@@ -1,0 +1,39 @@
+@import "tailwindcss" source(none);
+@source "./**/*.templ";
+
+/* Tailwind v4 input — CSS-first, no JS config (ADR 0008 / PRD). The pinned
+   standalone binary scans the .templ sources for utility classes and emits
+   internal/frontend/static/output.css (go:embed-served, gitignored, regenerated
+   in dev/CI/Docker like *_templ.go).
+
+   source(none) turns off Tailwind's automatic file detection so the scan never
+   touches .go / *_templ.go; the @source above restricts it to .templ only
+   (PRD §15). Paths are relative to this file.
+
+   The design tokens and runtime theming are UNCHANGED — they live in the
+   baseStyles block of layouts/layout.templ. @theme inline bridges those live
+   custom properties into the Tailwind utility namespaces: the inline keyword
+   makes utilities emit var(--token) at the use site rather than copying a frozen
+   value, so the data-colorscheme/data-feeling swap keeps hot-swapping every
+   utility. One mapping line per token. */
+@theme inline {
+	/* color-* → bg-*, text-*, border-* utilities resolving to live tokens */
+	--color-bg: var(--bg);
+	--color-ink: var(--ink);
+	--color-ink-muted: var(--ink-muted);
+	--color-ink-error: var(--ink-error);
+	--color-surface: var(--surface);
+	--color-column-bg: var(--column-bg);
+	--color-rail-border: var(--rail-border);
+	--color-nav-bg: var(--nav-bg);
+	--color-nav-ink: var(--nav-ink);
+	--color-nav-icon: var(--nav-icon);
+	--color-accent: var(--accent);
+
+	/* radius-* → rounded / rounded-lg */
+	--radius: var(--radius);
+	--radius-lg: var(--radius-lg);
+
+	/* font-sans → the active "feeling" font family */
+	--font-sans: var(--font-family);
+}

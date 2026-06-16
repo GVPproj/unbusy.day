@@ -2,6 +2,15 @@ version: "3"
 
 dotenv: [".env"]
 
+# Tailwind standalone binary (ADR 0008 / PRD). Pinned here the way the templ CLI
+# is pinned in go.mod/Dockerfile/CI — bump in this var, the Dockerfile, and CI
+# together. go.mod can't hold a non-Go binary, so the Taskfile is the anchor.
+vars:
+  TAILWIND_VERSION: 4.3.1
+  TAILWIND_BIN: tmp/tailwindcss
+  TAILWIND_IN: internal/frontend/input.css
+  TAILWIND_OUT: internal/frontend/static/output.css
+
 tasks:
   default:
     desc: "List available tasks"
@@ -24,9 +33,34 @@ tasks:
       # The proxy opens the root, which the Datastar page serves — but we wait
       # out the startup 502s (curl -f) before opening so the first load isn't
       # a stale error page.
+      # Tailwind --watch runs alongside templ, regenerating output.css on .templ
+      # edits. It writes a plain .css file, so it never triggers a Go rebuild —
+      # templ's text-only fast path stays intact. Editing a .templ's utility
+      # classes also makes templ reload the browser, so the new CSS is picked up.
       - |
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
+        {{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --watch &
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
+    deps: [tailwind:install]
+
+  tailwind:install:
+    desc: "Download the pinned Tailwind v4 standalone binary into tmp/ (no Node)"
+    status:
+      - test -x {{.TAILWIND_BIN}} && {{.TAILWIND_BIN}} --help 2>&1 | grep -q "v{{.TAILWIND_VERSION}}"
+    cmds:
+      - |
+        os=$(uname -s | tr '[:upper:]' '[:lower:]'); [ "$os" = darwin ] && os=macos
+        arch=$(uname -m); [ "$arch" = aarch64 ] && arch=arm64; [ "$arch" = x86_64 ] && arch=x64
+        mkdir -p tmp
+        curl -sL -o {{.TAILWIND_BIN}} \
+          "https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/tailwindcss-${os}-${arch}"
+        chmod +x {{.TAILWIND_BIN}}
+
+  css:
+    desc: "Generate the embedded utility stylesheet (output.css)"
+    deps: [tailwind:install]
+    cmds:
+      - "{{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --minify"
 
   migrate:
     desc: "Apply pending migrations against $DATABASE_URL (goose, run-once)"
@@ -44,7 +78,7 @@ tasks:
 
   build:
     desc: "Build the Go binary"
-    deps: [templ]
+    deps: [templ, css]
     cmds:
       - go build -o tmp/unbusy ./cmd/unbusy
 

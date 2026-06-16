@@ -2,83 +2,16 @@ package components
 
 import "fmt"
 
-// LoginStyles is the login flow's stylesheet, co-located here and passed to
-// Layout's <head> by the login route.
+// LoginStyles is the login flow's surviving structural/stateful CSS (ADR 0006):
+// the amoeba backdrop (an absolutely-positioned SVG blob that spins) and the OTP
+// comb (an invisible real input overlaid on six display boxes, with a
+// focus-within active state). The one-off element styling — the form, copy,
+// email input, button, logo — moved to inline utilities on the markup. It's
+// co-located here and passed to Layout's <head> by the login route. @keyframes
+// is global by name, so it lives outside the scope.
 templ LoginStyles() {
 	<style>
-		/* Login is a self-contained leaf, so its styles are @scope-d to the
-		   .login-main subtree (the frontend's @scope pilot). Inside the scope
-		   bare element selectors are unambiguous — one form, one email input,
-		   one button, the status <p>s — so they carry no class names.
-		   Structural classes (.login-amoeba*, .otp*) stay, since several sibling
-		   divs/spans/inputs would otherwise collide. @keyframes is global by
-		   name, so it lives outside the scope. */
 		@scope (.login-main) {
-			:scope {
-				min-height: 100svh;
-				display: flex;
-				flex-direction: column;
-				justify-content: center;
-				margin: 0 auto;
-				text-align: center;
-			}
-
-			p {
-				margin: 0;
-				color: var(--ink-muted);
-				font-size: 0.875rem;
-				font-weight: 500;
-			}
-
-			p.error {
-				color: var(--ink-error);
-			}
-
-			form {
-				display: flex;
-				flex-direction: column;
-				gap: 1rem;
-			}
-
-			/* 16px minimum so iOS Safari doesn't zoom on focus. */
-			input[type="email"] {
-				font: inherit;
-				font-size: 1.125rem;
-				font-weight: 500;
-				padding: 0.6rem 0.75rem;
-				text-align: center;
-				border: 1px solid var(--rail-border);
-				border-radius: var(--radius);
-				background: var(--surface);
-				color: var(--ink);
-			}
-
-			button {
-				font: inherit;
-				font-size: 1rem;
-				font-weight: 700;
-				padding: 0.6rem;
-				border: none;
-				border-radius: var(--radius);
-				background: var(--accent);
-				color: var(--bg);
-				cursor: pointer;
-			}
-
-			.login-logo {
-				color: var(--accent);
-				margin-bottom: 0.5rem;
-			}
-
-			.login-amoeba {
-				position: relative;
-				width: 100%;
-				min-height: 100svh;
-				display: grid;
-				place-items: center;
-				overflow: hidden;
-			}
-
 			.login-amoeba-svg {
 				position: absolute;
 				left: 50%;
@@ -90,12 +23,6 @@ templ LoginStyles() {
 				translate: -50% -50%;
 				color: var(--column-bg);
 				animation: login-amoeba-spin 90s linear infinite;
-			}
-
-			.login-amoeba-content {
-				position: relative;
-				width: min(20rem, calc(100vw - 2rem));
-				padding: clamp(2rem, 10vmin, 6rem) 0;
 			}
 
 			@media (prefers-reduced-motion: reduce) {
@@ -163,7 +90,7 @@ templ LoginStyles() {
 // LoginAmoeba wraps the login content in an undulating amoeboid backdrop: a
 // large SVG blob morphing via SMIL while slowly rotating (prototype winner b).
 templ LoginAmoeba() {
-	<div class="login-amoeba">
+	<div class="relative w-full min-h-svh grid place-items-center overflow-hidden">
 		<svg class="login-amoeba-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
 			<path fill="currentColor">
 				<animate
@@ -177,8 +104,8 @@ templ LoginAmoeba() {
 				></animate>
 			</path>
 		</svg>
-		<div class="login-amoeba-content">
-			<div class="login-logo">
+		<div class="relative w-[min(20rem,calc(100vw-2rem))] py-[clamp(2rem,10vmin,6rem)]">
+			<div class="text-accent mb-2">
 				@UBLogo("153", "66", 0.8)
 			</div>
 			@LoginEmailForm()
@@ -190,10 +117,17 @@ templ LoginAmoeba() {
 // both steps patch onto. A real <form> so Enter submits; Datastar's
 // data-on:submit prevents the native submission.
 templ LoginEmailForm() {
-	<form id="login-form" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
-		<p>We'll email you a one-time code.</p>
-		<input type="email" placeholder="you@example.com" autocomplete="email" required data-bind:email/>
-		<button type="submit">Send code</button>
+	<form id="login-form" class="flex flex-col gap-4" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
+		<p class="m-0 text-ink-muted text-sm font-medium">We'll email you a one-time code.</p>
+		<input
+			type="email"
+			placeholder="you@example.com"
+			autocomplete="email"
+			required
+			data-bind:email
+			class="text-lg font-medium py-[0.6rem] px-3 text-center border border-rail-border rounded bg-surface text-ink"
+		/>
+		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Send code</button>
 	</form>
 }
 
@@ -202,13 +136,13 @@ templ LoginEmailForm() {
 // failed verify re-patches it with a generic error. A complete 6-digit code
 // verifies immediately; Enter/button stay as fallbacks.
 templ LoginCodeForm(errMsg string) {
-	<form id="login-form" data-on:submit="@post('/login/verify')">
-		<p>A 6-digit code is on its way.</p>
+	<form id="login-form" class="flex flex-col gap-4" data-on:submit="@post('/login/verify')">
+		<p class="m-0 text-ink-muted text-sm font-medium">A 6-digit code is on its way.</p>
 		if errMsg != "" {
-			<p class="error">{ errMsg }</p>
+			<p class="m-0 text-ink-error text-sm font-medium">{ errMsg }</p>
 		}
 		@otpInput()
-		<button type="submit">Verify</button>
+		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Verify</button>
 	</form>
 }
 
