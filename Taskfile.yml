@@ -40,7 +40,8 @@ tasks:
       # copy, so the rewritten output.css is live on the browser reload templ
       # fires — a new utility class lands without a Go rebuild.
       - |
-        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
+        opener=open; command -v xdg-open >/dev/null && opener=xdg-open
+        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; "$opener" "http://127.0.0.1:7331/") &
         {{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --watch &
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
     deps: [tailwind:install]
