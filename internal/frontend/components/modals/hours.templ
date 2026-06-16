@@ -35,15 +35,15 @@ templ HoursModal(b block.Bounds) {
 		data-signals:end={ strconv.Itoa(b.End) }
 	>
 		<h2>Working Hours</h2>
-		<label class="flex items-center justify-between gap-[0.6rem] text-[0.9rem]">
+		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
-			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-[0.9rem]">
+			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-base">
 				@boundsOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
 			</select>
 		</label>
-		<label class="flex items-center justify-between gap-[0.6rem] text-[0.9rem]">
+		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			End
-			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-[0.9rem]">
+			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-base">
 				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
