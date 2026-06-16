@@ -13,7 +13,7 @@ rule comes **after** it so it wins for that path.
 - (b) default → `cache: true` + `respect_origin`: honours origin `Cache-Control`.
   The frontend is server-rendered Datastar + templ, served `no-cache`, so the
   edge revalidates the entry document on every hit (F4). Static runtimes
-  (Datastar, Motion, SortableJS) load from jsdelivr, not the origin, so there
+  (Datastar, Motion) load from jsdelivr, not the origin, so there
   are no origin assets to edge-cache.
 - (a) `/events` suffix → `cache: false`. SSE stays un-buffered because it is
   never cached; the origin also sets `Cache-Control: no-cache` +

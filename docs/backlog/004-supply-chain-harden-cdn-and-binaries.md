@@ -30,8 +30,8 @@ full DOM/cookie/keystroke access on the live app.
   **Production, every page.**
 - `internal/frontend/static/drag.js:6` — Motion
   `cdn.jsdelivr.net/npm/motion@12.40.0/+esm`. **Production, every board page.**
-- `internal/frontend/smoke.templ:14-15` — Datastar + `sortablejs@1.15.7` from
-  jsdelivr. Lower stakes (wiring canary, not on the auth path) but same gap.
+- `internal/frontend/smoke.templ:14` — Datastar from jsdelivr. Lower stakes
+  (wiring canary, not on the auth path) but same gap.
 
 Note `@v1.0.2` / `@12.40.0` are *version* pins, not *content* pins — a retagged
 or compromised artifact at that version is served transparently.

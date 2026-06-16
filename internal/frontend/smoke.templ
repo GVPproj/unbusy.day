@@ -1,10 +1,9 @@
 package frontend
 
 // SmokePage is the verify-and-pin smoke target. It mounts a stable
-// #smoke-target for Datastar's default outer-morph, opens an SSE stream to
-// /_smoke/events on load, and loads the pinned Datastar + SortableJS
-// runtimes to prove they co-exist. Kept deliberately bare — the wiring is the
-// thing under test.
+// #smoke-target for Datastar's default outer-morph and opens an SSE stream to
+// /_smoke/events on load, proving the pinned Datastar runtime applies a wire
+// frame. Kept deliberately bare — the wiring is the thing under test.
 templ SmokePage() {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -12,34 +11,12 @@ templ SmokePage() {
 			<meta charset="utf-8"/>
 			<title>ds smoke</title>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
-			<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
 		</head>
 		<body data-init="@get('/_smoke/events')">
 			<main>
 				<h1>Datastar smoke</h1>
 				<p>The line below should change from "awaiting patch…" to "patched by datastar" within a tick of load.</p>
 				<div id="smoke-target">awaiting patch…</div>
-				<h2>SortableJS co-existence</h2>
-				<p>The list below should be drag-reorderable (co-existence check only).</p>
-				<ul id="sortable-list">
-					<li data-id="a">a</li>
-					<li data-id="b">b</li>
-					<li data-id="c">c</li>
-				</ul>
-				<div id="sort-order">order: a, b, c</div>
-				<script>
-					// Init SortableJS post-load. toArray() reads the post-drop
-					// data-id order; a sibling #sort-order div updates locally so
-					// the dragger can see Sortable working. No server round-trip.
-					const list = document.getElementById('sortable-list');
-					const out  = document.getElementById('sort-order');
-					Sortable.create(list, {
-						animation: 150,
-						onEnd: function () {
-							out.textContent = 'order: ' + Sortable.get(list).toArray().join(', ');
-						}
-					});
-				</script>
 			</main>
 		</body>
 	</html>
