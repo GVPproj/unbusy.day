@@ -13,7 +13,7 @@ templ DialogStyles() {
 				/* Preflight zeroes margin on *; a modal <dialog> centers via the
 				   UA's margin:auto in the top layer, so restore it. */
 				margin: auto;
-				padding: 1rem 2rem;
+				padding: 1.25rem 2rem;
 				background: var(--surface);
 				color: var(--ink);
 				border: 1px solid var(--rail-border);
@@ -70,6 +70,7 @@ templ DialogStyles() {
 			}
 
 			footer {
+				margin-top: 1rem;
 				display: flex;
 				justify-content: flex-end;
 				gap: var(--gap);
