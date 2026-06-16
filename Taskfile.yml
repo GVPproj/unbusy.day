@@ -35,8 +35,10 @@ tasks:
       # a stale error page.
       # Tailwind --watch runs alongside templ, regenerating output.css on .templ
       # edits. It writes a plain .css file, so it never triggers a Go rebuild —
-      # templ's text-only fast path stays intact. Editing a .templ's utility
-      # classes also makes templ reload the browser, so the new CSS is picked up.
+      # templ's text-only fast path stays intact. In a watch session
+      # (TEMPL_DEV_MODE) StaticHandler serves static/ from disk, not the embedded
+      # copy, so the rewritten output.css is live on the browser reload templ
+      # fires — a new utility class lands without a Go rebuild.
       - |
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; open "http://127.0.0.1:7331/") &
         {{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --watch &
