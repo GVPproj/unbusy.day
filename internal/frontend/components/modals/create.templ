@@ -1,34 +1,5 @@
 package modals
 
-// CreateStyles owns the new-block dialog's content: the one text field. The
-// dialog box, backdrop, h2, footer action row, and open/close animation come
-// from the shared DialogStyles; tokens come from baseStyles.
-templ CreateStyles() {
-	<style>
-		/* Scoped to the .create-modal <dialog> leaf (ADR 0006): just the one
-		   `label` wrapping the name field. The Cancel/Create footer is styled by
-		   the shared DialogStyles. */
-		@scope (.create-modal) {
-			label {
-				display: flex;
-				flex-direction: column;
-				gap: 0.4rem;
-				font-size: 0.9rem;
-
-				& input {
-					padding: 0.4rem 0.5rem;
-					border: 1px solid var(--rail-border);
-					border-radius: var(--radius);
-					background: var(--bg);
-					color: inherit;
-					font: inherit;
-					font-size: 0.9rem;
-				}
-			}
-		}
-	</style>
-}
-
 // CreateModal is the new-block editor: a native <dialog> opened by the empty
 // slot's add button (theme-modal house style). The slot index is carried in
 // the $addslot signal, written by the slot-add button before it opens the
@@ -45,13 +16,14 @@ templ CreateModal() {
 		data-signals:addlabel="''"
 	>
 		<h2>New Block</h2>
-		<label>
+		<label class="flex flex-col gap-[0.4rem] text-[0.9rem]">
 			Name
 			<input
 				type="text"
 				autofocus
 				placeholder="e.g. Deep Work"
 				data-bind:addlabel
+				class="py-[0.4rem] px-[0.5rem] border border-rail-border rounded bg-bg text-[0.9rem]"
 			/>
 		</label>
 		<footer>

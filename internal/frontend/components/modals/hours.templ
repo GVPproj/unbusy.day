@@ -6,35 +6,6 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// HoursStyles owns the day-bounds editor's content: the two time selects. The
-// dialog box, backdrop, h2, footer action row, and open/close animation come
-// from the shared DialogStyles; tokens come from baseStyles.
-templ HoursStyles() {
-	<style>
-		/* Scoped to the .bounds-modal <dialog> leaf (ADR 0006): just the two
-		   `label`s. The Cancel/Save footer is styled by the shared DialogStyles. */
-		@scope (.bounds-modal) {
-			label {
-				display: flex;
-				align-items: center;
-				justify-content: space-between;
-				gap: 0.6rem;
-				font-size: 0.9rem;
-
-				& select {
-					padding: 0.35rem 0.5rem;
-					border: 1px solid var(--rail-border);
-					border-radius: var(--radius);
-					background: var(--bg);
-					color: inherit;
-					font: inherit;
-					font-size: 0.9rem;
-				}
-			}
-		}
-	</style>
-}
-
 // boundsOptions renders one select's half-hour options, current pre-selected.
 templ boundsOptions(from, to, current int) {
 	for s := from; s <= to; s++ {
@@ -64,15 +35,15 @@ templ HoursModal(b block.Bounds) {
 		data-signals:end={ strconv.Itoa(b.End) }
 	>
 		<h2>Working Hours</h2>
-		<label>
+		<label class="flex items-center justify-between gap-[0.6rem] text-[0.9rem]">
 			Start
-			<select data-on:change="$start = +evt.target.value">
+			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-[0.9rem]">
 				@boundsOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
 			</select>
 		</label>
-		<label>
+		<label class="flex items-center justify-between gap-[0.6rem] text-[0.9rem]">
 			End
-			<select data-on:change="$end = +evt.target.value">
+			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-[0.9rem]">
 				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
