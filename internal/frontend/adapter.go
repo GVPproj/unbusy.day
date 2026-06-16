@@ -32,6 +32,7 @@ type BlockService interface {
 	SetBounds(ctx context.Context, owner string, start, end int) error
 	Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error)
 	Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error)
+	Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error)
 }
 
 // snapshot reads the owner's authoritative column and day bounds — the pair
@@ -240,6 +241,47 @@ func DeleteHandler(svc BlockService) http.Handler {
 		bs, b, err := snapshot(r.Context(), svc, owner)
 		if err != nil {
 			log.Printf("ds delete snapshot: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		patchColumn(w, r, bs, b)
+	})
+}
+
+// renameSignals is the Datastar signals body the inline label editor @posts:
+// the edited block's id and its new label text.
+type renameSignals struct {
+	ID    string `json:"renameid"`
+	Label string `json:"renamelabel"`
+}
+
+// RenameHandler updates the edited block's label and responds with an
+// element-patch of the committed column. A blank label or unknown id re-renders
+// the authoritative column at 200, so the inline edit yields to the truth
+// (house convention).
+func RenameHandler(svc BlockService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig renameSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+
+		owner := ownerFrom(r.Context())
+		_, err := svc.Rename(r.Context(), owner, sig.ID, sig.Label)
+		switch {
+		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrBlockNotFound):
+			// Rejection at 200: the snapshot below re-renders the current column.
+			log.Printf("200 rejection rename: %v", err)
+		case err != nil:
+			log.Printf("ds rename: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		bs, b, err := snapshot(r.Context(), svc, owner)
+		if err != nil {
+			log.Printf("ds rename snapshot: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

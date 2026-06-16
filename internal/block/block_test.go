@@ -534,10 +534,77 @@ func TestCreate_Rejections(t *testing.T) {
 	}
 }
 
+func TestRename_UpdatesLabelAndPublishes(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	before, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	id := before[0].ID
+
+	res, err := svc.Rename(ctx, owner, id, "  Renamed  ")
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if got := labelOf(res.Blocks, id); got != "Renamed" { // label is trimmed
+		t.Fatalf("renamed label = %q, want %q", got, "Renamed")
+	}
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if got := labelOf(after, id); got != "Renamed" {
+		t.Fatalf("persisted label = %q, want %q", got, "Renamed")
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+}
+
+// Rename rejects a blank label and an id this owner doesn't own — each persists
+// nothing and fans out nothing.
+func TestRename_Rejections(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	before, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	id := before[0].ID
+
+	if _, err := svc.Rename(ctx, owner, id, "   "); !errors.Is(err, block.ErrEmptyLabel) {
+		t.Fatalf("blank label: want ErrEmptyLabel, got %v", err)
+	}
+	if _, err := svc.Rename(ctx, owner, "no-such-id", "X"); !errors.Is(err, block.ErrBlockNotFound) {
+		t.Fatalf("unknown id: want ErrBlockNotFound, got %v", err)
+	}
+	if len(pub.events) != 0 {
+		t.Fatalf("rejected rename must not fan out: got %d events", len(pub.events))
+	}
+}
+
 // capturePub records every published Event so a test can assert fan-out.
 type capturePub struct{ events []block.Event }
 
 func (c *capturePub) Publish(e block.Event) { c.events = append(c.events, e) }
+
+func labelOf(cs []block.Block, id string) string {
+	for _, c := range cs {
+		if c.ID == id {
+			return c.Label
+		}
+	}
+	return ""
+}
 
 func spanOf(cs []block.Block, id string) int {
 	for _, c := range cs {

@@ -30,6 +30,7 @@ type fakeService struct {
 	boundsErr error
 	createErr error
 	deleteErr error
+	renameErr error
 
 	gotOwner  string            // owner passed to the last mutation, for asserting scoping
 	gotLayout []block.Placement // layout passed to SetLayout
@@ -63,6 +64,19 @@ func (f *fakeService) Delete(ctx context.Context, owner, id string) (*block.Dele
 	}
 	f.blocks = out
 	return &block.DeleteResult{Blocks: f.blocks}, nil
+}
+
+func (f *fakeService) Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error) {
+	f.gotOwner, f.gotID = owner, id
+	if f.renameErr != nil {
+		return nil, f.renameErr
+	}
+	for i := range f.blocks {
+		if f.blocks[i].ID == id {
+			f.blocks[i].Label = label
+		}
+	}
+	return &block.RenameResult{Blocks: f.blocks}, nil
 }
 
 func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end int) error {

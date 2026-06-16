@@ -89,15 +89,32 @@ templ ColumnStyles() {
 				   span-1 block gets a single ellipsised line; taller blocks wrap up
 				   to their height. */
 				.block-label {
-					flex: 1;
+					/* size to the text, not the block, so cursor:text (and the
+					   editor) only covers the glyphs — never the empty space a
+					   short label leaves to its right. margin (not padding) clears
+					   the delete X so the X's gap stays outside the text box. */
 					min-width: 0;
-					padding-right: 1.5rem;
+					max-width: calc(100% - 1.5rem);
+					width: fit-content;
+					margin-right: 1.5rem;
 					overflow: hidden;
 					overflow-wrap: anywhere;
 					display: -webkit-box;
 					-webkit-box-orient: vertical;
 					-webkit-line-clamp: var(--span, 1);
 					line-clamp: var(--span, 1);
+					/* clicking the text edits it in place; the cursor signals it */
+					cursor: text;
+
+					/* while editing: drop the line-clamp so the full text and caret
+					   are visible, allow the text selection the gesture needs, and
+					   keep styling otherwise unchanged — just a blinking caret. */
+					&[contenteditable] {
+						-webkit-line-clamp: none;
+						line-clamp: none;
+						user-select: text;
+						outline: none;
+					}
 				}
 
 			/* per-block delete: an X pinned to the block's right edge, its icon
@@ -245,7 +262,10 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"
 		data-signals:deleteid="''"
+		data-signals:renameid="''"
+		data-signals:renamelabel="''"
 		data-on:layout="$layout = evt.detail.layout; @post('/blocks/layout')"
+		data-on:rename="$renameid = evt.detail.id; $renamelabel = evt.detail.label; @post('/blocks/rename')"
 	>
 		{{ occupied := block.OccupiedSlots(cs) }}
 		for s := b.Start; s < b.End; s++ {

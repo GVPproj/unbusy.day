@@ -78,6 +78,7 @@ func main() {
 	mux.Handle("POST /blocks/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(svc)))
 	mux.Handle("POST /blocks", frontend.RequireSession(authSvc, frontend.CreateHandler(svc)))
 	mux.Handle("POST /blocks/delete", frontend.RequireSession(authSvc, frontend.DeleteHandler(svc)))
+	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(svc)))
 
 	// Embedded frontend assets (drag.js). Session-free by design: a cached
 	// asset is not user data.

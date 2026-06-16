@@ -42,7 +42,7 @@ var ErrInvalidSpan = errors.New("span must be at least 1")
 // ErrEmptyLabel signals a create with a blank label.
 var ErrEmptyLabel = errors.New("block label is required")
 
-// ErrBlockNotFound signals a delete of a block this owner doesn't own.
+// ErrBlockNotFound signals a delete or rename of a block this owner doesn't own.
 var ErrBlockNotFound = errors.New("block not found")
 
 type Service struct {
@@ -195,6 +195,56 @@ func (s *Service) Delete(ctx context.Context, owner, id string) (*DeleteResult, 
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
 	return &DeleteResult{Blocks: bs}, nil
+}
+
+// RenameResult is the post-rename column returned to the caller.
+type RenameResult struct {
+	Blocks []Block `json:"blocks"`
+}
+
+// Rename changes the owner's block label, then fans out the new column. A blank
+// label rejects (ErrEmptyLabel) and an id the owner doesn't own rejects
+// (ErrBlockNotFound) — same write-transaction and post-commit fan-out as Delete.
+func (s *Service) Rename(ctx context.Context, owner, id, label string) (*RenameResult, error) {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return nil, ErrEmptyLabel
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	bounds, err := queryBounds(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	res, err := tx.ExecContext(ctx,
+		`UPDATE block SET label = ? WHERE id = ? AND owner_id = ?`, label, id, owner)
+	if err != nil {
+		return nil, err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return nil, err
+	} else if n == 0 {
+		return nil, ErrBlockNotFound
+	}
+
+	bs, err := queryBlocks(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted rename.
+	if s.pub != nil {
+		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
+	}
+	return &RenameResult{Blocks: bs}, nil
 }
 
 // SetLayout replaces the owner's whole layout in one mutation (ADR 0005): the
