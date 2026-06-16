@@ -10,6 +10,9 @@ templ DialogStyles() {
 		@scope (.app-dialog) {
 			:scope {
 				width: min(320px, calc(100vw - 2rem));
+				/* Preflight zeroes margin on *; a modal <dialog> centers via the
+				   UA's margin:auto in the top layer, so restore it. */
+				margin: auto;
 				padding: 1rem 2rem;
 				background: var(--surface);
 				color: var(--ink);

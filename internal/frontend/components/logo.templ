@@ -18,6 +18,9 @@ templ UBLogo(width, height string, pixelScale float64) {
 	<style>
 		/* Sway + squash & stretch — prototype winner (a2), 2026-06-12. */
 		.ub-logo {
+			/* Preflight resets svg to display:block; the wordmark is centered by
+			   its parent's text-align, so keep it inline-flow. */
+			display: inline-block;
 			animation: ub-logo-sway 5.9s ease-in-out infinite;
 			transform-origin: center;
 		}

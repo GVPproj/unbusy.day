@@ -104,8 +104,8 @@ templ LoginAmoeba() {
 				></animate>
 			</path>
 		</svg>
-		<div class="relative w-[min(20rem,calc(100vw-2rem))] py-[clamp(2rem,10vmin,6rem)]">
-			<div class="text-accent mb-2">
+		<div class="relative w-[min(20rem,calc(100vw-2rem))] py-[clamp(2rem,10vmin,6rem)] flex flex-col gap-6">
+			<div class="text-accent ">
 				@UBLogo("153", "66", 0.8)
 			</div>
 			@LoginEmailForm()
@@ -117,7 +117,7 @@ templ LoginAmoeba() {
 // both steps patch onto. A real <form> so Enter submits; Datastar's
 // data-on:submit prevents the native submission.
 templ LoginEmailForm() {
-	<form id="login-form" class="flex flex-col gap-4" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
+	<form id="login-form" class="flex flex-col gap-6" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
 		<p class="m-0 text-ink-muted text-sm font-medium">We'll email you a one-time code.</p>
 		<input
 			type="email"
