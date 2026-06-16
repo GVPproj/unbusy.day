@@ -56,6 +56,10 @@ templ ColumnStyles() {
 				cursor: grab;
 				user-select: none;
 				touch-action: none;
+				/* clip the label to the block box so a long name can never bleed
+				   past the bottom edge mid-resize, before --span catches up. The
+				   block's own box-shadow lift is unaffected by its overflow. */
+				overflow: hidden;
 				/* anchor for the grip; also the z-index context .dragging needs */
 				position: relative;
 

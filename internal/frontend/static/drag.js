@@ -31,6 +31,7 @@ function writeLayout(layout, dayStart) {
 		if (!p) continue;
 		c.dataset.slot = p.slot;
 		c.dataset.span = p.span;
+		c.style.setProperty('--span', p.span);
 		c.style.gridRow = (p.slot - dayStart + 1) + ' / span ' + p.span;
 	}
 }
