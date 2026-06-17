@@ -140,7 +140,8 @@ function springSibs(g, lay) {
     const fromSpan = parseInt(c.dataset.span, 10) || 1;
     if (s.yAnim) s.yAnim.stop();
     s.yAnim = animate(s.y, (p.slot - fromSlot) * g.pitch, SPRING);
-    const toH = p.span === fromSpan ? s.h0 : p.span * g.pitch;
+    // keep the natural margin (fromSpan*pitch - h0) when springing to a new span
+    const toH = p.span === fromSpan ? s.h0 : p.span * g.pitch - (fromSpan * g.pitch - s.h0);
     if (s.hAnim) s.hAnim.stop();
     s.hAnim = animate(s.h, toH, SPRING);
   });
@@ -324,12 +325,16 @@ function placeCaret(x, y) {
 function startResize(e, el) {
   const orig = placementOf(el);
   const pitch = slotPitch();
-  const h = motionValue(el.getBoundingClientRect().height);
+  const h0 = el.getBoundingClientRect().height;
+  const h = motionValue(h0);
   resize = {
     el,
     orig,
     h,
     pitch,
+    // vertical margin the CSS leaves around a block; preserved so a resized
+    // block keeps the same gap a static one has rather than filling the slot.
+    margin: orig.span * pitch - h0,
     bounds: boundsNow(),
     current: layoutIn(),
     hAnim: null,
@@ -357,7 +362,7 @@ function previewResize(span) {
   if (!lay) return;
   r.valid = { span, layout: lay };
   if (r.hAnim) r.hAnim.stop();
-  r.hAnim = animate(r.h, span * r.pitch, SPRING);
+  r.hAnim = animate(r.h, span * r.pitch - r.margin, SPRING);
   springSibs(r, lay);
 }
 
@@ -367,7 +372,7 @@ async function settleResize(e, commit) {
   if (!commit) {
     r.valid = { span: r.orig.span, layout: r.current };
     if (r.hAnim) r.hAnim.stop();
-    r.hAnim = animate(r.h, r.orig.span * r.pitch, SPRING);
+    r.hAnim = animate(r.h, r.orig.span * r.pitch - r.margin, SPRING);
     springSibs(r, r.current);
   }
   resize = null;
