@@ -1,7 +1,9 @@
 # Client-computed Push, server-enforced invariants
 
 Moving from list reorder to Slot placement on the Day Plan, the Push cascade
-(displaced blocks slide down, consuming gaps) could live server-side (client
+(displaced blocks slide toward the slot the moved block vacated — down-drag
+pushes others up, up-drag pushes them down — consuming gaps) could live
+server-side (client
 sends intent: block + target slot) or client-side (client computes the
 resulting layout and sends it whole, as the permutation reorder it replaces did).
 We chose client-side: drag.js computes the Push so the optimistic FLIP commit
