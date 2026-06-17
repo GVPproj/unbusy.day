@@ -6,7 +6,10 @@
 
 [![CI/CD](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml/badge.svg)](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GVPproj/unbusy.day)](https://goreportcard.com/report/github.com/GVPproj/unbusy.day)
-
+[![Go](https://img.shields.io/github/go-mod/go-version/GVPproj/unbusy.day?logo=go&logoColor=white)](https://go.dev)
+[![SQLite](https://img.shields.io/badge/SQLite-local%20file-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
+[![Datastar](https://img.shields.io/badge/Datastar-hypermedia-ff6b6b)](https://data-star.dev)
+[![templ](https://img.shields.io/badge/templ-typed%20templates-4B8BBE)](https://templ.guide)
 Have a structured day. Time-block your schedule, track some progress, no rush.
 
 ## Quickstart
@@ -23,20 +26,4 @@ cp .env.example .env
 # Day-to-day
 task dev                          # SQLite + templ watch + Go hot reload
 ```
-
-## Contributing
-
-PRs welcome. Sign commits with `git commit -s` (DCO) — see
-[`CONTRIBUTING.md`](./CONTRIBUTING.md). A CI check enforces sign-off.
-
-## License
-
-Licensed under [FSL-1.1-Apache-2.0](./LICENSE.md): free to read, self-host,
-and contribute to, but not to offer as a competing commercial service. Each
-release converts to Apache-2.0 after two years.
-
-## todo
-
-bounds control / compress
-cards crud
 
