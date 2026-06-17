@@ -37,15 +37,16 @@ type fakeService struct {
 	gotBounds block.Bounds      // bounds passed to SetBounds
 	gotLabel  string            // label passed to Create
 	gotSlot   int               // slot passed to Create
+	gotType   block.BlockType   // type passed to Create
 	gotID     string            // id passed to Delete
 }
 
-func (f *fakeService) Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error) {
-	f.gotOwner, f.gotLabel, f.gotSlot = owner, label, slot
+func (f *fakeService) Create(ctx context.Context, owner, label string, slot int, typ block.BlockType) (*block.CreateResult, error) {
+	f.gotOwner, f.gotLabel, f.gotSlot, f.gotType = owner, label, slot, typ
 	if f.createErr != nil {
 		return nil, f.createErr
 	}
-	c := block.Block{ID: "new", Label: label, Position: slot, Span: 1}
+	c := block.Block{ID: "new", Label: label, Position: slot, Span: 1, Type: typ}
 	f.blocks = append(f.blocks, c)
 	sort.Slice(f.blocks, func(i, j int) bool { return f.blocks[i].Position < f.blocks[j].Position })
 	return &block.CreateResult{Blocks: f.blocks}, nil
@@ -569,6 +570,26 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 		`data-id="a" data-span="2"`,
 		`data-id="b" data-span="1"`,
 	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("column missing %q; body:\n%s", want, body)
+		}
+	}
+}
+
+// Each block carries its immutable type as data-type, which ColumnStyles keys
+// the per-type fill on; the attribute must survive every morph so the color is
+// stable across SSE re-renders.
+func TestColumnRendersBlockType(t *testing.T) {
+	cs := []block.Block{
+		{ID: "a", Label: "Alpha", Position: 0, Span: 1, Type: block.BlockShallow},
+		{ID: "b", Label: "Bravo", Position: 1, Span: 1, Type: block.BlockBreak},
+	}
+	var b strings.Builder
+	if err := components.BlockColumn(cs, testBounds).Render(context.Background(), &b); err != nil {
+		t.Fatalf("render column: %v", err)
+	}
+	body := b.String()
+	for _, want := range []string{`data-slot="0" data-type="shallow"`, `data-slot="1" data-type="break"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("column missing %q; body:\n%s", want, body)
 		}

@@ -15,6 +15,7 @@ templ blockItem(c block.Block, dayStart int) {
 		data-id={ c.ID }
 		data-span={ strconv.Itoa(spanOr1(c.Span)) }
 		data-slot={ strconv.Itoa(c.Position) }
+		data-type={ string(c.Type) }
 		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
 	>
 		<span class="block-label">{ c.Label }</span>

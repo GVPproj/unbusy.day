@@ -30,7 +30,7 @@ type BlockService interface {
 	Bounds(ctx context.Context, owner string) (block.Bounds, error)
 	SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.LayoutResult, error)
 	SetBounds(ctx context.Context, owner string, start, end int) error
-	Create(ctx context.Context, owner, label string, slot int) (*block.CreateResult, error)
+	Create(ctx context.Context, owner, label string, slot int, typ block.BlockType) (*block.CreateResult, error)
 	Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error)
 	Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error)
 }
@@ -170,6 +170,7 @@ func BoundsHandler(svc BlockService) http.Handler {
 type createSignals struct {
 	Slot  int    `json:"addslot"`
 	Label string `json:"addlabel"`
+	Type  string `json:"addtype"`
 }
 
 // CreateHandler inserts a new block at the modal's slot and responds with an
@@ -186,10 +187,10 @@ func CreateHandler(svc BlockService) http.Handler {
 		}
 
 		owner := ownerFrom(r.Context())
-		_, err := svc.Create(r.Context(), owner, sig.Label, sig.Slot)
+		_, err := svc.Create(r.Context(), owner, sig.Label, sig.Slot, block.BlockType(sig.Type))
 		switch {
 		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrOutOfBounds),
-			errors.Is(err, block.ErrOverlap):
+			errors.Is(err, block.ErrOverlap), errors.Is(err, block.ErrInvalidBlockType):
 			// Rejection at 200: the snapshot below re-renders the current column.
 			log.Printf("200 rejection create: %v", err)
 		case err != nil:

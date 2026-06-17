@@ -3,10 +3,10 @@ package modals
 // CreateModal is the new-block editor: a native <dialog> opened by the empty
 // slot's add button (theme-modal house style). The slot index is carried in
 // the $addslot signal, written by the slot-add button before it opens the
-// dialog; Create @posts {addslot, addlabel} to /blocks. The signals are plain
-// (no underscore) so Datastar ships them in the request body. The server
-// enforces the invariants and rejects (empty label, occupied/out-of-bounds
-// slot) with a re-render of the truth.
+// dialog; Create @posts {addslot, addlabel, addtype} to /blocks. The signals
+// are plain (no underscore) so Datastar ships them in the request body. The
+// server enforces the invariants and rejects (empty label, occupied/out-of-bounds
+// slot, invalid type) with a re-render of the truth.
 templ CreateModal() {
 	<dialog
 		id="create-modal"
@@ -14,6 +14,7 @@ templ CreateModal() {
 		closedby="any"
 		data-signals:addslot="0"
 		data-signals:addlabel="''"
+		data-signals:addtype="'shallow'"
 	>
 		<h2>New Block</h2>
 		<label class="flex flex-col gap-[0.4rem] text-base">
@@ -26,13 +27,87 @@ templ CreateModal() {
 				class="py-[0.4rem] px-2 border border-rail-border rounded bg-bg text-base"
 			/>
 		</label>
+		// Type swatch radios: native <fieldset> bound to $addtype (default 'shallow',
+		// so shallow is pre-checked and first). Type is immutable after creation (PRD non-goal).
+		<fieldset class="type-field border-0 p-0 m-0">
+			<legend class="p-0 mb-[0.4rem] text-base">Type</legend>
+			<div class="flex gap-[0.6rem]">
+				@createTypeOption("shallow", "Shallow")
+				@createTypeOption("deep", "Deep")
+				@createTypeOption("break", "Break")
+			</div>
+		</fieldset>
 		<footer>
 			<button class="secondary" commandfor="create-modal" command="close">Cancel</button>
 			<button
 				commandfor="create-modal"
 				command="close"
-				data-on:click="@post('/blocks'); $addlabel = ''"
+				data-on:click="@post('/blocks'); $addlabel = ''; $addtype = 'shallow'"
 			>Create</button>
 		</footer>
 	</dialog>
+}
+
+// createTypeOption is one swatch radio. The native radio is visually hidden
+// (CreateStyles) but stays focusable/checkable; the colored swatch is the
+// affordance, and the checked/focus rings live in CreateStyles.
+templ createTypeOption(typ string, label string) {
+	<label class="type-swatch flex flex-1 flex-col items-center gap-[0.3rem] cursor-pointer text-sm">
+		<input type="radio" data-bind:addtype value={ typ }/>
+		<span class="swatch" data-type={ typ } aria-hidden="true"></span>
+		{ label }
+	</label>
+}
+
+// CreateStyles owns the create modal's swatch-radio presentation: the visually
+// hidden native radio, the per-type swatch fills (from baseStyles' --type-*
+// tokens, so they track the live colorscheme), and the checked/focus selection
+// ring (ADR 0006 — stateful CSS stays scoped). Passed to Layout by the blocks
+// route; tokens come from baseStyles.
+templ CreateStyles() {
+	<style>
+		@scope (.create-modal) {
+			/* accent-color is the graceful fallback if the swatch styling is ever
+			   dropped; the visually hidden radio relies on the swatch otherwise. */
+			.type-field {
+				accent-color: var(--accent);
+			}
+
+			.type-swatch input {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				opacity: 0;
+				pointer-events: none;
+			}
+
+			.swatch {
+				width: 100%;
+				height: 2rem;
+				border-radius: var(--radius);
+				border: 2px solid transparent;
+				box-shadow: inset 0 0 0 1px var(--rail-border);
+			}
+
+			.swatch[data-type="deep"] {
+				background: var(--type-deep);
+			}
+			.swatch[data-type="shallow"] {
+				background: var(--type-shallow);
+			}
+			.swatch[data-type="break"] {
+				background: var(--type-break);
+			}
+
+			/* selection ring on the checked option, mirrored on keyboard focus so
+			   the hidden radio stays operable without a pointer. */
+			.type-swatch input:checked + .swatch {
+				border-color: var(--accent);
+			}
+			.type-swatch input:focus-visible + .swatch {
+				outline: 2px solid var(--accent);
+				outline-offset: 1px;
+			}
+		}
+	</style>
 }

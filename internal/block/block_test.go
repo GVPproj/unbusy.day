@@ -466,7 +466,7 @@ func TestCreate_InsertsBlockAndPublishes(t *testing.T) {
 	owner := newOwner(t, db, svc) // starter blocks at DefaultDayStart, +1, +2
 
 	// Slot 30 is free (after the three starter blocks).
-	res, err := svc.Create(ctx, owner, "  Deep Work  ", 30)
+	res, err := svc.Create(ctx, owner, "  Deep Work  ", 30, block.BlockDeep)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -496,6 +496,91 @@ func TestCreate_InsertsBlockAndPublishes(t *testing.T) {
 	}
 }
 
+// A valid type passed to Create round-trips: it comes back on the created
+// block, in the persisted column, and in the published event.
+func TestCreate_TypeRoundTrips(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	res, err := svc.Create(ctx, owner, "Shallow thing", 30, block.BlockShallow)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if last := res.Blocks[len(res.Blocks)-1]; last.Type != block.BlockShallow {
+		t.Fatalf("created type = %q, want %q", last.Type, block.BlockShallow)
+	}
+
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if last := after[len(after)-1]; last.Type != block.BlockShallow {
+		t.Fatalf("persisted type = %q, want %q", last.Type, block.BlockShallow)
+	}
+	if last := pub.events[0].Blocks[len(pub.events[0].Blocks)-1]; last.Type != block.BlockShallow {
+		t.Fatalf("published type = %q, want %q", last.Type, block.BlockShallow)
+	}
+}
+
+// A non-empty unknown type rejects with ErrInvalidBlockType, persisting nothing
+// and fanning out nothing.
+func TestCreate_InvalidTypeRejected(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	if _, err := svc.Create(ctx, owner, "X", 30, block.BlockType("focus")); !errors.Is(err, block.ErrInvalidBlockType) {
+		t.Fatalf("want ErrInvalidBlockType, got %v", err)
+	}
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if len(after) != 3 {
+		t.Fatalf("rejected create must persist nothing: got %d blocks", len(after))
+	}
+	if len(pub.events) != 0 {
+		t.Fatalf("rejected create must not fan out: got %d events", len(pub.events))
+	}
+}
+
+// A blank type defaults to shallow, both on create and on the seeded starters
+// (which rely on the DB column default).
+func TestCreate_BlankTypeDefaultsToShallow(t *testing.T) {
+	db := newDB(t)
+	svc := block.NewService(db, nil)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	for _, c := range mustList(t, svc, ctx, owner) {
+		if c.Type != block.BlockShallow {
+			t.Fatalf("seeded starter type = %q, want %q", c.Type, block.BlockShallow)
+		}
+	}
+
+	res, err := svc.Create(ctx, owner, "Untyped", 30, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if last := res.Blocks[len(res.Blocks)-1]; last.Type != block.BlockShallow {
+		t.Fatalf("blank-type create = %q, want %q", last.Type, block.BlockShallow)
+	}
+}
+
+func mustList(t *testing.T, svc *block.Service, ctx context.Context, owner string) []block.Block {
+	t.Helper()
+	cs, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	return cs
+}
+
 // Create rejects an empty (or whitespace-only) label, an out-of-bounds slot,
 // and a slot already covered by a block — each persists nothing and fans out
 // nothing.
@@ -517,7 +602,7 @@ func TestCreate_Rejections(t *testing.T) {
 			ctx := context.Background()
 			owner := newOwner(t, db, svc)
 
-			if _, err := svc.Create(ctx, owner, tc.label, tc.slot); !errors.Is(err, tc.want) {
+			if _, err := svc.Create(ctx, owner, tc.label, tc.slot, block.BlockDeep); !errors.Is(err, tc.want) {
 				t.Fatalf("want %v, got %v", tc.want, err)
 			}
 			after, err := svc.List(ctx, owner)
@@ -589,6 +674,21 @@ func TestRename_Rejections(t *testing.T) {
 	}
 	if len(pub.events) != 0 {
 		t.Fatalf("rejected rename must not fan out: got %d events", len(pub.events))
+	}
+}
+
+// Valid accepts exactly the three canonical types; anything else (including
+// blank or wrong-case) is invalid.
+func TestBlockType_Valid(t *testing.T) {
+	for _, bt := range []block.BlockType{block.BlockDeep, block.BlockShallow, block.BlockBreak} {
+		if !bt.Valid() {
+			t.Errorf("%q should be valid", bt)
+		}
+	}
+	for _, bt := range []block.BlockType{"", "  ", "DEEP", "focus", "deepwork"} {
+		if bt.Valid() {
+			t.Errorf("%q should be invalid", bt)
+		}
 	}
 }
 

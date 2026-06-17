@@ -13,6 +13,13 @@ contiguous run of Slots: a starting Slot plus a span (number of Slots tall).
 A Block is anchored to the clock, not to the top of the plan — changing the
 Day Plan's bounds never moves a Block's time.
 
+## Block Type
+The nature of a Block, chosen by the User at creation: **deep** (demanding,
+focused work), **shallow** (low-cognitive-demand work), or **break** (rest, not
+work). A flat three-way tag — deep and shallow are grades of work and break is
+its absence, but all three are treated as peer values of one attribute. Every
+Block has exactly one Block Type. Color-coded on the Day Plan.
+
 ## Day Plan
 A User's schedule for one day, in the Cal Newport time-blocking style. Each
 User has exactly one, private and never shared — it is a rolling "today," not

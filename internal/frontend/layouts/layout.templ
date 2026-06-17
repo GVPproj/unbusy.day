@@ -140,6 +140,16 @@ templ baseStyles() {
 			--block-pad: 0.75rem;
 			--radius: 4px;
 			--radius-lg: 8px;
+			
+			/* Block-type fills: deep→blue tint and break→green tint over a darker
+			   same-hue ink; shallow keeps the pre-feature block look (surface/ink)
+			   so the default type matches every block on main. */
+			--type-deep: hsl(205, 70%, 87%);
+			--type-deep-ink: hsl(205, 75%, 27%);
+			--type-shallow: var(--surface);
+			--type-shallow-ink: var(--ink);
+			--type-break: hsl(135, 42%, 82%);
+			--type-break-ink: hsl(135, 55%, 22%);
 		}
 
 		/* Solarized Dark Osaka (craftzdog's solarized-osaka.nvim palette) */
@@ -160,6 +170,15 @@ templ baseStyles() {
 			--scrim: rgba(0, 0, 0, 0.55);
 			--shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
 			--shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
+			
+			/* Dark scheme: deep/break fill with same-hue ink; shallow keeps the
+			   pre-feature block look (surface/ink) so the default type is unchanged. */
+			--type-deep: hsl(205, 55%, 25%);
+			--type-deep-ink: hsl(205, 70%, 80%);
+			--type-shallow: var(--surface);
+			--type-shallow-ink: var(--ink);
+			--type-break: hsl(135, 38%, 21%);
+			--type-break-ink: hsl(135, 50%, 76%);
 		}
 
 		/* Catppuccin Mocha */
@@ -180,6 +199,15 @@ templ baseStyles() {
 			--scrim: rgba(17, 17, 27, 0.55);
 			--shadow-rest: 0 1px 1px rgba(17, 17, 27, 0.5);
 			--shadow-lift: 0 4px 8px rgba(17, 17, 27, 0.5);
+			
+			/* Catppuccin Mocha: deep/break darkened-hue fills with bright pastel
+			   same-hue ink; shallow keeps the pre-feature block look (surface/ink). */
+			--type-deep: hsl(217, 50%, 30%);
+			--type-deep-ink: hsl(217, 90%, 82%);
+			--type-shallow: var(--surface);
+			--type-shallow-ink: var(--ink);
+			--type-break: hsl(115, 35%, 27%);
+			--type-break-ink: hsl(115, 54%, 80%);
 		}
 
 		* {

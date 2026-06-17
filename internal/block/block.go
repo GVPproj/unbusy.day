@@ -12,12 +12,33 @@ import (
 	"strings"
 )
 
+// BlockType is a Block's flat three-way tag: deep/shallow work or break. Chosen
+// at creation and immutable after (delete + recreate to change). Default shallow.
+type BlockType string
+
+const (
+	BlockDeep    BlockType = "deep"
+	BlockShallow BlockType = "shallow"
+	BlockBreak   BlockType = "break"
+)
+
+// Valid reports whether t is one of the three canonical types.
+func (t BlockType) Valid() bool {
+	switch t {
+	case BlockDeep, BlockShallow, BlockBreak:
+		return true
+	}
+	return false
+}
+
 type Block struct {
 	ID       string `json:"id"`
 	Label    string `json:"label"`
 	Position int    `json:"position"`
 	// Span is the block's height in stretch slots (≥1).
 	Span int `json:"span"`
+	// Type is the block's deep/shallow/break tag, set at creation.
+	Type BlockType `json:"type"`
 }
 
 // Event is one mutation fanned out over the in-process pub/sub: the owner key
@@ -44,6 +65,9 @@ var ErrEmptyLabel = errors.New("block label is required")
 
 // ErrBlockNotFound signals a delete or rename of a block this owner doesn't own.
 var ErrBlockNotFound = errors.New("block not found")
+
+// ErrInvalidBlockType signals a create with a type outside deep/shallow/break.
+var ErrInvalidBlockType = errors.New("invalid block type")
 
 type Service struct {
 	db  *sql.DB
@@ -100,10 +124,19 @@ type CreateResult struct {
 // Create inserts a new span-1 block labeled at slot for owner. It rejects a
 // blank label, a slot outside the day's bounds, or a slot already covered by a
 // block — same write-transaction and post-commit fan-out shape as SetLayout.
-func (s *Service) Create(ctx context.Context, owner, label string, slot int) (*CreateResult, error) {
+func (s *Service) Create(ctx context.Context, owner, label string, slot int, typ BlockType) (*CreateResult, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
 		return nil, ErrEmptyLabel
+	}
+	// Blank type defaults to shallow (the DB column default); a non-empty unknown
+	// value is rejected rather than silently coerced.
+	typ = BlockType(strings.TrimSpace(string(typ)))
+	if typ == "" {
+		typ = BlockShallow
+	}
+	if !typ.Valid() {
+		return nil, ErrInvalidBlockType
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -132,8 +165,8 @@ func (s *Service) Create(ctx context.Context, owner, label string, slot int) (*C
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO block (id, label, position, span, owner_id) VALUES (?, ?, ?, 1, ?)`,
-		id, label, slot, owner); err != nil {
+		`INSERT INTO block (id, label, position, span, type, owner_id) VALUES (?, ?, ?, 1, ?, ?)`,
+		id, label, slot, string(typ), owner); err != nil {
 		return nil, err
 	}
 
@@ -363,7 +396,7 @@ type querier interface {
 // here once — keep it in sync with scanBlocks.
 func queryBlocks(ctx context.Context, q querier, owner string) ([]Block, error) {
 	rows, err := q.QueryContext(ctx,
-		`SELECT id, label, position, span FROM block WHERE owner_id = ? ORDER BY position`, owner)
+		`SELECT id, label, position, span, type FROM block WHERE owner_id = ? ORDER BY position`, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +425,7 @@ func scanBlocks(rows *sql.Rows) ([]Block, error) {
 	var out []Block
 	for rows.Next() {
 		var c Block
-		if err := rows.Scan(&c.ID, &c.Label, &c.Position, &c.Span); err != nil {
+		if err := rows.Scan(&c.ID, &c.Label, &c.Position, &c.Span, &c.Type); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

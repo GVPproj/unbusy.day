@@ -81,6 +81,21 @@ templ ColumnStyles() {
 				&.resizing .grip::after {
 					opacity: 1;
 				}
+
+				/* Block-type fill: full background + legible same-hue ink,
+				   keyed on the immutable data-type set at creation. */
+				&[data-type="deep"] {
+					background: var(--type-deep);
+					color: var(--type-deep-ink);
+				}
+				&[data-type="shallow"] {
+					background: var(--type-shallow);
+					color: var(--type-shallow-ink);
+				}
+				&[data-type="break"] {
+					background: var(--type-break);
+					color: var(--type-break-ink);
+				}
 			}
 
 				/* The label fills the block and truncates rather than bleeding
