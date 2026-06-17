@@ -33,23 +33,24 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # Pinned to the templ runtime in go.mod — a CLI/runtime mismatch should
-      # fail generation rather than produce skewed output (same pin as Dockerfile).
+      # CLI version derived from the go.mod runtime (single source of truth) —
+      # a CLI/runtime mismatch can't happen (same approach as the Dockerfile).
       - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@v0.3.1020
+        run: go install "github.com/a-h/templ/cmd/templ@$(go list -m github.com/a-h/templ | awk '{print $2}')"
 
       # *_templ.go is git-ignored and regenerated in the Docker build; CI must
       # generate before vet/build/test so the package compiles.
       - name: Generate templ
         run: templ generate
 
-      # Tailwind v4 standalone — pinned identically in the Taskfile and Dockerfile
-      # (bump all three together). output.css is git-ignored and embedded by the
+      # Tailwind v4 standalone — version from versions.env (shared with the
+      # Taskfile and Dockerfile). output.css is git-ignored and embedded by the
       # Go build, so it must be generated before vet/build/test.
       - name: Generate CSS (Tailwind)
         run: |
+          . ./versions.env
           curl -sL -o /usr/local/bin/tailwindcss \
-            https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.1/tailwindcss-linux-x64
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/tailwindcss-linux-x64"
           chmod +x /usr/local/bin/tailwindcss
           tailwindcss -i internal/frontend/input.css -o internal/frontend/static/output.css --minify
 

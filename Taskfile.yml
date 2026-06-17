@@ -1,11 +1,11 @@
 version: "3"
 
-dotenv: [".env"]
+# versions.env is the single source of truth for non-Go tool versions
+# ($TAILWIND_VERSION); the Dockerfile and CI read the same file. templ's version
+# lives in go.mod (derived via `go list -m`). `task check:versions` flags drift.
+dotenv: [".env", "versions.env"]
 
-# Tailwind standalone binary (ADR 0008). Pinned here (the anchor, since go.mod
-# can't hold a non-Go binary) — bump TAILWIND_VERSION, Dockerfile, and CI together.
 vars:
-  TAILWIND_VERSION: 4.3.1
   TAILWIND_BIN: tmp/tailwindcss
   TAILWIND_IN: internal/frontend/input.css
   TAILWIND_OUT: internal/frontend/static/output.css
@@ -38,14 +38,14 @@ tasks:
   tailwind:install:
     desc: "Download the pinned Tailwind v4 standalone binary into tmp/ (no Node)"
     status:
-      - test -x {{.TAILWIND_BIN}} && {{.TAILWIND_BIN}} --help 2>&1 | grep -q "v{{.TAILWIND_VERSION}}"
+      - test -x {{.TAILWIND_BIN}} && {{.TAILWIND_BIN}} --help 2>&1 | grep -q "v$TAILWIND_VERSION"
     cmds:
       - |
         os=$(uname -s | tr '[:upper:]' '[:lower:]'); [ "$os" = darwin ] && os=macos
         arch=$(uname -m); [ "$arch" = aarch64 ] && arch=arm64; [ "$arch" = x86_64 ] && arch=x64
         mkdir -p tmp
         curl -sL -o {{.TAILWIND_BIN}} \
-          "https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/tailwindcss-${os}-${arch}"
+          "https://github.com/tailwindlabs/tailwindcss/releases/download/v$TAILWIND_VERSION/tailwindcss-${os}-${arch}"
         chmod +x {{.TAILWIND_BIN}}
 
   css:
@@ -53,6 +53,34 @@ tasks:
     deps: [tailwind:install]
     cmds:
       - "{{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --minify"
+
+  check:versions:
+    desc: "Compare pinned tool/CDN versions against latest upstream releases"
+    cmds:
+      - |
+        set -eu
+        # Latest release tag from the GitHub API / npm registry (drop leading v).
+        gh_latest() { curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
+          | sed -nE 's/.*"tag_name": *"v?([^"]+)".*/\1/p'; }
+        npm_latest() { curl -fsSL "https://registry.npmjs.org/$1/latest" \
+          | sed -nE 's/.*"version": *"([^"]+)".*/\1/p'; }
+        # Newest tag (for repos that publish tags but no GitHub releases).
+        gh_tag() { curl -fsSL "https://api.github.com/repos/$1/tags" \
+          | sed -nE 's/.*"name": *"v?([^"]+)".*/\1/p' | head -1; }
+        report() { # name pinned latest
+          if [ "$2" = "$3" ]; then printf '  ✓ %-11s %s (up to date)\n' "$1" "$2";
+          else printf '  ✗ %-11s pinned %s, latest %s\n' "$1" "$2" "$3"; rc=1; fi; }
+        rc=0
+        report templ "$(go list -m github.com/a-h/templ | awk '{print $2}' | sed 's/^v//')" "$(gh_latest a-h/templ)"
+        report tailwind "$TAILWIND_VERSION" "$(gh_latest tailwindlabs/tailwindcss)"
+        report ds-sdk "$(go list -m github.com/starfederation/datastar-go | awk '{print $2}' | sed 's/^v//')" "$(gh_tag starfederation/datastar-go)"
+        # Datastar client bundle: a CDN tag in the templ shells (both must agree).
+        ds_client=$(grep -rhoE 'datastar@v[0-9.]+' internal/frontend/smoke.templ internal/frontend/layouts/layout.templ | sed 's/.*@v//' | sort -u)
+        if [ "$(printf '%s' "$ds_client" | grep -c .)" -gt 1 ]; then
+          printf '  ✗ %-11s tags disagree across templ files: %s\n' ds-client "$(echo $ds_client)"; rc=1
+        else report ds-client "$ds_client" "$(gh_latest starfederation/datastar)"; fi
+        report motion "$(grep -hoE 'motion@[0-9.]+' internal/frontend/static/drag.js | sed 's/.*@//')" "$(npm_latest motion)"
+        exit $rc
 
   migrate:
     desc: "Apply pending migrations against $DATABASE_URL (goose, run-once)"
