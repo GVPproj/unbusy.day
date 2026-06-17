@@ -130,6 +130,29 @@ function springSibs(g, lay) {
   });
 }
 
+// Stop every sibling spring, detach its styleEffect, and clear the transform
+// Motion left behind — shared by the drag and resize settle paths.
+function teardownSibs(g) {
+  g.sibs.forEach((s, c) => {
+    if (s.anim) s.anim.stop();
+    s.detach();
+    c.style.transform = "";
+  });
+}
+
+// Every sibling's in-flight spring, for awaiting on settle.
+const sibAnims = (g) => [...g.sibs.values()].map((s) => s.anim);
+
+// Tell the server the gesture's result — unless nothing changed, or a foreign
+// patch replaced the block mid-gesture (the server's layout already won).
+function dispatchLayout(g) {
+  if (sameLayout(g.valid.layout, g.current)) return;
+  if (g.el.parentElement !== list) return;
+  list.dispatchEvent(
+    new CustomEvent("layout", { detail: { layout: g.valid.layout } }),
+  );
+}
+
 // ---- drag to a slot --------------------------------------------------
 
 function startDrag(e, el) {
@@ -190,20 +213,14 @@ async function settleDrag(e, commit) {
     await Promise.all([
       animate(d.x, 0, SPRING),
       animate(d.y, (d.valid.slot - d.orig.slot) * d.pitch, SPRING),
-      ...[...d.sibs.values()].map((s) => s.anim),
+      ...sibAnims(d),
     ]);
   } finally {
     // Teardown and the layout write below share one synchronous frame:
     // same pixels, new grid placement (FLIP).
     d.detach();
-    d.sibs.forEach((s) => {
-      if (s.anim) s.anim.stop();
-      s.detach();
-    });
+    teardownSibs(d);
     d.el.style.transform = "";
-    d.sibs.forEach((_, c) => {
-      c.style.transform = "";
-    });
     d.el.classList.remove("dragging");
     if (d.el.parentElement === list)
       writeLayout(d.valid.layout, d.bounds.start);
@@ -213,13 +230,7 @@ async function settleDrag(e, commit) {
     enterEdit(editLabel, d.startX, d.startY);
     return;
   }
-  if (sameLayout(d.valid.layout, d.current)) return;
-  // A foreign patch may have replaced the children mid-drag — the server's
-  // layout already won, so don't dispatch a stale one.
-  if (d.el.parentElement !== list) return;
-  list.dispatchEvent(
-    new CustomEvent("layout", { detail: { layout: d.valid.layout } }),
-  );
+  dispatchLayout(d);
 }
 
 // ---- inline label edit -----------------------------------------------
@@ -344,27 +355,17 @@ async function settleResize(e, commit) {
   settling = true;
   try {
     await Promise.all(
-      [r.hAnim, ...[...r.sibs.values()].map((s) => s.anim)].filter(Boolean),
+      [r.hAnim, ...sibAnims(r)].filter(Boolean),
     );
   } finally {
     if (r.hAnim) r.hAnim.stop();
     r.detach();
-    r.sibs.forEach((s) => {
-      if (s.anim) s.anim.stop();
-      s.detach();
-    });
+    teardownSibs(r);
     r.el.style.height = "";
-    r.sibs.forEach((_, c) => {
-      c.style.transform = "";
-    });
     r.el.classList.remove("resizing");
     if (r.el.parentElement === list)
       writeLayout(r.valid.layout, r.bounds.start);
     settling = false;
   }
-  if (sameLayout(r.valid.layout, r.current)) return;
-  if (r.el.parentElement !== list) return;
-  list.dispatchEvent(
-    new CustomEvent("layout", { detail: { layout: r.valid.layout } }),
-  );
+  dispatchLayout(r);
 }
