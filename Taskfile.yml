@@ -2,9 +2,8 @@ version: "3"
 
 dotenv: [".env"]
 
-# Tailwind standalone binary (ADR 0008 / PRD). Pinned here the way the templ CLI
-# is pinned in go.mod/Dockerfile/CI — bump in this var, the Dockerfile, and CI
-# together. go.mod can't hold a non-Go binary, so the Taskfile is the anchor.
+# Tailwind standalone binary (ADR 0008). Pinned here (the anchor, since go.mod
+# can't hold a non-Go binary) — bump TAILWIND_VERSION, Dockerfile, and CI together.
 vars:
   TAILWIND_VERSION: 4.3.1
   TAILWIND_BIN: tmp/tailwindcss
@@ -20,25 +19,15 @@ tasks:
   dev:
     desc: "templ watch/proxy driving the Go server over a local SQLite file (browse :7331)"
     cmds:
-      # No external DB: DATABASE_URL points at a local SQLite file (.env). The
-      # app migrates on boot, so no separate migrate step is needed here.
-      # templ owns the whole dev loop: it watches .templ and .go files,
-      # regenerates, (re)runs the server, and auto-reloads the browser via
-      # the proxy on :7331. Text-only .templ edits (CSS in styles.templ,
-      # copy) skip the rebuild/restart entirely — the running server re-reads
-      # literals from _templ.txt per render (TEMPL_DEV_MODE, set by the CLI)
-      # and the proxy just reloads the page. Go-affecting changes restart
-      # `go run .`. Don't run air alongside this; it rebuilds on every
-      # .templ edit and defeats the fast path.
-      # The proxy opens the root, which the Datastar page serves — but we wait
-      # out the startup 502s (curl -f) before opening so the first load isn't
-      # a stale error page.
-      # Tailwind --watch runs alongside templ, regenerating output.css on .templ
-      # edits. It writes a plain .css file, so it never triggers a Go rebuild —
-      # templ's text-only fast path stays intact. In a watch session
-      # (TEMPL_DEV_MODE) StaticHandler serves static/ from disk, not the embedded
-      # copy, so the rewritten output.css is live on the browser reload templ
-      # fires — a new utility class lands without a Go rebuild.
+      # templ owns the dev loop: watches .templ/.go, regenerates, (re)runs the
+      # server, and reloads the browser via the proxy on :7331. Text-only .templ
+      # edits skip rebuild/restart (server re-reads literals per render under
+      # TEMPL_DEV_MODE); Go changes restart `go run .`. Don't run air alongside —
+      # it rebuilds on every .templ edit and defeats the fast path.
+      # We wait out startup 502s (curl -f) before opening the browser.
+      # Tailwind --watch regenerates output.css on .templ edits; it writes plain
+      # CSS so it never triggers a Go rebuild, and TEMPL_DEV_MODE serves static/
+      # from disk, so new utility classes land live without a rebuild.
       - |
         opener=open; command -v xdg-open >/dev/null && opener=xdg-open
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; "$opener" "http://127.0.0.1:7331/") &
@@ -72,10 +61,9 @@ tasks:
 
   templ:
     desc: "Generate templ Go files"
-    # Don't run this while `task dev` is up: non-watch `templ generate` deletes
-    # the watch session's $TMPDIR/templ_*.txt literals, so the running dev
-    # server 500s on every render until you restart it. `go test`/CI are
-    # unaffected (they use the literals compiled into *_templ.go).
+    # Don't run while `task dev` is up: non-watch generation deletes the watch
+    # session's literal cache, 500ing the dev server until restart. CI/test are
+    # unaffected (they use literals compiled into *_templ.go).
     cmds:
       - templ generate
 
@@ -99,8 +87,8 @@ tasks:
   nuke:
     desc: "Delete the local SQLite file (and WAL sidecars); next run re-migrates"
     cmds:
-      # Strip the file: scheme and ?query from the DSN, then remove the db plus
-      # its -wal/-shm sidecars. App recreates and migrates on next boot.
+      # Strip the file: scheme and ?query from the DSN, then remove the db and
+      # its -wal/-shm sidecars.
       - |
         db="${DATABASE_URL#file:}"; db="${db%%\?*}"
         rm -f "$db" "$db-wal" "$db-shm"

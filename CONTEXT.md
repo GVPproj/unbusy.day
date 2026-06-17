@@ -11,9 +11,7 @@ Day Plan.
 A single time block on a User's Day Plan. Owned by exactly one User. Occupies a
 contiguous run of Slots: a starting Slot plus a span (number of Slots tall).
 A Block is anchored to the clock, not to the top of the plan — changing the
-Day Plan's bounds never moves a Block's time. (Replaces the retired term
-**Card**, and with it the legacy dense top-down position ordering — superseded
-by Slot placement.)
+Day Plan's bounds never moves a Block's time.
 
 ## Day Plan
 A User's schedule for one day, in the Cal Newport time-blocking style. Each
@@ -24,7 +22,7 @@ Slots is derived from those bounds, never set directly. Bounds lie within a
 single day — no midnight wrap — starting no earlier than 5:00 and ending no
 later than 18:00 (for now). The day can only shrink into empty Slots: a
 bounds change that would leave any Block outside the Day Plan is rejected. Eventually the User's current time of day will be
-indicated live on the plan. (Replaces the retired term **Board**.)
+indicated live on the plan.
 
 ## Template (future)
 A reusable Day Plan layout a User can stamp onto their Day Plan. Not built
