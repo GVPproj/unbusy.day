@@ -7,9 +7,6 @@
 [![CI/CD](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml/badge.svg)](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GVPproj/unbusy.day)](https://goreportcard.com/report/github.com/GVPproj/unbusy.day)
 [![Go](https://img.shields.io/github/go-mod/go-version/GVPproj/unbusy.day?logo=go&logoColor=white)](https://go.dev)
-[![SQLite](https://img.shields.io/badge/SQLite-local%20file-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
-[![Datastar](https://img.shields.io/badge/Datastar-hypermedia-ff6b6b)](https://data-star.dev)
-[![templ](https://img.shields.io/badge/templ-typed%20templates-4B8BBE)](https://templ.guide)
 Have a structured day. Time-block your schedule, track some progress, no rush.
 
 ## Quickstart
