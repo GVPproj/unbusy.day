@@ -277,8 +277,12 @@ function placeCaret(x, y) {
       range.setStart(p.offsetNode, p.offset);
       range.collapse(true);
     }
-  } else if (document.caretRangeFromPoint) {
-    range = document.caretRangeFromPoint(x, y);
+  } else {
+    // WebKit fallback (older Safari lacks caretPositionFromPoint); the dynamic
+    // key keeps TS from resolving the deprecated caretRangeFromPoint member.
+    const key = /** @type {string} */ ("caretRangeFromPoint");
+    const fromPoint = document[key];
+    if (fromPoint) range = fromPoint.call(document, x, y);
   }
   if (range) {
     sel.removeAllRanges();
