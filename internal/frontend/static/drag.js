@@ -112,36 +112,54 @@ function sibsFor(el) {
   const sibs = new Map();
   for (const c of blocksIn()) {
     if (c === el) continue;
-    const v = motionValue(0);
-    sibs.set(c, { v, detach: styleEffect(c, { y: v }), anim: null });
+    const y = motionValue(0);
+    // h0 is the block's natural height (margins make it ~3px under span*pitch);
+    // springing height from here keeps unchanged siblings from twitching.
+    const h0 = c.getBoundingClientRect().height;
+    const h = motionValue(h0);
+    sibs.set(c, {
+      y,
+      h,
+      h0,
+      detach: styleEffect(c, { y, height: h }),
+      yAnim: null,
+      hAnim: null,
+    });
   }
   return sibs;
 }
 
-// Spring every other block to its slot delta under layout `lay` (the live
-// push preview); identical for drag and resize.
+// Spring every other block to its slot delta — and, when compression changed
+// its span, its height — under layout `lay` (the live preview). A sibling back
+// at its original span springs height to its natural h0, undoing compression.
 function springSibs(g, lay) {
   const by = new Map(lay.map((p) => [p.id, p]));
   g.sibs.forEach((s, c) => {
-    const from = parseInt(c.dataset.slot, 10);
-    const to = by.get(c.dataset.id).slot;
-    if (s.anim) s.anim.stop();
-    s.anim = animate(s.v, (to - from) * g.pitch, SPRING);
+    const p = by.get(c.dataset.id);
+    const fromSlot = parseInt(c.dataset.slot, 10);
+    const fromSpan = parseInt(c.dataset.span, 10) || 1;
+    if (s.yAnim) s.yAnim.stop();
+    s.yAnim = animate(s.y, (p.slot - fromSlot) * g.pitch, SPRING);
+    const toH = p.span === fromSpan ? s.h0 : p.span * g.pitch;
+    if (s.hAnim) s.hAnim.stop();
+    s.hAnim = animate(s.h, toH, SPRING);
   });
 }
 
 // Stop every sibling spring, detach its styleEffect, and clear the transform
-// Motion left behind — shared by the drag and resize settle paths.
+// and height Motion left behind — shared by the drag and resize settle paths.
 function teardownSibs(g) {
   g.sibs.forEach((s, c) => {
-    if (s.anim) s.anim.stop();
+    if (s.yAnim) s.yAnim.stop();
+    if (s.hAnim) s.hAnim.stop();
     s.detach();
     c.style.transform = "";
+    c.style.height = "";
   });
 }
 
-// Every sibling's in-flight spring, for awaiting on settle.
-const sibAnims = (g) => [...g.sibs.values()].map((s) => s.anim);
+// Every sibling's in-flight springs (position and height), for awaiting on settle.
+const sibAnims = (g) => [...g.sibs.values()].flatMap((s) => [s.yAnim, s.hAnim]);
 
 // Tell the server the gesture's result — unless nothing changed, or a foreign
 // patch replaced the block mid-gesture (the server's layout already won).
@@ -330,11 +348,12 @@ function previewResize(span) {
   const r = resize;
   span = Math.max(1, Math.min(r.bounds.end - r.orig.slot, span));
   if (span === r.valid.span) return;
-  const lay = pushLayout(r.bounds, r.current, {
-    id: r.orig.id,
-    slot: r.orig.slot,
-    span,
-  });
+  const lay = pushLayout(
+    r.bounds,
+    r.current,
+    { id: r.orig.id, slot: r.orig.slot, span },
+    { compress: true },
+  );
   if (!lay) return;
   r.valid = { span, layout: lay };
   if (r.hAnim) r.hAnim.stop();
