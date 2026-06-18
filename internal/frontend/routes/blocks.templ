@@ -20,6 +20,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})", components.NavStyles(), components.IconStyles(), components.ColumnStyles(), modals.DialogStyles(), modals.ThemeStyles(), modals.CreateStyles()) {
 		<div class="shell" data-signals:_navopen="false">
 			@components.SideNav()
+			@components.MenuToggle()
 			@modals.ThemeModal()
 			@modals.HoursModal(b, block.OccupiedEnvelope(cs))
 			@modals.CreateModal()

@@ -2,7 +2,7 @@ package components
 
 // NavStyles owns the nav's surviving structural/stateful CSS (ADR 0006): the
 // global .shell page wrapper and the @scope-d rail↔drawer geometry. Desktop is
-// a slim sticky rail; mobile (≤639.98px, Tailwind's sm) is a right-side off-canvas drawer whose
+// a slim sticky rail; mobile (<40rem, Tailwind's sm) is a right-side off-canvas drawer whose
 // translateX open-state (toggled by data-class:open) is the stateful hook that
 // keeps this as named CSS. The toggle, scrim, brand, and navlink presentation
 // moved to inline utilities on the markup. Tokens come from baseStyles.
@@ -34,11 +34,14 @@ templ NavStyles() {
 				height: 100vh;
 			}
 
-			@media (max-width: 639.98px) {
+			/* exact complement of Tailwind's sm (min-width:40rem), same rem unit,
+			   so the rail↔drawer flip lines up with the max-sm utilities with no
+			   sub-pixel no-man's-land between the two breakpoint systems. */
+			@media (width < 40rem) {
 				:scope {
 					position: fixed;
 					inset: 0 0 0 auto;
-					z-index: 10;
+					z-index: 30;
 					width: 200px;
 					transform: translateX(100%);
 					transition: transform 200ms ease;
@@ -59,11 +62,12 @@ templ NavStyles() {
 const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-[0.6rem] max-sm:px-3 max-sm:text-base"
 
 // MenuToggle is the mobile hamburger button. Hidden on desktop (the icon rail
-// is always present there); on mobile it lives in the DateHeading header bar so
-// it sits inline with the date rather than floating as a separate fixed element.
+// is always present there); on mobile it's a fixed top-right overlay rendered at
+// .shell level (not inside the header) so it escapes the header's z-11 stacking
+// context and floats above the open drawer (z-30) to stay tappable.
 templ MenuToggle() {
 	<button
-		class="hidden max-sm:grid place-items-center p-[0.4rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
+		class="hidden max-sm:grid max-sm:fixed max-sm:top-2 max-sm:right-4 max-sm:z-40 place-items-center p-[0.4rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		data-class:open="$_navopen"
@@ -79,7 +83,7 @@ templ MenuToggle() {
 // (underscore = local-only, kept out of @post signal bodies). Theme opens the
 // #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
-	<div class="hidden fixed inset-0 z-9 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
+	<div class="hidden fixed inset-0 z-20 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-sm:self-start max-sm:ml-4">
 			@UBLogo("51", "22", 0.35)

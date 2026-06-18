@@ -10,14 +10,13 @@ import (
 // DateHeading renders today's date at the column's top-left. On mobile it's a
 // non-scrolling header bar (a flex-none child of the .column flex layout) that
 // sits above the scrolling block list with its own background and z-index;
-// on desktop the toggle is hidden and it sits as a normal heading above the
-// column card.
+// on desktop it's a normal heading above the column card. The hamburger toggle
+// is a separate .shell-level overlay (see MenuToggle), not part of this bar.
 templ DateHeading() {
 	<div class="flex items-center justify-between gap-2 mb-2 sm:min-h-8 max-sm:shrink-0 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:px-4 max-sm:bg-(--column-bg)">
 		<p class="m-0 font-bold text-ink">
 			{ time.Now().Format("Monday, January 2") }
 		</p>
-		@MenuToggle()
 	</div>
 }
 
@@ -44,8 +43,10 @@ templ ColumnStyles() {
 			/* Below Tailwind's sm breakpoint the column fills the viewport and
 			   becomes a flex column: the DateHeading is a non-scrolling header
 			   bar and the .blocks grid is the only scrolling region, so the day
-			   grid can never slide up behind the date/hamburger header. */
-			@media (max-width: 639.98px) {
+			   grid can never slide up behind the date/hamburger header. Exact
+			   complement of Tailwind's sm (min-width:40rem) in the same rem unit
+			   so it flips in lockstep with the max-sm utilities — no gap. */
+			@media (width < 40rem) {
 				:scope {
 					max-width: none;
 					margin: 0;
