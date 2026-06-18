@@ -71,6 +71,7 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 				@endOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
+		<p class="text-sm text-ink" data-show="$firstOccupiedSlot < $lastOccupiedEnd">Your blocks will need to fit :)</p>
 		<footer>
 			<button class="secondary" autofocus commandfor="bounds-modal" command="close">Cancel</button>
 			<button commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
