@@ -31,7 +31,7 @@ templ IconStyles() {
 		:root[data-feeling="pixel"] .menu-pixel { display: block; }
 
 		/* cozy-1 Jelly Wobble: idle sway, squash on hover */
-		.menu-cozy { animation: menu-wobble 2.8s ease-in-out infinite; transform-origin: center; }
+		.menu-cozy { animation: menu-wobble 2.8s ease-in-out 1 forwards; transform-origin: center; }
 		.menu-cozy .bar {
 			position: absolute; left: 2px; right: 2px; top: 50%; height: 3px; margin-top: -1.5px;
 			background: currentColor; border-radius: 3px;
@@ -51,7 +51,7 @@ templ IconStyles() {
 		}
 		.menu-pixel .trow:nth-child(1) { transform: translateY(-7px); }
 		.menu-pixel .trow:nth-child(3) { transform: translateY(7px); }
-		.menu-pixel .trow i { width: 4px; height: 4px; background: currentColor; animation: menu-drop 2.6s steps(5) infinite; }
+		.menu-pixel .trow i { width: 4px; height: 4px; background: currentColor; animation: menu-drop 2.6s steps(5) 1 forwards; }
 		.menu-pixel .trow:nth-child(1) i:nth-child(1) { animation-delay: 0s; }
 		.menu-pixel .trow:nth-child(1) i:nth-child(2) { animation-delay: .1s; }
 		.menu-pixel .trow:nth-child(1) i:nth-child(3) { animation-delay: .2s; }
@@ -78,7 +78,7 @@ templ IconStyles() {
 		   block and swap the .menu-cat markup in IconMenu in for .menu-cozy.
 		.menu-cat { display: block; position: relative; width: 24px; height: 24px; }
 		:root[data-feeling="pixel"] .menu-cat { display: none; }
-		.menu-cat svg { width: 24px; height: 24px; display: block; overflow: visible; animation: menu-catbreathe 3.6s ease-in-out infinite; transform-origin: center; }
+		.menu-cat svg { width: 24px; height: 24px; display: block; overflow: visible; animation: menu-catbreathe 3.6s ease-in-out 1 forwards; transform-origin: center; }
 		@keyframes menu-catbreathe { 0%, 100% { transform: scale(.95); } 50% { transform: scale(1.06); } }
 		.menu-cat .eye-open { opacity: 0; transition: opacity .2s; }
 		.menu-cat .eye-closed { opacity: 1; transition: opacity .2s; }
