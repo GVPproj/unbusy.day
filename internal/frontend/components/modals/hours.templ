@@ -37,18 +37,18 @@ templ HoursModal(b block.Bounds) {
 		<h2>Working Hours</h2>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
-			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-base">
+			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
 				@boundsOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
 			</select>
 		</label>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			End
-			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-[0.5rem] border border-rail-border rounded bg-bg text-base">
+			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
 				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
 		<footer>
-			<button class="secondary" commandfor="bounds-modal" command="close">Cancel</button>
+			<button class="secondary" autofocus commandfor="bounds-modal" command="close">Cancel</button>
 			<button commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
 		</footer>
 	</dialog>
