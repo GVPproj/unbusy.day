@@ -26,6 +26,20 @@ templ ColumnStyles() {
 				border-radius: var(--radius-lg);
 			}
 
+			/* Below Tailwind's sm breakpoint the column fills the viewport: drop
+			   the card max-width, side margins, and rounding so the day grid
+			   uses the full width on phones. Extra top padding clears the fixed
+			   hamburger (top-right) so it never sits over the first block's
+			   delete X. */
+			@media (max-width: 639.98px) {
+				:scope {
+					max-width: none;
+					margin: 0;
+					border-radius: 0;
+					padding-top: 3.5rem;
+				}
+			}
+
 			h1 {
 				font-size: 1rem;
 				margin: 0 0 0.75rem;

@@ -2,7 +2,7 @@ package components
 
 // NavStyles owns the nav's surviving structural/stateful CSS (ADR 0006): the
 // global .shell page wrapper and the @scope-d rail↔drawer geometry. Desktop is
-// a slim sticky rail; mobile (≤640px, Tailwind's sm) is a right-side off-canvas drawer whose
+// a slim sticky rail; mobile (≤639.98px, Tailwind's sm) is a right-side off-canvas drawer whose
 // translateX open-state (toggled by data-class:open) is the stateful hook that
 // keeps this as named CSS. The toggle, scrim, brand, and navlink presentation
 // moved to inline utilities on the markup. Tokens come from baseStyles.
@@ -34,7 +34,7 @@ templ NavStyles() {
 				height: 100vh;
 			}
 
-			@media (max-width: 640px) {
+			@media (max-width: 639.98px) {
 				:scope {
 					position: fixed;
 					inset: 0 0 0 auto;
