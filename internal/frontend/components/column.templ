@@ -98,39 +98,39 @@ templ ColumnStyles() {
 				}
 			}
 
-				/* The label fills the block and truncates rather than bleeding
+			/* The label fills the block and truncates rather than bleeding
 				   past it: clamped to as many lines as the block has slots (--span),
 				   with padding-right clearing the delete X pinned top-right. A
 				   span-1 block gets a single ellipsised line; taller blocks wrap up
 				   to their height. */
-				.block-label {
-					/* size to the text, not the block, so cursor:text (and the
+			.block-label {
+				/* size to the text, not the block, so cursor:text (and the
 					   editor) only covers the glyphs — never the empty space a
 					   short label leaves to its right. margin (not padding) clears
 					   the delete X so the X's gap stays outside the text box. */
-					min-width: 0;
-					max-width: calc(100% - 1.5rem);
-					width: fit-content;
-					margin-right: 1.5rem;
-					overflow: hidden;
-					overflow-wrap: anywhere;
-					display: -webkit-box;
-					-webkit-box-orient: vertical;
-					-webkit-line-clamp: var(--span, 1);
-					line-clamp: var(--span, 1);
-					/* clicking the text edits it in place; the cursor signals it */
-					cursor: text;
+				min-width: 0;
+				max-width: calc(100% - 1.5rem);
+				width: fit-content;
+				margin-right: 1.5rem;
+				overflow: hidden;
+				overflow-wrap: anywhere;
+				display: -webkit-box;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: var(--span, 1);
+				line-clamp: var(--span, 1);
+				/* clicking the text edits it in place; the cursor signals it */
+				cursor: text;
 
-					/* while editing: drop the line-clamp so the full text and caret
+				/* while editing: drop the line-clamp so the full text and caret
 					   are visible, allow the text selection the gesture needs, and
 					   keep styling otherwise unchanged — just a blinking caret. */
-					&[contenteditable] {
-						-webkit-line-clamp: none;
-						line-clamp: none;
-						user-select: text;
-						outline: none;
-					}
+				&[contenteditable] {
+					-webkit-line-clamp: none;
+					line-clamp: none;
+					user-select: text;
+					outline: none;
 				}
+			}
 
 			/* per-block delete: an X pinned to the block's right edge, its icon
 			   box sized to the label's line so the two align vertically. Hidden at
@@ -203,10 +203,10 @@ templ ColumnStyles() {
 					height: 22px;
 
 					&::after {
-						width: 40px;
-						height: 4px;
-						bottom: 5px;
-						opacity: 0.4;
+						/* width: 40px; */
+						/* height: 4px; */
+						/* bottom: 5px; */
+						opacity: 0.1;
 					}
 				}
 			}
