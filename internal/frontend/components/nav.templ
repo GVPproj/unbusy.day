@@ -2,7 +2,7 @@ package components
 
 // NavStyles owns the nav's surviving structural/stateful CSS (ADR 0006): the
 // global .shell page wrapper and the @scope-d rail↔drawer geometry. Desktop is
-// a slim sticky rail; mobile (≤768px) is a right-side off-canvas drawer whose
+// a slim sticky rail; mobile (≤640px, Tailwind's sm) is a right-side off-canvas drawer whose
 // translateX open-state (toggled by data-class:open) is the stateful hook that
 // keeps this as named CSS. The toggle, scrim, brand, and navlink presentation
 // moved to inline utilities on the markup. Tokens come from baseStyles.
@@ -34,7 +34,7 @@ templ NavStyles() {
 				height: 100vh;
 			}
 
-			@media (max-width: 768px) {
+			@media (max-width: 640px) {
 				:scope {
 					position: fixed;
 					inset: 0 0 0 auto;
@@ -56,14 +56,14 @@ templ NavStyles() {
 // navlinkClasses is the shared rail-link styling (repeated across the mixed
 // <a>/<button> links): a centered icon-over-label stack on desktop that becomes
 // a row in the mobile drawer. Hover uses the un-bridged --nav-hover token.
-const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold cursor-pointer hover:bg-[var(--nav-hover)] max-md:flex-row max-md:gap-[0.6rem] max-md:px-3 max-md:text-base"
+const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-[0.6rem] max-sm:px-3 max-sm:text-base"
 
 // SideNav is the icon-rail nav. The host page provides the $_navopen signal
 // (underscore = local-only, kept out of @post signal bodies). Theme opens the
 // #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
 	<button
-		class="hidden max-md:block fixed top-[0.6rem] right-[0.6rem] z-12 text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
+		class="hidden max-sm:block fixed top-[0.6rem] right-[0.6rem] z-12 text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		aria-label="Toggle menu"
@@ -72,12 +72,11 @@ templ SideNav() {
 			@IconMenu()
 		</span>
 	</button>
-	<div class="hidden fixed inset-0 z-9 bg-(--scrim) max-md:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
+	<div class="hidden fixed inset-0 z-9 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
-		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-md:self-start max-md:ml-4">
+		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-sm:self-start max-sm:ml-4">
 			@UBLogo("51", "22", 0.35)
 		</div>
-		<!-- <a class={ navlinkClasses } href="/"><span class="leading-0 text-nav-icon">@IconBlocks()</span><span>Blocks</span></a> -->
 		<button class={ navlinkClasses } commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="leading-0 text-nav-icon">
 				@IconHours()
