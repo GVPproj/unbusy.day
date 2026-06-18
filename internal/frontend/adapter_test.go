@@ -272,6 +272,7 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 
 	_, br := openEvents(t, EventsHandler(svc, broker))
 	readFrame(t, br) // connect snapshot (covered by its own test)
+	readFrame(t, br) // connect envelope signals (covered by its own test)
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "b", Label: "Bravo", Position: 0},
@@ -294,6 +295,7 @@ func TestEventsStreamsPublishedBounds(t *testing.T) {
 
 	_, br := openEvents(t, EventsHandler(svc, broker))
 	readFrame(t, br) // connect snapshot
+	readFrame(t, br) // connect envelope signals
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: threeBlocks(),
 		Bounds: block.Bounds{Start: 17, End: 21}})
@@ -706,5 +708,61 @@ func TestPageRendersColumnInServiceOrder(t *testing.T) {
 	}
 	if !strings.Contains(body, "/events") {
 		t.Errorf("body missing /events SSE reference; body:\n%s", body)
+	}
+}
+
+// Every column patch carries the recomputed occupied envelope as a
+// patch-signals frame, so the once-rendered bounds modal's disabled options
+// track the live layout (a block added/moved/removed in this or another tab).
+func TestEventsPatchesEnvelopeSignals(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+	broker := pubsub.New()
+
+	_, br := openEvents(t, EventsHandler(svc, broker))
+	readFrame(t, br) // connect: column element patch
+	// Connect also re-seeds the envelope so a reconnect after a change is current.
+	sig := readFrame(t, br)
+	if !strings.Contains(sig, "datastar-patch-signals") {
+		t.Fatalf("connect missing patch-signals frame; frame:\n%s", sig)
+	}
+	for _, want := range []string{`"firstOccupiedSlot":18`, `"lastOccupiedEnd":21`} {
+		if !strings.Contains(sig, want) {
+			t.Errorf("connect envelope missing %q; frame:\n%s", want, sig)
+		}
+	}
+
+	// A publish recomputes the envelope from the event's blocks.
+	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
+		{ID: "a", Position: 12, Span: 2}, // occupies 12,13 → end 14
+	}})
+	readFrame(t, br) // element patch
+	sig = readFrame(t, br)
+	if !strings.Contains(sig, "datastar-patch-signals") {
+		t.Fatalf("publish missing patch-signals frame; frame:\n%s", sig)
+	}
+	for _, want := range []string{`"firstOccupiedSlot":12`, `"lastOccupiedEnd":14`} {
+		if !strings.Contains(sig, want) {
+			t.Errorf("publish envelope missing %q; frame:\n%s", want, sig)
+		}
+	}
+}
+
+// A mutation response (here a bounds edit) re-patches the envelope alongside
+// the committed column, so the modal's options reflect the new truth at 200.
+func TestBoundsResponsePatchesEnvelopeSignals(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+
+	req := authedRequest(http.MethodPost, "/blocks/bounds", `{"start":17,"end":22}`)
+	rec := httptest.NewRecorder()
+	BoundsHandler(svc).ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "datastar-patch-signals") {
+		t.Fatalf("bounds response missing patch-signals; body:\n%s", body)
+	}
+	for _, want := range []string{`"firstOccupiedSlot":18`, `"lastOccupiedEnd":21`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("bounds response envelope missing %q; body:\n%s", want, body)
+		}
 	}
 }

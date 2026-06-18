@@ -57,6 +57,39 @@ func OccupiedSlots(cs []Block) map[int]bool {
 	return occupied
 }
 
+// Envelope is the occupied extent of a day's blocks in slot indexes: FirstSlot
+// is the earliest slot any block occupies, LastEnd the slot just past the
+// latest. A working-hours window is fittable iff start ≤ FirstSlot and
+// end ≥ LastEnd. With no blocks there is no footprint, so the envelope collapses
+// to (MaxDayEnd, MinDayStart) — sentinels that leave the whole legal range
+// pickable. JSON tags match the Datastar signal names the modal binds to.
+type Envelope struct {
+	FirstSlot int `json:"firstOccupiedSlot"`
+	LastEnd   int `json:"lastOccupiedEnd"`
+}
+
+// OccupiedEnvelope computes the occupied extent of the owner's blocks (span
+// floored at 1, matching OccupiedSlots). Pure — no DB or transport dependency.
+func OccupiedEnvelope(cs []Block) Envelope {
+	if len(cs) == 0 {
+		return Envelope{FirstSlot: MaxDayEnd, LastEnd: MinDayStart}
+	}
+	first, last := MaxDayEnd, MinDayStart
+	for _, c := range cs {
+		span := c.Span
+		if span < 1 {
+			span = 1
+		}
+		if c.Position < first {
+			first = c.Position
+		}
+		if c.Position+span > last {
+			last = c.Position + span
+		}
+	}
+	return Envelope{FirstSlot: first, LastEnd: last}
+}
+
 // ValidateLayout checks a proposed full layout against the Day Plan invariants
 // (ADR 0005): same block set as current, every run within bounds, no overlaps.
 // Pure — no DB or transport dependencies.

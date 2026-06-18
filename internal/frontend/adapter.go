@@ -73,6 +73,17 @@ func patchColumn(w http.ResponseWriter, r *http.Request, bs []block.Block, b blo
 	if err := sse.PatchElementTempl(components.BlockColumn(bs, b)); err != nil {
 		log.Printf("ds patch column: %v", err)
 	}
+	patchEnvelope(sse, bs)
+}
+
+// patchEnvelope re-patches the occupied envelope signals (firstOccupiedSlot/
+// lastOccupiedEnd) alongside a column patch, so the once-rendered bounds modal's
+// disabled options track the live layout. Best-effort: a send failure only
+// leaves the modal's constraint stale until the next patch.
+func patchEnvelope(sse *datastar.ServerSentEventGenerator, bs []block.Block) {
+	if err := sse.MarshalAndPatchSignals(block.OccupiedEnvelope(bs)); err != nil {
+		log.Printf("ds patch envelope: %v", err)
+	}
 }
 
 // layoutSignals is the Datastar signals body the drag/resize gestures @post:
@@ -323,6 +334,7 @@ func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
 		if err := sse.PatchElementTempl(components.BlockColumn(bs, b)); err != nil {
 			return
 		}
+		patchEnvelope(sse, bs)
 
 		ticker := time.NewTicker(keepaliveInterval)
 		defer ticker.Stop()
@@ -334,6 +346,7 @@ func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
 				if err := sse.PatchElementTempl(components.BlockColumn(e.Blocks, e.Bounds)); err != nil {
 					return
 				}
+				patchEnvelope(sse, e.Blocks)
 			case <-ticker.C:
 				if _, err := io.WriteString(w, ":keepalive\n\n"); err != nil {
 					return

@@ -1,15 +1,37 @@
 package modals
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// boundsOptions renders one select's half-hour options, current pre-selected.
-templ boundsOptions(from, to, current int) {
+// signalsObject seeds the modal's four signals as a Datastar object literal.
+// The keyed form (data-signals:firstOccupiedSlot) can't carry camelCase names:
+// the browser lowercases attribute names, so the signal would land as
+// "firstoccupiedslot" and the disabled-bindings' $firstOccupiedSlot read empty.
+// The object literal preserves the camelCase keys verbatim.
+func signalsObject(b block.Bounds, env block.Envelope) string {
+	return fmt.Sprintf("{start: %d, end: %d, firstOccupiedSlot: %d, lastOccupiedEnd: %d}",
+		b.Start, b.End, env.FirstSlot, env.LastEnd)
+}
+
+// startOptions renders the start select's half-hour options, current
+// pre-selected. Each disables reactively when the slot is past the first
+// occupied slot — raising start there would strand the earliest block.
+templ startOptions(from, to, current int) {
 	for s := from; s <= to; s++ {
-		<option value={ strconv.Itoa(s) } selected?={ s == current }>{ clockLabel(s) }</option>
+		<option value={ strconv.Itoa(s) } selected?={ s == current } data-attr:disabled={ strconv.Itoa(s) + " > $firstOccupiedSlot" }>{ clockLabel(s) }</option>
+	}
+}
+
+// endOptions renders the end select's half-hour options, current pre-selected.
+// Each disables reactively when the slot is below the last occupied end —
+// dropping end there would strand the latest block.
+templ endOptions(from, to, current int) {
+	for s := from; s <= to; s++ {
+		<option value={ strconv.Itoa(s) } selected?={ s == current } data-attr:disabled={ strconv.Itoa(s) + " < $lastOccupiedEnd" }>{ clockLabel(s) }</option>
 	}
 }
 
@@ -24,27 +46,29 @@ func clockLabel(s int) string {
 
 // HoursModal is the day-bounds editor: a native <dialog> opened by any
 // command/commandfor button targeting #bounds-modal (theme-modal house style).
-// The selects cover the hard 5:00–18:00 limits; the server still enforces
-// them and rejects shrink-into-occupied with a re-render of the truth.
-templ HoursModal(b block.Bounds) {
+// The selects cover the hard 5:00–18:00 limits; options outside the occupied
+// envelope disable reactively (firstOccupiedSlot/lastOccupiedEnd signals,
+// re-patched on every column change) so an impossible, shrink-into-occupied
+// window is never offered. The server still enforces the limits as a
+// concurrent-edit safety net.
+templ HoursModal(b block.Bounds, env block.Envelope) {
 	<dialog
 		id="bounds-modal"
 		class="app-dialog bounds-modal"
 		closedby="any"
-		data-signals:start={ strconv.Itoa(b.Start) }
-		data-signals:end={ strconv.Itoa(b.End) }
+		data-signals={ signalsObject(b, env) }
 	>
 		<h2>Working Hours</h2>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
 			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
-				@boundsOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
+				@startOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
 			</select>
 		</label>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			End
 			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
-				@boundsOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
+				@endOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
 		<footer>

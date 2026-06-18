@@ -203,3 +203,39 @@ func TestOccupiedSlots_Empty(t *testing.T) {
 		t.Fatalf("want empty, got %v", got)
 	}
 }
+
+// OccupiedEnvelope returns the day's occupied extent: the earliest slot any
+// block sits in and the slot just past the latest. A fittable working-hours
+// window must start no later than FirstSlot and end no earlier than LastEnd.
+func TestOccupiedEnvelope(t *testing.T) {
+	cases := []struct {
+		name               string
+		blocks             []block.Block
+		wantFirst, wantEnd int
+	}{
+		// No blocks: collapse to sentinels that leave the whole legal range
+		// pickable (start ≤ MaxDayEnd and end ≥ MinDayStart are always true).
+		{"empty", nil, block.MaxDayEnd, block.MinDayStart},
+		// A single span-2 block claims [20,22): envelope is exactly its run.
+		{"single", []block.Block{{ID: "a", Position: 20, Span: 2}}, 20, 22},
+		// Blocks with a gap: envelope spans from the first to past the last.
+		{"gap", []block.Block{
+			{ID: "a", Position: 19, Span: 1},
+			{ID: "b", Position: 24, Span: 2}, // ends at 26
+		}, 19, 26},
+		// Flush to the hard limits: envelope is the full legal day.
+		{"flush", []block.Block{
+			{ID: "a", Position: block.MinDayStart, Span: 1},
+			{ID: "b", Position: block.MaxDayEnd - 1, Span: 1},
+		}, block.MinDayStart, block.MaxDayEnd},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := block.OccupiedEnvelope(tc.blocks)
+			if got.FirstSlot != tc.wantFirst || got.LastEnd != tc.wantEnd {
+				t.Fatalf("envelope = {%d,%d}, want {%d,%d}",
+					got.FirstSlot, got.LastEnd, tc.wantFirst, tc.wantEnd)
+			}
+		})
+	}
+}
