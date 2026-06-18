@@ -192,6 +192,25 @@ templ ColumnStyles() {
 				}
 			}
 
+			/* Touch tuning: a thumb needs a fatter target, and with no hover the
+			   bar would never appear, so on coarse pointers the grip grows up
+			   into the block's empty lower strip (overflow:hidden clips anything
+			   below its edge, so it can't grow down) and the handle is always
+			   shown. The .resizing rule above (higher specificity) still bumps it
+			   to full opacity mid-gesture. */
+			@media (pointer: coarse) {
+				.grip {
+					height: 22px;
+
+					&::after {
+						width: 40px;
+						height: 4px;
+						bottom: 5px;
+						opacity: 0.4;
+					}
+				}
+			}
+
 			/* one 30-minute row of the day grid: full-width so the rule line spans
 			   gutter and lane; hour lines solid, :30 lines faint. */
 			.slot {

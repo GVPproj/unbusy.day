@@ -35,6 +35,25 @@ tasks:
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
     deps: [tailwind:install]
 
+  dev:tailscale:
+    desc: "Like `dev`, but also serves :7331 over Tailscale (HTTPS) for phone testing"
+    cmds:
+      # Expose the dev proxy on the tailnet so phones/other devices can browse it.
+      # `serve --bg` proxies to 127.0.0.1:7331 even before the backend is up, and is
+      # torn down when the dev loop exits. If Tailscale is down/logged out we just
+      # warn and fall through to the normal local-only dev loop.
+      - |
+        if tailscale status >/dev/null 2>&1; then
+          tailscale serve --bg 7331 >/dev/null 2>&1
+          url=$(tailscale serve status 2>/dev/null | sed -nE 's#^(https://[^ ]+).*#\1#p' | head -1)
+          echo "▸ Tailscale: serving dev at ${url:-<address unavailable>}"
+          # go-task's shell (mvdan.cc/sh) only supports EXIT — but EXIT fires on Ctrl-C too.
+          trap 'tailscale serve --https=443 off >/dev/null 2>&1; echo "✓ Tailscale serve stopped"' EXIT
+        else
+          echo "⚠ Tailscale not up (daemon stopped or logged out) — running local-only on :7331"
+        fi
+        task dev
+
   tailwind:install:
     desc: "Download the pinned Tailwind v4 standalone binary into tmp/ (no Node)"
     status:
