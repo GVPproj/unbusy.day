@@ -57,9 +57,13 @@ templ ColumnStyles() {
 					overflow: hidden;
 				}
 
-				/* the lone scroll region; side/bottom padding lives here (the
-				   column dropped its own padding) so the grid keeps its gutter. */
-				.blocks {
+				/* the lone scroll region (the column dropped its own padding).
+				   Its inline padding matches the header's px-4 so the time gutter
+				   lines up under the date and the blocks' right edge under the
+				   hamburger; the bottom padding gives the last slot some breathing
+				   room. The :scope prefix lifts specificity above the later base
+				   `.blocks { padding: 0 }`, which would otherwise win on source order. */
+				:scope .blocks {
 					flex: 1;
 					min-height: 0;
 					overflow-y: auto;
@@ -272,6 +276,7 @@ templ ColumnStyles() {
 			.gutter {
 				width: 3.5rem;
 				padding-top: 2px;
+				/* padding-left: 0.5rem; */
 				font-size: 0.875rem;
 				color: var(--gutter-ink);
 				user-select: none;

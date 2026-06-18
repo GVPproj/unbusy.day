@@ -39,7 +39,7 @@ templ IconStyles() {
 		}
 		.menu-cozy .bar:nth-child(1) { transform: translateY(-7px); }
 		.menu-cozy .bar:nth-child(3) { transform: translateY(7px); }
-		@keyframes menu-wobble { 0%, 100% { transform: rotate(-4deg) scale(1.03, .97); } 50% { transform: rotate(4deg) scale(.97, 1.03); } }
+		@keyframes menu-wobble { 0% { transform: rotate(-4deg) scale(1.03, .97); } 50% { transform: rotate(4deg) scale(.97, 1.03); } 100% { transform: none; } }
 		button:hover:not(.open) .menu-cozy { animation: menu-squash .55s ease; }
 		@keyframes menu-squash { 0% { transform: scale(1, 1); } 30% { transform: scale(1.3, .7); } 60% { transform: scale(.82, 1.22); } 100% { transform: scale(1, 1); } }
 
