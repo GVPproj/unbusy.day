@@ -63,7 +63,7 @@ const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none
 // #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
 	<button
-		class="hidden max-sm:block fixed top-[0.6rem] right-[0.6rem] z-12 text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
+		class="hidden max-sm:grid place-items-center fixed top-[0.6rem] right-4 z-12 p-[0.4rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		data-class:open="$_navopen"
