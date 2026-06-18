@@ -1,6 +1,3 @@
-// Package ds is the Datastar + templ frontend: the server-rendered route tree
-// (page, events stream, reorder) driving the blocks service and pub/sub.
-// /_smoke is a wiring canary for the pinned Datastar SDK + templ versions.
 package frontend
 
 import (

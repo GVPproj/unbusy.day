@@ -12,6 +12,9 @@ package components
 
 // IconStyles toggles the two sets and pins the 24px size. Global (not @scope-d)
 // so it works wherever an icon renders — nav rail today, anywhere later.
+// Intentionally CSS (ADR 0006 non-goal): it's almost entirely @keyframes/animation
+// drivers plus the cross-cutting :root[data-feeling] display toggle — utilities
+// would only scatter the keyframes and duplicate the toggle, not simplify it.
 templ IconStyles() {
 	<style>
 		.icon { width: 24px; height: 24px; display: block; }

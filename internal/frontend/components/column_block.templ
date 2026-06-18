@@ -10,25 +10,30 @@ import (
 // data-slot/data-span persist the clock placement, and grid-row paints it at
 // its time relative to the day's start. The grip starts a resize gesture.
 templ blockItem(c block.Block, dayStart int) {
+	// `group` makes the block the hover/resizing root the delete X and grip
+	// bar key off of; `block-item`/`dragging`/`resizing` stay as drag.js hooks
+	// (`block-item`, not `block`, to avoid colliding with Tailwind's display:block).
+	// data-type variants paint the block-type fill; --span (inline) drives the
+	// label clamp. overflow-hidden clips a long label to the box mid-resize.
 	<li
-		class="block"
+		class="block-item group relative col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-1 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-1 [&.resizing]:[box-shadow:var(--shadow-lift)]"
 		data-id={ c.ID }
 		data-span={ strconv.Itoa(spanOr1(c.Span)) }
 		data-slot={ strconv.Itoa(c.Position) }
 		data-type={ string(c.Type) }
 		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
 	>
-		<span class="block-label">{ c.Label }</span>
+		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
 		<button
 			type="button"
-			class="block-delete"
+			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
 			aria-label={ "Delete " + c.Label }
 			data-on:pointerdown="evt.stopPropagation()"
 			data-on:click={ "$deleteid = '" + c.ID + "'; @post('/blocks/delete')" }
 		>
 			@IconX()
 		</button>
-		<span class="grip" aria-hidden="true"></span>
+		<span class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-10 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100" aria-hidden="true"></span>
 	</li>
 }
 

@@ -2,27 +2,16 @@ package components
 
 import "fmt"
 
-// LoginStyles is the login flow's surviving structural/stateful CSS (ADR 0006):
-// the amoeba backdrop (an absolutely-positioned SVG blob that spins) and the one
-// genuinely stateful OTP rule — the focus-within active-box highlight, which
-// reaches across elements and keys off the `active` class Datastar toggles. The
-// OTP boxes' presentation, the comb container, the dashes, the invisible real
-// input, and all other one-off styling moved to inline utilities on the markup.
-// Co-located here and passed to Layout's <head> by the login route. @keyframes
-// is global by name, so it lives outside the scope.
+// LoginStyles is the login flow's surviving keyframe CSS (ADR 0006 non-goal):
+// the amoeba backdrop's spin animation and its reduced-motion off-switch — a
+// transition/keyframe driver, so it stays CSS. The blob's positioning/sizing,
+// the OTP focus-within active-box highlight, and every other one-off moved to
+// inline utilities on the markup. Co-located here and passed to Layout's <head>
+// by the login route. @keyframes is global by name, so it lives outside the scope.
 templ LoginStyles() {
 	<style>
 		@scope (.login-main) {
 			.login-amoeba-svg {
-				position: absolute;
-				left: 50%;
-				top: 50%;
-				/* On phones 150vw wins, so the blob bleeds well past the screen
-				   edges; the wrap's overflow:hidden clips it without scrollbars. */
-				width: min(1000px, max(95vmin, 150vw));
-				height: min(1000px, max(95vmin, 150vw));
-				translate: -50% -50%;
-				color: var(--column-bg);
 				animation: login-amoeba-spin 90s linear infinite;
 			}
 
@@ -33,13 +22,6 @@ templ LoginStyles() {
 				.login-amoeba-svg animate {
 					display: none;
 				}
-			}
-
-			/* OTP comb stateful hook: the active box (its index === $code.length,
-			   toggled by data-class:active) highlights only while the real input
-			   is focused. Cross-element + class-driven, so it stays named CSS. */
-			.otp:focus-within .otp-box.active {
-				border-color: var(--accent);
 			}
 		}
 
@@ -55,7 +37,10 @@ templ LoginStyles() {
 // large SVG blob morphing via SMIL while slowly rotating (prototype winner b).
 templ LoginAmoeba() {
 	<div class="relative w-full min-h-svh grid place-items-center overflow-hidden">
-		<svg class="login-amoeba-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+		// w/h: on phones 150vw wins so the blob bleeds past the edges; the wrap's
+		// overflow-hidden clips it. -translate-* uses v4's `translate` property, so
+		// the centering composes with the keyframe's `transform: rotate`.
+		<svg class="login-amoeba-svg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(1000px,max(95vmin,150vw))] h-[min(1000px,max(95vmin,150vw))] text-column-bg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
 			<path fill="currentColor">
 				<animate
 					attributeName="d"
@@ -114,7 +99,7 @@ templ LoginCodeForm(errMsg string) {
 // input on top so autofill (one-time-code) and paste keep working. The input
 // handler strips non-digits and auto-submits when six are in.
 templ otpInput() {
-	<div class="otp relative flex w-full gap-[0.4rem] items-center justify-between">
+	<div class="group relative flex w-full gap-[0.4rem] items-center justify-between">
 		<input
 			class="absolute inset-0 w-full h-full opacity-0 text-lg caret-transparent cursor-pointer"
 			inputmode="numeric"
@@ -139,8 +124,11 @@ templ otpInput() {
 }
 
 templ otpBox(i int) {
+	// active box (index === $code.length, toggled by data-class:active) takes the
+	// accent border only while the real input is focused — group-focus-within +
+	// the .active hook. The class stays; only the old CSS rule moved here.
 	<span
-		class="otp-box flex-1 h-12 grid place-items-center text-xl font-bold border border-rail-border rounded bg-surface text-ink"
+		class="flex-1 h-12 grid place-items-center text-xl font-bold border border-rail-border rounded bg-surface text-ink group-focus-within:[&.active]:border-accent"
 		aria-hidden="true"
 		data-text={ fmt.Sprintf("$code[%d] || ''", i) }
 		data-class:active={ fmt.Sprintf("$code.length === %d", i) }

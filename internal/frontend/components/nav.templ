@@ -1,60 +1,12 @@
 package components
 
-// NavStyles owns the nav's surviving structural/stateful CSS (ADR 0006): the
-// global .shell page wrapper and the @scope-d rail↔drawer geometry. Desktop is
-// a slim sticky rail; mobile (<40rem, Tailwind's sm) is a right-side off-canvas drawer whose
-// translateX open-state (toggled by data-class:open) is the stateful hook that
-// keeps this as named CSS. The toggle, scrim, brand, and navlink presentation
-// moved to inline utilities on the markup. Tokens come from baseStyles.
-templ NavStyles() {
-	<style>
-		/* .shell wraps nav, modals and column, so it stays global and unscoped
-		   — bare-tag rules under it would bleed into the modals (ADR 0006). */
-		.shell {
-			display: flex;
-			min-height: 100vh;
-		}
-
-		.shell .column {
-			width: 100%;
-		}
-
-		@scope (.sidenav) {
-			:scope {
-				width: 80px;
-				flex-shrink: 0;
-				display: flex;
-				flex-direction: column;
-				gap: 0.25rem;
-				padding: 0.75rem 0.5rem;
-				background: var(--nav-bg);
-				color: var(--nav-ink);
-				position: sticky;
-				top: 0;
-				height: 100vh;
-			}
-
-			/* exact complement of Tailwind's sm (min-width:40rem), same rem unit,
-			   so the rail↔drawer flip lines up with the max-sm utilities with no
-			   sub-pixel no-man's-land between the two breakpoint systems. */
-			@media (width < 40rem) {
-				:scope {
-					position: fixed;
-					inset: 0 0 0 auto;
-					z-index: 30;
-					width: 200px;
-					transform: translateX(100%);
-					transition: transform 200ms ease;
-					box-shadow: var(--shadow-lift);
-				}
-
-				:scope.open {
-					transform: translateX(0);
-				}
-			}
-		}
-	</style>
-}
+// sidenavClasses is the rail↔drawer geometry, now markup-first (ADR 0006).
+// Desktop is a slim sticky 80px rail; below sm (max-sm, the exact rem complement
+// of Tailwind's sm so the flip lines up with no sub-pixel gap) it becomes a
+// right-side off-canvas drawer translated off-screen, slid in by the `.open`
+// hook (toggled by data-class:open). Translate/transition are max-sm-only so the
+// desktop sticky rail never picks up a transform. Tokens come from baseStyles.
+const sidenavClasses = "sidenav w-20 shrink-0 flex flex-col gap-1 py-3 px-2 bg-nav-bg text-nav-ink sticky top-0 h-screen max-sm:fixed max-sm:inset-y-0 max-sm:right-0 max-sm:z-30 max-sm:w-[200px] max-sm:translate-x-full max-sm:[&.open]:translate-x-0 max-sm:transition-transform max-sm:duration-200 max-sm:shadow-[var(--shadow-lift)]"
 
 // navlinkClasses is the shared rail-link styling (repeated across the mixed
 // <a>/<button> links): a centered icon-over-label stack on desktop that becomes
@@ -84,7 +36,7 @@ templ MenuToggle() {
 // #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
 	<div class="hidden fixed inset-0 z-20 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
-	<nav class="sidenav" data-class:open="$_navopen">
+	<nav class={ sidenavClasses } data-class:open="$_navopen">
 		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-sm:self-start max-sm:ml-4">
 			@UBLogo("51", "22", 0.35)
 		</div>

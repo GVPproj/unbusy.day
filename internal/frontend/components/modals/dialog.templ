@@ -1,28 +1,31 @@
 package modals
 
-// DialogStyles owns the shared native-<dialog> chrome (ADR 0006): the box,
-// the backdrop scrim, the h2, and the blur-fade open transition. Every
-// app dialog carries the `app-dialog` class alongside its own leaf class, so
-// each modal's own @scope block only holds content-specific rules. Tokens come
-// from baseStyles.
+// The shared native-<dialog> chrome, markup-first (ADR 0008). dialogClass is
+// the box every app modal carries; `app-dialog` stays on it as the hook for the
+// blur-fade transition island in DialogStyles below. open:* lays the dialog out
+// only while open (an unopened <dialog> keeps the UA display:none); m-auto
+// restores the top-layer centering preflight zeroes. shadow-lift isn't bridged
+// in @theme, so it's an explicit box-shadow utility.
+const dialogClass = "app-dialog m-auto w-[min(320px,calc(100vw-2rem))] py-5 px-8 bg-surface text-ink border border-rail-border rounded-lg [box-shadow:var(--shadow-lift)] open:flex open:flex-col open:gap-(--gap)"
+
+// Shared dialog parts: title, the right-aligned action footer, and its two
+// button styles (accent primary; bordered secondary for Cancel).
+const (
+	dialogH2Class              = "m-0 text-base font-semibold"
+	dialogFooterClass          = "mt-4 flex justify-end gap-(--gap)"
+	dialogButtonClass          = "py-[0.35rem] px-3 rounded border-none bg-accent text-bg text-sm cursor-pointer"
+	dialogButtonSecondaryClass = "py-[0.35rem] px-3 rounded border border-rail-border bg-transparent text-inherit text-sm cursor-pointer"
+)
+
+// DialogStyles owns the one piece of dialog styling that stays CSS by ADR 0006
+// non-goals: the blur-fade open transition (a transition driver, like a
+// keyframe) and its ::backdrop scrim. Every app dialog carries `app-dialog`
+// (see dialogClass) as the hook. Entry only — close is instant, so the UA's
+// display:none takes over with no exit transition and no top-layer flash.
 templ DialogStyles() {
 	<style>
 		@scope (.app-dialog) {
 			:scope {
-				width: min(320px, calc(100vw - 2rem));
-				/* Preflight zeroes margin on *; a modal <dialog> centers via the
-				   UA's margin:auto in the top layer, so restore it. */
-				margin: auto;
-				padding: 1.25rem 2rem;
-				background: var(--surface);
-				color: var(--ink);
-				border: 1px solid var(--rail-border);
-				border-radius: var(--radius-lg);
-				box-shadow: var(--shadow-lift);
-
-				/* Entry only: blur/fade in on open. Close is instant — the UA's
-				   display:none takes over with no exit transition, so no discrete
-				   display/overlay delay (and no top-layer flash on Safari ≤26.1). */
 				opacity: 1;
 				filter: blur(0);
 				transition:
@@ -35,14 +38,6 @@ templ DialogStyles() {
 						filter: blur(8px);
 					}
 				}
-			}
-
-			/* Only lay out when open — an unopened <dialog> stays display:none
-			   (the UA default); setting display unconditionally forces it visible. */
-			:scope[open] {
-				display: flex;
-				flex-direction: column;
-				gap: var(--gap);
 			}
 
 			:scope::backdrop {
@@ -60,36 +55,6 @@ templ DialogStyles() {
 				:scope::backdrop {
 					transition-duration: 0.01s;
 					filter: none;
-				}
-			}
-
-			h2 {
-				font-size: 1rem;
-				font-weight: 600;
-				margin: 0;
-			}
-
-			footer {
-				margin-top: 1rem;
-				display: flex;
-				justify-content: flex-end;
-				gap: var(--gap);
-
-				& button {
-					padding: 0.35rem 0.75rem;
-					border: none;
-					border-radius: var(--radius);
-					background: var(--accent);
-					color: var(--bg);
-					font: inherit;
-					font-size: 0.875rem;
-					cursor: pointer;
-				}
-
-				& button.secondary {
-					background: none;
-					color: inherit;
-					border: 1px solid var(--rail-border);
 				}
 			}
 		}

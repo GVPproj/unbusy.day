@@ -54,11 +54,11 @@ func clockLabel(s int) string {
 templ HoursModal(b block.Bounds, env block.Envelope) {
 	<dialog
 		id="bounds-modal"
-		class="app-dialog bounds-modal"
+		class={ dialogClass }
 		closedby="any"
 		data-signals={ signalsObject(b, env) }
 	>
-		<h2>Working Hours</h2>
+		<h2 class={ dialogH2Class }>Working Hours</h2>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
 			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
@@ -72,9 +72,9 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 			</select>
 		</label>
 		<p class="text-sm text-ink" data-show="$firstOccupiedSlot < $lastOccupiedEnd">Your blocks will need to fit :)</p>
-		<footer>
-			<button class="secondary" autofocus commandfor="bounds-modal" command="close">Cancel</button>
-			<button commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
+		<footer class={ dialogFooterClass }>
+			<button class={ dialogButtonSecondaryClass } autofocus commandfor="bounds-modal" command="close">Cancel</button>
+			<button class={ dialogButtonClass } commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
 		</footer>
 	</dialog>
 }

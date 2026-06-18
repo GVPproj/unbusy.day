@@ -13,318 +13,11 @@ import (
 // on desktop it's a normal heading above the column card. The hamburger toggle
 // is a separate .shell-level overlay (see MenuToggle), not part of this bar.
 templ DateHeading() {
-	<div class="flex items-center justify-between gap-2 mb-2 sm:min-h-8 max-sm:shrink-0 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:px-4 max-sm:bg-(--column-bg)">
+	<div class="flex items-center justify-between gap-2 mb-2 sm:min-h-8 max-sm:shrink-0 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:px-4 max-sm:bg-column-bg">
 		<p class="m-0 font-bold text-ink">
 			{ time.Now().Format("Monday, January 2") }
 		</p>
 	</div>
-}
-
-// ColumnStyles is the block column's stylesheet, co-located with the markup
-// it styles and passed to Layout's <head> by the blocks route. Tokens come
-// from baseStyles' :root block.
-templ ColumnStyles() {
-	<style>
-		/* Scoped to the <main class="column"> leaf (ADR 0006). Inside the scope
-		   the heading is the unambiguous bare `h1`; the grid structures (.blocks,
-		   .block, .slot, .gutter, .grip) keep their class names since several
-		   sibling <li>/<span> would otherwise collide. nav.templ's `.shell
-		   .column` (outside this scope) lets the column fill the lane beside the
-		   sidenav. */
-		@scope (.column) {
-			:scope {
-				max-width: 520px;
-				margin: 3rem auto;
-				padding: 1rem;
-				background: var(--column-bg);
-				border-radius: var(--radius-lg);
-			}
-
-			/* Below Tailwind's sm breakpoint the column fills the viewport and
-			   becomes a flex column: the DateHeading is a non-scrolling header
-			   bar and the .blocks grid is the only scrolling region, so the day
-			   grid can never slide up behind the date/hamburger header. Exact
-			   complement of Tailwind's sm (min-width:40rem) in the same rem unit
-			   so it flips in lockstep with the max-sm utilities — no gap. */
-			@media (width < 40rem) {
-				:scope {
-					max-width: none;
-					margin: 0;
-					border-radius: 0;
-					padding: 0;
-					display: flex;
-					flex-direction: column;
-					height: 100svh;
-					overflow: hidden;
-				}
-
-				/* the lone scroll region (the column dropped its own padding).
-				   Its inline padding matches the header's px-4 so the time gutter
-				   lines up under the date and the blocks' right edge under the
-				   hamburger; the bottom padding gives the last slot some breathing
-				   room. The :scope prefix lifts specificity above the later base
-				   `.blocks { padding: 0 }`, which would otherwise win on source order. */
-				:scope .blocks {
-					flex: 1;
-					min-height: 0;
-					overflow-y: auto;
-					padding: 0 1rem 1rem;
-				}
-			}
-
-			h1 {
-				font-size: 1rem;
-				margin: 0 0 0.75rem;
-			}
-
-			/* The day grid: a time-gutter column plus the block lane, one
-			   fixed-height row per 30-minute slot. Slots and blocks address rows
-			   by clock slot relative to the day start, so geometry is the markup,
-			   not JS math. */
-			.blocks {
-				list-style: none;
-				margin: 0;
-				padding: 0;
-				display: grid;
-				grid-template-columns: 3.5rem 1fr;
-				grid-auto-rows: var(--slot-h, calc(1lh + 2 * var(--block-pad)));
-			}
-
-			.block {
-				grid-column: 2;
-				background: var(--surface);
-				border-radius: var(--radius);
-				padding: 0.65rem 0.75rem 0.75rem;
-				margin: 2px 0 1px;
-				display: flex;
-				align-items: flex-start;
-				font-weight: 600;
-				cursor: grab;
-				user-select: none;
-				touch-action: none;
-				/* clip the label to the block box so a long name can never bleed
-				   past the bottom edge mid-resize, before --span catches up. The
-				   block's own box-shadow lift is unaffected by its overflow. */
-				overflow: hidden;
-				/* anchor for the grip; also the z-index context .dragging needs */
-				position: relative;
-
-				&.dragging {
-					cursor: grabbing;
-					opacity: 0.85;
-					box-shadow: var(--shadow-lift);
-					/* the held block is the real node transformed in place — it must
-					   paint above the siblings springing past underneath it */
-					z-index: 1;
-				}
-
-				&.resizing {
-					box-shadow: var(--shadow-lift);
-					z-index: 1;
-				}
-
-				&:hover .grip::after,
-				&.resizing .grip::after {
-					opacity: 1;
-				}
-
-				/* Block-type fill: full background + legible same-hue ink,
-				   keyed on the immutable data-type set at creation. */
-				&[data-type="deep"] {
-					background: var(--type-deep);
-					color: var(--type-deep-ink);
-				}
-				&[data-type="shallow"] {
-					background: var(--type-shallow);
-					color: var(--type-shallow-ink);
-				}
-				&[data-type="break"] {
-					background: var(--type-break);
-					color: var(--type-break-ink);
-				}
-			}
-
-			/* The label fills the block and truncates rather than bleeding
-				   past it: clamped to as many lines as the block has slots (--span),
-				   with padding-right clearing the delete X pinned top-right. A
-				   span-1 block gets a single ellipsised line; taller blocks wrap up
-				   to their height. */
-			.block-label {
-				/* size to the text, not the block, so cursor:text (and the
-					   editor) only covers the glyphs — never the empty space a
-					   short label leaves to its right. margin (not padding) clears
-					   the delete X so the X's gap stays outside the text box. */
-				min-width: 0;
-				max-width: calc(100% - 1.5rem);
-				width: fit-content;
-				margin-right: 1.5rem;
-				overflow: hidden;
-				overflow-wrap: anywhere;
-				display: -webkit-box;
-				-webkit-box-orient: vertical;
-				-webkit-line-clamp: var(--span, 1);
-				line-clamp: var(--span, 1);
-				/* clicking the text edits it in place; the cursor signals it */
-				cursor: text;
-
-				/* while editing: drop the line-clamp so the full text and caret
-					   are visible, allow the text selection the gesture needs, and
-					   keep styling otherwise unchanged — just a blinking caret. */
-				&[contenteditable] {
-					-webkit-line-clamp: none;
-					line-clamp: none;
-					user-select: text;
-					outline: none;
-				}
-			}
-
-			/* per-block delete: an X pinned to the block's right edge, its icon
-			   box sized to the label's line so the two align vertically. Hidden at
-			   rest; fades in on block hover or its own keyboard focus. */
-			.block-delete {
-				position: absolute;
-				top: var(--block-pad);
-				right: var(--block-pad);
-				appearance: none;
-				background: transparent;
-				border: none;
-				padding: 0;
-				cursor: pointer;
-				color: var(--nav-icon);
-				opacity: 0;
-				transition: opacity 120ms;
-
-				.icon {
-					width: 1.5rem;
-					height: 1.5rem;
-				}
-
-				&:hover {
-					color: var(--accent);
-				}
-			}
-
-			.block:hover .block-delete,
-			.block-delete:focus-visible {
-				opacity: 1;
-			}
-
-			.block-delete:focus-visible {
-				outline: none;
-			}
-
-			/* stretch handle along the block's bottom edge; the bar fades in on
-			   hover as the affordance */
-			.grip {
-				position: absolute;
-				left: 0;
-				right: 0;
-				bottom: 0;
-				height: 10px;
-				cursor: ns-resize;
-
-				&::after {
-					content: "";
-					position: absolute;
-					left: 50%;
-					bottom: 3px;
-					width: 28px;
-					height: 3px;
-					border-radius: 2px;
-					transform: translateX(-50%);
-					background: var(--nav-icon);
-					opacity: 0;
-					transition: opacity 120ms;
-				}
-			}
-
-			/* Touch tuning: a thumb needs a fatter target, and with no hover the
-			   bar would never appear, so on coarse pointers the grip grows up
-			   into the block's empty lower strip (overflow:hidden clips anything
-			   below its edge, so it can't grow down) and the handle is always
-			   shown. The .resizing rule above (higher specificity) still bumps it
-			   to full opacity mid-gesture. */
-			@media (pointer: coarse) {
-				.grip {
-					height: 22px;
-
-					&::after {
-						/* width: 40px; */
-						/* height: 4px; */
-						/* bottom: 5px; */
-						opacity: 0.1;
-					}
-				}
-			}
-
-			/* one 30-minute row of the day grid: full-width so the rule line spans
-			   gutter and lane; hour lines solid, :30 lines faint. */
-			.slot {
-				grid-column: 1 / -1;
-				border-top: 1px solid var(--rail-border);
-				display: flex;
-				align-items: start;
-
-				&[data-slot$="1"],
-				&[data-slot$="3"],
-				&[data-slot$="5"],
-				&[data-slot$="7"],
-				&[data-slot$="9"] {
-					border-top-style: dashed;
-				}
-			}
-
-			.gutter {
-				width: 3.5rem;
-				padding-top: 2px;
-				/* padding-left: 0.5rem; */
-				font-size: 0.875rem;
-				color: var(--gutter-ink);
-				user-select: none;
-			}
-
-			/* Empty-slot "add" affordance: the lane half of each empty slot is a
-			   focusable button. On hover/focus it paints a block-shaped dashed
-			   outline with a centered + (the "ghost block" look) — a placeholder
-			   of what dropping here would create. */
-			.slot-add {
-				flex: 1;
-				align-self: stretch;
-				appearance: none;
-				background: transparent;
-				border: 1px dashed transparent;
-				border-radius: var(--radius);
-				margin: 2px 0;
-				padding: 0;
-				cursor: pointer;
-				display: grid;
-				place-items: center;
-
-				.icon {
-					width: 18px;
-					height: 18px;
-					color: var(--accent);
-					opacity: 0;
-					transition: opacity 120ms;
-				}
-
-				&:hover,
-				&:focus-visible {
-					border-color: var(--accent);
-					background: color-mix(in srgb, var(--accent) 8%, transparent);
-				}
-
-				&:hover .icon,
-				&:focus-visible .icon {
-					opacity: 1;
-				}
-
-				&:focus-visible {
-					outline: none;
-				}
-			}
-		}
-	</style>
 }
 
 // BlockColumn is the patch fragment: the stable #block-list id is the
@@ -338,7 +31,7 @@ templ ColumnStyles() {
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"
-		class="blocks"
+		class="blocks list-none m-0 p-0 grid grid-cols-[3.5rem_1fr] auto-rows-[var(--slot-h,calc(1lh_+_2_*_var(--block-pad)))] max-sm:flex-1 max-sm:min-h-0 max-sm:overflow-y-auto max-sm:px-4 max-sm:pb-4"
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"
@@ -364,12 +57,18 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 // layout wire payload. The "add" button renders only for free slots, so it
 // never sits in the tab order behind the block that covers this row.
 templ slot(s, dayStart int, occupied bool) {
-	<li class="slot" data-slot={ strconv.Itoa(s) } style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }>
-		<span class="gutter" aria-hidden="true">{ timeLabel(s) }</span>
+	// Half-hour rows (odd slot index) get a dashed top rule; hour rows stay
+	// solid. Computed here rather than via a CSS [data-slot$=…] selector.
+	<li
+		class={ "slot col-span-full flex items-start border-t border-rail-border", templ.KV("border-dashed", s%2 == 1) }
+		data-slot={ strconv.Itoa(s) }
+		style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }
+	>
+		<span class="gutter w-14 pt-0.5 text-sm text-(--gutter-ink) select-none" aria-hidden="true">{ timeLabel(s) }</span>
 		if !occupied {
 			<button
 				type="button"
-				class="slot-add"
+				class="slot-add flex-1 self-stretch appearance-none bg-transparent border border-dashed border-transparent rounded my-0.5 p-0 cursor-pointer grid place-items-center hover:border-accent focus-visible:border-accent focus-visible:outline-none hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] focus-visible:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] [&_.icon]:size-[18px] [&_.icon]:text-accent [&_.icon]:opacity-0 [&_.icon]:transition-opacity [&:hover_.icon]:opacity-100 [&:focus-visible_.icon]:opacity-100"
 				commandfor="create-modal"
 				command="show-modal"
 				data-on:click={ "$addslot = " + strconv.Itoa(s) }

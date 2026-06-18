@@ -14,6 +14,9 @@ templ UBLogo(width, height string, pixelScale float64) {
 	{{ dilate := 1 * pixelScale }}
 	{{ flood := cell / 2 }}
 	<style>
+		/* Intentionally CSS (ADR 0006 non-goal): @keyframes sway + the pixel
+		   mosaic SVG filter / image-rendering — animation/filter, not component
+		   styling. */
 		/* Sway + squash & stretch — prototype winner (a2), 2026-06-12. */
 		.ub-logo {
 			/* Preflight resets svg to display:block; the wordmark is centered by

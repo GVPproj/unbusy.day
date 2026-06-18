@@ -24,7 +24,8 @@ func main() {
 		log.Fatal("DATABASE_URL is required")
 	}
 
-	// `unbusy migrate` applies migrations and exits — an ops escape hatch.
+	// `unbusy migrate` applies migrations and exits
+	// we can test migrations and inspect changes
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		if err := migrate.Run(ctx, dbURL); err != nil {
 			log.Fatalf("migrate: %v", err)
@@ -33,8 +34,8 @@ func main() {
 		return
 	}
 
-	// Migrate on boot: this machine mounts the volume holding the SQLite file,
-	// so schema lands against the real database before serving.
+	// Migrate on boot: this machine mounts the single
+	// persistent volume holding the SQLite file
 	if err := migrate.Run(ctx, dbURL); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
@@ -43,17 +44,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if err := db.PingContext(ctx); err != nil {
 		log.Fatalf("ping db: %v", err)
 	}
 
 	broker := pubsub.New()
-	svc := block.NewService(db, broker)
+	blockSvc := block.NewService(db, broker)
 	authSvc := auth.NewService(db, auth.LogMailer{})
+
 	// Secure cookies in production (ADR 0002). Set SECURE_COOKIES=1 wherever the
-	// app sits behind HTTPS (Fly does so via fly.app.toml); host-agnostic so
-	// self-hosters get the same protection without a Fly-specific signal.
+	// app sits behind HTTPS (Fly, for example, does so via fly.app.toml);
+	// host-agnostic so self-hosters get the same protection.
 	secureCookies := os.Getenv("SECURE_COOKIES") == "1"
 
 	mux := http.NewServeMux()
@@ -68,20 +70,20 @@ func main() {
 	// pub/sub: the page renders the authoritative order, the events stream
 	// fans every mutation to all subscribers as element patches, and the
 	// reorder endpoint commits a drop and patches the column back.
-	mux.Handle("GET /{$}", frontend.RequireSession(authSvc, frontend.PageHandler(svc)))
+	mux.Handle("GET /{$}", frontend.RequireSession(authSvc, frontend.PageHandler(blockSvc)))
 	mux.Handle("GET /login", frontend.LoginPageHandler())
 	mux.Handle("POST /login/code", frontend.RequestCodeHandler(authSvc))
-	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, svc, secureCookies))
+	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, blockSvc, secureCookies))
 	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, secureCookies))
-	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(svc, broker)))
-	mux.Handle("POST /blocks/layout", frontend.RequireSession(authSvc, frontend.LayoutHandler(svc)))
-	mux.Handle("POST /blocks/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(svc)))
-	mux.Handle("POST /blocks", frontend.RequireSession(authSvc, frontend.CreateHandler(svc)))
-	mux.Handle("POST /blocks/delete", frontend.RequireSession(authSvc, frontend.DeleteHandler(svc)))
-	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(svc)))
+	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(blockSvc, broker)))
+	mux.Handle("POST /blocks/layout", frontend.RequireSession(authSvc, frontend.LayoutHandler(blockSvc)))
+	mux.Handle("POST /blocks/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(blockSvc)))
+	mux.Handle("POST /blocks", frontend.RequireSession(authSvc, frontend.CreateHandler(blockSvc)))
+	mux.Handle("POST /blocks/delete", frontend.RequireSession(authSvc, frontend.DeleteHandler(blockSvc)))
+	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 
-	// Embedded frontend assets (drag.js). Session-free by design: a cached
-	// asset is not user data.
+	// Embedded frontend assets (drag.js, tailwind). Session-free
+	// we use StaticHandler instead and serve these to everyone
 	mux.Handle("GET /static/", frontend.StaticHandler())
 
 	// Wiring canary for the pinned Datastar SDK + templ versions.
@@ -95,7 +97,7 @@ func main() {
 
 	// WriteTimeout stays 0 (disabled): SSE streams are long-lived and the
 	// handler manages its own liveness via the 25s keepalive.
-	// ReadHeaderTimeout guards the non-streaming routes against slow-loris.
+	// ReadHeaderTimeout guards the non-streaming routes against slow-loris attacks.
 	srv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           mux,

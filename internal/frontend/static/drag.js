@@ -14,7 +14,7 @@ const list = document.getElementById("block-list");
 const SPRING = { type: "spring", stiffness: 600, damping: 38 };
 
 const blocksIn = () =>
-  [...list.children].filter((c) => c.classList.contains("block"));
+  [...list.children].filter((c) => c.classList.contains("block-item"));
 const boundsNow = () => ({
   start: parseInt(list.dataset.dayStart, 10),
   end: parseInt(list.dataset.dayEnd, 10),
@@ -71,7 +71,7 @@ list.addEventListener("pointerdown", (e) => {
   // A label already in edit mode owns its own pointer (caret/selection) —
   // don't capture it into a drag gesture.
   if (e.target.closest(".block-label[contenteditable]")) return;
-  const el = e.target.closest(".block");
+  const el = e.target.closest(".block-item");
   if (!el || el.parentElement !== list) return;
   e.preventDefault();
   el.setPointerCapture(e.pointerId);
@@ -258,7 +258,7 @@ async function settleDrag(e, commit) {
 // or Enter / revert on Escape. A changed, non-empty label dispatches `rename`
 // on #block-list (Datastar posts it); the server's morph re-asserts the truth.
 function enterEdit(label, x, y) {
-  const block = label.closest(".block");
+  const block = label.closest(".block-item");
   if (!block) return; // a morph detached the label during the settle await
   const id = block.dataset.id;
   const original = label.textContent;

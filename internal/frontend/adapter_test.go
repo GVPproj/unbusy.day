@@ -578,9 +578,9 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 	}
 }
 
-// Each block carries its immutable type as data-type, which ColumnStyles keys
-// the per-type fill on; the attribute must survive every morph so the color is
-// stable across SSE re-renders.
+// Each block carries its immutable type as data-type, which the block's
+// data-[type=…] utilities key the per-type fill on; the attribute must survive
+// every morph so the color is stable across SSE re-renders.
 func TestColumnRendersBlockType(t *testing.T) {
 	cs := []block.Block{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 1, Type: block.BlockShallow},
@@ -607,18 +607,21 @@ func TestColumnRendersEverySlotInDay(t *testing.T) {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
-	if got, want := strings.Count(body, `class="slot"`), testBounds.End-testBounds.Start; got != want {
+	// Slots/blocks carry utility classes after the structural hook, so match the
+	// `slot `/`block-item ` prefix (excludes slot-add, block-label, the blocks ul)
+	// rather than an exact class attribute.
+	if got, want := strings.Count(body, `class="slot `), testBounds.End-testBounds.Start; got != want {
 		t.Errorf("want %d slot elements, got %d; body:\n%s", want, got, body)
 	}
-	for _, want := range []string{`class="slot" data-slot="18"`, `class="slot" data-slot="33"`} {
+	for _, want := range []string{`data-slot="18"`, `data-slot="33"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("column missing %q; body:\n%s", want, body)
 		}
 	}
-	if strings.Contains(body, `class="slot" data-slot="34"`) {
+	if strings.Contains(body, `data-slot="34"`) {
 		t.Errorf("slot 34 is past day end (end-exclusive); body:\n%s", body)
 	}
-	if lastSlot, firstCard := strings.LastIndex(body, `class="slot"`), strings.Index(body, `class="block"`); firstCard < lastSlot {
+	if lastSlot, firstCard := strings.LastIndex(body, `class="slot `), strings.Index(body, `class="block-item `); firstCard < lastSlot {
 		t.Errorf("blocks must render after slots so they paint above; body:\n%s", body)
 	}
 }

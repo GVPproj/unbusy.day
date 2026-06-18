@@ -18,26 +18,30 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// Run applies pending migrations exactly once each via goose,
-// recording versions in goose_db_version. Forward-only: no Down sections.
+// Run applies pending migrations via goose,
+// recording versions in goose_db_version.
+// we run migrations forward-only: no "down" sections.
 func Run(ctx context.Context, dbURL string) error {
 	db, err := sql.Open("sqlite", dbURL)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
+	// sub makes the embedded migrations subdir the
+	// root for passing the .sql files to goose
 	sub, err := fs.Sub(migrationsFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("sub fs: %w", err)
 	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, db, sub)
+	gooseProvider, err := goose.NewProvider(goose.DialectSQLite3, db, sub)
 	if err != nil {
 		return fmt.Errorf("goose provider: %w", err)
 	}
-	results, err := provider.Up(ctx)
-	// Report applied files even on failure so a bad migration is diagnosable
-	// from Fly release logs alone.
+
+	results, err := gooseProvider.Up(ctx)
+	// Report applied files even on failure so
+	// a bad migration is diagnosable from logs
 	for _, r := range results {
 		fmt.Printf("migrate: applied %s\n", r.Source.Path)
 	}

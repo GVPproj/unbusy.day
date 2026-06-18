@@ -10,8 +10,10 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// Broker fans block.Events to the owner's live subscribers. It implements
-// block.Publisher. Reconnect recovery is a full snapshot re-render on the read
+// Broker fans block.Events to the OWNER's
+// live subscribers (ie. their phone, their laptop).
+// It implements block.Publisher. Reconnect recovery is a
+// full snapshot re-render on the read
 // path (see EventsHandler), so the bus keeps no history.
 type Broker struct {
 	mu   sync.Mutex
@@ -26,7 +28,6 @@ func New() *Broker {
 // Subscription is one client's live event channel. Close to unsubscribe.
 type Subscription struct {
 	Events <-chan block.Event
-
 	broker *Broker
 	owner  string
 	ch     chan block.Event
