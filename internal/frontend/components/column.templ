@@ -7,13 +7,17 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// DateHeading renders today's date at the column's top-left. On mobile it's
-// pinned in line with the fixed hamburger (top-right); on desktop it sits as a
-// normal heading above the column card.
+// DateHeading renders today's date at the column's top-left. On mobile it's a
+// fixed full-width bar that vertically centers the date and the hamburger
+// toggle; on desktop the toggle is hidden and it sits as a normal heading above
+// the column card.
 templ DateHeading() {
-	<p class="m-0 mb-2 font-bold text-ink-muted max-sm:fixed max-sm:top-[0.6rem] max-sm:left-4 max-sm:z-11 max-sm:mb-0">
-		{ time.Now().Format("Monday, January 2") }
-	</p>
+	<div class="flex items-center justify-between gap-2 mb-2 sm:min-h-8 max-sm:fixed max-sm:top-0 max-sm:inset-x-0 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:px-4">
+		<p class="m-0 font-bold text-ink">
+			{ time.Now().Format("Monday, January 2") }
+		</p>
+		@MenuToggle()
+	</div>
 }
 
 // ColumnStyles is the block column's stylesheet, co-located with the markup

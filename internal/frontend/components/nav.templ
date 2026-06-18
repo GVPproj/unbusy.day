@@ -58,12 +58,12 @@ templ NavStyles() {
 // a row in the mobile drawer. Hover uses the un-bridged --nav-hover token.
 const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-[0.6rem] max-sm:px-3 max-sm:text-base"
 
-// SideNav is the icon-rail nav. The host page provides the $_navopen signal
-// (underscore = local-only, kept out of @post signal bodies). Theme opens the
-// #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
-templ SideNav() {
+// MenuToggle is the mobile hamburger button. Hidden on desktop (the icon rail
+// is always present there); on mobile it lives in the DateHeading header bar so
+// it sits inline with the date rather than floating as a separate fixed element.
+templ MenuToggle() {
 	<button
-		class="hidden max-sm:grid place-items-center fixed top-[0.6rem] right-4 z-12 p-[0.4rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
+		class="hidden max-sm:grid place-items-center p-[0.4rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		data-class:open="$_navopen"
@@ -73,6 +73,12 @@ templ SideNav() {
 			@IconMenu()
 		</span>
 	</button>
+}
+
+// SideNav is the icon-rail nav. The host page provides the $_navopen signal
+// (underscore = local-only, kept out of @post signal bodies). Theme opens the
+// #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
+templ SideNav() {
 	<div class="hidden fixed inset-0 z-9 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class="sidenav" data-class:open="$_navopen">
 		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-sm:self-start max-sm:ml-4">
