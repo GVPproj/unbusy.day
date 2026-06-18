@@ -25,6 +25,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@modals.CreateModal()
 			@modals.DialogInit()
 			<main class="column">
+				@components.DateHeading()
 				@components.BlockColumn(cs, b)
 				@components.DragInit()
 			</main>

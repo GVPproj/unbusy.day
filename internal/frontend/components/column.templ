@@ -2,9 +2,19 @@ package components
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
+
+// DateHeading renders today's date at the column's top-left. On mobile it's
+// pinned in line with the fixed hamburger (top-right); on desktop it sits as a
+// normal heading above the column card.
+templ DateHeading() {
+	<p class="m-0 mb-2 font-bold text-ink-muted max-sm:fixed max-sm:top-[0.6rem] max-sm:left-4 max-sm:z-11 max-sm:mb-0">
+		{ time.Now().Format("Monday, January 2") }
+	</p>
+}
 
 // ColumnStyles is the block column's stylesheet, co-located with the markup
 // it styles and passed to Layout's <head> by the blocks route. Tokens come
