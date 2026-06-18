@@ -66,6 +66,7 @@ templ SideNav() {
 		class="hidden max-sm:block fixed top-[0.6rem] right-[0.6rem] z-12 text-xl py-[0.3rem] px-[0.55rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
+		data-class:open="$_navopen"
 		aria-label="Toggle menu"
 	>
 		<span>

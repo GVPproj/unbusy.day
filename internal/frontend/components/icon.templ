@@ -20,12 +20,116 @@ templ IconStyles() {
 		.icon-pixel { display: none; }
 		:root[data-feeling="pixel"] .icon-solar { display: none; }
 		:root[data-feeling="pixel"] .icon-pixel { display: block; }
+
+		/* Animated hamburger (prototype winners): cozy "Jelly Wobble" + pixel
+		   "Tetris Drop". Both ship; feeling toggles which shows. The X-morph is
+		   driven by .open on the toggle button (data-class:open="$_navopen"). */
+		.menu-cozy, .menu-pixel { position: relative; width: 24px; height: 24px; }
+		.menu-cozy { display: block; }
+		.menu-pixel { display: none; image-rendering: pixelated; }
+		:root[data-feeling="pixel"] .menu-cozy { display: none; }
+		:root[data-feeling="pixel"] .menu-pixel { display: block; }
+
+		/* cozy-1 Jelly Wobble: idle sway, squash on hover */
+		.menu-cozy { animation: menu-wobble 2.8s ease-in-out infinite; transform-origin: center; }
+		.menu-cozy .bar {
+			position: absolute; left: 2px; right: 2px; top: 50%; height: 3px; margin-top: -1.5px;
+			background: currentColor; border-radius: 3px;
+			transition: transform .35s cubic-bezier(.68, -.55, .27, 1.55), opacity .2s;
+		}
+		.menu-cozy .bar:nth-child(1) { transform: translateY(-7px); }
+		.menu-cozy .bar:nth-child(3) { transform: translateY(7px); }
+		@keyframes menu-wobble { 0%, 100% { transform: rotate(-4deg) scale(1.03, .97); } 50% { transform: rotate(4deg) scale(.97, 1.03); } }
+		button:hover:not(.open) .menu-cozy { animation: menu-squash .55s ease; }
+		@keyframes menu-squash { 0% { transform: scale(1, 1); } 30% { transform: scale(1.3, .7); } 60% { transform: scale(.82, 1.22); } 100% { transform: scale(1, 1); } }
+
+		/* pixel-3 Tetris Drop: rows of blocks fall in on a loop */
+		.menu-pixel .trow {
+			position: absolute; left: 1px; right: 1px; top: 50%; height: 4px; margin-top: -2px;
+			display: flex; gap: 1px; justify-content: space-between;
+			transition: transform .3s steps(3), opacity .2s;
+		}
+		.menu-pixel .trow:nth-child(1) { transform: translateY(-7px); }
+		.menu-pixel .trow:nth-child(3) { transform: translateY(7px); }
+		.menu-pixel .trow i { width: 4px; height: 4px; background: currentColor; animation: menu-drop 2.6s steps(5) infinite; }
+		.menu-pixel .trow:nth-child(1) i:nth-child(1) { animation-delay: 0s; }
+		.menu-pixel .trow:nth-child(1) i:nth-child(2) { animation-delay: .1s; }
+		.menu-pixel .trow:nth-child(1) i:nth-child(3) { animation-delay: .2s; }
+		.menu-pixel .trow:nth-child(1) i:nth-child(4) { animation-delay: .3s; }
+		.menu-pixel .trow:nth-child(2) i { animation-delay: .45s; }
+		.menu-pixel .trow:nth-child(3) i { animation-delay: .7s; }
+		@keyframes menu-drop { 0% { transform: translateY(-18px); opacity: 0; } 12% { opacity: 1; } 28%, 100% { transform: translateY(0); opacity: 1; } }
+
+		/* open -> X (both feelings); idle motion freezes so the X reads clean */
+		.open .menu-cozy { animation: none; }
+		.open .menu-cozy .bar:nth-child(1) { transform: translateY(0) rotate(45deg); }
+		.open .menu-cozy .bar:nth-child(2) { transform: scaleX(0); opacity: 0; }
+		.open .menu-cozy .bar:nth-child(3) { transform: translateY(0) rotate(-45deg); }
+		.open .menu-pixel .trow i { animation: none; }
+		.open .menu-pixel .trow:nth-child(1) { transform: translateY(0) rotate(45deg); }
+		.open .menu-pixel .trow:nth-child(2) { transform: scaleX(0); opacity: 0; }
+		.open .menu-pixel .trow:nth-child(3) { transform: translateY(0) rotate(-45deg); }
+
+		@media (prefers-reduced-motion: reduce) {
+			.menu-cozy, .menu-cozy .bar, .menu-pixel .trow i { animation: none !important; }
+		}
+
+		/* cozy-3 "Sleepy Cat" — kept for future A/B testing. To use: uncomment this
+		   block and swap the .menu-cat markup in IconMenu in for .menu-cozy.
+		.menu-cat { display: block; position: relative; width: 24px; height: 24px; }
+		:root[data-feeling="pixel"] .menu-cat { display: none; }
+		.menu-cat svg { width: 24px; height: 24px; display: block; overflow: visible; animation: menu-catbreathe 3.6s ease-in-out infinite; transform-origin: center; }
+		@keyframes menu-catbreathe { 0%, 100% { transform: scale(.95); } 50% { transform: scale(1.06); } }
+		.menu-cat .eye-open { opacity: 0; transition: opacity .2s; }
+		.menu-cat .eye-closed { opacity: 1; transition: opacity .2s; }
+		button:hover .menu-cat .eye-open { opacity: 1; }
+		button:hover .menu-cat .eye-closed { opacity: 0; }
+		.menu-cat .ear { transition: transform .3s; transform-origin: center bottom; }
+		button:hover .menu-cat .ear { transform: translateY(-2px) scaleY(1.15); }
+		.menu-cat .grp { transition: opacity .25s; }
+		.menu-cat .xg { opacity: 0; }
+		.menu-cat .xg line { stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .35s ease .08s; }
+		.open .menu-cat .grp { opacity: 0; }
+		.open .menu-cat .xg { opacity: 1; }
+		.open .menu-cat .xg line { stroke-dashoffset: 0; }
+		.open .menu-cat svg { animation: none; }
+		*/
 	</style>
 }
 
+// IconMenu is the mobile hamburger toggle. Cozy renders "Jelly Wobble" (bars
+// that sway and squash), pixel renders "Tetris Drop" (blocks that fall in);
+// both fold into an X when the drawer is open. Styling/morph live in IconStyles.
 templ IconMenu() {
-	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M20 7H4m16 5H4m16 5H4"/></svg>`)
-	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24"><path fill="currentColor" d="M20 18H4v-2h16zm0-5H4v-2h16zm0-5H4V6h16z"/></svg>`)
+	<span class="menu-cozy">
+		<span class="bar"></span>
+		<span class="bar"></span>
+		<span class="bar"></span>
+	</span>
+	<span class="menu-pixel">
+		<span class="trow"><i></i><i></i><i></i><i></i></span>
+		<span class="trow"><i></i><i></i><i></i><i></i></span>
+		<span class="trow"><i></i><i></i><i></i><i></i></span>
+	</span>
+	/* cozy-3 "Sleepy Cat" — spare alternate kept for future A/B testing. Swap in
+	   for .menu-cozy above and uncomment the .menu-cat block in IconStyles.
+	<span class="menu-cat">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<g class="grp">
+				<path class="ear" d="M5 8 L4 4 L8 6"></path>
+				<path class="ear" d="M19 8 L20 4 L16 6"></path>
+				<line x1="3" y1="8" x2="21" y2="8"></line>
+				<line x1="3" y1="13" x2="21" y2="13"></line>
+				<line x1="6" y1="18" x2="18" y2="18"></line>
+				<path class="eye-closed" d="M7.5 10.6 q1.2 1 2.4 0"></path>
+				<path class="eye-closed" d="M14.1 10.6 q1.2 1 2.4 0"></path>
+				<circle class="eye-open" cx="8.7" cy="10.6" r="1.1" fill="currentColor" stroke="none"></circle>
+				<circle class="eye-open" cx="15.3" cy="10.6" r="1.1" fill="currentColor" stroke="none"></circle>
+			</g>
+			<g class="xg"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></g>
+		</svg>
+	</span>
+	*/
 }
 
 templ IconHours() {
