@@ -80,6 +80,7 @@ func main() {
 	mux.Handle("POST /blocks/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(blockSvc)))
 	mux.Handle("POST /blocks", frontend.RequireSession(authSvc, frontend.CreateHandler(blockSvc)))
 	mux.Handle("POST /blocks/delete", frontend.RequireSession(authSvc, frontend.DeleteHandler(blockSvc)))
+	mux.Handle("POST /blocks/clear", frontend.RequireSession(authSvc, frontend.ClearHandler(blockSvc)))
 	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 
 	// Embedded frontend assets (drag.js, tailwind). Session-free

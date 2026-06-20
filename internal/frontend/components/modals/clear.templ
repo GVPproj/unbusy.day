@@ -1,0 +1,19 @@
+package modals
+
+// ClearModal is the "remove all blocks" confirmation: a native <dialog> opened
+// by the nav's Clear button (theme-modal house style). Confirm @posts
+// /blocks/clear, which deletes every block and patches back the now-empty
+// column; the day's working hours are untouched. Destructive, so Cancel is the
+// safe default (autofocus) and light dismiss (closedby="any") backs out.
+templ ClearModal() {
+	<dialog id="clear-modal" class={ dialogClass } closedby="any">
+		<h2 class={ dialogH2Class }>Clear all blocks?</h2>
+		<p class="m-0 text-base text-ink-muted">This removes every block from your day. Your working hours stay the same, and this can't be undone.</p>
+		<footer class={ dialogFooterClass }>
+			<button class={ dialogButtonSecondaryClass } autofocus commandfor="clear-modal" command="close">Cancel</button>
+			// Destructive primary: red fill (each theme's canonical --danger), text-bg
+			// for legibility — same shape as dialogButtonClass, accent swapped for danger.
+			<button class="py-[0.35rem] px-3 rounded border-none bg-danger text-bg text-sm cursor-pointer" commandfor="clear-modal" command="close" data-on:click="@post('/blocks/clear')">Clear</button>
+		</footer>
+	</dialog>
+}

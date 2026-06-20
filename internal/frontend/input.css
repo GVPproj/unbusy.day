@@ -29,6 +29,7 @@
 	--color-nav-ink: var(--nav-ink);
 	--color-nav-icon: var(--nav-icon);
 	--color-accent: var(--accent);
+	--color-danger: var(--danger);
 
 	/* radius-* → rounded / rounded-lg */
 	--radius: var(--radius);

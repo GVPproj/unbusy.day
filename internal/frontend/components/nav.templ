@@ -1,17 +1,18 @@
 package components
 
 // sidenavClasses is the rail↔drawer geometry, now markup-first (ADR 0006).
-// Desktop is a slim sticky 80px rail; below sm (max-sm, the exact rem complement
-// of Tailwind's sm so the flip lines up with no sub-pixel gap) it becomes a
-// right-side off-canvas drawer translated off-screen, slid in by the `.open`
-// hook (toggled by data-class:open). Translate/transition are max-sm-only so the
-// desktop sticky rail never picks up a transform. Tokens come from baseStyles.
-const sidenavClasses = "sidenav w-20 shrink-0 flex flex-col gap-1 py-3 px-2 bg-nav-bg text-nav-ink sticky top-0 h-screen max-sm:fixed max-sm:inset-y-0 max-sm:right-0 max-sm:z-30 max-sm:w-[200px] max-sm:translate-x-full max-sm:[&.open]:translate-x-0 max-sm:transition-transform max-sm:duration-200 max-sm:shadow-[var(--shadow-lift)]"
+// Desktop is a sticky 96px rail (wide enough to hold "Set Hours" on one line in
+// both the cozy and wider Gohu pixel font); below sm (max-sm, the exact rem
+// complement of Tailwind's sm so the flip lines up with no sub-pixel gap) it
+// becomes a right-side off-canvas drawer translated off-screen, slid in by the
+// `.open` hook (toggled by data-class:open). Translate/transition are max-sm-only
+// so the desktop sticky rail never picks up a transform. Tokens come from baseStyles.
+const sidenavClasses = "sidenav w-24 shrink-0 flex flex-col gap-1 py-3 px-2 bg-nav-bg text-nav-ink sticky top-0 h-screen max-sm:fixed max-sm:inset-y-0 max-sm:right-0 max-sm:z-30 max-sm:w-[200px] max-sm:translate-x-full max-sm:[&.open]:translate-x-0 max-sm:transition-transform max-sm:duration-200 max-sm:shadow-[var(--shadow-lift)]"
 
 // navlinkClasses is the shared rail-link styling (repeated across the mixed
 // <a>/<button> links): a centered icon-over-label stack on desktop that becomes
 // a row in the mobile drawer. Hover uses the un-bridged --nav-hover token.
-const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-[0.6rem] max-sm:px-3 max-sm:text-base"
+const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold whitespace-nowrap cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-[0.6rem] max-sm:px-3 max-sm:text-base"
 
 // MenuToggle is the mobile hamburger button. Hidden on desktop (the icon rail
 // is always present there); on mobile it's a fixed top-right overlay rendered at
@@ -31,9 +32,6 @@ templ MenuToggle() {
 	</button>
 }
 
-// SideNav is the icon-rail nav. The host page provides the $_navopen signal
-// (underscore = local-only, kept out of @post signal bodies). Theme opens the
-// #theme-modal dialog via command/commandfor. Logout pins to the rail's bottom.
 templ SideNav() {
 	<div class="hidden fixed inset-0 z-20 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
 	<nav class={ sidenavClasses } data-class:open="$_navopen">
@@ -43,14 +41,19 @@ templ SideNav() {
 		<button class={ navlinkClasses } commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="leading-0 text-nav-icon">
 				@IconHours()
-			</span><span>Working Hours</span>
+			</span><span>Set Hours</span>
 		</button>
-		<button class={ navlinkClasses } commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
+		<button class={ navlinkClasses } commandfor="clear-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="leading-0 text-nav-icon">
+				@IconClear()
+			</span><span>Clear</span>
+		</button>
+		<button class={ navlinkClasses + " mt-auto" } commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="leading-0 text-nav-icon">
 				@IconTheme()
 			</span><span>Theme</span>
 		</button>
-		<button class={ navlinkClasses + " mt-auto" } data-on:click="@post('/logout')">
+		<button class={ navlinkClasses } data-on:click="@post('/logout')">
 			<span class="leading-0 text-nav-icon">
 				@IconLogout()
 			</span><span class="min-w-max">Log Out</span>

@@ -7,6 +7,7 @@ package frontend
 import (
 	"bufio"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -30,6 +31,7 @@ type fakeService struct {
 	boundsErr error
 	createErr error
 	deleteErr error
+	clearErr  error
 	renameErr error
 
 	gotOwner  string            // owner passed to the last mutation, for asserting scoping
@@ -65,6 +67,15 @@ func (f *fakeService) Delete(ctx context.Context, owner, id string) (*block.Dele
 	}
 	f.blocks = out
 	return &block.DeleteResult{Blocks: f.blocks}, nil
+}
+
+func (f *fakeService) Clear(ctx context.Context, owner string) (*block.ClearResult, error) {
+	f.gotOwner = owner
+	if f.clearErr != nil {
+		return nil, f.clearErr
+	}
+	f.blocks = nil
+	return &block.ClearResult{Blocks: f.blocks}, nil
 }
 
 func (f *fakeService) Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error) {
@@ -530,6 +541,45 @@ func TestCreateRejectionPatchesCurrentColumn(t *testing.T) {
 			}
 			assertOrder(t, body, "a", "b", "c")
 		})
+	}
+}
+
+// Clear delegates to the core (owner-scoped) and patches back the now-empty
+// column — the morph anchor survives, the cleared block labels don't.
+func TestClearDelegatesToCoreAndPatchesEmptyColumn(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+
+	req := authedRequest(http.MethodPost, "/blocks/clear", `{}`)
+	rec := httptest.NewRecorder()
+	ClearHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner {
+		t.Errorf("core Clear called with owner %q, want %q", svc.gotOwner, testOwner)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="block-list"`) {
+		t.Errorf("patch missing #block-list morph anchor; body:\n%s", body)
+	}
+	for _, id := range []string{`data-id="a"`, `data-id="b"`, `data-id="c"`} {
+		if strings.Contains(body, id) {
+			t.Errorf("cleared column still shows block %s; body:\n%s", id, body)
+		}
+	}
+}
+
+// A core failure on clear surfaces as a 500 (no domain rejection path).
+func TestClearCoreErrorIs500(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks(), clearErr: errors.New("boom")}
+
+	req := authedRequest(http.MethodPost, "/blocks/clear", `{}`)
+	rec := httptest.NewRecorder()
+	ClearHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status: want 500, got %d; body:\n%s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -230,6 +230,47 @@ func (s *Service) Delete(ctx context.Context, owner, id string) (*DeleteResult, 
 	return &DeleteResult{Blocks: bs}, nil
 }
 
+// ClearResult is the post-clear column returned to the caller.
+type ClearResult struct {
+	Blocks []Block `json:"blocks"`
+}
+
+// Clear removes every one of the owner's blocks in one mutation, then fans out
+// the now-empty column. The day extent is untouched (bounds unchanged). No
+// domain rejection — clearing an already-empty day is a harmless no-op that
+// still re-asserts the empty column. Same write-transaction and post-commit
+// fan-out shape as Delete.
+func (s *Service) Clear(ctx context.Context, owner string) (*ClearResult, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	bounds, err := queryBounds(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM block WHERE owner_id = ?`, owner); err != nil {
+		return nil, err
+	}
+
+	bs, err := queryBlocks(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// Fan out post-commit so subscribers never observe an uncommitted clear.
+	if s.pub != nil {
+		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
+	}
+	return &ClearResult{Blocks: bs}, nil
+}
+
 // RenameResult is the post-rename column returned to the caller.
 type RenameResult struct {
 	Blocks []Block `json:"blocks"`

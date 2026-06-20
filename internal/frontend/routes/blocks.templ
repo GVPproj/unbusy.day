@@ -26,6 +26,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@modals.ThemeModal()
 			@modals.HoursModal(b, block.OccupiedEnvelope(cs))
 			@modals.CreateModal()
+			@modals.ClearModal()
 			@modals.DialogInit()
 			// The day-grid column: full width within the shell flex row, a centered
 			// 520px card on desktop; below sm it fills the viewport and becomes a

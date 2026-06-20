@@ -29,6 +29,7 @@ type BlockService interface {
 	SetBounds(ctx context.Context, owner string, start, end int) error
 	Create(ctx context.Context, owner, label string, slot int, typ block.BlockType) (*block.CreateResult, error)
 	Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error)
+	Clear(ctx context.Context, owner string) (*block.ClearResult, error)
 	Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error)
 }
 
@@ -250,6 +251,29 @@ func DeleteHandler(svc BlockService) http.Handler {
 		bs, b, err := snapshot(r.Context(), svc, owner)
 		if err != nil {
 			log.Printf("ds delete snapshot: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		patchColumn(w, r, bs, b)
+	})
+}
+
+// ClearHandler removes all of the owner's blocks and responds with an
+// element-patch of the now-empty column. The nav's confirm dialog gates the
+// gesture client-side; there's no domain rejection, so any error is a 500.
+// Working hours are untouched — only blocks are cleared.
+func ClearHandler(svc BlockService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		owner := ownerFrom(r.Context())
+		if _, err := svc.Clear(r.Context(), owner); err != nil {
+			log.Printf("ds clear: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		bs, b, err := snapshot(r.Context(), svc, owner)
+		if err != nil {
+			log.Printf("ds clear snapshot: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

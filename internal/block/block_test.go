@@ -499,6 +499,73 @@ func TestCreate_InsertsBlockAndPublishes(t *testing.T) {
 	}
 }
 
+// Clear removes every block, leaves the day bounds intact, and fans out one
+// empty column.
+func TestClear_RemovesAllBlocksAndPublishes(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc) // three starter blocks
+
+	before, err := svc.Bounds(ctx, owner)
+	if err != nil {
+		t.Fatalf("bounds before: %v", err)
+	}
+
+	res, err := svc.Clear(ctx, owner)
+	if err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	if len(res.Blocks) != 0 {
+		t.Fatalf("want 0 blocks after clear, got %d", len(res.Blocks))
+	}
+
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if len(after) != 0 {
+		t.Fatalf("want 0 persisted blocks, got %d", len(after))
+	}
+	if got, err := svc.Bounds(ctx, owner); err != nil || got != before {
+		t.Fatalf("bounds changed by clear: got %+v (err %v), want %+v", got, err, before)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+	if e := pub.events[0]; e.Owner != owner || len(e.Blocks) != 0 || e.Bounds != before {
+		t.Fatalf("published event = {owner %q, %d blocks, bounds %+v}, want {%q, 0, %+v}", e.Owner, len(e.Blocks), e.Bounds, owner, before)
+	}
+}
+
+// Clearing an already-empty day is a harmless no-op that still re-asserts the
+// empty column over the bus.
+func TestClear_EmptyDayIsNoOp(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	if _, err := svc.Clear(ctx, owner); err != nil {
+		t.Fatalf("first clear: %v", err)
+	}
+	if _, err := svc.Clear(ctx, owner); err != nil {
+		t.Fatalf("second clear (empty day): %v", err)
+	}
+	after, err := svc.List(ctx, owner)
+	if err != nil {
+		t.Fatalf("list after: %v", err)
+	}
+	if len(after) != 0 {
+		t.Fatalf("want 0 blocks, got %d", len(after))
+	}
+	if len(pub.events) != 2 {
+		t.Fatalf("want 2 published events (one per clear), got %d", len(pub.events))
+	}
+}
+
 // A valid type passed to Create round-trips: it comes back on the created
 // block, in the persisted column, and in the published event.
 func TestCreate_TypeRoundTrips(t *testing.T) {
