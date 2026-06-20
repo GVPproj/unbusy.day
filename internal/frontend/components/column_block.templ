@@ -26,14 +26,14 @@ templ blockItem(c block.Block, dayStart int) {
 		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
 		<button
 			type="button"
-			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
+			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 pointer-coarse:opacity-100"
 			aria-label={ "Delete " + c.Label }
 			data-on:pointerdown="evt.stopPropagation()"
 			data-on:click={ "$deleteid = '" + c.ID + "'; @post('/blocks/delete')" }
 		>
 			@IconX()
 		</button>
-		<span class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-10 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100" aria-hidden="true"></span>
+		<span class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100" aria-hidden="true"></span>
 	</li>
 }
 
