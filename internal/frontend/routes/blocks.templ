@@ -35,8 +35,8 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 				@components.DateHeading()
 				@components.BlockColumn(cs, b)
 				@components.DragInit()
-				// Live local-time "now" line on the day grid (see now-line.js).
-				<script type="module" src="/static/now-line.js"></script>
+				// Live local-time "now" pill on the day grid (see now-pill.js).
+				<script type="module" src="/static/now-pill.js"></script>
 			</main>
 		</div>
 	}
