@@ -43,7 +43,10 @@ templ SideNav() {
 				@IconHours()
 			</span><span>Set Hours</span>
 		</button>
-		<button class={ navlinkClasses } commandfor="clear-modal" command="show-modal" data-on:click="$_navopen = false">
+		// Disabled on an empty day: the occupied envelope collapses to
+		// firstOccupiedSlot > lastOccupiedEnd when no block exists, and those
+		// signals are re-patched on every column change (see patchEnvelope).
+		<button class={ navlinkClasses + " disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" } data-attr:disabled="$firstOccupiedSlot >= $lastOccupiedEnd" commandfor="clear-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="leading-0 text-nav-icon">
 				@IconClear()
 			</span><span>Clear</span>
