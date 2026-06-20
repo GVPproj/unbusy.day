@@ -216,17 +216,20 @@ func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
 				{ID: a.ID, Slot: 20, Span: 2},
 				{ID: b.ID, Slot: 21, Span: 1},
 				{ID: c.ID, Slot: 30, Span: 1},
-			}, block.ErrOverlap},
+			}, block.ErrOverlap,
+		},
 		"out of bounds": {
 			[]block.Placement{
 				{ID: a.ID, Slot: 33, Span: 2},
 				{ID: b.ID, Slot: 19, Span: 1},
 				{ID: c.ID, Slot: 20, Span: 1},
-			}, block.ErrOutOfBounds},
+			}, block.ErrOutOfBounds,
+		},
 		"not same blocks": {
 			[]block.Placement{
 				{ID: a.ID, Slot: 20, Span: 1},
-			}, block.ErrNotSameBlocks},
+			}, block.ErrNotSameBlocks,
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -442,7 +445,7 @@ func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
 	owner := newOwner(t, db, svc)
 
 	cases := map[string][2]int{
-		"before 5:00":    {9, 34},
+		"before 4:00":    {7, 34},
 		"after 18:00":    {18, 37},
 		"end not beyond": {18, 18},
 		"inverted":       {20, 18},

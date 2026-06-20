@@ -96,7 +96,7 @@ func TestHoursModalEmptyDayOffersFullRange(t *testing.T) {
 
 	for _, want := range []string{
 		`firstOccupiedSlot: 36`, // MaxDayEnd: no start slot exceeds it
-		`lastOccupiedEnd: 10`,   // MinDayStart: no end slot is below it
+		`lastOccupiedEnd: 8`,    // MinDayStart: no end slot is below it
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("empty-day modal missing %q; body:\n%s", want, body)

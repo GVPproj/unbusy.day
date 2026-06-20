@@ -10,9 +10,9 @@ type Bounds struct {
 }
 
 // Day Plan slot constants: 30-minute slot indexes counted from 00:00.
-// Hard limits 5:00–18:00 for now; default day is 9:00–17:00.
+// Hard limits 4:00–18:00 for now; default day is 9:00–17:00.
 const (
-	MinDayStart     = 10 // 5:00
+	MinDayStart     = 8  // 4:00
 	MaxDayEnd       = 36 // 18:00
 	DefaultDayStart = 18 // 9:00
 	DefaultDayEnd   = 34 // 17:00
@@ -29,7 +29,7 @@ var ErrOutOfBounds = errors.New("block placed outside the day's bounds")
 var ErrOverlap = errors.New("blocks overlap")
 
 // ErrInvalidBounds signals bounds outside the hard limits or inverted.
-var ErrInvalidBounds = errors.New("bounds outside 5:00–18:00 or end not after start")
+var ErrInvalidBounds = errors.New("bounds outside 4:00–18:00 or end not after start")
 
 // ErrBoundsOccupied signals a shrink that would strand a block outside the day.
 var ErrBoundsOccupied = errors.New("bounds change strands a block outside the day")
