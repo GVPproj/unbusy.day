@@ -23,6 +23,13 @@ function place() {
 
 	if (slot >= dayStart && slot < dayEnd) {
 		line.style.gridRow = String(slot - dayStart + 1);
+		// Offset within the slot: the line pins to the slot's top edge, so push
+		// it down by the fraction of the 30 min already elapsed. Measure a real
+		// slot's pixel height since --slot-h can be a non-fixed calc().
+		const minsIntoSlot = d.getHours() * 60 + d.getMinutes() - slot * 30;
+		const sample = list.querySelector(".slot");
+		const slotH = sample ? sample.offsetHeight : 0;
+		line.style.transform = `translateY(${(minsIntoSlot / 30) * slotH}px)`;
 		const h = ((d.getHours() + 11) % 12) + 1; // 12-hour, no leading zero
 		line.querySelector(".now-time").textContent =
 			`${h}:${String(d.getMinutes()).padStart(2, "0")}`;
