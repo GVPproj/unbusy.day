@@ -16,7 +16,7 @@ templ blockItem(c block.Block, dayStart int) {
 	// data-type variants paint the block-type fill; --span (inline) drives the
 	// label clamp. overflow-hidden clips a long label to the box mid-resize.
 	<li
-		class="block-item group relative col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-1 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-1 [&.resizing]:[box-shadow:var(--shadow-lift)]"
+		class="block-item group relative col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-1 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-1 [&.resizing]:[box-shadow:var(--shadow-lift)] [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
 		data-id={ c.ID }
 		data-span={ strconv.Itoa(spanOr1(c.Span)) }
 		data-slot={ strconv.Itoa(c.Position) }

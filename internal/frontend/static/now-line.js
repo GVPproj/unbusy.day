@@ -45,6 +45,8 @@ function place() {
 		const span = parseInt(item.dataset.span || "1", 10);
 		const label = item.querySelector(".block-label");
 		if (label) label.classList.toggle("past", start + span <= slot);
+		// The block the now line currently sits inside gets an accent left rail.
+		item.classList.toggle("active", start <= slot && slot < start + span);
 	}
 
 	if (observer) observer.observe(list, { childList: true, subtree: true });
