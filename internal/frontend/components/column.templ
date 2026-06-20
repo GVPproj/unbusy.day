@@ -48,7 +48,19 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		for _, c := range cs {
 			@blockItem(c, b.Start)
 		}
+		@nowLine()
 	</ul>
+}
+
+// nowLine marks the viewer's current local time across the day grid. The
+// server can't know the viewer's clock, so it renders hidden and now-line.js
+// (the one client-side bit) reveals it at the current slot and fills in the
+// time pill. Part of BlockColumn so it survives every SSE morph; the stable
+// #now-line id is the morph anchor.
+templ nowLine() {
+	<li id="now-line" class="col-span-full self-start relative h-0 z-[3] pointer-events-none before:content-[''] before:absolute before:left-14 before:right-0 before:-top-px before:border-t-2 before:border-accent" hidden>
+		<span class="now-time absolute right-[calc(100%-3.5rem)] top-1/2 -translate-y-1/2 inline-flex items-center px-1 py-0.5 rounded text-sm font-bold leading-none text-(--bg) bg-accent"></span>
+	</li>
 }
 
 // slot is one 30-minute row of the day grid, carrying its clock-slot index
