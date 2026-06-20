@@ -23,7 +23,7 @@ templ blockItem(c block.Block, dayStart int) {
 		data-type={ string(c.Type) }
 		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
 	>
-		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
+		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none [&.past]:line-through ">{ c.Label }</span>
 		<button
 			type="button"
 			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"

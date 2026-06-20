@@ -1,8 +1,10 @@
 // Live "now" line: marks the viewer's current LOCAL time on the day grid.
 // The server can't know the viewer's clock, so this is the one client-side
 // bit — it positions the server-rendered #now-line element (see column.templ)
-// at the current 30-min slot and fills its time pill. Re-runs on a timer and
-// after every SSE morph of #block-list (idiomorph re-renders the line hidden).
+// at the current 30-min slot and fills its time pill. Same pass strikes through
+// the labels of blocks that have fully elapsed (end slot at/above the line).
+// Re-runs on a timer and after every SSE morph of #block-list (idiomorph
+// re-renders the line hidden).
 
 let observer;
 
@@ -27,6 +29,15 @@ function place() {
 		line.hidden = false;
 	} else {
 		line.hidden = true;
+	}
+
+	// Strike through blocks that have fully elapsed: a block is "past" once its
+	// end slot (start + span) sits at or above the now line (<= current slot).
+	for (const item of list.querySelectorAll(".block-item")) {
+		const start = parseInt(item.dataset.slot || "0", 10);
+		const span = parseInt(item.dataset.span || "1", 10);
+		const label = item.querySelector(".block-label");
+		if (label) label.classList.toggle("past", start + span <= slot);
 	}
 
 	if (observer) observer.observe(list, { childList: true, subtree: true });
