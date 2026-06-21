@@ -14,9 +14,9 @@ import (
 // is a separate .shell-level overlay (see MenuToggle), not part of this bar.
 templ DateHeading() {
 	<div class="flex items-center justify-between gap-2 mb-2 sm:min-h-8 max-sm:shrink-0 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:pt-3 max-sm:px-4 max-sm:bg-column-bg">
-		<p class="m-0 font-bold text-ink">
+		<h1 class="m-0 font-bold text-ink">
 			{ time.Now().Format("Monday, January 2") }
-		</p>
+		</h1>
 	</div>
 }
 

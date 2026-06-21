@@ -73,6 +73,7 @@ templ LoginEmailForm() {
 			placeholder="you@example.com"
 			autocomplete="email"
 			required
+			aria-label="Email address"
 			data-bind:email
 			class="h-12 text-lg font-medium px-3 text-center border border-rail-border rounded bg-surface text-ink"
 		/>
@@ -88,7 +89,7 @@ templ LoginCodeForm(errMsg string) {
 	<form id="login-form" class="flex flex-col gap-6" data-on:submit="@post('/login/verify')">
 		<p class="m-0 text-ink-muted text-sm font-medium">A 6-digit code is on its way.</p>
 		if errMsg != "" {
-			<p class="m-0 text-ink-error text-sm font-medium">{ errMsg }</p>
+			<p role="alert" class="m-0 text-ink-error text-sm font-medium">{ errMsg }</p>
 		}
 		@otpInput()
 		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Verify</button>
@@ -105,6 +106,7 @@ templ otpInput() {
 			inputmode="numeric"
 			pattern="[0-9]*"
 			autocomplete="one-time-code"
+			aria-label="One-time code"
 			maxlength="6"
 			required
 			data-1p-ignore

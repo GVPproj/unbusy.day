@@ -57,8 +57,9 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 		class={ dialogClass }
 		closedby="any"
 		data-signals={ signalsObject(b, env) }
+		aria-labelledby="bounds-modal-title"
 	>
-		<h2 class={ dialogH2Class }>Working Hours</h2>
+		<h2 id="bounds-modal-title" class={ dialogH2Class }>Working Hours</h2>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
 			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">

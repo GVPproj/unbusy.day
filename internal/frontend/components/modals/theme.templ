@@ -47,15 +47,15 @@ templ feelingOption(id string, label string, family string, pixel bool, preview 
 // layout <html> mirrors into data-colorscheme/data-feeling (and localStorage), so
 // both swaps are live without closing.
 templ ThemeModal() {
-	<dialog id="theme-modal" class={ dialogClass } closedby="any">
-		<h2 class={ dialogH2Class }>Theme</h2>
+	<dialog id="theme-modal" class={ dialogClass } closedby="any" aria-labelledby="theme-modal-title">
+		<h2 id="theme-modal-title" class={ dialogH2Class }>Theme</h2>
 		<h3 class="m-0 text-sm font-bold text-ink-muted">Colours</h3>
 		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)")
 		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, hsl(192, 100%, 5%) 50%, hsl(192, 100%, 10%) 50%)")
 		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)")
 		<h3 class="m-0 text-sm font-bold text-ink-muted">Feeling</h3>
-		@feelingOption("cozy", "Cozy", "Zen Maru Gothic, system-ui, sans-serif", false, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`))
-		@feelingOption("pixel", "Pixel", "Gohu, ui-monospace, monospace", true, templ.Raw(`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`))
+		@feelingOption("cozy", "Cozy", "Zen Maru Gothic, system-ui, sans-serif", false, templ.Raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`))
+		@feelingOption("pixel", "Pixel", "Gohu, ui-monospace, monospace", true, templ.Raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`))
 		<footer class={ dialogFooterClass }>
 			<button class={ dialogButtonClass } commandfor="theme-modal" command="close">Done</button>
 		</footer>

@@ -12,6 +12,7 @@ import (
 templ LoginPage() {
 	@layouts.Layout("unbusy.day — log in", "", components.LoginStyles()) {
 		<main class="login-main text-center">
+			<h1 class="sr-only">Log in to unbusy.day</h1>
 			@components.LoginAmoeba()
 		</main>
 	}

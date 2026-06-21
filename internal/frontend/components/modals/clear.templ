@@ -6,8 +6,8 @@ package modals
 // column; the day's working hours are untouched. Destructive, so Cancel is the
 // safe default (autofocus) and light dismiss (closedby="any") backs out.
 templ ClearModal() {
-	<dialog id="clear-modal" class={ dialogClass } closedby="any">
-		<h2 class={ dialogH2Class }>Clear all blocks?</h2>
+	<dialog id="clear-modal" class={ dialogClass } closedby="any" aria-labelledby="clear-modal-title">
+		<h2 id="clear-modal-title" class={ dialogH2Class }>Clear all blocks?</h2>
 		<p class="m-0 text-base text-ink-muted">This removes every block from your day. Your working hours stay the same, and this can't be undone.</p>
 		<footer class={ dialogFooterClass }>
 			<button class={ dialogButtonSecondaryClass } autofocus commandfor="clear-modal" command="close">Cancel</button>

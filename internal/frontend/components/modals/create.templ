@@ -15,8 +15,9 @@ templ CreateModal() {
 		data-signals:addslot="0"
 		data-signals:addlabel="''"
 		data-signals:addtype="'shallow'"
+		aria-labelledby="create-modal-title"
 	>
-		<h2 class={ dialogH2Class }>New Block</h2>
+		<h2 id="create-modal-title" class={ dialogH2Class }>New Block</h2>
 		<label class="flex flex-col gap-[0.4rem] text-base">
 			Name
 			<input
@@ -54,7 +55,7 @@ templ CreateModal() {
 // selection ring riding peer-* variants on the same element.
 templ createTypeOption(typ string, label string) {
 	<label class="flex flex-1 flex-col items-center gap-[0.3rem] cursor-pointer text-sm">
-		<input type="radio" data-bind:addtype value={ typ } class="peer sr-only"/>
+		<input type="radio" name="addtype" data-bind:addtype value={ typ } class="peer sr-only"/>
 		<span
 			data-type={ typ }
 			aria-hidden="true"
