@@ -24,6 +24,7 @@ templ MenuToggle() {
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		data-class:open="$_navopen"
+		aria-controls="sidenav"
 		aria-label="Toggle menu"
 	>
 		<span>
@@ -34,7 +35,7 @@ templ MenuToggle() {
 
 templ SideNav() {
 	<div class="hidden fixed inset-0 z-20 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
-	<nav class={ sidenavClasses } data-class:open="$_navopen">
+	<nav id="sidenav" class={ sidenavClasses } data-class:open="$_navopen">
 		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-sm:self-start max-sm:ml-4">
 			@UBLogo("51", "22", 0.35)
 		</div>

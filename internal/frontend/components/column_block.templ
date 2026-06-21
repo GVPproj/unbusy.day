@@ -26,7 +26,7 @@ templ blockItem(c block.Block, dayStart int) {
 		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
 		<button
 			type="button"
-			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 pointer-coarse:opacity-100"
+			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 rounded-sm cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent group-hover:opacity-100 pointer-coarse:opacity-100"
 			aria-label={ "Delete " + c.Label }
 			data-on:pointerdown="evt.stopPropagation()"
 			data-on:click={ "$deleteid = '" + c.ID + "'; @post('/blocks/delete')" }
