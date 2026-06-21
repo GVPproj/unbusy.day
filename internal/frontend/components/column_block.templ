@@ -23,6 +23,9 @@ templ blockItem(c block.Block, dayStart int) {
 		data-type={ string(c.Type) }
 		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
 	>
+		// Block's clock span, read first by AT — its start/duration are otherwise
+		// only in the CSS grid-row, invisible to a screen reader (a11y #2).
+		<span class="sr-only">{ blockTimeRange(c) + ", " }</span>
 		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
 		<button
 			type="button"
@@ -44,4 +47,11 @@ func spanOr1(span int) int {
 		return 1
 	}
 	return span
+}
+
+// blockTimeRange renders a block's clock span ("9:00 to 10:30") for its
+// accessible name. timeLabel (column.templ) maps a slot index to its clock
+// time; the end is the slot just past the block's last occupied slot.
+func blockTimeRange(c block.Block) string {
+	return timeLabel(c.Position) + " to " + timeLabel(c.Position+spanOr1(c.Span))
 }

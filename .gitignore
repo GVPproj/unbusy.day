@@ -35,3 +35,6 @@ Thumbs.db
 
 # compiled binary (go build ./cmd/unbusy default output)
 /unbusy
+
+# --- Local scratch docs (not part of the repo) ---
+docs/datastar-primer.html

@@ -22,11 +22,12 @@ have already landed.
 | 9 | Logo accessible name was cryptic (`"ub.d"`) | 1.1.1 (A) | `role="img"` + `aria-label="unbusy.day"` on `UBLogo` (`logo.templ`) |
 | 10 | Hamburger had no `aria-controls` | 4.1.2 (A, advisory) | `aria-controls="sidenav"` on `MenuToggle` → `id="sidenav"` on the `<nav>` (`nav.templ`) |
 | 11 | Delete button focus == hover (no distinct focus indicator) | 2.4.7 (AA) | Replaced `focus-visible:outline-none` with an offset accent outline on `block-delete` (`column_block.templ`) |
+| 12 | `--ink-muted` failed contrast (Solarized Light 2.5:1; Osaka 2.8:1 on surface) | 1.4.3 (AA) | Repointed `--ink-muted` to a canonical palette tone that clears 4.5:1 in each scheme (`layouts/layout.templ`) — see #3 below |
 | — | Decorative icons exposed to AT | 1.1.1 (A) | `aria-hidden="true"` on the `icon.templ` SVGs and theme feeling-preview SVGs |
 
 ---
 
-## Deferred — needs a design decision
+## Remaining ISSUES
 
 ### 1. Block grid is pointer-only — no keyboard path (HIGH)
 
@@ -53,64 +54,28 @@ requires a non-dragging single-pointer alternative for move/resize.
 
 This is the largest piece of work and the one most worth doing.
 
-### 2. Blocks don't expose their time; DOM order ≠ visual order (HIGH)
+### 2. DOM order ≠ visual order (HIGH)
 
-**SC:** 1.3.1 Info & Relationships (A), 1.3.2 Meaningful Sequence (A)
+**SC:** 1.3.2 Meaningful Sequence (A)  ·  ~~1.3.1 Info & Relationships (A)~~ *(time now exposed — see 2a)*
 
 `BlockColumn` (`components/column.templ`) renders **all** slot `<li>`s first, then
 **all** block `<li>`s; visual interleaving is done purely with CSS `grid-row`
-derived from `data-slot`. A block's start time is therefore a non-perceivable
-grid coordinate — `blockItem` renders only the label, so a screen reader hears
-"Deep Work, Delete Deep Work" with **no time** and in an order divorced from the
-day (every empty slot first, then a separate run of blocks).
+derived from `data-slot`. The reading order is therefore divorced from the day
+(every empty slot first, then a separate run of blocks).
 
-**Recommended direction:**
-- Give each block an accessible name that includes its time and duration, e.g. a
-  visually-hidden span or `aria-label` like `"9:00–10:30, Deep Work (deep)"`.
-  The slot index → clock time conversion already exists (`clockLabel`/`timeLabel`).
-- Prefer a source order that matches the schedule (blocks interleaved with /
-  sorted by slot) so 1.3.2 reading order tracks the visual order. If keeping the
-  slots-then-blocks split for the CSS grid, consider whether the empty slot `<li>`s
-  need to be in the AT tree at all (the gutter time is already `aria-hidden`; an
-  occupied slot's `<li>` is an empty list item — noise).
+**2a — block time exposed (DONE):** `blockItem` now leads with a visually-hidden
+`sr-only` span carrying the clock span (`blockTimeRange` → e.g. `"9:00 to 10:30, "`)
+before the label, so a screen reader hears `"9:00 to 10:30, Deep Work"` instead of a
+bare `"Deep Work"`. Reuses `timeLabel` (end = slot past the block's last occupied
+slot). This is name-from-content, so it also feeds the accessible name once #1
+makes blocks focusable. (Block *type* is still conveyed by fill colour only — a
+separate 1.4.1 Use of Colour concern, not tracked here.)
 
-### 3. `--ink-muted` fails contrast on the light theme (MEDIUM)
+**2b — reading order (REMAINING):** Prefer a source order that matches the
+schedule (blocks interleaved with / sorted by slot) so 1.3.2 reading order tracks
+the visual order. If keeping the slots-then-blocks split for the CSS grid, consider
+whether the empty slot `<li>`s need to be in the AT tree at all (the gutter time is
+already `aria-hidden`; an occupied slot's `<li>` is an empty list item — noise).
+Verify the `layout` wire payload is order-independent before reshuffling the DOM
+(`drag.js` reads `#block-list` children; layout is keyed by `data-id`/`data-slot`).
 
-**SC:** 1.4.3 Contrast (Minimum) (AA)
-
-In **Solarized Light**, `--ink-muted: hsl(180, 7%, 60%)` on
-`--bg`/`--surface: hsl(44, 86%, 94%)` computes to **≈2.5:1** — below the 4.5:1
-floor for normal text (and below 3:1). It is used for real copy, not just hints:
-
-- "We'll email you a one-time code." — `components/login.templ`
-- The Clear-modal description — `components/modals/clear.templ`
-- The theme section headings ("Colours", "Feeling") — `components/modals/theme.templ`
-
-(Computation: muted L\* ≈ 0.338, bg L\* ≈ 0.922 → (0.922+0.05)/(0.338+0.05) ≈ 2.5.)
-
-**Recommended direction:** darken `--ink-muted` in the `solarized-light` palette
-(`layouts/layout.templ`) until it clears 4.5:1 on `--bg`. Verify the two dark
-themes (`solarized-osaka`, `catppuccin-mocha`) with an automated checker while
-you're in there — they look safer but were not all computed. Also note the email
-and create-name inputs lean on browser-default `placeholder` color, which is also
-low-contrast; the inputs now have real labels (#3), so the placeholder is hint-only.
-
----
-
-## Deferred — minor / polish
-
-- **Continuous background motion on login.** The amoeba spin/morph
-  (`components/login.templ`) runs >5s; it is `aria-hidden` and honors
-  `prefers-reduced-motion`, which is the accepted mitigation, but there is no
-  explicit pause control. (2.2.2, currently mitigated)
-
----
-
-## Already good (no action)
-
-Real `<button>`s with `aria-label` on the icon-only add/delete buttons; native
-`<dialog>` + invoker commands; `<fieldset>`/`<legend>` on the type picker; wrapped
-`<label>`s on the create/hours inputs; `aria-hidden` on decorative SVGs / gutter /
-grip; `lang`, per-page `<title>`, zoomable viewport (no `maximum-scale`); and
-`prefers-reduced-motion` honored across every animation (logo, amoeba, hamburger,
-dialog fade).
