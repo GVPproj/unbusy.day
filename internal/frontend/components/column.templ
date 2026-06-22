@@ -41,9 +41,6 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		data-on:layout="$layout = evt.detail.layout; @post('/blocks/layout')"
 		data-on:rename="$renameid = evt.detail.id; $renamelabel = evt.detail.label; @post('/blocks/rename')"
 	>
-		// Walk the day a slot at a time, dropping each block in at its start row,
-		// so DOM order tracks the schedule (1.3.2). cs is ORDER BY position with
-		// no overlaps, so startsAt holds at most one block per slot.
 		{{ occupied := block.OccupiedSlots(cs) }}
 		{{ startsAt := byStartSlot(cs) }}
 		for s := b.Start; s < b.End; s++ {
