@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -671,9 +672,68 @@ func TestColumnRendersEverySlotInDay(t *testing.T) {
 	if strings.Contains(body, `data-slot="34"`) {
 		t.Errorf("slot 34 is past day end (end-exclusive); body:\n%s", body)
 	}
-	if lastSlot, firstCard := strings.LastIndex(body, `class="slot `), strings.Index(body, `class="block-item `); firstCard < lastSlot {
-		t.Errorf("blocks must render after slots so they paint above; body:\n%s", body)
+	// DOM order now follows the schedule: a block renders right after its start
+	// slot, before the next slot (1.3.2 reading order). Paint order is handled by
+	// z-index, not DOM order, so blocks no longer trail all slots. threeBlocks
+	// starts "a" at slot 18, so it must appear before slot 19.
+	if aIdx, slot19 := strings.Index(body, `data-id="a"`), strings.Index(body, `data-slot="19"`); aIdx < 0 || aIdx > slot19 {
+		t.Errorf("block a (slot 18) must render before slot 19 (interleaved by slot); body:\n%s", body)
 	}
+}
+
+// An occupied slot row is visual chrome only — its block carries the time, so
+// the slot is aria-hidden and renders no Add button (kept out of the AT tree,
+// a11y #2b). A free slot is the opposite: visible to AT, holds the Add button.
+func TestSlotAccessibilityTracksOccupancy(t *testing.T) {
+	var b strings.Builder
+	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &b); err != nil {
+		t.Fatalf("render column: %v", err)
+	}
+	body := b.String()
+	occupied := block.OccupiedSlots(threeBlocks()) // a@18, b@19, c@20 (span 1)
+	for s := testBounds.Start; s < testBounds.End; s++ {
+		el := slotElement(t, body, s)
+		// The gutter <span> is always aria-hidden, so test the <li> open tag,
+		// not the whole element, for the slot's own aria-hidden.
+		open, _, _ := strings.Cut(el, ">")
+		hidden := strings.Contains(open, `aria-hidden="true"`)
+		hasAdd := strings.Contains(el, "slot-add")
+		switch {
+		case occupied[s] && !hidden:
+			t.Errorf("occupied slot %d must be aria-hidden (out of AT tree); element:\n%s", s, el)
+		case occupied[s] && hasAdd:
+			t.Errorf("occupied slot %d must render no Add button (chrome only); element:\n%s", s, el)
+		case !occupied[s] && hidden:
+			t.Errorf("free slot %d must not be aria-hidden (holds the Add button); element:\n%s", s, el)
+		case !occupied[s] && !hasAdd:
+			t.Errorf("free slot %d must render an Add button; element:\n%s", s, el)
+		}
+	}
+}
+
+// slotElement returns the full <li>…</li> of the day-grid slot for index n —
+// the element with class="slot …", not a block that may share the same
+// data-slot. Slots never nest an <li>, so the next </li> closes it.
+func slotElement(t *testing.T, body string, n int) string {
+	t.Helper()
+	want := `data-slot="` + strconv.Itoa(n) + `"`
+	for rest := body; ; {
+		i := strings.Index(rest, "<li")
+		if i < 0 {
+			break
+		}
+		end := strings.Index(rest[i:], "</li>")
+		if end < 0 {
+			break
+		}
+		el := rest[i : i+end+len("</li>")]
+		if open, _, _ := strings.Cut(el, ">"); strings.Contains(open, `class="slot `) && strings.Contains(open, want) {
+			return el
+		}
+		rest = rest[i+3:]
+	}
+	t.Fatalf("no slot element with %s in body:\n%s", want, body)
+	return ""
 }
 
 // Each slot carries a time gutter label: hour slots read like "9:00", half-hour

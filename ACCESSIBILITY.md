@@ -54,14 +54,14 @@ requires a non-dragging single-pointer alternative for move/resize.
 
 This is the largest piece of work and the one most worth doing.
 
-### 2. DOM order ≠ visual order (HIGH)
+### 2. DOM order ≠ visual order (DONE)
 
 **SC:** 1.3.2 Meaningful Sequence (A)  ·  ~~1.3.1 Info & Relationships (A)~~ *(time now exposed — see 2a)*
 
-`BlockColumn` (`components/column.templ`) renders **all** slot `<li>`s first, then
-**all** block `<li>`s; visual interleaving is done purely with CSS `grid-row`
-derived from `data-slot`. The reading order is therefore divorced from the day
-(every empty slot first, then a separate run of blocks).
+`BlockColumn` (`components/column.templ`) **used to** render all slot `<li>`s
+first, then all block `<li>`s; visual interleaving was done purely with CSS
+`grid-row` derived from `data-slot`. The reading order was therefore divorced
+from the day (every empty slot first, then a separate run of blocks).
 
 **2a — block time exposed (DONE):** `blockItem` now leads with a visually-hidden
 `sr-only` span carrying the clock span (`blockTimeRange` → e.g. `"9:00 to 10:30, "`)
@@ -71,11 +71,31 @@ slot). This is name-from-content, so it also feeds the accessible name once #1
 makes blocks focusable. (Block *type* is still conveyed by fill colour only — a
 separate 1.4.1 Use of Colour concern, not tracked here.)
 
-**2b — reading order (REMAINING):** Prefer a source order that matches the
-schedule (blocks interleaved with / sorted by slot) so 1.3.2 reading order tracks
-the visual order. If keeping the slots-then-blocks split for the CSS grid, consider
-whether the empty slot `<li>`s need to be in the AT tree at all (the gutter time is
-already `aria-hidden`; an occupied slot's `<li>` is an empty list item — noise).
-Verify the `layout` wire payload is order-independent before reshuffling the DOM
-(`drag.js` reads `#block-list` children; layout is keyed by `data-id`/`data-slot`).
+**2b — reading order (DONE):** `BlockColumn` now drives a single loop by slot,
+emitting each block inline at its start row (`byStartSlot`), so DOM order tracks
+the schedule. Occupied slot rows are visual chrome only (aria-hidden gutter, no
+add button), so `slot` marks them `aria-hidden="true"` — keeping blank list items
+out of the AT tree. The list AT now hears is the day in order: free-slot "Add
+block at …" buttons interleaved with blocks ("9:00 to 10:30, Deep Work, Delete").
+
+The split used to exist for **paint order**: slot rule-lines are `col-span-full`,
+so a multi-slot block must paint over the lines it spans, and rendering all blocks
+last guaranteed that. That's now decoupled via z-index — resting blocks are `z-1`
+(above `z-auto` slots), drag/resize lift to `z-2`, the now-pill stays `z-[3]` — so
+DOM order is free to follow the schedule without lines striping the blocks.
+
+Safe to reshuffle: the `layout` wire payload is order-independent (`drag.js`
+filters `#block-list` children by `.block-item` and keys everything by `data-id`;
+`slotPitch` reads `.slot`s in ascending DOM order regardless of interleaved
+blocks), and page/patch render share the component so the morph stays aligned. A
+block outside bounds can't occur (ValidateLayout/SetBounds), but `BlockColumn`
+still renders any leftover block after the loop so none is ever silently dropped.
+
+The `now-pill` is `aria-hidden` — a purely visual "now" marker duplicating the
+system clock, so it stays an `<li>` (grid item, `#block-list` morph anchor) but
+keeps its empty list item out of the AT tree.
+
+Deferred follow-up (not blocking): the `<ul>` now mixes add-affordances and
+blocks — defensible (each item is a day row), but a stricter "list of blocks
+only" would lift the add buttons out of list semantics.
 
