@@ -9,8 +9,12 @@ import {
   styleEffect,
 } from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
 import { pushLayout } from "./push.js";
+import { keyboardLayout } from "./keys.js";
 
 const list = document.getElementById("block-list");
+// Visually-hidden assertive live region in BlocksPage, OUTSIDE #block-list so it
+// survives every morph; the keyboard path speaks action feedback through it.
+const announcer = document.getElementById("sr-announce");
 const SPRING = { type: "spring", stiffness: 600, damping: 38 };
 
 const blocksIn = () =>
@@ -60,6 +64,7 @@ const sameLayout = (a, b) =>
 
 let drag = null;
 let resize = null;
+let grab = null; // active keyboard move (grab → arrow → drop), null when idle
 let settling = false;
 
 // Past this many px the gesture is a drag, not a tap; below it a pointerup on
@@ -68,6 +73,7 @@ const TAP_SLOP = 4;
 
 list.addEventListener("pointerdown", (e) => {
   if (drag || resize || settling || e.button !== 0) return;
+  if (grab) cancelGrab(); // a pointer gesture supersedes an active keyboard grab
   // A label already in edit mode owns its own pointer (caret/selection) —
   // don't capture it into a drag gesture.
   if (e.target.closest(".block-label[contenteditable]")) return;
@@ -103,6 +109,39 @@ list.addEventListener("pointerup", (e) => {
 list.addEventListener("pointercancel", (e) => {
   settleDrag(e, false);
   settleResize(e, false);
+});
+
+// Keyboard move, delegated on #block-list (morph-stable) beside the pointer
+// listeners. Only the block body (the <li>) is the move tab stop — the grip
+// (resize), delete button, and rename editor each own their own keys. Arrows
+// are inert until a block is grabbed, so they never fight focus navigation.
+list.addEventListener("keydown", (e) => {
+  if (drag || resize || settling) return;
+  const el = e.target.closest(".block-item");
+  if (!el || el.parentElement !== list || e.target !== el) return;
+  if (!grab) {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      startGrab(el);
+    }
+    return;
+  }
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    e.preventDefault();
+    moveGrab(e.key);
+  } else if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    dropGrab();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    cancelGrab();
+  }
+});
+
+// Focus leaving a grabbed block (e.g. Tab) abandons the move and snaps it back
+// rather than stranding the gesture; drop/cancel have already nulled `grab`.
+list.addEventListener("focusout", (e) => {
+  if (grab && e.target === grab.el) cancelGrab();
 });
 
 // Per-gesture motionValues for every other block, NOT animate(element, …):
@@ -392,4 +431,96 @@ async function settleResize(e, commit) {
     settling = false;
   }
   dispatchLayout(r);
+}
+
+// ---- keyboard move (grab → move → drop) ------------------------------
+//
+// Space/Enter grabs the focused block, Up/Down move it one slot (optimistic,
+// DOM-only via writeLayout — no spring, no per-key server round-trip), Space/
+// Enter drops it with one `layout` event (the same the drag path dispatches),
+// Escape cancels and snaps back. The rbd/dnd-kit convention; perceivability is
+// carried by #sr-announce and the reused .dragging lift, not aria-grabbed.
+
+// Mirror of the server timeLabel/blockTimeRange helpers (column.templ) so spoken
+// times match the visible gutter: a slot index in 30-min steps from 00:00.
+const timeLabel = (s) => Math.floor(s / 2) + (s % 2 ? ":30" : ":00");
+const timeRange = (slot, span) => timeLabel(slot) + " to " + timeLabel(slot + span);
+const rangeOf = (id, layout) => {
+  const p = layout.find((q) => q.id === id);
+  return timeRange(p.slot, p.span);
+};
+const labelOf = (el) => {
+  const l = el.querySelector(".block-label");
+  return (l && l.textContent.trim()) || "Block";
+};
+
+// Setting textContent re-announces; assertive jumps any queued output.
+function announce(msg) {
+  if (announcer) announcer.textContent = msg;
+}
+
+function startGrab(el) {
+  const start = layoutIn();
+  const p = start.find((q) => q.id === el.dataset.id);
+  // `start` is the immutable grab-origin layout every step's cascade is recomputed
+  // from (so displacements can't accumulate into gaps a drag never makes); `slot`
+  // is the mover's running target, playing the role the pointer does for a drag.
+  grab = { el, id: el.dataset.id, bounds: boundsNow(), start, layout: start, slot: p.slot };
+  el.classList.add("dragging");
+  announce(labelOf(el) + " grabbed, " + timeLabel(p.slot) + ". Use up and down arrows to move.");
+}
+
+// One arrow step: the reducer recomputes the cascade from grab.start (never the
+// running layout, so displacements don't accumulate) against the running target
+// slot; we write the result straight to the DOM (moves are discrete, so no spring)
+// and announce the new range — or announce a blocked edge and change nothing.
+function moveGrab(key) {
+  const res = keyboardLayout(grab.bounds, grab.start, { id: grab.id, mode: "move", slot: grab.slot }, key);
+  if (!res) return;
+  if (res.kind === "blocked") {
+    announce("Edge of day.");
+    return;
+  }
+  grab.slot = res.slot;
+  grab.layout = res.layout;
+  writeLayout(grab.layout, grab.bounds.start);
+  announce(rangeOf(grab.id, grab.layout));
+}
+
+// Commit: clear grab state, then (only if anything actually moved) dispatch the
+// same `layout` event a drag drop does and steer focus back once the morph lands.
+function dropGrab() {
+  const g = grab;
+  grab = null;
+  g.el.classList.remove("dragging");
+  announce("Dropped, " + rangeOf(g.id, g.layout) + ".");
+  if (sameLayout(g.layout, g.start) || g.el.parentElement !== list) return;
+  restoreFocusAfterMorph(g.id);
+  list.dispatchEvent(new CustomEvent("layout", { detail: { layout: g.layout } }));
+}
+
+// Escape (or focus leaving the block): snap the DOM back to the grab's start and
+// dispatch nothing — the move is abandoned.
+function cancelGrab() {
+  const g = grab;
+  grab = null;
+  g.el.classList.remove("dragging");
+  writeLayout(g.start, g.bounds.start);
+  announce("Move cancelled.");
+}
+
+// After the drop morph, return focus to the acted-on block by id. idiomorph may
+// preserve the element (stable id) and keep focus, or replace it and drop focus
+// to <body>; refocus only in the latter case so we never yank focus the user has
+// since moved elsewhere. Bounded so the observer can't leak.
+function restoreFocusAfterMorph(id) {
+  const refocus = () => {
+    const a = document.activeElement;
+    if (a && a !== document.body) return; // focus already where the user wants it
+    const el = document.getElementById(id);
+    if (el) el.focus();
+  };
+  const obs = new MutationObserver(refocus);
+  obs.observe(list, { childList: true, subtree: true });
+  setTimeout(() => obs.disconnect(), 1000);
 }

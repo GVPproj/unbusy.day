@@ -9,7 +9,7 @@ import (
 // block is one draggable grid item. data-id is the stable order/idiomorph key;
 // data-slot/data-span persist the clock placement, and grid-row paints it at
 // its time relative to the day's start. The grip starts a resize gesture.
-templ blockItem(c block.Block, dayStart int) {
+templ blockItem(c block.Block, dayStart, dayEnd int) {
 	// `group` makes the block the hover/resizing root the delete X and grip
 	// bar key off of; `block-item`/`dragging`/`resizing` stay as drag.js hooks
 	// (`block-item`, not `block`, to avoid colliding with Tailwind's display:block).
@@ -19,8 +19,15 @@ templ blockItem(c block.Block, dayStart int) {
 	// paint order is by z-index, not DOM order — that lets BlockColumn interleave
 	// blocks among slots in schedule order (a11y #2b) without lines striping them.
 	// dragging/resizing lift to z-2 (above resting blocks); now-pill stays z-[3].
+	// tabindex/aria-roledescription/aria-describedby make the block a keyboard tab
+	// stop that a screen reader announces as an operable "schedule block" and
+	// links to the shared usage instructions (#dnd-instructions, in BlocksPage).
 	<li
 		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2 [&.resizing]:[box-shadow:var(--shadow-lift)] [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
+		tabindex="0"
+		aria-roledescription="schedule block"
+		aria-describedby="dnd-instructions"
+		id={ c.ID }
 		data-id={ c.ID }
 		data-span={ strconv.Itoa(spanOr1(c.Span)) }
 		data-slot={ strconv.Itoa(c.Position) }
@@ -40,7 +47,22 @@ templ blockItem(c block.Block, dayStart int) {
 		>
 			@IconX()
 		</button>
-		<span class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100" aria-hidden="true"></span>
+		// The grip is an APG Window Splitter: a focusable role="separator" that
+		// resizes its block by the arrow keys (drag.js wires the keydown). The
+		// aria-value* report span-in-slots; aria-valuetext is the clock range so
+		// the change is spoken as a time, not a slot count. aria-valuemax is the
+		// day-end ceiling — the true compressible max is probed live by the End key.
+		<span
+			class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100 focus-visible:after:opacity-100 focus-visible:outline-none"
+			role="separator"
+			tabindex="0"
+			aria-controls={ c.ID }
+			aria-label={ "Resize " + c.Label }
+			aria-valuemin="1"
+			aria-valuemax={ strconv.Itoa(dayEnd - c.Position) }
+			aria-valuenow={ strconv.Itoa(spanOr1(c.Span)) }
+			aria-valuetext={ blockTimeRange(c) }
+		></span>
 	</li>
 }
 

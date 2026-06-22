@@ -167,20 +167,26 @@ the keyboard path is purely additive and commits through the same server endpoin
   `layout` event is dispatched **on drop** (Escape dispatches nothing and snaps
   back). Resize commits one `layout` event on Enter/blur. Rename dispatches the
   existing `rename` event. The glue writes announcement text into the live region.
-- **Modified — `components/column_block.templ`**:
-  - block `<li>`: add `tabindex="0"`, `role` left as listitem semantics with
-    `aria-roledescription="schedule block"`, and `aria-describedby` referencing a
-    shared instructions node. The `sr-only` clock-range span (issue #2a) already
-    supplies name-from-content, so the accessible name needs no change.
-  - grip `<span>`: remove `aria-hidden="true"`; add `role="separator"`,
+- **Modified — `components/column_block.templ`** ✅ **DONE (markup + Go render test).**
+  - block `<li>`: added `tabindex="0"`, `role` left as listitem semantics with
+    `aria-roledescription="schedule block"`, `aria-describedby="dnd-instructions"`,
+    and an `id={c.ID}` so the grip's `aria-controls` resolves to it (the block had
+    only `data-id` before; `drag.js` keys off `data-id`/`.grip`, never element `id`,
+    so the new `id` is inert to the glue and to idiomorph's data-id keying). The
+    `sr-only` clock-range span (issue #2a) already supplies name-from-content, so
+    the accessible name needs no change.
+  - grip `<span>`: removed `aria-hidden="true"`; added `role="separator"`,
     `tabindex="0"`, `aria-controls` (the block id), `aria-label` (e.g. "Resize
-    Deep Work"), and `aria-valuemin` / `aria-valuemax` / `aria-valuenow` /
-    `aria-valuetext`. The pointer-resize behaviour on the grip is unchanged.
-- **Modified — `routes/blocks.templ` (BlocksPage)**: add two stable,
-  visually-hidden nodes **outside `#block-list`** (so they are not part of the SSE
-  patch target and survive every morph): an `aria-live` announcement region
-  (`#sr-announce`) and a static instructions node (`#dnd-instructions`,
-  referenced by each block's `aria-describedby`).
+    Deep Work"), and `aria-valuemin="1"` / `aria-valuemax` / `aria-valuenow` /
+    `aria-valuetext`. `aria-valuemax` is the day-end ceiling (`dayEnd - position`,
+    threaded into `blockItem`); the true compressible max is probed live by the
+    End-key reducer. The pointer-resize behaviour on the grip is unchanged.
+- **Modified — `routes/blocks.templ` (BlocksPage)** ✅ **DONE (markup + Go render test).**
+  Added two stable, visually-hidden (`sr-only`) nodes **outside `#block-list`** (so
+  they are not part of the SSE patch target and survive every morph): an
+  `aria-live="assertive"` announcement region (`#sr-announce`) and a static
+  instructions node (`#dnd-instructions`, referenced by each block's
+  `aria-describedby`).
 
 ### Server / endpoints: unchanged
 
@@ -229,13 +235,16 @@ glue.
   - Home/End map to the minimum (span 1) and maximum legal span;
   - the returned `kind` selects the correct announcement (grabbed / moved /
     dropped / blocked / resized).
-- **Server-rendered semantics — Go render tests.** Prior art:
+- **Server-rendered semantics — Go render tests.** ✅ **DONE** —
+  `internal/frontend/accessibility_test.go` (new; prior art:
   `internal/frontend/adapter_test.go` and `smoke_test.go`, which assert on rendered
-  HTML substrings. Add assertions that a rendered block carries `tabindex="0"`,
-  `aria-roledescription`, and `aria-describedby`; that the grip renders
-  `role="separator"` with `aria-controls` + `aria-valuemin/max/now` and is **no
-  longer** `aria-hidden`; and that `BlocksPage` renders the `#sr-announce` live
-  region and `#dnd-instructions` node.
+  HTML substrings). Asserts that a rendered block carries `tabindex="0"`,
+  `aria-roledescription`, and `aria-describedby` (`TestBlockIsFocusableAndDescribed`);
+  that the grip renders `role="separator"` with `aria-controls` + `aria-valuemin/max/now`
+  + `aria-valuetext` and is **no longer** `aria-hidden`, and that the block carries a
+  matching `id` (`TestGripIsResizeSeparator`); and that `BlocksPage` renders the
+  `#sr-announce` live region and `#dnd-instructions` node **outside `#block-list`**
+  (`TestPageRendersLiveRegionAndInstructionsOutsidePatchTarget`).
 - **DOM glue, focus management, and live-region writes are not unit-tested** —
   there is no DOM test harness in the repo and `drag.js` itself is verified the
   same way. These are verified manually with a screen reader (VoiceOver, and NVDA
@@ -246,27 +255,49 @@ glue.
 
 Ordered as thin, independently-verifiable slices.
 
-1. **Live-region + instructions scaffolding.** Add `#sr-announce` (visually
-   hidden, `aria-live="assertive"`) and `#dnd-instructions` to `BlocksPage`,
-   outside `#block-list`. Go render test asserts both exist. No behaviour yet.
-2. **Make blocks focusable & described.** `column_block.templ`: add `tabindex="0"`,
-   `aria-roledescription="schedule block"`, `aria-describedby="dnd-instructions"`.
-   Go render test. Verify a screen reader announces label + clock range + role +
-   instructions on focus.
-3. **Pure reducer + tests.** New `static/keys.js` with the grab/move decision
-   logic delegating to `pushLayout`; `keys.test.js` covering move/clamp/cascade.
-   Wire into `task test`. No DOM yet.
-4. **Wire keyboard move.** In `drag.js`: delegated `keydown` on `#block-list`,
-   grab state, Space/Enter grab+drop, Up/Down optimistic move via `writeLayout`,
-   Escape cancel, live-region announcements, dispatch the existing `layout` event
-   on drop, restore focus after the morph. `preventDefault` arrows while grabbed so
-   the page doesn't scroll. Manual VoiceOver verification of a full move + cancel.
-5. **Grip → separator (resize).** `column_block.templ`: grip becomes
-   `role="separator"` with the aria-value* set, `aria-controls`, focusable, no
-   longer `aria-hidden`; Go render test. Extend the reducer + tests with
-   resize (Up/Down, Home/End, compress path). Wire grip `keydown` in `drag.js`:
-   commit on Enter/blur, revert on Escape, announce each step, update
-   `aria-valuenow`/`aria-valuetext`. Manual verification.
+1. **Live-region + instructions scaffolding.** ✅ **DONE.** Added `#sr-announce`
+   (visually hidden `sr-only`, `aria-live="assertive"` + `aria-atomic`) and
+   `#dnd-instructions` to `BlocksPage`, outside `#block-list`. Go render test
+   (`TestPageRendersLiveRegionAndInstructionsOutsidePatchTarget`) asserts both exist
+   and live outside the patch target. No behaviour yet (glue writes the region in
+   step 4).
+2. **Make blocks focusable & described.** ◑ **Markup + Go render test DONE** —
+   `column_block.templ` block `<li>` carries `tabindex="0"`,
+   `aria-roledescription="schedule block"`, `aria-describedby="dnd-instructions"`
+   (test `TestBlockIsFocusableAndDescribed`). **Remaining:** manual screen-reader
+   verification that focus announces label + clock range + role + instructions
+   (folded into the step 8 pass).
+3. **Pure reducer + tests.** ✅ **DONE.** New `internal/frontend/static/keys.js`
+   exporting `keyboardLayout(bounds, current, grabbed, key) → { layout, kind } | null`,
+   delegating the cascade to `pushLayout`; `internal/frontend/jstest/keys.test.js`
+   (13 tests) covers move/clamp/cascade **and** the resize logic below. Runs via
+   the existing `task test` glob (`node --test internal/frontend/jstest/*.test.js`).
+   Reducer scope is layout-only: `kind` ∈ `moved`/`resized`/`blocked`; grab/drop/
+   cancel stay glue-owned. No DOM yet.
+4. **Wire keyboard move.** ◑ **Glue DONE (no automated coverage — see Testing).**
+   `drag.js` now has a delegated `keydown` on `#block-list` (move tab stop = the
+   block `<li>` only; grip/delete/rename own their keys), a `grab` state object
+   beside `drag`/`resize`, Space/Enter grab+drop, Up/Down optimistic move via the
+   reducer + `writeLayout` (DOM-only, no spring, no per-key post), Escape cancel,
+   `#sr-announce` writes (grabbed / range per step / dropped / blocked / cancelled),
+   one `layout` event on drop, and `restoreFocusAfterMorph` (refocus by `id` only
+   if the morph dropped focus to `<body>`). Arrows/Space/Enter/Escape are
+   `preventDefault`ed only while grabbed (inert otherwise, so they don't fight
+   focus nav / page scroll); a `focusout` on the grabbed block auto-cancels;
+   `pointerdown` supersedes an active grab. **Visual grab state reuses the existing
+   `.dragging` lift** — `.active` could not be the grab hook because `now-pill.js`
+   already owns it (the "now" accent rail, toggled on a timer + every morph). A
+   client-side `timeLabel`/`timeRange` mirrors the server helpers so spoken times
+   match the gutter. **Remaining:** manual VoiceOver pass of a full move + cancel
+   (folded into step 8).
+5. **Grip → separator (resize).** ◑ **Reducer + markup DONE.** `keys.js` resize mode
+   (Up/Down grow/shrink with the compress path, Home → span 1, End → max legal
+   span probed via `pushLayout`) is implemented and tested in step 3's `keys.test.js`.
+   The `column_block.templ` grip is now `role="separator"` with the aria-value* set,
+   `aria-controls`, focusable, no longer `aria-hidden` (+ Go render test
+   `TestGripIsResizeSeparator`; block `<li>` gained a matching `id`). **Remaining:**
+   wire grip `keydown` in `drag.js`: commit on Enter/blur, revert on Escape,
+   announce each step, update `aria-valuenow`/`aria-valuetext`. Manual verification.
 6. **Rename via F2.** F2 on a focused block calls the existing `enterEdit()`;
    refactor `enterEdit` so the caret coordinates are optional (place caret at end
    when entered by keyboard). Enter/Escape inside the editor are unchanged. Manual

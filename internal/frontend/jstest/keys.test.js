@@ -41,6 +41,63 @@ test("ArrowDown at the last slot of the day is blocked, layout unchanged", () =>
 	assert.deepEqual(out.layout, current);
 });
 
+test("ArrowDown skips past a taller block below instead of stalling on an infeasible step", () => {
+	const current = [
+		{ id: "a", slot: 18, span: 1 }, // span-1 block against the top edge
+		{ id: "b", slot: 19, span: 2 }, // taller block touching directly below
+	];
+	// Stepping a→19 is infeasible: b can't slide up into a's single vacated slot
+	// without passing the top edge. The move skips to slot 20 — b takes the top,
+	// a lands just below — rather than freezing on the blocked single step.
+	assert.equal(pushLayout(bounds, current, { id: "a", slot: 19, span: 1 }), null);
+	const out = keyboardLayout(bounds, current, { id: "a", mode: "move" }, "ArrowDown");
+	assert.equal(out.kind, "moved");
+	assert.deepEqual(out.layout, pushLayout(bounds, current, { id: "a", slot: 20, span: 1 }));
+});
+
+test("ArrowUp skips past a taller block above instead of stalling", () => {
+	// An up-move displaces blocks downward, so its symmetric stall is against the
+	// BOTTOM edge: a tight day where b can't slide down to clear a's single step.
+	const tight = { start: 18, end: 21 };
+	const current = [
+		{ id: "b", slot: 18, span: 2 }, // taller block at the top
+		{ id: "a", slot: 20, span: 1 }, // span-1 block at the bottom edge, touching b
+	];
+	assert.equal(pushLayout(tight, current, { id: "a", slot: 19, span: 1 }), null);
+	const out = keyboardLayout(tight, current, { id: "a", mode: "move" }, "ArrowUp");
+	assert.equal(out.kind, "moved");
+	assert.deepEqual(out.layout, pushLayout(tight, current, { id: "a", slot: 18, span: 1 }));
+});
+
+test("walking a span-1 block up past two tall blocks matches a single pointer drop (no accumulated shove)", () => {
+	// Two span-2 blocks stacked at the top, a span-1 mover below both. Stepping the
+	// mover to the very top must slide each tall block down by ONE slot (the mover's
+	// span) — exactly what a pointer drop at the top yields — not by their own span.
+	// Each press recomputes the cascade from the grab-START layout (passed as
+	// `current`) against the running target threaded back through grabbed.slot, so
+	// displaced blocks can't accumulate into a double shove + gaps.
+	const start = [
+		{ id: "x", slot: 18, span: 2 }, // 9:00–10:00
+		{ id: "y", slot: 20, span: 2 }, // 10:00–11:00
+		{ id: "a", slot: 22, span: 1 }, // the mover, directly below both
+	];
+	let slot = 22;
+	let out;
+	for (let i = 0; i < 4; i++) {
+		out = keyboardLayout(bounds, start, { id: "a", mode: "move", slot }, "ArrowUp");
+		assert.equal(out.kind, "moved");
+		slot = out.slot; // thread the running target back in, as the glue does
+	}
+	assert.equal(slot, 18); // reached the top edge
+	// Identical to one pointer drop of `a` at the top: tall blocks each down by one.
+	assert.deepEqual(out.layout, pushLayout(bounds, start, { id: "a", slot: 18, span: 1 }));
+	assert.deepEqual(out.layout, [
+		{ id: "x", slot: 19, span: 2 },
+		{ id: "y", slot: 21, span: 2 },
+		{ id: "a", slot: 18, span: 1 },
+	]);
+});
+
 test("ArrowDown on the resize handle grows the span by one, compressing below like pushLayout", () => {
 	const current = [
 		{ id: "a", slot: 20, span: 1 },
