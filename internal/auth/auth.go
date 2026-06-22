@@ -77,7 +77,6 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		return err
 	}
 
-	// Interval/now() math moves into Go: concrete timestamps passed as params.
 	now := time.Now()
 	nowStr := formatTime(now)
 	expiresAt := formatTime(now.Add(codeTTL))
@@ -112,7 +111,7 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// The immediate write lock (_txlock=immediate) serialises concurrent verifies
 	// so the attempt counter races no one — no row-level FOR UPDATE needed.
@@ -151,7 +150,7 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 	if err != nil {
 		return nil, err
 	}
-	// pgx auto-decoded RETURNING expires_at; with TEXT storage we parse it back.
+
 	var expiresStr string
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO session (token, user_id, expires_at)

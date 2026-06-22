@@ -25,7 +25,6 @@ func main() {
 	}
 
 	// `unbusy migrate` applies migrations and exits
-	// we can test migrations and inspect changes
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		if err := migrate.Run(ctx, dbURL); err != nil {
 			log.Fatalf("migrate: %v", err)
@@ -34,8 +33,7 @@ func main() {
 		return
 	}
 
-	// Migrate on boot: this machine mounts the single
-	// persistent volume holding the SQLite file
+	// Migrate on boot: 	persistent volume holding the SQLite file
 	if err := migrate.Run(ctx, dbURL); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
@@ -54,8 +52,7 @@ func main() {
 	authSvc := auth.NewService(db, auth.LogMailer{})
 
 	// Secure cookies in production (ADR 0002). Set SECURE_COOKIES=1 wherever the
-	// app sits behind HTTPS (Fly, for example, does so via fly.app.toml);
-	// host-agnostic so self-hosters get the same protection.
+	// app sits behind HTTPS (Fly, for example, does so via fly.app.toml)
 	secureCookies := os.Getenv("SECURE_COOKIES") == "1"
 
 	mux := http.NewServeMux()
@@ -83,11 +80,9 @@ func main() {
 	mux.Handle("POST /blocks/clear", frontend.RequireSession(authSvc, frontend.ClearHandler(blockSvc)))
 	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 
-	// Embedded frontend assets (drag.js, tailwind). Session-free
-	// we use StaticHandler instead and serve these to everyone
 	mux.Handle("GET /static/", frontend.StaticHandler())
 
-	// Wiring canary for the pinned Datastar SDK + templ versions.
+	// Wiring canary for the pinned Datastar SDK + templ versions
 	mux.Handle("GET /_smoke", frontend.SmokeHandler())
 	mux.Handle("GET /_smoke/events", frontend.SmokeEventsHandler())
 
@@ -98,7 +93,7 @@ func main() {
 
 	// WriteTimeout stays 0 (disabled): SSE streams are long-lived and the
 	// handler manages its own liveness via the 25s keepalive.
-	// ReadHeaderTimeout guards the non-streaming routes against slow-loris attacks.
+	// ReadHeaderTimeout guards the against slow-loris attacks.
 	srv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           mux,
