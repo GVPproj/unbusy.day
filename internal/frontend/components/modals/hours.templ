@@ -60,6 +60,7 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 		aria-labelledby="bounds-modal-title"
 	>
 		<h2 id="bounds-modal-title" class={ dialogH2Class }>Working Hours</h2>
+		<p class="m-0 text-base text-ink-muted" data-show="$firstOccupiedSlot < $lastOccupiedEnd">Your blocks will stay put</p>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
 			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
@@ -72,7 +73,6 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 				@endOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
-		<p class="text-sm text-ink" data-show="$firstOccupiedSlot < $lastOccupiedEnd">Your blocks will need to fit :)</p>
 		<footer class={ dialogFooterClass }>
 			<button class={ dialogButtonSecondaryClass } autofocus commandfor="bounds-modal" command="close">Cancel</button>
 			<button class={ dialogButtonClass } commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
