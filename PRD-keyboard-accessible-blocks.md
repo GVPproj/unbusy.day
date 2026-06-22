@@ -309,10 +309,16 @@ Ordered as thin, independently-verifiable slices.
    supersedes an active resize. The blocked move announcement was also made
    direction-truthful (`Can't move earlier.`/`Can't move later.`). **Remaining:**
    manual VoiceOver pass of grow/shrink/Home/End/commit/cancel (folded into step 8).
-6. **Rename via F2.** F2 on a focused block calls the existing `enterEdit()`;
-   refactor `enterEdit` so the caret coordinates are optional (place caret at end
-   when entered by keyboard). Enter/Escape inside the editor are unchanged. Manual
-   verification.
+6. **Rename via F2.** ◑ **Glue DONE (no automated coverage — see Testing).** F2 on a
+   focused block (not while grabbed; Enter is taken by grab/drop) calls the existing
+   `enterEdit()`. `enterEdit`'s caret point is now optional: a pointer tap still passes
+   `(x, y)` and leaves focus to the platform (tap-to-rename unchanged), while keyboard
+   entry passes none — the caret goes to the end (`caretToEnd`) and focus is steered
+   back to the block (`restoreFocusAfterMorph` on commit, direct refocus on revert/no-op),
+   since with no pointer there's nothing to land focus on after the morph. Enter/Escape
+   inside the editor are unchanged. The `#dnd-instructions` text already advertised F2,
+   so it is now truthful. **Remaining:** manual VoiceOver pass of F2 → edit → Enter /
+   Escape (folded into step 8).
 7. **Focus-restoration polish & docs.** Confirm focus returns correctly after each
    of the three commit paths' morphs. Mark ACCESSIBILITY.md #1 DONE; add a short
    note to CLAUDE.md's "Frontend gotchas" describing the keyboard model and the

@@ -132,6 +132,12 @@ list.addEventListener("keydown", (e) => {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
       startGrab(el);
+    } else if (e.key === "F2") {
+      // F2 enters the inline editor without a pointer (the established
+      // rename-in-place key); Enter is taken by grab/drop, so it can't be reused.
+      e.preventDefault();
+      const label = el.querySelector(".block-label");
+      if (label) enterEdit(label);
     }
     return;
   }
@@ -304,17 +310,22 @@ async function settleDrag(e, commit) {
 
 // ---- inline label edit -----------------------------------------------
 
-// Turn a label into a plaintext editor focused at (x, y), then commit on blur
-// or Enter / revert on Escape. A changed, non-empty label dispatches `rename`
-// on #block-list (Datastar posts it); the server's morph re-asserts the truth.
+// Turn a label into a plaintext editor, then commit on blur or Enter / revert on
+// Escape. A pointer tap passes the click point (x, y) and leaves focus to the
+// platform — tap-to-rename is unchanged. Keyboard entry (F2) passes no point: the
+// caret goes to the end and focus is steered back to the block, since with no
+// pointer there's nothing to land focus on after the commit morph. A changed,
+// non-empty label dispatches `rename` on #block-list (the server's morph wins).
 function enterEdit(label, x, y) {
   const block = label.closest(".block-item");
   if (!block) return; // a morph detached the label during the settle await
   const id = block.dataset.id;
+  const byKeyboard = x === undefined;
   const original = label.textContent;
   label.contentEditable = "plaintext-only";
   label.focus();
-  placeCaret(x, y);
+  if (byKeyboard) caretToEnd(label);
+  else placeCaret(x, y);
 
   let done = false;
   const finish = (save) => {
@@ -326,8 +337,11 @@ function enterEdit(label, x, y) {
     const next = label.textContent.trim();
     if (!save || next === "" || next === original.trim()) {
       label.textContent = original; // morph will re-assert anyway
+      if (byKeyboard) block.focus(); // no commit morph coming — refocus directly
       return;
     }
+    // Keyboard rename triggers a morph; steer focus back to the block after it.
+    if (byKeyboard) restoreFocusAfterMorph(() => document.getElementById(id));
     list.dispatchEvent(
       new CustomEvent("rename", { detail: { id, label: next } }),
     );
@@ -344,6 +358,17 @@ function enterEdit(label, x, y) {
   const onBlur = () => finish(true);
   label.addEventListener("keydown", onKey);
   label.addEventListener("blur", onBlur);
+}
+
+// Collapse the selection to the end of the label — the keyboard rename entry
+// point, which has no pointer location to honour.
+function caretToEnd(label) {
+  const sel = getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(label);
+  range.collapse(false); // false = end
+  sel.removeAllRanges();
+  sel.addRange(range);
 }
 
 // Drop the caret at the click point, falling back to the standards/WebKit APIs.
