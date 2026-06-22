@@ -270,10 +270,12 @@ Ordered as thin, independently-verifiable slices.
 3. **Pure reducer + tests.** ✅ **DONE.** New `internal/frontend/static/keys.js`
    exporting `keyboardLayout(bounds, current, grabbed, key) → { layout, kind } | null`,
    delegating the cascade to `pushLayout`; `internal/frontend/jstest/keys.test.js`
-   (13 tests) covers move/clamp/cascade **and** the resize logic below. Runs via
+   (19 tests) covers move/clamp/cascade **and** the resize logic below. Runs via
    the existing `task test` glob (`node --test internal/frontend/jstest/*.test.js`).
    Reducer scope is layout-only: `kind` ∈ `moved`/`resized`/`blocked`; grab/drop/
-   cancel stay glue-owned. No DOM yet.
+   cancel stay glue-owned. Move returns the running `slot`, resize the running
+   `span`, so the glue threads a cursor and the reducer always recomputes the
+   cascade from the immutable grab-start layout (symmetric across both modes). No DOM yet.
 4. **Wire keyboard move.** ◑ **Glue DONE (no automated coverage — see Testing).**
    `drag.js` now has a delegated `keydown` on `#block-list` (move tab stop = the
    block `<li>` only; grip/delete/rename own their keys), a `grab` state object
@@ -290,14 +292,23 @@ Ordered as thin, independently-verifiable slices.
    client-side `timeLabel`/`timeRange` mirrors the server helpers so spoken times
    match the gutter. **Remaining:** manual VoiceOver pass of a full move + cancel
    (folded into step 8).
-5. **Grip → separator (resize).** ◑ **Reducer + markup DONE.** `keys.js` resize mode
-   (Up/Down grow/shrink with the compress path, Home → span 1, End → max legal
-   span probed via `pushLayout`) is implemented and tested in step 3's `keys.test.js`.
-   The `column_block.templ` grip is now `role="separator"` with the aria-value* set,
-   `aria-controls`, focusable, no longer `aria-hidden` (+ Go render test
-   `TestGripIsResizeSeparator`; block `<li>` gained a matching `id`). **Remaining:**
-   wire grip `keydown` in `drag.js`: commit on Enter/blur, revert on Escape,
-   announce each step, update `aria-valuenow`/`aria-valuetext`. Manual verification.
+5. **Grip → separator (resize).** ◑ **Reducer + markup + glue DONE (no automated
+   coverage of the glue — see Testing).** `keys.js` resize mode (Up/Down grow/shrink
+   with the compress path, Home → span 1, End → max legal span probed via `pushLayout`)
+   is implemented and tested in step 3's `keys.test.js`, including the shrink-after-grow
+   case that proves each step recomputes from the grab-start layout (so a grow's
+   compression is undone, not stranded). The `column_block.templ` grip is
+   `role="separator"` with the aria-value* set, `aria-controls`, focusable, no longer
+   `aria-hidden` (+ Go render test `TestGripIsResizeSeparator`; block `<li>` gained a
+   matching `id`). `drag.js` now wires the grip `keydown` (`kresize` state beside
+   `grab`): Up/Down/Home/End optimistic + DOM-only via the reducer + `writeLayout`,
+   live `aria-valuenow`/`aria-valuetext` updates, one `layout` event on Enter **or
+   blur** (the splitter "blur commits" convention; Enter steers focus back across the
+   morph, blur leaves it where the user Tabbed), Escape reverts, `#sr-announce` writes
+   each step + commit + blocked (`Minimum length.`/`Maximum length.`), `pointerdown`
+   supersedes an active resize. The blocked move announcement was also made
+   direction-truthful (`Can't move earlier.`/`Can't move later.`). **Remaining:**
+   manual VoiceOver pass of grow/shrink/Home/End/commit/cancel (folded into step 8).
 6. **Rename via F2.** F2 on a focused block calls the existing `enterEdit()`;
    refactor `enterEdit` so the caret coordinates are optional (place caret at end
    when entered by keyboard). Enter/Escape inside the editor are unchanged. Manual

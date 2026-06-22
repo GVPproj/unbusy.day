@@ -65,6 +65,7 @@ const sameLayout = (a, b) =>
 let drag = null;
 let resize = null;
 let grab = null; // active keyboard move (grab → arrow → drop), null when idle
+let kresize = null; // active keyboard resize on a focused grip, null when idle
 let settling = false;
 
 // Past this many px the gesture is a drag, not a tap; below it a pointerup on
@@ -73,7 +74,9 @@ const TAP_SLOP = 4;
 
 list.addEventListener("pointerdown", (e) => {
   if (drag || resize || settling || e.button !== 0) return;
-  if (grab) cancelGrab(); // a pointer gesture supersedes an active keyboard grab
+  // A pointer gesture supersedes an in-progress keyboard grab/resize.
+  if (grab) cancelGrab();
+  if (kresize) cancelKbResize();
   // A label already in edit mode owns its own pointer (caret/selection) —
   // don't capture it into a drag gesture.
   if (e.target.closest(".block-label[contenteditable]")) return;
@@ -117,6 +120,12 @@ list.addEventListener("pointercancel", (e) => {
 // are inert until a block is grabbed, so they never fight focus navigation.
 list.addEventListener("keydown", (e) => {
   if (drag || resize || settling) return;
+  // Grip (resize separator) owns its own keys; e.target is the grip when focused.
+  const grip = e.target.closest(".grip");
+  if (grip && grip.closest(".block-item")?.parentElement === list) {
+    handleResizeKey(e, grip);
+    return;
+  }
   const el = e.target.closest(".block-item");
   if (!el || el.parentElement !== list || e.target !== el) return;
   if (!grab) {
@@ -138,10 +147,12 @@ list.addEventListener("keydown", (e) => {
   }
 });
 
-// Focus leaving a grabbed block (e.g. Tab) abandons the move and snaps it back
-// rather than stranding the gesture; drop/cancel have already nulled `grab`.
+// Focus leaving a grabbed block (e.g. Tab) abandons the move and snaps it back;
+// focus leaving a resizing grip COMMITS (the splitter convention — blur saves),
+// so Tab moves on with the change kept. drop/commit/cancel already nulled state.
 list.addEventListener("focusout", (e) => {
   if (grab && e.target === grab.el) cancelGrab();
+  if (kresize && e.target === kresize.grip) commitKbResize(false);
 });
 
 // Per-gesture motionValues for every other block, NOT animate(element, …):
@@ -478,7 +489,9 @@ function moveGrab(key) {
   const res = keyboardLayout(grab.bounds, grab.start, { id: grab.id, mode: "move", slot: grab.slot }, key);
   if (!res) return;
   if (res.kind === "blocked") {
-    announce("Edge of day.");
+    // Blocked = no legal slot further this way (the day edge, or an immovable
+    // cascade short of it); a direction-truthful phrasing covers both cases.
+    announce(key === "ArrowUp" ? "Can't move earlier." : "Can't move later.");
     return;
   }
   grab.slot = res.slot;
@@ -495,7 +508,7 @@ function dropGrab() {
   g.el.classList.remove("dragging");
   announce("Dropped, " + rangeOf(g.id, g.layout) + ".");
   if (sameLayout(g.layout, g.start) || g.el.parentElement !== list) return;
-  restoreFocusAfterMorph(g.id);
+  restoreFocusAfterMorph(() => document.getElementById(g.id));
   list.dispatchEvent(new CustomEvent("layout", { detail: { layout: g.layout } }));
 }
 
@@ -509,18 +522,102 @@ function cancelGrab() {
   announce("Move cancelled.");
 }
 
-// After the drop morph, return focus to the acted-on block by id. idiomorph may
-// preserve the element (stable id) and keep focus, or replace it and drop focus
-// to <body>; refocus only in the latter case so we never yank focus the user has
-// since moved elsewhere. Bounded so the observer can't leak.
-function restoreFocusAfterMorph(id) {
+// After a commit morph, return focus to the acted-on target (resolved fresh each
+// mutation, since the morph may replace it). idiomorph may preserve the element
+// (stable id) and keep focus, or replace it and drop focus to <body>; refocus
+// only in the latter case so we never yank focus the user has since moved
+// elsewhere (e.g. a blur-commit where they Tabbed on). Bounded so it can't leak.
+function restoreFocusAfterMorph(resolve) {
   const refocus = () => {
     const a = document.activeElement;
     if (a && a !== document.body) return; // focus already where the user wants it
-    const el = document.getElementById(id);
+    const el = resolve();
     if (el) el.focus();
   };
   const obs = new MutationObserver(refocus);
   obs.observe(list, { childList: true, subtree: true });
   setTimeout(() => obs.disconnect(), 1000);
+}
+
+// ---- keyboard resize (APG Window Splitter) ---------------------------
+//
+// The grip is role="separator"; Up/Down grow/shrink by one slot, Home/End jump
+// to the min (one slot) / max legal span, all optimistic + DOM-only via the
+// reducer + writeLayout (compress cascade, no spring). Enter or blur commits one
+// `layout` event (the drag path's); Escape reverts. Each step recomputes from
+// the grab-START layout against the running span cursor, so shrinking undoes a
+// grow's compression. aria-valuenow/valuetext track the live span as a clock range.
+
+// First arrow/Home/End on a focused grip starts the gesture; Enter/Escape only
+// act once one is underway. Keys are preventDefaulted so they don't scroll.
+function handleResizeKey(e, grip) {
+  if (["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) {
+    e.preventDefault();
+    if (!kresize) startKbResize(grip);
+    stepKbResize(e.key);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (kresize) commitKbResize(true);
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    if (kresize) cancelKbResize();
+  }
+}
+
+function startKbResize(grip) {
+  const el = grip.closest(".block-item");
+  const start = layoutIn();
+  const p = start.find((q) => q.id === el.dataset.id);
+  // `start` is the immutable resize-origin layout; `span` is the running target,
+  // threaded back into the reducer each step (the resize analog of grab.slot).
+  kresize = { el, grip, id: el.dataset.id, bounds: boundsNow(), start, layout: start, span: p.span };
+  el.classList.add("resizing");
+}
+
+function stepKbResize(key) {
+  const r = kresize;
+  const res = keyboardLayout(r.bounds, r.start, { id: r.id, mode: "resize", span: r.span }, key);
+  if (!res) return;
+  if (res.kind === "blocked") {
+    announce(key === "ArrowUp" ? "Minimum length." : "Maximum length.");
+    return;
+  }
+  r.span = res.span;
+  r.layout = res.layout;
+  writeLayout(r.layout, r.bounds.start);
+  updateGripValue(r.grip, r.id, r.layout);
+  announce(rangeOf(r.id, r.layout));
+}
+
+// Keep the separator's reported value in step with the live span (Window
+// Splitter): valuenow is the span in slots, valuetext the spoken clock range.
+function updateGripValue(grip, id, layout) {
+  const p = layout.find((q) => q.id === id);
+  grip.setAttribute("aria-valuenow", p.span);
+  grip.setAttribute("aria-valuetext", timeRange(p.slot, p.span));
+}
+
+// Commit: dispatch the same `layout` event a pointer resize does (only if the
+// span changed). `refocus` is true on Enter (focus stays, steer it back across
+// the morph) and false on blur (the user Tabbed on — leave focus where it went).
+function commitKbResize(refocus) {
+  const r = kresize;
+  kresize = null;
+  r.el.classList.remove("resizing");
+  if (sameLayout(r.layout, r.start) || r.el.parentElement !== list) return;
+  announce("Resized, " + rangeOf(r.id, r.layout) + ".");
+  if (refocus)
+    restoreFocusAfterMorph(() => document.getElementById(r.id)?.querySelector(".grip"));
+  list.dispatchEvent(new CustomEvent("layout", { detail: { layout: r.layout } }));
+}
+
+// Escape: snap the DOM (and the grip's reported value) back to the start span
+// and dispatch nothing — the resize is abandoned.
+function cancelKbResize() {
+  const r = kresize;
+  kresize = null;
+  r.el.classList.remove("resizing");
+  writeLayout(r.start, r.bounds.start);
+  updateGripValue(r.grip, r.id, r.start);
+  announce("Resize cancelled.");
 }

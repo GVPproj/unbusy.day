@@ -132,6 +132,7 @@ test("Home on the resize handle jumps to the minimum one-slot span", () => {
 	const current = [{ id: "a", slot: 20, span: 3 }];
 	const out = keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "Home");
 	assert.equal(out.kind, "resized");
+	assert.equal(out.span, 1);
 	assert.deepEqual(
 		out.layout,
 		pushLayout(bounds, current, { id: "a", slot: 20, span: 1 }, { compress: true }),
@@ -146,6 +147,7 @@ test("End on the resize handle jumps to the maximum legal span, compressing belo
 	// Largest span that still fits: a→30–32 (span 3), b compressed to slot 33.
 	const out = keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "End");
 	assert.equal(out.kind, "resized");
+	assert.equal(out.span, 3);
 	assert.deepEqual(
 		out.layout,
 		pushLayout(bounds, current, { id: "a", slot: 30, span: 3 }, { compress: true }),
@@ -167,6 +169,54 @@ test("a grow the floors below can't absorb is blocked, layout unchanged", () => 
 	const out = keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "ArrowDown");
 	assert.equal(out.kind, "blocked");
 	assert.deepEqual(out.layout, current);
+});
+
+test("a resize step reports the resulting span so the glue can thread it back", () => {
+	const current = [{ id: "a", slot: 20, span: 1 }];
+	const out = keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "ArrowDown");
+	assert.equal(out.span, 2);
+});
+
+test("ArrowDown grows from the running span cursor, not the start layout's span", () => {
+	// `current` is the resize-START layout (mover at span 1); the running target
+	// span is threaded through grabbed.span, exactly as move threads grabbed.slot.
+	// A second grow must go 2→3 — computed fresh from start — not 1→2 again.
+	const start = [{ id: "a", slot: 20, span: 1 }];
+	const out = keyboardLayout(bounds, start, { id: "a", mode: "resize", span: 2 }, "ArrowDown");
+	assert.equal(out.span, 3);
+	assert.deepEqual(
+		out.layout,
+		pushLayout(bounds, start, { id: "a", slot: 20, span: 3 }, { compress: true }),
+	);
+});
+
+test("shrinking after a compressing grow restores the neighbour's span (recomputed from start)", () => {
+	// Tight day: growing `a` past the free space compresses `b` (3→2). Shrinking
+	// back must UNDO that. If each step recomputed from the running (already
+	// compressed) layout instead of `start`, `b` could never grow back — compress
+	// only shrinks. This is the resize analog of the move "no accumulated shove".
+	const tight = { start: 18, end: 24 };
+	const start = [
+		{ id: "a", slot: 18, span: 1 },
+		{ id: "b", slot: 19, span: 3 },
+	];
+	let span;
+	let out;
+	for (let i = 0; i < 3; i++) {
+		out = keyboardLayout(tight, start, { id: "a", mode: "resize", span }, "ArrowDown");
+		assert.equal(out.kind, "resized");
+		span = out.span;
+	}
+	assert.equal(span, 4); // 1→2→3→4
+	assert.equal(out.layout.find((p) => p.id === "b").span, 2); // b compressed by the grow
+	// now shrink one slot: b must return to its full span 3, packed below a.
+	out = keyboardLayout(tight, start, { id: "a", mode: "resize", span }, "ArrowUp");
+	assert.equal(out.span, 3);
+	assert.equal(out.layout.find((p) => p.id === "b").span, 3);
+	assert.deepEqual(
+		out.layout,
+		pushLayout(tight, start, { id: "a", slot: 18, span: 3 }, { compress: true }),
+	);
 });
 
 // The glue relies on null to mean "not my key" — so it won't preventDefault and

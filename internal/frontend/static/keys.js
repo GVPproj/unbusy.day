@@ -27,9 +27,14 @@ export function keyboardLayout(bounds, current, grabbed, key) {
 		return { layout: current, kind: "blocked" };
 	}
 	if (grabbed.mode === "resize") {
+		// `current` is the resize-START layout and `grabbed.span` the running target
+		// span (mirrors move's grabbed.slot cursor): recomputing the compress cascade
+		// from start each press matches a single pointer resize to the final span, so
+		// shrinking after a grow can undo compression instead of stranding it.
+		const from = grabbed.span ?? cur.span;
 		const span =
-			key === "ArrowDown" ? cur.span + 1 :
-			key === "ArrowUp" ? cur.span - 1 :
+			key === "ArrowDown" ? from + 1 :
+			key === "ArrowUp" ? from - 1 :
 			key === "Home" ? 1 :
 			key === "End" ? maxResizeSpan(bounds, current, cur) :
 			null;
@@ -37,7 +42,7 @@ export function keyboardLayout(bounds, current, grabbed, key) {
 		if (span < 1) return { layout: current, kind: "blocked" }; // one-slot floor
 		const layout = pushLayout(bounds, current, { id: cur.id, slot: cur.slot, span }, { compress: true });
 		if (!layout) return { layout: current, kind: "blocked" };
-		return { layout, kind: "resized" };
+		return { layout, span, kind: "resized" };
 	}
 	return null;
 }
