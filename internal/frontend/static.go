@@ -2,9 +2,16 @@ package frontend
 
 import (
 	"embed"
+	"mime"
 	"net/http"
 	"os"
 )
+
+// Go's mime table lacks .webmanifest; without this the file server sniffs the
+// JSON as text/plain and browsers reject it as a manifest.
+func init() {
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 // staticFS embeds frontend assets (drag.js, the Tailwind output.css, etc.) so
 // the binary stays self-contained — same pattern as the embedded migrations.

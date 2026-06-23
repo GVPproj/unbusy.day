@@ -28,6 +28,12 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="icon" type="image/svg+xml" href="/static/favicon.svg"/>
+				// iOS home-screen icon (Apple ignores the SVG favicon and manifest
+				// icons, so it needs its own 180×180 PNG link).
+				<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
+				<link rel="manifest" href="/static/manifest.webmanifest"/>
+				<meta name="apple-mobile-web-app-title" content="unbusy"/>
+				<meta name="theme-color" content="hsl(192, 81%, 14%)"/>
 			// Apply the stored theme to <html> synchronously, before first paint, so a
 			// dark scheme doesn't flash the default light tokens until Datastar hydrates.
 			<script>
