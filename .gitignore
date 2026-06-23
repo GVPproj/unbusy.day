@@ -38,3 +38,6 @@ Thumbs.db
 
 # --- Local scratch docs (not part of the repo) ---
 docs/datastar-primer.html
+
+# Local SES/ops setup notes — not tracked
+SES-SETUP.md
