@@ -16,7 +16,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// newMailer picks the SMTP provider when SMTP_HOST is set (production),
+// newMailer picks the SMTP provider when SMTP_HOST is set,
 // else LogMailer so `task dev` needs no email service.
 func newMailer() auth.Mailer {
 	host := os.Getenv("SMTP_HOST")

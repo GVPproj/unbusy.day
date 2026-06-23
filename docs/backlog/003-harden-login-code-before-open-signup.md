@@ -1,7 +1,19 @@
 # 003 — Harden `/login/code` before enabling open signup
 
-Status: backlog
+Status: backlog (partially addressed — see Progress)
 Date: 2026-06-15
+
+## Progress
+
+- **2026-06-23 — bounce/complaint suppression landed** (item 4, monitoring half;
+  ADR 0009). SES feedback arrives over SNS at `POST /webhooks/ses`, and
+  permanently-bounced / complaining addresses go on a `suppression` table that
+  `RequestCode` now consults — a suppressed address is silently skipped, so we
+  no longer keep mailing addresses SES has flagged. **Still unbuilt:** the
+  per-IP/global rate limit (1), human-presence check (2), deferring user-row
+  creation (3), the global send ceiling + circuit breaker (rest of 4), syntactic
+  + MX validation (5), and the brute-force attempt-carry (6). The core open-relay
+  risk remains until the rate limit + presence check land.
 
 ## Problem
 
@@ -70,5 +82,6 @@ In rough priority:
 ## Related
 
 - ADR 0001 / 0002 — passwordless email-OTP auth and DB-backed sessions.
+- ADR 0009 — SES bounce/complaint suppression (the monitoring half, now built).
 - `internal/auth/auth.go` (`RequestCode`, `VerifyCode`),
   `internal/frontend/login.go` (handlers — currently no throttle middleware).
