@@ -30,7 +30,7 @@ func newMailer() auth.Mailer {
 		envOr("SMTP_PORT", "587"),
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
-		envOr("SMTP_FROM", "login@unbusy.day"),
+		envOr("SMTP_FROM", "hi@unbusy.day"),
 	)
 }
 
