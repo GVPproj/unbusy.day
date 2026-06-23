@@ -16,6 +16,31 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// newMailer picks the SMTP provider when SMTP_HOST is set (production),
+// else LogMailer so `task dev` needs no email service.
+func newMailer() auth.Mailer {
+	host := os.Getenv("SMTP_HOST")
+	if host == "" {
+		log.Print("auth: LogMailer (login codes to stdout)")
+		return auth.LogMailer{}
+	}
+	log.Printf("auth: SMTP mailer via %s", host)
+	return auth.NewSMTPMailer(
+		host,
+		envOr("SMTP_PORT", "587"),
+		os.Getenv("SMTP_USERNAME"),
+		os.Getenv("SMTP_PASSWORD"),
+		envOr("SMTP_FROM", "login@unbusy.day"),
+	)
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -49,7 +74,7 @@ func main() {
 
 	broker := pubsub.New()
 	blockSvc := block.NewService(db, broker)
-	authSvc := auth.NewService(db, auth.LogMailer{})
+	authSvc := auth.NewService(db, newMailer())
 
 	// Secure cookies in production (ADR 0002). Set SECURE_COOKIES=1 wherever the
 	// app sits behind HTTPS (Fly, for example, does so via fly.app.toml)
