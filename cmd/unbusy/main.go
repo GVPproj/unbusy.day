@@ -105,6 +105,13 @@ func main() {
 	mux.Handle("POST /blocks/clear", frontend.RequireSession(authSvc, frontend.ClearHandler(blockSvc)))
 	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 
+	// SES bounce/complaint feedback over an SNS HTTP subscription. Unauthenticated
+	// (SNS calls it) but locked to our topic ARN + SNS signature verification.
+	if arn := os.Getenv("SES_SNS_TOPIC_ARN"); arn != "" {
+		log.Printf("auth: SES feedback webhook mounted for %s", arn)
+		mux.Handle("POST /webhooks/ses", frontend.SESWebhookHandler(authSvc, arn))
+	}
+
 	mux.Handle("GET /static/", frontend.StaticHandler())
 
 	// Wiring canary for the pinned Datastar SDK + templ versions

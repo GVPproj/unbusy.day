@@ -72,6 +72,15 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		return err
 	}
 
+	// Never mail a hard-bounced or complaining address — protects SES reputation.
+	// Same silent no-op as unknown/throttled, so no enumeration signal leaks.
+	if suppressed, err := s.IsSuppressed(ctx, email); err != nil {
+		return err
+	} else if suppressed {
+		log.Printf("auth: suppressed address %s, skipping OTP", email)
+		return nil
+	}
+
 	code, err := newCode()
 	if err != nil {
 		return err
