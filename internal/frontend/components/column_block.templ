@@ -23,7 +23,7 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 	// stop that a screen reader announces as an operable "schedule block" and
 	// links to the shared usage instructions (#dnd-instructions, in BlocksPage).
 	<li
-		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2 [&.resizing]:[box-shadow:var(--shadow-lift)] [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
+		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2 [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
 		tabindex="0"
 		aria-roledescription="schedule block"
 		aria-describedby="dnd-instructions"
@@ -53,7 +53,7 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 		// the change is spoken as a time, not a slot count. aria-valuemax is the
 		// day-end ceiling — the true compressible max is probed live by the End key.
 		<span
-			class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100 focus-visible:after:opacity-100 focus-visible:after:bg-accent focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent focus-visible:outline-none"
+			class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] pointer-coarse:inset-x-1/4 after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100 focus-visible:after:opacity-100 focus-visible:after:bg-accent focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent focus-visible:outline-none"
 			role="separator"
 			tabindex="0"
 			aria-controls={ c.ID }

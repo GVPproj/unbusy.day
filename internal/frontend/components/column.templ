@@ -31,7 +31,7 @@ templ DateHeading() {
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"
-		class="blocks list-none m-0 p-0 grid grid-cols-[3.5rem_1fr] auto-rows-[var(--slot-h,calc(1lh_+_2_*_var(--block-pad)))] flex-1 min-h-0 overflow-y-auto overflow-x-hidden max-sm:px-4 max-sm:pt-3 max-sm:pb-4"
+		class="blocks list-none m-0 p-0 grid grid-cols-[3.5rem_1fr] auto-rows-[var(--slot-h,calc(1lh_+_2_*_var(--block-pad)))] pointer-coarse:[--slot-h:calc(1lh_+_2.5rem)] flex-1 min-h-0 overflow-y-auto overflow-x-hidden max-sm:px-4 max-sm:pt-3 max-sm:pb-4"
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"
