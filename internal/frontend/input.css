@@ -38,3 +38,16 @@
 	/* font-sans → the active "feeling" font family */
 	--font-sans: var(--font-family);
 }
+
+/* Theme-aware default focus ring — one source of truth so every focusable
+   element (nav links, modal buttons, inputs, the menu toggle) shows an accent
+   ring that tracks the live colorscheme instead of the OS default. In @layer
+   base (below utilities) so component focus-visible:* utilities still override
+   it: the block's inset ring, slot-add/grip outline-none, the type swatches.
+   var(--accent) resolves at the use site, so it hot-swaps with the theme. */
+@layer base {
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+}
