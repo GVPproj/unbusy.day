@@ -22,7 +22,7 @@ templ DateHeading() {
 
 // BlockColumn is the patch fragment: the stable #block-list id is the
 // outer-morph anchor every SSE patch and layout response lands on, and the
-// data-id attributes are what DragInit reads post-gesture to build the layout.
+// data-id attributes are what drag.js reads post-gesture to build the layout.
 // Page render and patch render share this component so they can't drift apart.
 //
 // Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
@@ -31,7 +31,7 @@ templ DateHeading() {
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"
-		class="blocks list-none m-0 p-0 grid grid-cols-[3.5rem_1fr] auto-rows-[var(--slot-h,calc(1lh_+_2_*_var(--block-pad)))] flex-1 min-h-0 overflow-y-auto max-sm:px-4 max-sm:pt-3 max-sm:pb-4"
+		class="blocks list-none m-0 p-0 grid grid-cols-[3.5rem_1fr] auto-rows-[var(--slot-h,calc(1lh_+_2_*_var(--block-pad)))] flex-1 min-h-0 overflow-y-auto overflow-x-hidden max-sm:px-4 max-sm:pt-3 max-sm:pb-4"
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"
@@ -126,9 +126,3 @@ func timeLabel(s int) string {
 	return strconv.Itoa(s/2) + ":00"
 }
 
-// DragInit loads the Motion-powered drag/stretch script (static/drag.js)
-// for #block-list. The behavior, wire contract, and gotchas are documented in
-// the script itself; this component just mounts it on pages with a column.
-templ DragInit() {
-	<script type="module" src="/static/drag.js"></script>
-}

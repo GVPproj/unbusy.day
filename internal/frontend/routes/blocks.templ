@@ -11,7 +11,7 @@ import (
 // semantics: Datastar's default 'auto' never reconnects after a *clean* stream
 // end, leaving the tab silently deaf.
 //
-// Server-driven by design: DragInit's Motion drag owns the gesture and, once
+// Server-driven by design: drag.js's Motion drag owns the gesture and, once
 // the drop commits, dispatches a `layout` CustomEvent with the full committed
 // layout; the Datastar listener copies it into $layout and @posts (which ships
 // signals as the JSON body {"layout": [...]}). The response patch renders the
@@ -36,14 +36,15 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			<main class="column w-full max-w-[520px] mx-auto my-12 p-4 bg-column-bg rounded-lg flex flex-col overflow-hidden sm:max-h-[calc(100svh-6rem)] max-sm:max-w-none max-sm:m-0 max-sm:p-0 max-sm:rounded-none max-sm:h-svh">
 				@components.DateHeading()
 				@components.BlockColumn(cs, b)
-				@components.DragInit()
 				// Keyboard-a11y scaffolding, kept OUTSIDE #block-list so every SSE
 				// morph leaves them intact: #sr-announce keeps its queued text and
 				// #dnd-instructions (the shared aria-describedby target) never dangles.
 				// Assertive so action feedback isn't queued behind other output.
 				<div id="sr-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 				<div id="dnd-instructions" class="sr-only">Press Space or Enter to grab this block, then the Up and Down arrow keys to move it, and Space or Enter again to drop it. Press F2 to rename. Tab to the resize handle to change its length.</div>
+				// Motion-powered drag/stretch for #block-list (see drag.js).
 				// Live local-time "now" pill on the day grid (see now-pill.js).
+				<script type="module" src="/static/drag.js"></script>
 				<script type="module" src="/static/now-pill.js"></script>
 			</main>
 		</div>

@@ -90,14 +90,10 @@ list.addEventListener("pointerdown", (e) => {
 
 list.addEventListener("pointermove", (e) => {
   if (drag && e.pointerId === drag.pointerId) {
-    drag.x.set(e.clientX - drag.startX);
-    drag.y.set(e.clientY - drag.startY);
-    if (
-      Math.abs(e.clientX - drag.startX) > TAP_SLOP ||
-      Math.abs(e.clientY - drag.startY) > TAP_SLOP
-    )
-      drag.moved = true;
-    previewDrag(drag.orig.slot + Math.round(drag.y.get() / drag.pitch));
+    drag.lastX = e.clientX;
+    drag.lastY = e.clientY;
+    applyDrag();
+    autoScroll(e.clientY);
   } else if (resize && e.pointerId === resize.pointerId) {
     previewResize(
       resize.orig.span + Math.round((e.clientY - resize.startY) / resize.pitch),
@@ -232,6 +228,8 @@ function dispatchLayout(g) {
 
 function startDrag(e, el) {
   const orig = placementOf(el);
+  const bounds = boundsNow();
+  const pitch = slotPitch();
   const x = motionValue(0);
   const y = motionValue(0);
   drag = {
@@ -239,9 +237,14 @@ function startDrag(e, el) {
     orig,
     x,
     y,
-    bounds: boundsNow(),
+    bounds,
     current: layoutIn(),
-    pitch: slotPitch(),
+    pitch,
+    // Transform clamp: the held block can't translate past the day's first/last
+    // legal slot. A translate beyond the grid grows the scroll container's
+    // overflow without bound (and the auto-scroll loop would never hit a limit).
+    minY: (bounds.start - orig.slot) * pitch,
+    maxY: (bounds.end - orig.span - orig.slot) * pitch,
     detach: styleEffect(el, { x, y }),
     sibs: sibsFor(el),
     // last layout the cascade accepted — what an invalid pointer snaps to
@@ -249,11 +252,69 @@ function startDrag(e, el) {
     pointerId: e.pointerId,
     startX: e.clientX,
     startY: e.clientY,
+    lastX: e.clientX,
+    lastY: e.clientY,
+    // edge auto-scroll state: current per-frame velocity and the live rAF id
+    scrollV: 0,
+    raf: 0,
     // a tap (no movement) on the label opens the inline editor at pointerup
     moved: false,
     downTarget: e.target,
   };
   el.classList.add("dragging");
+}
+
+// Set the held block's transform from the last pointer position and preview the
+// cascade under it. Split out of pointermove so the auto-scroll loop can re-apply
+// it each frame (the pointer is stationary while the container scrolls under it).
+function applyDrag() {
+  const d = drag;
+  const dx = d.lastX - d.startX;
+  const dy = d.lastY - d.startY;
+  if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) d.moved = true;
+  // Clamp into the day so the block can't be dragged past the first/last slot
+  // (which would stretch the scroll container without bound).
+  const y = Math.max(d.minY, Math.min(d.maxY, dy));
+  d.x.set(dx);
+  d.y.set(y);
+  previewDrag(d.orig.slot + Math.round(y / d.pitch));
+}
+
+// Edge auto-scroll: when the pointer nears the top/bottom of the scroll container
+// (#block-list is the only scroll region — ADR scroll commit), scroll it so the
+// held block can be dragged past the visible viewport. Speed ramps with depth
+// into the EDGE band; the rAF loop self-sustains while the pointer holds at an
+// edge (no further pointermove fires), and stops at the scroll limits.
+const EDGE = 48; // px band at each edge that triggers auto-scroll
+const MAX_SPEED = 16; // px per frame at the very edge
+
+function autoScroll(clientY) {
+  const d = drag;
+  if (!d) return;
+  const r = list.getBoundingClientRect();
+  let v = 0;
+  if (clientY < r.top + EDGE) v = -((r.top + EDGE - clientY) / EDGE) * MAX_SPEED;
+  else if (clientY > r.bottom - EDGE)
+    v = ((clientY - (r.bottom - EDGE)) / EDGE) * MAX_SPEED;
+  d.scrollV = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, v));
+  if (d.scrollV && !d.raf) d.raf = requestAnimationFrame(scrollTick);
+}
+
+// One auto-scroll frame: scroll, then keep the transform math consistent by
+// folding the actual scrolled distance into startY (the pointer's clientY is
+// fixed, so the held block keeps tracking it and the target slot stays right).
+function scrollTick() {
+  const d = drag;
+  if (!d) return; // settle nulled the gesture mid-flight
+  d.raf = 0;
+  if (!d.scrollV) return; // pointer left the edge band
+  const before = list.scrollTop;
+  list.scrollTop += d.scrollV;
+  const moved = list.scrollTop - before; // 0 at a scroll limit
+  if (!moved) return;
+  d.startY -= moved;
+  applyDrag();
+  d.raf = requestAnimationFrame(scrollTick);
 }
 
 // Preview the cascade at `slot`: clamp into the day, keep the last valid
@@ -280,6 +341,7 @@ async function settleDrag(e, commit) {
   const editLabel =
     commit && !d.moved ? d.downTarget.closest(".block-label") : null;
   if (!commit) d.valid = { slot: d.orig.slot, layout: d.current };
+  if (d.raf) cancelAnimationFrame(d.raf);
   springSibs(d, d.valid.layout);
   drag = null;
   settling = true;
@@ -522,6 +584,9 @@ function moveGrab(key) {
   grab.slot = res.slot;
   grab.layout = res.layout;
   writeLayout(grab.layout, grab.bounds.start);
+  // Scroll the moved block into view so a keyboard move past the viewport edge
+  // stays visible (#block-list is the contained scroll region).
+  grab.el.scrollIntoView({ block: "nearest" });
   announce(rangeOf(grab.id, grab.layout));
 }
 
@@ -611,6 +676,9 @@ function stepKbResize(key) {
   r.layout = res.layout;
   writeLayout(r.layout, r.bounds.start);
   updateGripValue(r.grip, r.id, r.layout);
+  // Keep the grip (the growing bottom edge) in view as the block stretches past
+  // the contained scroll region's viewport.
+  r.grip.scrollIntoView({ block: "nearest" });
   announce(rangeOf(r.id, r.layout));
 }
 
