@@ -29,10 +29,11 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@modals.ClearModal()
 			@modals.DialogInit()
 			// The day-grid column: full width within the shell flex row, a centered
-			// 520px card on desktop; below sm it fills the viewport and becomes a
-			// flex column so DateHeading is a fixed header and the .blocks grid is
-			// the only scroll region.
-			<main class="column w-full max-w-[520px] mx-auto my-12 p-4 bg-column-bg rounded-lg max-sm:max-w-none max-sm:m-0 max-sm:p-0 max-sm:rounded-none max-sm:flex max-sm:flex-col max-sm:h-svh max-sm:overflow-hidden">
+			// 500px wide card on desktop. A flex column at every size so DateHeading is a
+			// fixed header and the .blocks grid is the only scroll region. On desktop
+			// the card is capped to the viewport minus its my-12 (6rem) so it never
+			// bleeds off-screen; below sm it fills the viewport (h-svh).
+			<main class="column w-full max-w-[520px] mx-auto my-12 p-4 bg-column-bg rounded-lg flex flex-col overflow-hidden sm:max-h-[calc(100svh-6rem)] max-sm:max-w-none max-sm:m-0 max-sm:p-0 max-sm:rounded-none max-sm:h-svh">
 				@components.DateHeading()
 				@components.BlockColumn(cs, b)
 				@components.DragInit()
