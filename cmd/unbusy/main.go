@@ -113,6 +113,9 @@ func main() {
 	}
 
 	mux.Handle("GET /static/", frontend.StaticHandler())
+	// Served from root (not /static/) so its control scope is the whole app —
+	// makes iOS treat the home-screen app as an installed PWA. See static/sw.js.
+	mux.Handle("GET /sw.js", frontend.ServiceWorkerHandler())
 
 	// Wiring canary for the pinned Datastar SDK + templ versions
 	mux.Handle("GET /_smoke", frontend.SmokeHandler())

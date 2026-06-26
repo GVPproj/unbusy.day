@@ -43,3 +43,25 @@ func StaticHandler() http.Handler {
 		fs.ServeHTTP(w, r)
 	})
 }
+
+// ServiceWorkerHandler serves the passthrough service worker from the site root
+// (/sw.js), not /static/. A service worker's control scope is capped to its own
+// URL path, so serving it from root is what lets it claim scope "/" and have iOS
+// treat the whole app as an installed PWA (durable storage). no-cache so a new
+// sw.js lands on the next visit. See static/sw.js.
+func ServiceWorkerHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		if os.Getenv("TEMPL_DEV_MODE") != "" {
+			http.ServeFile(w, r, "internal/frontend/static/sw.js")
+			return
+		}
+		data, err := staticFS.ReadFile("static/sw.js")
+		if err != nil {
+			http.Error(w, "service worker unavailable", http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write(data)
+	})
+}
