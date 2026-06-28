@@ -60,22 +60,41 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 		aria-labelledby="bounds-modal-title"
 	>
 		<h2 id="bounds-modal-title" class={ dialogH2Class }>Working Hours</h2>
-		<p class="m-0 text-base text-ink-muted" data-show="$firstOccupiedSlot < $lastOccupiedEnd">Your blocks will stay put</p>
+		<p
+			class="m-0 text-base text-ink-muted"
+			data-show="$firstOccupiedSlot < $lastOccupiedEnd"
+		>Your blocks will stay put</p>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			Start
-			<select data-on:change="$start = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
+			<select
+				data-on:change="$start = +evt.target.value"
+				class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base"
+			>
 				@startOptions(block.MinDayStart, block.MaxDayEnd-1, b.Start)
 			</select>
 		</label>
 		<label class="flex items-center justify-between gap-[0.6rem] text-base">
 			End
-			<select data-on:change="$end = +evt.target.value" class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base">
+			<select
+				data-on:change="$end = +evt.target.value"
+				class="py-[0.35rem] px-2 border border-rail-border rounded bg-bg text-base"
+			>
 				@endOptions(block.MinDayStart+1, block.MaxDayEnd, b.End)
 			</select>
 		</label>
 		<footer class={ dialogFooterClass }>
-			<button class={ dialogButtonSecondaryClass } autofocus commandfor="bounds-modal" command="close">Cancel</button>
-			<button class={ dialogButtonClass } commandfor="bounds-modal" command="close" data-on:click="@post('/blocks/bounds')">Save</button>
+			<button
+				class={ dialogButtonSecondaryClass }
+				autofocus
+				commandfor="bounds-modal"
+				command="close"
+			>Cancel</button>
+			<button
+				class={ dialogButtonClass }
+				commandfor="bounds-modal"
+				command="close"
+				data-on:click="@post('/blocks/bounds')"
+			>Save</button>
 		</footer>
 	</dialog>
 }

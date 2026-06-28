@@ -54,8 +54,16 @@ templ CreateModal() {
 // --type-* tokens, so it tracks the live colorscheme) and the checked/focus
 // selection ring riding peer-* variants on the same element.
 templ createTypeOption(typ string, label string) {
-	<label class="flex flex-1 flex-col items-center gap-[0.3rem] cursor-pointer text-sm">
-		<input type="radio" name="addtype" data-bind:addtype value={ typ } class="peer sr-only"/>
+	<label
+		class="flex flex-1 flex-col items-center gap-[0.3rem] cursor-pointer text-sm"
+	>
+		<input
+			type="radio"
+			name="addtype"
+			data-bind:addtype
+			value={ typ }
+			class="peer sr-only"
+		/>
 		<span
 			data-type={ typ }
 			aria-hidden="true"
