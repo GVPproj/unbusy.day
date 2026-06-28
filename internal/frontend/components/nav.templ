@@ -1,22 +1,17 @@
 package components
 
-// sidenavClasses is the rail↔drawer geometry, now markup-first (ADR 0006).
-// Desktop is a sticky 96px rail (wide enough to hold "Set Hours" on one line in
-// both the cozy and wider Gohu pixel font); below sm (max-sm, the exact rem
-// complement of Tailwind's sm so the flip lines up with no sub-pixel gap) it
-// becomes a right-side off-canvas drawer translated off-screen, slid in by the
-// `.open` hook (toggled by data-class:open). Translate/transition are max-sm-only
-// so the desktop sticky rail never picks up a transform. Tokens come from baseStyles.
+// sidenavClasses is the rail↔drawer geometry (ADR 0006). Desktop is a sticky 96px
+// rail (wide enough for "Set Hours" in both fonts); below sm it's a right-side
+// off-canvas drawer slid in by the `.open` hook (data-class:open). Translate/
+// transition are max-sm-only so the desktop rail never picks up a transform.
 const sidenavClasses = "sidenav w-24 shrink-0 flex flex-col gap-1 py-3 px-2 bg-nav-bg text-nav-ink sticky top-0 h-screen max-sm:fixed max-sm:inset-y-0 max-sm:right-0 max-sm:z-30 max-sm:w-[200px] max-sm:translate-x-full max-sm:[&.open]:translate-x-0 max-sm:transition-transform max-sm:duration-200 max-sm:shadow-[var(--shadow-lift)]"
 
-// navlinkClasses is the shared rail-link styling (repeated across the mixed
-// <a>/<button> links): a centered icon-over-label stack on desktop that becomes
-// a row in the mobile drawer. Hover uses the un-bridged --nav-hover token.
+// navlinkClasses is the shared rail-link styling: a centered icon-over-label
+// stack on desktop that becomes a row in the mobile drawer.
 const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold whitespace-nowrap cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-[0.6rem] max-sm:px-3 max-sm:text-base"
 
-// MenuToggle is the mobile hamburger button. Hidden on desktop (the icon rail
-// is always present there); on mobile it's a fixed top-right overlay rendered at
-// .shell level (not inside the header) so it escapes the header's z-11 stacking
+// MenuToggle is the mobile hamburger button (hidden on desktop). It's rendered at
+// .shell level, not inside the header, so it escapes the header's z-11 stacking
 // context and floats above the open drawer (z-30) to stay tappable.
 templ MenuToggle() {
 	<button
@@ -44,9 +39,8 @@ templ SideNav() {
 				@IconHours()
 			</span><span>Set Hours</span>
 		</button>
-		// Disabled on an empty day: the occupied envelope collapses to
-		// firstOccupiedSlot > lastOccupiedEnd when no block exists, and those
-		// signals are re-patched on every column change (see patchEnvelope).
+		// Disabled on an empty day: the envelope collapses to firstOccupiedSlot >=
+		// lastOccupiedEnd with no blocks; signals re-patched per change (patchEnvelope).
 		<button class={ navlinkClasses + " disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" } data-attr:disabled="$firstOccupiedSlot >= $lastOccupiedEnd" commandfor="clear-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="leading-0 text-nav-icon">
 				@IconClear()

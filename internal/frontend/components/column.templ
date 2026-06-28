@@ -8,10 +8,8 @@ import (
 )
 
 // DateHeading renders today's date at the column's top-left. On mobile it's a
-// non-scrolling header bar (a flex-none child of the .column flex layout) that
-// sits above the scrolling block list with its own background and z-index;
-// on desktop it's a normal heading above the column card. The hamburger toggle
-// is a separate .shell-level overlay (see MenuToggle), not part of this bar.
+// non-scrolling header bar above the scrolling block list (own bg + z-index);
+// on desktop a plain heading. The hamburger toggle is separate (see MenuToggle).
 templ DateHeading() {
 	<div
 		class="flex items-center justify-between gap-2 mb-2 shrink-0 sm:min-h-8 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:pt-3 max-sm:px-4 max-sm:bg-column-bg"
@@ -22,14 +20,9 @@ templ DateHeading() {
 	</div>
 }
 
-// BlockColumn is the patch fragment: the stable #block-list id is the
-// outer-morph anchor every SSE patch and layout response lands on, and the
-// data-id attributes are what drag.js reads post-gesture to build the layout.
-// Page render and patch render share this component so they can't drift apart.
-//
-// Keyed Datastar attributes use a COLON between plugin and key on v1.0.2
-// (`data-on:layout`, `data-signals:layout`) — the dash forms are looked up as
-// nonexistent plugin names and silently skipped (no error).
+// BlockColumn is the patch fragment: #block-list is the morph anchor every SSE
+// patch and layout response lands on; drag.js reads the data-id attributes to
+// build the layout. Page and patch render share it so they can't drift.
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"
@@ -51,9 +44,8 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 				@blockItem(c, b.Start, b.End)
 			}
 		}
-		// A block outside the day's bounds can't happen (ValidateLayout/SetBounds
-		// keep blocks within bounds), but render any anyway so a stray block is
-		// never silently dropped — a ghost block the user can't see or delete.
+		// Out-of-bounds blocks can't happen (ValidateLayout/SetBounds enforce it),
+		// but render any anyway so a stray block is never silently dropped.
 		for _, c := range cs {
 			if c.Position < b.Start || c.Position >= b.End {
 				@blockItem(c, b.Start, b.End)
@@ -63,12 +55,11 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 	</ul>
 }
 
-// nowPill marks the viewer's current local time across the day grid. The
-// server can't know the viewer's clock, so it renders hidden and now-pill.js
-// (the one client-side bit) reveals it at the current slot and fills in the
-// time label. Part of BlockColumn so it survives every SSE morph; the stable
-// #now-pill id is the morph anchor. aria-hidden: a purely visual "now" marker
-// duplicating the system clock — keeps an empty list item out of the AT tree.
+// nowPill marks the viewer's current local time across the day grid. The server
+// can't know the viewer's clock, so it renders hidden and now-pill.js reveals it
+// at the current slot with the time label. Part of BlockColumn so it survives
+// every SSE morph (#now-pill is the anchor). aria-hidden: a purely visual marker
+// duplicating the system clock, kept out of the AT tree.
 templ nowPill() {
 	<li
 		id="now-pill"
@@ -82,16 +73,13 @@ templ nowPill() {
 	</li>
 }
 
-// slot is one 30-minute row of the day grid, carrying its clock-slot index
-// and time gutter label. The explicit grid-row keeps auto-placement from
-// skipping rows blocks occupy. Slots have no data-id, so they never enter the
-// layout wire payload. The "add" button renders only for free slots, so it
-// never sits in the tab order behind the block that covers this row. An
-// occupied row is visual chrome only (aria-hidden gutter, no button), so it's
-// aria-hidden to keep blank list items out of the AT tree (a11y #2b).
+// slot is one 30-minute row of the day grid (clock-slot index + gutter label).
+// Explicit grid-row keeps auto-placement from skipping rows blocks occupy. Slots
+// have no data-id, so they never enter the layout payload. The "add" button
+// renders only for free slots, so it never sits behind a covering block in the
+// tab order. An occupied row is chrome only, so aria-hidden (a11y #2b).
 templ slot(s, dayStart int, occupied bool) {
-	// Half-hour rows (odd slot index) get a dashed top rule; hour rows stay
-	// solid. Computed here rather than via a CSS [data-slot$=…] selector.
+	// Half-hour rows (odd slot index) get a dashed top rule; hour rows stay solid.
 	<li
 		class={ "slot col-span-full flex items-start border-t border-rail-border", templ.KV("border-dashed", s%2 == 1) }
 		data-slot={ strconv.Itoa(s) }
@@ -129,8 +117,8 @@ func byStartSlot(cs []block.Block) map[int]block.Block {
 	return m
 }
 
-// timeLabel renders a slot index (30-min steps from 00:00) as its gutter
-// text: hours as "9:00", half-hours as the ":30" tick.
+// timeLabel renders a slot index (30-min steps from 00:00) as gutter text:
+// hours as "9:00", half-hours as the ":30" tick.
 func timeLabel(s int) string {
 	if s%2 == 1 {
 		return strconv.Itoa(s/2) + ":30"

@@ -3,11 +3,9 @@ package components
 import "fmt"
 
 // LoginStyles is the login flow's surviving keyframe CSS (ADR 0006 non-goal):
-// the amoeba backdrop's spin animation and its reduced-motion off-switch — a
-// transition/keyframe driver, so it stays CSS. The blob's positioning/sizing,
-// the OTP focus-within active-box highlight, and every other one-off moved to
-// inline utilities on the markup. Co-located here and passed to Layout's <head>
-// by the login route. @keyframes is global by name, so it lives outside the scope.
+// the amoeba backdrop's spin animation and its reduced-motion off-switch. Passed
+// to Layout's <head> by the login route. @keyframes is global, so it sits outside
+// the @scope.
 templ LoginStyles() {
 	<style>
 		@scope (.login-main) {
@@ -37,9 +35,9 @@ templ LoginStyles() {
 // large SVG blob morphing via SMIL while slowly rotating (prototype winner b).
 templ LoginAmoeba() {
 	<div class="relative w-full min-h-svh grid place-items-center overflow-hidden">
-		// w/h: on phones 150vw wins so the blob bleeds past the edges; the wrap's
-		// overflow-hidden clips it. -translate-* uses v4's `translate` property, so
-		// the centering composes with the keyframe's `transform: rotate`.
+		// w/h: on phones 150vw wins so the blob bleeds past the edges (wrap clips).
+		// -translate-* uses v4's `translate` property so centering composes with
+		// the keyframe's `transform: rotate`.
 		<svg class="login-amoeba-svg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(1000px,max(95vmin,150vw))] h-[min(1000px,max(95vmin,150vw))] text-column-bg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
 			<path fill="currentColor">
 				<animate
@@ -62,9 +60,8 @@ templ LoginAmoeba() {
 	</div>
 }
 
-// LoginEmailForm is step 1: the stable #login-form id is the morph anchor
-// both steps patch onto. A real <form> so Enter submits; Datastar's
-// data-on:submit prevents the native submission.
+// LoginEmailForm is step 1: #login-form is the morph anchor both steps patch onto.
+// A real <form> so Enter submits; data-on:submit prevents the native submission.
 templ LoginEmailForm() {
 	<form id="login-form" class="flex flex-col gap-6" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
 		<p class="m-0 text-ink-muted text-sm font-medium">We'll email you a one-time code.</p>
@@ -81,10 +78,10 @@ templ LoginEmailForm() {
 	</form>
 }
 
-// LoginCodeForm is step 2, patched in over #login-form. The response is
-// identical whether a code was actually sent (no account enumeration). A
-// failed verify re-patches it with a generic error. A complete 6-digit code
-// verifies immediately; Enter/button stay as fallbacks.
+// LoginCodeForm is step 2, patched over #login-form. The response is identical
+// whether a code was sent (no account enumeration); a failed verify re-patches a
+// generic error. A complete 6-digit code verifies immediately; Enter/button are
+// fallbacks.
 templ LoginCodeForm(errMsg string) {
 	<form id="login-form" class="flex flex-col gap-6" data-on:submit="@post('/login/verify')">
 		<p class="m-0 text-ink-muted text-sm font-medium">A 6-digit code is on its way.</p>
@@ -96,9 +93,9 @@ templ LoginCodeForm(errMsg string) {
 	</form>
 }
 
-// otpInput is six display boxes mirroring $code, with one invisible real
-// input on top so autofill (one-time-code) and paste keep working. The input
-// handler strips non-digits and auto-submits when six are in.
+// otpInput is six display boxes mirroring $code, with one invisible real input
+// on top so autofill and paste keep working. The handler strips non-digits and
+// auto-submits at six.
 templ otpInput() {
 	<div class="group relative flex w-full gap-[0.4rem] items-center justify-between">
 		<input
@@ -126,9 +123,8 @@ templ otpInput() {
 }
 
 templ otpBox(i int) {
-	// active box (index === $code.length, toggled by data-class:active) takes the
-	// accent border only while the real input is focused — group-focus-within +
-	// the .active hook. The class stays; only the old CSS rule moved here.
+	// active box (index === $code.length) takes the accent border only while the
+	// input is focused — group-focus-within + the .active hook.
 	<span
 		class="flex-1 h-12 grid place-items-center text-xl font-bold border border-rail-border rounded bg-surface text-ink group-focus-within:[&.active]:border-accent"
 		aria-hidden="true"

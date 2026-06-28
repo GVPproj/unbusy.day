@@ -6,25 +6,20 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// block is one draggable grid item. data-id is the stable order/idiomorph key;
-// data-slot/data-span persist the clock placement, and grid-row paints it at
-// its time relative to the day's start. The grip starts a resize gesture.
+// blockItem is one draggable grid item. data-id is the idiomorph key; data-slot/
+// data-span persist the clock placement, grid-row paints it relative to day start.
 templ blockItem(c block.Block, dayStart, dayEnd int) {
-	// `group` makes the block the hover/resizing root the delete X and grip
-	// bar key off of; `block-item`/`dragging`/`resizing` stay as drag.js hooks
-	// (`block-item`, not `block`, to avoid colliding with Tailwind's display:block).
-	// data-type variants paint the block-type fill; --span (inline) drives the
-	// label clamp. overflow-hidden clips a long label to the box mid-resize.
-	// z-1 keeps a block painted above the full-width slot rule-lines it spans, so
-	// paint order is by z-index, not DOM order — that lets BlockColumn interleave
-	// blocks among slots in schedule order (a11y #2b) without lines striping them.
-	// dragging/resizing lift to z-2 (above resting blocks); now-pill stays z-[3].
-	// tabindex/aria-roledescription/aria-describedby make the block a keyboard tab
-	// stop that a screen reader announces as an operable "schedule block" and
-	// links to the shared usage instructions (#dnd-instructions, in BlocksPage).
-	// The focus ring is INSET (-outline-offset) so it draws inside the block: the
-	// block sits flush against #block-list's clip edge, and an outset ring would
-	// be sheared by the list's overflow-x-hidden (and the scroll top/bottom).
+	// `group` is the hover/resize root for the delete X and grip; `block-item`/
+	// `dragging`/`resizing` are drag.js hooks (`block-item`, not `block`, to dodge
+	// Tailwind's display:block). data-type paints the fill; --span drives the label
+	// clamp; overflow-hidden clips a long label mid-resize.
+	// z-1 paints the block above the slot rule-lines it spans (paint by z-index, not
+	// DOM order), letting BlockColumn interleave blocks among slots in schedule order
+	// (a11y #2b); dragging/resizing lift to z-2, now-pill stays z-3.
+	// tabindex/aria-* make it a tab stop announced as an operable "schedule block",
+	// linked to the shared instructions (#dnd-instructions, in BlocksPage).
+	// Focus ring is INSET (-outline-offset): the block sits flush against
+	// #block-list's clip edge, so an outset ring would be sheared by overflow-x-hidden.
 	<li
 		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2 [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
 		tabindex="0"
@@ -37,8 +32,8 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 		data-type={ string(c.Type) }
 		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
 	>
-		// Block's clock span, read first by AT — its start/duration are otherwise
-		// only in the CSS grid-row, invisible to a screen reader (a11y #2).
+		// Clock span read first by AT — otherwise only in the CSS grid-row,
+		// invisible to a screen reader (a11y #2).
 		<span class="sr-only">{ blockTimeRange(c) + ", " }</span>
 		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
 		<button
@@ -50,11 +45,10 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 		>
 			@IconX()
 		</button>
-		// The grip is an APG Window Splitter: a focusable role="separator" that
-		// resizes its block by the arrow keys (drag.js wires the keydown). The
-		// aria-value* report span-in-slots; aria-valuetext is the clock range so
-		// the change is spoken as a time, not a slot count. aria-valuemax is the
-		// day-end ceiling — the true compressible max is probed live by the End key.
+		// The grip is an APG Window Splitter: a focusable role="separator" resized
+		// by arrow keys (drag.js wires keydown). aria-value* report span-in-slots;
+		// aria-valuetext is the clock range so it's spoken as a time. aria-valuemax
+		// is the day-end ceiling — true compressible max is probed live by the End key.
 		<span
 			class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] pointer-coarse:inset-x-1/4 after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100 focus-visible:after:opacity-100 focus-visible:after:bg-accent focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent focus-visible:outline-none"
 			role="separator"
@@ -78,9 +72,8 @@ func spanOr1(span int) int {
 	return span
 }
 
-// blockTimeRange renders a block's clock span ("9:00 to 10:30") for its
-// accessible name. timeLabel (column.templ) maps a slot index to its clock
-// time; the end is the slot just past the block's last occupied slot.
+// blockTimeRange renders a block's clock span ("9:00 to 10:30") for its accessible
+// name. End is the slot just past the block's last occupied slot.
 func blockTimeRange(c block.Block) string {
 	return timeLabel(c.Position) + " to " + timeLabel(c.Position+spanOr1(c.Span))
 }

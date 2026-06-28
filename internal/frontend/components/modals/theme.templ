@@ -11,7 +11,10 @@ templ themeOption(id string, label string, swatch string) {
 		data-class:active={ "$_colorscheme === '" + id + "'" }
 		data-on:click={ "$_colorscheme = '" + id + "'" }
 	>
-		<span class="w-[1.4rem] h-[1.4rem] shrink-0 rounded-full border border-rail-border" style={ "background: " + swatch }></span>
+		<span
+			class="w-[1.4rem] h-[1.4rem] shrink-0 rounded-full border border-rail-border"
+			style={ "background: " + swatch }
+		></span>
 		{ label }
 	</button>
 }

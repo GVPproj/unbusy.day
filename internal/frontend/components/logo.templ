@@ -2,25 +2,22 @@ package components
 
 import "fmt"
 
-// UBLogo is the "ub.d" wordmark — a hand-drawn cursive "ub" ending in an exit
-// tail, a baseline dot, and a standalone "d" (prototype winner a2, 2026-06-12).
-// Strokes inherit currentColor so the host sets the color via CSS.
+// UBLogo is the "ub.d" wordmark — hand-drawn cursive "ub", a baseline dot, and a
+// standalone "d". Strokes inherit currentColor so the host sets the color.
 //
-// pixelScale tunes the "pixel" feeling's mosaic filter: 1.0 is the full chunky
-// effect, smaller is subtler (login uses 0.6, nav 0.3). Block grid is in
-// viewBox user units (~51×22); cell/dilate/flood all derive from the scale.
+// pixelScale tunes the "pixel" feeling's mosaic filter: 1.0 full, smaller subtler
+// (login 0.6, nav 0.3). Block grid is in viewBox units (~51×22); cell/dilate/flood
+// derive from the scale.
 templ UBLogo(width, height string, pixelScale float64) {
 	{{ cell := 3 * pixelScale }}
 	{{ dilate := 1 * pixelScale }}
 	{{ flood := cell / 2 }}
 	<style>
 		/* Intentionally CSS (ADR 0006 non-goal): @keyframes sway + the pixel
-		   mosaic SVG filter / image-rendering — animation/filter, not component
-		   styling. */
-		/* Sway + squash & stretch — prototype winner (a2), 2026-06-12. */
+		   mosaic SVG filter — animation/filter, not component styling. */
 		.ub-logo {
-			/* Preflight resets svg to display:block; the wordmark is centered by
-			   its parent's text-align, so keep it inline-flow. */
+			/* inline-block keeps the wordmark in inline flow (centered by parent
+			   text-align); preflight would otherwise force display:block. */
 			display: inline-block;
 			animation: ub-logo-sway 5.9s ease-in-out infinite;
 			transform-origin: center;
@@ -45,12 +42,10 @@ templ UBLogo(width, height string, pixelScale float64) {
 				animation: none;
 			}
 		}
-		/* Under the "pixel" feeling the wordmark mosaics into chunky blocks
-		   via the SVG filter below. The filter must go on the inner <g>, not
-		   the <svg>: a CSS filter:url() on the outer <svg> resolves the filter's
-		   userSpaceOnUse coords in CSS px (clipping all but a corner — blank in
-		   WebKit, sparse in Firefox), while on an SVG child it uses viewBox
-		   units. Block grid is in viewBox user units (~51×22). */
+		/* Pixel feeling mosaics the wordmark via the SVG filter. It must go on the
+		   inner <g>, not the <svg>: filter:url() on the outer <svg> resolves
+		   userSpaceOnUse coords in CSS px (clipping to a corner), while on an SVG
+		   child it uses viewBox units (~51×22). */
 		:root[data-feeling="pixel"] .ub-logo {
 			shape-rendering: crispEdges;
 		}
@@ -59,8 +54,8 @@ templ UBLogo(width, height string, pixelScale float64) {
 		}
 	</style>
 	<svg class="ub-logo" viewBox="2 2 51 22" width={ width } height={ height } fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="unbusy.day">
-		<!-- userSpaceOnUse region in viewBox units; only resolves correctly
-		     because the filter is applied to .ub-glyphs (an SVG child). -->
+		<!-- userSpaceOnUse region in viewBox units; resolves correctly only
+		     because the filter is on .ub-glyphs (an SVG child). -->
 		<filter id="ub-pixelate" filterUnits="userSpaceOnUse" x="0" y="0" width="56" height="28">
 			<feFlood x={ fmt.Sprintf("%.3f", flood) } y={ fmt.Sprintf("%.3f", flood) } width="1" height="1"></feFlood>
 			<feComposite x={ fmt.Sprintf("%.3f", flood) } y={ fmt.Sprintf("%.3f", flood) } width={ fmt.Sprintf("%.3f", cell) } height={ fmt.Sprintf("%.3f", cell) }></feComposite>
