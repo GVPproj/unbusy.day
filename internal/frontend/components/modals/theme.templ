@@ -1,8 +1,7 @@
 package modals
 
-// optionClasses is the shared box styling for both picker rows. The `.active`
-// selection ring (toggled by data-class:active) rides as arbitrary-variant
-// utilities on the same element — accent border + 1px accent outline.
+// optionClasses is the shared box styling for both picker rows; the `.active`
+// ring (toggled by data-class:active) rides as arbitrary-variant utilities.
 const optionClasses = "flex items-center gap-[0.6rem] w-full py-2 px-[0.6rem] border border-rail-border rounded bg-transparent text-inherit text-base cursor-pointer text-left hover:shadow-[var(--shadow-rest)] [&.active]:border-accent [&.active]:[outline:1px_solid_var(--accent)]"
 
 // themeOption is one row in the picker; swatch shows the theme's bg/column split.
@@ -17,15 +16,12 @@ templ themeOption(id string, label string, swatch string) {
 	</button>
 }
 
-// feelingOption is one row in the feeling picker. A feeling pairs an icon set
-// with a font: the preview shows the set's own glyph (always shown, not subject
-// to the live toggle) and renders the label in the feeling's font, so the row
-// previews both axes at once. Writes $_feeling, mirrored to data-feeling. pixel
-// adds the pixelated rendering hint for the 8-bit set.
+// feelingOption is one row in the feeling picker: previews both axes by showing
+// the icon set's glyph and the label in the feeling's font. Writes $_feeling;
+// pixel adds the pixelated rendering hint for the 8-bit set.
 //
-// family must be UNQUOTED (CSS allows unquoted multi-word family names): templ
-// double-escapes quotes in a dynamic style attr (&#39; → &amp;#39;), which kills
-// the whole declaration so the preview falls back to the default font.
+// family must be UNQUOTED: templ double-escapes quotes in a dynamic style attr,
+// which kills the declaration and falls back to the default font.
 templ feelingOption(id string, label string, family string, pixel bool, preview templ.Component) {
 	<button
 		class={ optionClasses }
@@ -42,12 +38,9 @@ templ feelingOption(id string, label string, family string, pixel bool, preview 
 	</button>
 }
 
-// ThemeModal is a native <dialog>, opened declaratively by any
-// command/commandfor button targeting #theme-modal — no open/close signal.
-// closedby="any" adds light dismiss (click outside) where supported; Esc
-// always works. The two sections write $_colorscheme and $_feeling, which the
-// layout <html> mirrors into data-colorscheme/data-feeling (and localStorage), so
-// both swaps are live without closing.
+// ThemeModal's two sections write $_colorscheme and $_feeling, which the layout
+// <html> mirrors into data-colorscheme/data-feeling (and localStorage), so both
+// swaps are live without closing.
 templ ThemeModal() {
 	<dialog
 		id="theme-modal"

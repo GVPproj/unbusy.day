@@ -1,10 +1,8 @@
 package modals
 
-// ClearModal is the "remove all blocks" confirmation: a native <dialog> opened
-// by the nav's Clear button (theme-modal house style). Confirm @posts
-// /blocks/clear, which deletes every block and patches back the now-empty
-// column; the day's working hours are untouched. Destructive, so Cancel is the
-// safe default (autofocus) and light dismiss (closedby="any") backs out.
+// ClearModal confirms "remove all blocks": Confirm @posts /blocks/clear (deletes
+// blocks, patches back the empty column; working hours untouched). Destructive,
+// so Cancel is the autofocus default and closedby="any" backs out.
 templ ClearModal() {
 	<dialog
 		id="clear-modal"

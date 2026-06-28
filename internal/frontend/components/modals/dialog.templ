@@ -1,11 +1,9 @@
 package modals
 
-// The shared native-<dialog> chrome, markup-first (ADR 0008). dialogClass is
-// the box every app modal carries; `app-dialog` stays on it as the hook for the
-// blur-fade transition island in DialogStyles below. open:* lays the dialog out
-// only while open (an unopened <dialog> keeps the UA display:none); m-auto
-// restores the top-layer centering preflight zeroes. shadow-lift isn't bridged
-// in @theme, so it's an explicit box-shadow utility.
+// Shared native-<dialog> chrome, markup-first (ADR 0008). `app-dialog` is the hook
+// for DialogStyles' blur-fade island. open:* lays out only while open (unopened
+// <dialog> stays display:none); m-auto restores preflight-zeroed top-layer
+// centering. shadow-lift isn't bridged in @theme, so it's an explicit utility.
 const dialogClass = "app-dialog m-auto w-[min(320px,calc(100vw-2rem))] py-5 px-8 bg-surface text-ink border border-rail-border rounded-lg [box-shadow:var(--shadow-lift)] open:flex open:flex-col open:gap-(--gap)"
 
 // Shared dialog parts: title, the right-aligned action footer, and its two
@@ -17,11 +15,9 @@ const (
 	dialogButtonSecondaryClass = "py-[0.35rem] px-3 rounded border border-rail-border bg-transparent text-inherit text-sm cursor-pointer"
 )
 
-// DialogStyles owns the one piece of dialog styling that stays CSS by ADR 0006
-// non-goals: the blur-fade open transition (a transition driver, like a
-// keyframe) and its ::backdrop scrim. Every app dialog carries `app-dialog`
-// (see dialogClass) as the hook. Entry only — close is instant, so the UA's
-// display:none takes over with no exit transition and no top-layer flash.
+// DialogStyles stays CSS by ADR 0006 non-goals: the blur-fade open transition
+// (a transition driver) and its ::backdrop scrim, hooked on `app-dialog`. Entry
+// only — close is instant, so UA display:none takes over with no exit flash.
 templ DialogStyles() {
 	<style>
 		@scope (.app-dialog) {
@@ -61,9 +57,9 @@ templ DialogStyles() {
 	</style>
 }
 
-// DialogInit loads the invoker-command fallback so the commandfor/command
-// open/close buttons work on browsers without the Invoker Commands API
-// (stable Safari only from 26.2). No-op where the platform supports it.
+// DialogInit loads the invoker-command fallback so commandfor/command buttons
+// work without the Invoker Commands API (stable Safari only from 26.2). No-op
+// where supported.
 templ DialogInit() {
 	<script type="module" src="/static/invoker-fallback.js"></script>
 }

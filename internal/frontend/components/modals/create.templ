@@ -1,12 +1,9 @@
 package modals
 
-// CreateModal is the new-block editor: a native <dialog> opened by the empty
-// slot's add button (theme-modal house style). The slot index is carried in
-// the $addslot signal, written by the slot-add button before it opens the
-// dialog; Create @posts {addslot, addlabel, addtype} to /blocks. The signals
-// are plain (no underscore) so Datastar ships them in the request body. The
-// server enforces the invariants and rejects (empty label, occupied/out-of-bounds
-// slot, invalid type) with a re-render of the truth.
+// CreateModal is the new-block editor. The slot-add button writes $addslot
+// before opening; Create @posts {addslot, addlabel, addtype} to /blocks. Signals
+// are plain (no underscore) so Datastar ships them in the body. Server enforces
+// invariants and rejects with a re-render of the truth.
 templ CreateModal() {
 	<dialog
 		id="create-modal"
@@ -48,11 +45,9 @@ templ CreateModal() {
 	</dialog>
 }
 
-// createTypeOption is one swatch radio (textbook Tailwind peer pattern). The
-// native radio is the visually-hidden `peer sr-only` (focusable/checkable); the
-// colored swatch is the affordance, with its per-type fill (from baseStyles'
-// --type-* tokens, so it tracks the live colorscheme) and the checked/focus
-// selection ring riding peer-* variants on the same element.
+// createTypeOption is one swatch radio (Tailwind peer pattern): the native radio
+// is the hidden `peer sr-only`; the colored swatch is the affordance, filled from
+// baseStyles' --type-* tokens with the checked/focus ring on peer-* variants.
 templ createTypeOption(typ string, label string) {
 	<label
 		class="flex flex-1 flex-col items-center gap-[0.3rem] cursor-pointer text-sm"
