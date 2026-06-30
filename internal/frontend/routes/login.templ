@@ -9,11 +9,11 @@ import (
 // email; the server answers /login/code by patching #login-form into the
 // code-entry step. Signals are global, so $email survives the morph and rides
 // along with $code on /login/verify.
-templ LoginPage() {
+templ LoginPage(turnstileSiteKey string) {
 	@layouts.Layout("unbusy.day — log in", "", components.LoginStyles()) {
 		<main class="login-main text-center">
 			<h1 class="sr-only">Log in to unbusy.day</h1>
-			@components.LoginAmoeba()
+			@components.LoginAmoeba(turnstileSiteKey)
 		</main>
 	}
 }

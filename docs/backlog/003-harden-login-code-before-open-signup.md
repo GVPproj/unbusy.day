@@ -5,6 +5,18 @@ Date: 2026-06-15
 
 ## Progress
 
+- **2026-06-30 — per-IP + global rate limit landed** (item 1). `POST /login/code`
+  is now wrapped by `frontend.LoginRateLimiter` (`internal/frontend/ratelimit.go`,
+  `golang.org/x/time/rate`): a per-source-IP token bucket (~1 req/6s, burst 5)
+  against the spam cannon, plus a process-wide bucket (~10 req/min, burst 20) as
+  the cross-IP blast-radius ceiling. Over-limit requests get a bare 429 (no
+  enumeration — the gate is IP-based). The source key is `Fly-Client-IP`, trusted
+  only when `SECURE_COOKIES=1` (behind Fly's proxy) so a local attacker can't
+  spoof it; an idle-bucket sweeper bounds the per-IP map. In-process by design,
+  single-machine like the broker. **Still unbuilt:** human-presence check (2),
+  deferring user-row creation (3), the global send ceiling + circuit breaker
+  (rest of 4), syntactic + MX validation (5), and the brute-force attempt-carry
+  (6). Items 1+2+3 must all land before the allowlist is dropped.
 - **2026-06-23 — bounce/complaint suppression landed** (item 4, monitoring half;
   ADR 0009). SES feedback arrives over SNS at `POST /webhooks/ses`, and
   permanently-bounced / complaining addresses go on a `suppression` table that

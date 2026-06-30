@@ -6,6 +6,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/starfederation/datastar-go v1.2.2
+	golang.org/x/time v0.15.0
 	modernc.org/sqlite v1.52.0
 )
 

@@ -3,8 +3,6 @@ package auth_test
 import (
 	"context"
 	"testing"
-
-	"github.com/GVPproj/unbusy.day/internal/auth"
 )
 
 // A suppressed address gets no OTP, even though it's an allowlisted user —
@@ -12,7 +10,7 @@ import (
 func TestSuppressedAddressSkipsOTP(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
-	svc := auth.NewService(db, mailer)
+	svc := newSvc(db, mailer)
 	ctx := context.Background()
 	email := newUser(t, db)
 
@@ -35,7 +33,7 @@ func TestSuppressedAddressSkipsOTP(t *testing.T) {
 // matching RequestCode's normalizeEmail.
 func TestSuppressNormalizesAndUpserts(t *testing.T) {
 	db := newDB(t)
-	svc := auth.NewService(db, &captureMailer{})
+	svc := newSvc(db, &captureMailer{})
 	ctx := context.Background()
 
 	if err := svc.Suppress(ctx, "  USER@Example.test ", "bounce", "Permanent"); err != nil {
@@ -52,7 +50,7 @@ func TestSuppressNormalizesAndUpserts(t *testing.T) {
 
 // An unknown reason is rejected before touching the DB.
 func TestSuppressRejectsBadReason(t *testing.T) {
-	svc := auth.NewService(newDB(t), &captureMailer{})
+	svc := newSvc(newDB(t), &captureMailer{})
 	if err := svc.Suppress(context.Background(), "x@y.test", "spam", ""); err == nil {
 		t.Fatal("want error for bad reason, got nil")
 	}

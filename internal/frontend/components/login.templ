@@ -33,7 +33,9 @@ templ LoginStyles() {
 
 // LoginAmoeba wraps the login content in an undulating amoeboid backdrop: a
 // large SVG blob morphing via SMIL while slowly rotating (prototype winner b).
-templ LoginAmoeba() {
+// turnstileSiteKey threads through to the email form's human-presence widget;
+// empty (dev, no Turnstile configured) renders no widget — local login is open.
+templ LoginAmoeba(turnstileSiteKey string) {
 	<div class="relative w-full min-h-svh grid place-items-center overflow-hidden">
 		// w/h: on phones 150vw wins so the blob bleeds past the edges (wrap clips).
 		// -translate-* uses v4's `translate` property so centering composes with
@@ -55,15 +57,25 @@ templ LoginAmoeba() {
 			<div class="text-accent ">
 				@UBLogo("153", "66", 0.8)
 			</div>
-			@LoginEmailForm()
+			@LoginEmailForm(turnstileSiteKey)
 		</div>
 	</div>
 }
 
 // LoginEmailForm is step 1: #login-form is the morph anchor both steps patch onto.
 // A real <form> so Enter submits; data-on:submit prevents the native submission.
-templ LoginEmailForm() {
-	<form id="login-form" class="flex flex-col gap-6" data-signals:email="''" data-signals:code="''" data-on:submit="@post('/login/code')">
+// The Turnstile widget's callback dispatches a window event that sets the
+// $turnstileToken signal, which rides along on @post for server-side verify.
+templ LoginEmailForm(turnstileSiteKey string) {
+	<form
+		id="login-form"
+		class="flex flex-col gap-6"
+		data-signals:email="''"
+		data-signals:code="''"
+		data-signals:turnstileToken="''"
+		data-on:turnstile-ok__window="$turnstileToken = evt.detail"
+		data-on:submit="@post('/login/code')"
+	>
 		<p class="m-0 text-ink-muted text-sm font-medium">We'll email you a one-time code.</p>
 		<input
 			type="email"
@@ -74,8 +86,26 @@ templ LoginEmailForm() {
 			data-bind:email
 			class="h-12 text-lg font-medium px-3 text-center border border-rail-border rounded bg-surface text-ink placeholder:text-ink-muted"
 		/>
+		if turnstileSiteKey != "" {
+			@turnstileWidget(turnstileSiteKey)
+		}
 		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Send code</button>
 	</form>
+}
+
+// turnstileWidget renders the Cloudflare Turnstile human-presence widget. It's a
+// cross-origin iframe, so only data-theme/data-size are tunable (PRD note); the
+// callback hands the token to Datastar via a window CustomEvent. Rendered only
+// when a sitekey is configured (prod); dev login skips it entirely.
+templ turnstileWidget(siteKey string) {
+	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+	<script>
+		// Bridge Turnstile's callback to a Datastar signal via a window event.
+		function onTurnstileSuccess(token) {
+			window.dispatchEvent(new CustomEvent('turnstile-ok', { detail: token }))
+		}
+	</script>
+	<div class="cf-turnstile self-center" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible"></div>
 }
 
 // LoginCodeForm is step 2, patched over #login-form. The response is identical

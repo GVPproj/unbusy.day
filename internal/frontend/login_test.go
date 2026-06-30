@@ -59,7 +59,7 @@ func TestRequestCodePatchesCodeForm(t *testing.T) {
 		strings.NewReader(`{"email":"x@example.test","code":""}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	RequestCodeHandler(a).ServeHTTP(rec, req)
+	RequestCodeHandler(a, noopVerifier{}).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)

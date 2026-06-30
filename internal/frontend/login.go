@@ -27,12 +27,13 @@ type Seeder interface {
 	Seed(ctx context.Context, owner string) error
 }
 
-// LoginPageHandler renders the email step of the OTP flow.
-func LoginPageHandler() http.Handler {
+// LoginPageHandler renders the email step of the OTP flow. turnstileSiteKey is
+// empty in dev (no widget rendered); set in prod it renders the presence widget.
+func LoginPageHandler(turnstileSiteKey string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := routes.LoginPage().Render(r.Context(), w); err != nil {
+		if err := routes.LoginPage(turnstileSiteKey).Render(r.Context(), w); err != nil {
 			http.Error(w, "render login page", http.StatusInternalServerError)
 		}
 	})
@@ -40,30 +41,50 @@ func LoginPageHandler() http.Handler {
 
 // loginSignals is the Datastar signals body the login forms @post.
 type loginSignals struct {
-	Email string `json:"email"`
-	Code  string `json:"code"`
+	Email          string `json:"email"`
+	Code           string `json:"code"`
+	TurnstileToken string `json:"turnstileToken"`
 }
 
 // RequestCodeHandler issues a login code. The response is identical whether
 // the email exists, was throttled, or got a code — no account enumeration —
 // so it always patches the same code-entry form.
-func RequestCodeHandler(a AuthService) http.Handler {
+func RequestCodeHandler(a AuthService, pv PresenceVerifier) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig loginSignals
 		if err := datastar.ReadSignals(r, &sig); err != nil {
 			http.Error(w, "invalid signals body", http.StatusBadRequest)
 			return
 		}
+
+		// Human-presence gate (Turnstile): a failed or errored check returns the
+		// same non-committal patched form and never issues a code — a script
+		// bypassing the widget gains nothing, and the response can't enumerate.
+		if ok, err := pv.Verify(r.Context(), sig.TurnstileToken, clientIP(r, true)); err != nil || !ok {
+			if err != nil {
+				log.Printf("ds presence verify: %v", err)
+			}
+			patchLoginCodeForm(w, r)
+			return
+		}
+
 		if err := a.RequestCode(r.Context(), sig.Email); err != nil {
 			log.Printf("ds request code: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.LoginCodeForm("")); err != nil {
-			log.Printf("ds request code patch: %v", err)
-		}
+		patchLoginCodeForm(w, r)
 	})
+}
+
+// patchLoginCodeForm writes the non-committal code-entry patch — the single
+// identical response for a real send, a throttle, an unknown email, or a failed
+// presence check (no enumeration).
+func patchLoginCodeForm(w http.ResponseWriter, r *http.Request) {
+	sse := datastar.NewSSE(w, r)
+	if err := sse.PatchElementTempl(components.LoginCodeForm("")); err != nil {
+		log.Printf("ds request code patch: %v", err)
+	}
 }
 
 // VerifyCodeHandler redeems the code: on success it seeds the new user's
