@@ -21,7 +21,7 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 	// Focus ring is INSET (-outline-offset): the block sits flush against
 	// #block-list's clip edge, so an outset ring would be sheared by overflow-x-hidden.
 	<li
-		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2 [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
+		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2 [&.resizing]:outline-2 [&.resizing]:outline-dashed [&.resizing]:-outline-offset-2 [&.resizing]:outline-accent [&.resizing_.block-label]:opacity-40 [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
 		tabindex="0"
 		aria-roledescription="schedule block"
 		aria-describedby="dnd-instructions"
@@ -60,6 +60,17 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 			aria-valuenow={ strconv.Itoa(spanOr1(c.Span)) }
 			aria-valuetext={ blockTimeRange(c) }
 		></span>
+		// Resize cue: a ↕ arrow stretching with block height, shown only
+		// while resizing. Decorative — the grip's role="separator" conveys state to AT.
+		<span aria-hidden="true" class="hidden group-[.resizing]:flex absolute inset-0 z-10 flex-col items-center justify-center py-2 pointer-events-none">
+			<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow shrink-0">
+				<path d="M5 9 L11 3 L17 9"></path>
+			</svg>
+			<span class="w-0.5 flex-1 min-h-1 bg-[repeating-linear-gradient(to_bottom,var(--accent)_0_6px,transparent_6px_10px)]"></span>
+			<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow shrink-0">
+				<path d="M5 2 L11 8 L17 2"></path>
+			</svg>
+		</span>
 	</li>
 }
 
