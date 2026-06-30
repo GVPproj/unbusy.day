@@ -102,10 +102,10 @@ templ turnstileWidget(siteKey string) {
 	<script>
 		// Bridge Turnstile's callback to a Datastar signal via a window event.
 		function onTurnstileSuccess(token) {
-			window.dispatchEvent(new CustomEvent('turnstile-ok', { detail: token }))
+			window.dispatchEvent(new CustomEvent("turnstile-ok", { detail: token }));
 		}
 	</script>
-	<div class="cf-turnstile self-center" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible"></div>
+	<div class="cf-turnstile fixed bottom-0" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible"></div>
 }
 
 // LoginCodeForm is step 2, patched over #login-form. The response is identical
