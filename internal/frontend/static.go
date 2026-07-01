@@ -19,6 +19,12 @@ func init() {
 //go:embed static
 var staticFS embed.FS
 
+// Asset returns an embedded static file's bytes (e.g. "static/icon-192.png").
+// Lets other packages reuse a bundled asset without their own embed copy.
+func Asset(name string) ([]byte, error) {
+	return staticFS.ReadFile(name)
+}
+
 // StaticHandler serves /static/* from the embedded assets.
 //
 // In a templ watch session (TEMPL_DEV_MODE set) it serves from disk instead, so
