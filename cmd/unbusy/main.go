@@ -27,12 +27,19 @@ func newMailer() auth.Mailer {
 		return auth.LogMailer{}
 	}
 	log.Printf("auth: SMTP mailer via %s", host)
+	// Embed the app icon as the email header logo; nil (missing asset) falls
+	// back to the text wordmark rather than failing the mailer.
+	logo, err := frontend.Asset("static/icon-192.png")
+	if err != nil {
+		log.Printf("auth: email logo unavailable, using text wordmark: %v", err)
+	}
 	return auth.NewSMTPMailer(
 		host,
 		envOr("SMTP_PORT", "587"),
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 		envOr("SMTP_FROM", "hi@unbusy.day"),
+		logo,
 	)
 }
 
