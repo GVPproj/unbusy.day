@@ -46,12 +46,13 @@ that clears the overlap, consuming empty Slots before displacing further
 Blocks. A placement whose push would force any Block past the end of the Day
 Plan is rejected whole — nothing moves.
 
-## Allowlist
-The set of Users permitted to log in. Currently the Allowlist *is* the set of
-existing Users: you become allowed by being added as a User. An email with no
-User is not on the Allowlist and cannot obtain a Login Code. (This equivalence
-is temporary — at public launch, requesting a code will create the User, opening
-login to anyone.)
+## Allowlist (retired)
+Historical: login was once gated to existing Users — an email with no User row
+could not obtain a Login Code. That gate is **gone**. Signup is open: any
+deliverable email can request a Login Code, and verifying a correct code mints
+the User on first login. The blast-radius bound is now a layered set of send-path
+defenses (per-email throttle, suppression list, MX check, Turnstile presence
+check, per-IP/global rate limit, global send ceiling) rather than an allowlist.
 
 ## Login Code
 A short-lived, single-use numeric code emailed to a User to prove control of
