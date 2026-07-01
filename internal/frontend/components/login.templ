@@ -94,9 +94,14 @@ templ LoginEmailForm(turnstileSiteKey string) {
 }
 
 // turnstileWidget renders the Cloudflare Turnstile human-presence widget. It's a
-// cross-origin iframe, so only data-theme/data-size are tunable (PRD note); the
-// callback hands the token to Datastar via a window CustomEvent. Rendered only
+// cross-origin iframe, so only data-theme/data-size/data-appearance are tunable;
+// the callback hands the token to Datastar via a window CustomEvent. Rendered only
 // when a sitekey is configured (prod); dev login skips it entirely.
+//
+// data-appearance="interaction-only" keeps the widget invisible for the vast
+// majority of (human) visitors — it only materializes a challenge for genuinely
+// suspicious requests. So it flows inline in the form with no fixed positioning:
+// there's normally nothing to see, and on the rare challenge it fits the column.
 templ turnstileWidget(siteKey string) {
 	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 	<script>
@@ -105,7 +110,7 @@ templ turnstileWidget(siteKey string) {
 			window.dispatchEvent(new CustomEvent("turnstile-ok", { detail: token }));
 		}
 	</script>
-	<div class="cf-turnstile fixed bottom-0" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible"></div>
+	<div class="cf-turnstile" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible" data-appearance="interaction-only"></div>
 }
 
 // LoginCodeForm is step 2, patched over #login-form. The response is identical
