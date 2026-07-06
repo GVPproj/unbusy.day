@@ -155,7 +155,68 @@
       names the templ file it styles — greppable from either side.
    ============================================================ */
 @layer components {
-	/* --- shared tier (lands in the modals phase) --- */
+	/* --- shared tier: cross-component chrome (buttons, form fields,
+	       picker rows). A deliberately small closed set — the ADR 0006
+	       countermeasure. --- */
+	.btn {
+		padding: 0.35rem 0.75rem;
+		border-radius: var(--radius);
+		background: var(--accent);
+		color: var(--bg);
+		font-size: var(--text-sm);
+		line-height: var(--text-sm--line-height);
+		cursor: pointer;
+	}
+
+	.btn-secondary {
+		border: 1px solid var(--rail-border);
+		background: transparent;
+		color: inherit;
+	}
+
+	.btn-danger {
+		background: var(--danger);
+	}
+
+	.field {
+		padding: 0.35rem 0.5rem;
+		border: 1px solid var(--rail-border);
+		border-radius: var(--radius);
+		background: var(--bg);
+		font-size: var(--text-base);
+		line-height: var(--text-base--line-height);
+
+		&::placeholder {
+			color: var(--ink-muted);
+		}
+	}
+
+	/* Picker row (theme/feeling options): full-width bordered button with
+	   an .active ring toggled by data-class:active. */
+	.option-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		width: 100%;
+		padding: 0.5rem 0.6rem;
+		border: 1px solid var(--rail-border);
+		border-radius: var(--radius);
+		background: transparent;
+		color: inherit;
+		font-size: var(--text-base);
+		line-height: var(--text-base--line-height);
+		cursor: pointer;
+		text-align: left;
+
+		&:hover {
+			box-shadow: var(--shadow-rest);
+		}
+
+		&.active {
+			border-color: var(--accent);
+			outline: 1px solid var(--accent);
+		}
+	}
 
 	/* --- components/login.templ → @scope (.login-main) --- */
 	@scope (.login-main) {
@@ -308,7 +369,188 @@
 		}
 	}
 
-	/* --- components/modals/dialog.templ → @scope (.app-dialog) --- */
+	/* --- components/modals/* → @scope (.app-dialog): shared dialog chrome
+	       (dialog.templ) plus the theme/hours/clear/create modal bodies --- */
+	@scope (.app-dialog) {
+		:scope {
+			/* margin restated: Tailwind preflight zeroes it and outranks our
+			   reset until teardown — top-layer centering needs it here. */
+			margin: auto;
+			width: min(320px, calc(100vw - 2rem));
+			padding: 1.25rem 2rem;
+			background: var(--surface);
+			color: var(--ink);
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius-lg);
+			box-shadow: var(--shadow-lift);
+
+			/* Blur-fade open transition; entry only — close is instant, so UA
+			   display:none takes over with no exit flash. */
+			opacity: 1;
+			filter: blur(0);
+			transition:
+				opacity 0.3s ease,
+				filter 0.3s ease;
+
+			@starting-style {
+				&[open] {
+					opacity: 0;
+					filter: blur(8px);
+				}
+			}
+
+			/* Lay out only while open — an unopened <dialog> stays display:none. */
+			&[open] {
+				display: flex;
+				flex-direction: column;
+				gap: var(--gap);
+			}
+		}
+
+		:scope::backdrop {
+			background: var(--scrim);
+			opacity: 1;
+			transition: opacity 0.3s ease;
+
+			@starting-style {
+				opacity: 0;
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			:scope,
+			:scope::backdrop {
+				transition-duration: 0.01s;
+				filter: none;
+			}
+		}
+
+		h2 {
+			font-size: var(--text-base);
+			line-height: var(--text-base--line-height);
+			font-weight: 600;
+		}
+
+		h3 {
+			font-size: var(--text-sm);
+			line-height: var(--text-sm--line-height);
+			font-weight: 700;
+			color: var(--ink-muted);
+		}
+
+		p {
+			font-size: var(--text-base);
+			line-height: var(--text-base--line-height);
+			color: var(--ink-muted);
+		}
+
+		footer {
+			margin-top: 1rem;
+			display: flex;
+			justify-content: flex-end;
+			gap: var(--gap);
+		}
+
+		/* Field rows (hours.templ): label text left, control right;
+		   .stack (create.templ) stacks the control under the label. */
+		label {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.6rem;
+			font-size: var(--text-base);
+			line-height: var(--text-base--line-height);
+		}
+
+		label.stack {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.4rem;
+		}
+
+		label.stack .field {
+			padding-block: 0.4rem;
+		}
+
+		/* theme.templ: colorscheme swatch + feeling preview inside .option-row */
+		.option-row .swatch {
+			width: 1.4rem;
+			height: 1.4rem;
+			flex-shrink: 0;
+			border-radius: 50%;
+			border: 1px solid var(--rail-border);
+		}
+
+		.feeling-preview {
+			line-height: 1;
+			color: var(--nav-icon);
+
+			svg {
+				display: block;
+				width: 22px;
+				height: 22px;
+			}
+
+			&.pixelated svg {
+				image-rendering: pixelated;
+			}
+		}
+
+		/* create.templ: the block-type swatch radios */
+		fieldset {
+			accent-color: var(--accent);
+		}
+
+		legend {
+			margin-bottom: 0.4rem;
+			font-size: var(--text-base);
+			line-height: var(--text-base--line-height);
+		}
+
+		.type-options {
+			display: flex;
+			gap: 0.6rem;
+		}
+
+		.type-option {
+			display: flex;
+			flex: 1;
+			flex-direction: column;
+			align-items: center;
+			justify-content: normal; /* it's a <label>; undo the field-row rule */
+			gap: 0.3rem;
+			cursor: pointer;
+			font-size: var(--text-sm);
+			line-height: var(--text-sm--line-height);
+
+			.swatch {
+				width: 100%;
+				height: 2rem;
+				border-radius: var(--radius);
+				border: 2px solid transparent;
+				box-shadow: inset 0 0 0 1px var(--rail-border);
+
+				&[data-type="deep"] {
+					background: var(--type-deep);
+				}
+				&[data-type="shallow"] {
+					background: var(--type-shallow);
+				}
+				&[data-type="break"] {
+					background: var(--type-break);
+				}
+			}
+
+			input:checked + .swatch {
+				border-color: var(--accent);
+			}
+
+			input:focus-visible + .swatch {
+				outline: 2px solid var(--accent);
+				outline-offset: 1px;
+			}
+		}
+	}
 
 	/* --- components/nav.templ → @scope (.sidenav) --- */
 

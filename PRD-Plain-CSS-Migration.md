@@ -172,16 +172,16 @@ a time.
 
 ### Phase 3 — Modals
 
-- [ ] Add shared tier: `.btn`, `.btn-secondary`, `.btn-danger`, `.field`,
+- [x] Add shared tier: `.btn`, `.btn-secondary`, `.btn-danger`, `.field`,
       `.option-row`; delete the Go class-string constants in `modals`
-- [ ] Port dialog chrome to `@scope (.app-dialog)`; fold `DialogStyles`
+- [x] Port dialog chrome to `@scope (.app-dialog)`; fold `DialogStyles`
       blur-fade island into `app.css` (include `margin: auto` in the scoped
       block — preflight outranks our `reset` until teardown, so the reset's
       `dialog { margin: auto }` won't center dialogs on its own yet)
-- [ ] Rewrite create-modal radio swatches from `peer-*` to
+- [x] Rewrite create-modal radio swatches from `peer-*` to
       `input:checked + …` / `:has()` selectors
-- [ ] Port theme/hours/clear/create modal bodies; strip utilities
-- [ ] Verify: all four modals, open transition, backdrop, keyboard focus order
+- [x] Port theme/hours/clear/create modal bodies; strip utilities
+- [x] Verify: all four modals, open transition, backdrop, keyboard focus order
 
 ### Phase 4 — Nav
 

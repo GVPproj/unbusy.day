@@ -1,61 +1,7 @@
 package modals
 
-// Shared native-<dialog> chrome, markup-first (ADR 0008). `app-dialog` is the hook
-// for DialogStyles' blur-fade island. open:* lays out only while open (unopened
-// <dialog> stays display:none); m-auto restores preflight-zeroed top-layer
-// centering. shadow-lift isn't bridged in @theme, so it's an explicit utility.
-const dialogClass = "app-dialog m-auto w-[min(320px,calc(100vw-2rem))] py-5 px-8 bg-surface text-ink border border-rail-border rounded-lg [box-shadow:var(--shadow-lift)] open:flex open:flex-col open:gap-(--gap)"
-
-// Shared dialog parts: title, the right-aligned action footer, and its two
-// button styles (accent primary; bordered secondary for Cancel).
-const (
-	dialogH2Class              = "m-0 text-base font-semibold"
-	dialogFooterClass          = "mt-4 flex justify-end gap-(--gap)"
-	dialogButtonClass          = "py-[0.35rem] px-3 rounded border-none bg-accent text-bg text-sm cursor-pointer"
-	dialogButtonSecondaryClass = "py-[0.35rem] px-3 rounded border border-rail-border bg-transparent text-inherit text-sm cursor-pointer"
-)
-
-// DialogStyles stays CSS (ADR 0008): the blur-fade open transition and its
-// ::backdrop scrim. Entry only — close is instant, so UA display:none takes
-// over with no exit flash.
-templ DialogStyles() {
-	<style>
-		@scope (.app-dialog) {
-			:scope {
-				opacity: 1;
-				filter: blur(0);
-				transition:
-					opacity 0.3s ease,
-					filter 0.3s ease;
-
-				@starting-style {
-					&[open] {
-						opacity: 0;
-						filter: blur(8px);
-					}
-				}
-			}
-
-			:scope::backdrop {
-				background: var(--scrim);
-				opacity: 1;
-				transition: opacity 0.3s ease;
-
-				@starting-style {
-					opacity: 0;
-				}
-			}
-
-			@media (prefers-reduced-motion: reduce) {
-				:scope,
-				:scope::backdrop {
-					transition-duration: 0.01s;
-					filter: none;
-				}
-			}
-		}
-	</style>
-}
+// Shared native-<dialog> chrome lives in static/app.css under
+// @scope (.app-dialog); `app-dialog` is the sole styling hook.
 
 // DialogInit loads the invoker-command fallback so commandfor/command buttons
 // work without the Invoker Commands API (stable Safari only from 26.2). No-op

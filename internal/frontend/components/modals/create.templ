@@ -7,36 +7,36 @@ package modals
 templ CreateModal() {
 	<dialog
 		id="create-modal"
-		class={ dialogClass }
+		class="app-dialog"
 		closedby="any"
 		data-signals:addslot="0"
 		data-signals:addlabel="''"
 		data-signals:addtype="'shallow'"
 		aria-labelledby="create-modal-title"
 	>
-		<h2 id="create-modal-title" class={ dialogH2Class }>New Block</h2>
-		<label class="flex flex-col gap-[0.4rem] text-base">
+		<h2 id="create-modal-title">New Block</h2>
+		<label class="stack">
 			Name
 			<input
 				type="text"
+				class="field"
 				autofocus
 				placeholder="e.g. Deep Work"
 				data-bind:addlabel
-				class="py-[0.4rem] px-2 border border-rail-border rounded bg-bg text-base placeholder:text-ink-muted"
 			/>
 		</label>
-		<fieldset class="border-0 p-0 m-0 accent-accent">
-			<legend class="p-0 mb-[0.4rem] text-base">Type</legend>
-			<div class="flex gap-[0.6rem]">
+		<fieldset>
+			<legend>Type</legend>
+			<div class="type-options">
 				@createTypeOption("shallow", "Shallow")
 				@createTypeOption("deep", "Deep")
 				@createTypeOption("break", "Break")
 			</div>
 		</fieldset>
-		<footer class={ dialogFooterClass }>
-			<button class={ dialogButtonSecondaryClass } commandfor="create-modal" command="close">Cancel</button>
+		<footer>
+			<button class="btn btn-secondary" commandfor="create-modal" command="close">Cancel</button>
 			<button
-				class={ dialogButtonClass }
+				class="btn"
 				commandfor="create-modal"
 				command="close"
 				data-on:click="@post('/blocks'); $addlabel = ''; $addtype = 'shallow'"
@@ -45,25 +45,19 @@ templ CreateModal() {
 	</dialog>
 }
 
-// createTypeOption is one swatch radio (Tailwind peer pattern): the native radio
-// is the hidden `peer sr-only`; the colored swatch is the affordance, filled from
-// baseStyles' --type-* tokens with the checked/focus ring on peer-* variants.
+// createTypeOption is one swatch radio: the native radio is visually hidden
+// (sr-only); the colored swatch is the affordance, filled from the --type-*
+// tokens with the checked/focus ring via `input:checked + .swatch` in app.css.
 templ createTypeOption(typ string, label string) {
-	<label
-		class="flex flex-1 flex-col items-center gap-[0.3rem] cursor-pointer text-sm"
-	>
+	<label class="type-option">
 		<input
 			type="radio"
 			name="addtype"
 			data-bind:addtype
 			value={ typ }
-			class="peer sr-only"
+			class="sr-only"
 		/>
-		<span
-			data-type={ typ }
-			aria-hidden="true"
-			class="w-full h-8 rounded border-2 border-transparent shadow-[inset_0_0_0_1px_var(--rail-border)] data-[type=deep]:bg-(--type-deep) data-[type=shallow]:bg-(--type-shallow) data-[type=break]:bg-(--type-break) peer-checked:border-accent peer-focus-visible:[outline:2px_solid_var(--accent)] peer-focus-visible:outline-offset-1"
-		></span>
+		<span class="swatch" data-type={ typ } aria-hidden="true"></span>
 		{ label }
 	</label>
 }
