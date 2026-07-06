@@ -163,12 +163,12 @@ a time.
 
 ### Phase 2 — Login (pilot)
 
-- [ ] Port login form, OTP boxes, amoeba layout to `@scope (.login-main)`;
+- [x] Port login form, OTP boxes, amoeba layout to `@scope (.login-main)`;
       fold `LoginStyles` keyframes into `app.css`
-- [ ] Replace `group-focus-within` OTP pattern with `:focus-within` descendant
+- [x] Replace `group-focus-within` OTP pattern with `:focus-within` descendant
       selectors
-- [ ] Strip Tailwind utilities from the login templ files
-- [ ] Verify: login flow visually + reduced-motion + both feelings
+- [x] Strip Tailwind utilities from the login templ files
+- [x] Verify: login flow visually + reduced-motion + both feelings
 
 ### Phase 3 — Modals
 
