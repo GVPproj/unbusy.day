@@ -1,0 +1,167 @@
+/* app.css — the single hand-authored stylesheet (PRD-Plain-CSS-Migration;
+   ADR 0011 once the migration lands). Cascade layers own ordering; one
+   @scope block per leaf component lands under `components` as each phase
+   migrates.
+
+   COEXISTENCE (until Tailwind teardown): this file is deliberately linked
+   BEFORE output.css. Layer order is fixed by first appearance, so linking
+   first pins every app.css layer BELOW Tailwind's `utilities` (effective
+   order: reset, tokens, base(+preflight), layout, components(+tw
+   components), properties, theme, utilities). Unmigrated markup keeps its
+   utilities untouched; migrated components carry no utility classes, so
+   `components` beating preflight is all they need. Linked the other way
+   round, `reset` would land ABOVE `utilities` and zero every margin/padding
+   utility in the app. */
+
+@layer reset, tokens, base, layout, components;
+
+/* ============================================================
+   reset — deliberate preflight replacement. The markup assumes
+   these behaviors; while output.css is live its preflight wins
+   ties, but the rules agree, so that's invisible.
+   ============================================================ */
+@layer reset {
+	*,
+	::before,
+	::after,
+	::backdrop {
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0;
+		border: 0 solid;
+	}
+
+	html {
+		-webkit-text-size-adjust: 100%;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		font-size: inherit;
+		font-weight: inherit;
+	}
+
+	a {
+		color: inherit;
+		text-decoration: inherit;
+	}
+
+	ol,
+	ul {
+		list-style: none;
+	}
+
+	img,
+	svg,
+	video {
+		display: block;
+		max-width: 100%;
+	}
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+		letter-spacing: inherit;
+		color: inherit;
+		background-color: transparent;
+		border-radius: 0;
+	}
+
+	textarea {
+		resize: vertical;
+	}
+
+	/* The universal margin zero above clobbers the UA's `dialog { margin:
+	   auto }`; restore it — top-layer dialogs center without a class. */
+	dialog {
+		margin: auto;
+	}
+
+	[hidden] {
+		display: none !important;
+	}
+}
+
+/* ============================================================
+   tokens — design tokens. Type scale lives here now; colorscheme
+   palettes, feeling fonts, and @font-face move in from
+   layouts/layout.templ baseStyles() in the teardown phase.
+   Sizes mirror Tailwind's text-sm/base/lg/xl (same var names)
+   so migrated components keep their exact metrics.
+   ============================================================ */
+@layer tokens {
+	:root {
+		--text-sm: 0.875rem;
+		--text-sm--line-height: calc(1.25 / 0.875);
+		--text-base: 1rem;
+		--text-base--line-height: calc(1.5 / 1);
+		--text-lg: 1.125rem;
+		--text-lg--line-height: calc(1.75 / 1.125);
+		--text-xl: 1.25rem;
+		--text-xl--line-height: calc(1.75 / 1.25);
+	}
+}
+
+/* ============================================================
+   base — app-wide defaults: body shell, focus ring, a11y helpers.
+   ============================================================ */
+@layer base {
+	body {
+		font-family: var(--font-family);
+		line-height: var(--line-height);
+		background: var(--bg);
+		color: var(--ink);
+	}
+
+	/* Theme-aware default focus ring; components may override. */
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	/* Visually hidden, still read by AT (matches Tailwind's sr-only). */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
+	}
+}
+
+/* ============================================================
+   layout — the shell: nav rail/drawer geometry, page grid.
+   (populated in the nav and column phases)
+   ============================================================ */
+@layer layout {
+}
+
+/* ============================================================
+   components — two tiers:
+   1. a small shared class set (.btn, .btn-secondary, .btn-danger,
+      .field, .option-row) replacing the Go class-string constants;
+   2. one @scope block per leaf component. Every section comment
+      names the templ file it styles — greppable from either side.
+   ============================================================ */
+@layer components {
+	/* --- shared tier (lands in the modals phase) --- */
+
+	/* --- components/login.templ → @scope (.login-main) --- */
+
+	/* --- components/modals/dialog.templ → @scope (.app-dialog) --- */
+
+	/* --- components/nav.templ → @scope (.sidenav) --- */
+
+	/* --- components/column.templ + column_block.templ → @scope (.blocks) --- */
+}
