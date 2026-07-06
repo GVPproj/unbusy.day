@@ -12,16 +12,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// newTestDB returns a DSN for a throwaway SQLite file in the test's temp dir.
-// No external container needed; the file is removed with the temp dir.
 func newTestDB(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "migrate_test.db")
 	return "file:" + path + "?_pragma=foreign_keys(1)"
 }
 
-// assertSchema checks the externally visible result of a full migration run:
-// all tables exist.
 func assertSchema(t *testing.T, dbURL string) {
 	t.Helper()
 	db, err := sql.Open("sqlite", dbURL)
@@ -45,8 +41,6 @@ func assertSchema(t *testing.T, dbURL string) {
 	}
 }
 
-// goose records each applied migration; a fresh database ends with every
-// embedded version present.
 func recordedVersions(t *testing.T, dbURL string) []int64 {
 	t.Helper()
 	db, err := sql.Open("sqlite", dbURL)
@@ -74,8 +68,7 @@ func recordedVersions(t *testing.T, dbURL string) []int64 {
 	return versions
 }
 
-// embeddedVersions derives the expected version list from the embedded
-// migration filenames (the numeric prefix before the first underscore).
+// embeddedVersions derives the expected versions from the embedded migration filenames.
 func embeddedVersions(t *testing.T) []int64 {
 	t.Helper()
 	entries, err := migrationsFS.ReadDir("migrations")
@@ -109,8 +102,7 @@ func TestMigrate_FreshDatabase(t *testing.T) {
 	}
 }
 
-// The incident: a second deploy re-ran migrations and failed on
-// already-applied DDL. Under run-once, a second run applies nothing.
+// Regression: a second deploy once failed on already-applied DDL.
 func TestMigrate_RerunIsNoOp(t *testing.T) {
 	dbURL := newTestDB(t)
 	ctx := context.Background()

@@ -26,7 +26,6 @@ func firstID(e block.Event) string {
 	return e.Blocks[0].ID
 }
 
-// One published event fans out to every subscriber of its owner.
 func TestPublishFansOutToAllSubscribers(t *testing.T) {
 	b := pubsub.New()
 	a := b.Subscribe("u1")
@@ -45,8 +44,7 @@ func TestPublishFansOutToAllSubscribers(t *testing.T) {
 }
 
 // A subscriber that never drains its channel must not stall Publish or starve
-// other subscribers. The bus drops to the slow consumer (which recovers on
-// reconnect) rather than blocking the origin.
+// other subscribers — the bus drops to slow consumers rather than blocking.
 func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	b := pubsub.New()
 	slow := b.Subscribe("u1") // never read
@@ -54,8 +52,7 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	fast := b.Subscribe("u1")
 	defer fast.Close()
 
-	// Far more events than any channel buffer; if Publish blocked on slow,
-	// this goroutine would never finish.
+	// Far more events than any channel buffer.
 	done := make(chan struct{})
 	go func() {
 		for range 1000 {
@@ -69,7 +66,7 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 		t.Fatal("Publish blocked on a slow subscriber")
 	}
 
-	// The fast subscriber still receives (delivery wasn't serialised behind slow).
+	// Delivery must not have been serialised behind the slow subscriber.
 	select {
 	case <-fast.Events:
 	default:
@@ -77,7 +74,6 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	}
 }
 
-// Tracer: a subscriber receives an event published after it subscribed.
 func TestSubscribeReceivesPublishedEvent(t *testing.T) {
 	b := pubsub.New()
 	sub := b.Subscribe("u1")
@@ -90,8 +86,6 @@ func TestSubscribeReceivesPublishedEvent(t *testing.T) {
 	}
 }
 
-// Keyed fan-out (ADR 0003): another user's subscriber never receives the
-// event — its connection doesn't even wake.
 func TestPublishIsScopedToOwner(t *testing.T) {
 	b := pubsub.New()
 	mine := b.Subscribe("u1")

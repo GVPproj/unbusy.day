@@ -26,10 +26,10 @@ User has exactly one, private and never shared — it is a rolling "today," not
 tied to a calendar date (no history of past days). Has a start time and an end
 time on half-hour boundaries, set and modified by the User; the number of
 Slots is derived from those bounds, never set directly. Bounds lie within a
-single day — no midnight wrap — starting no earlier than 5:00 and ending no
+single day — no midnight wrap — starting no earlier than 4:00 and ending no
 later than 18:00 (for now). The day can only shrink into empty Slots: a
-bounds change that would leave any Block outside the Day Plan is rejected. Eventually the User's current time of day will be
-indicated live on the plan.
+bounds change that would leave any Block outside the Day Plan is rejected.
+The User's current time of day is indicated live on the plan.
 
 ## Template (future)
 A reusable Day Plan layout a User can stamp onto their Day Plan. Not built

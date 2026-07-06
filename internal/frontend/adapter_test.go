@@ -1,7 +1,5 @@
-// Datastar adapter tests over the shared blocks core. The DB is the system
-// boundary, so a fake BlockService stands in for *block.Service; the pub/sub
-// Broker and templ rendering are real — tests pin observable wire behavior
-// (frames, fragment ids, order), not SDK internals.
+// Datastar adapter tests: a fake BlockService stands in for *block.Service;
+// the Broker and templ rendering are real, pinning observable wire behavior.
 package frontend
 
 import (
@@ -21,9 +19,8 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 )
 
-// fakeService implements BlockService without a real database. Reorder applies the
-// requested order to the in-memory blocks like the real service does, or
-// returns reorderErr if set.
+// fakeService implements BlockService in memory; got* fields record the
+// arguments of the last mutation for asserting owner scoping.
 type fakeService struct {
 	blocks    []block.Block
 	bounds    block.Bounds
@@ -35,13 +32,13 @@ type fakeService struct {
 	clearErr  error
 	renameErr error
 
-	gotOwner  string            // owner passed to the last mutation, for asserting scoping
-	gotLayout []block.Placement // layout passed to SetLayout
-	gotBounds block.Bounds      // bounds passed to SetBounds
-	gotLabel  string            // label passed to Create
-	gotSlot   int               // slot passed to Create
-	gotType   block.BlockType   // type passed to Create
-	gotID     string            // id passed to Delete
+	gotOwner  string
+	gotLayout []block.Placement
+	gotBounds block.Bounds
+	gotLabel  string
+	gotSlot   int
+	gotType   block.BlockType
+	gotID     string
 }
 
 func (f *fakeService) Create(ctx context.Context, owner, label string, slot int, typ block.BlockType) (*block.CreateResult, error) {
@@ -136,16 +133,14 @@ func (f *fakeService) Bounds(ctx context.Context, owner string) (block.Bounds, e
 	return f.bounds, nil
 }
 
-// testOwner is the authenticated user id tests inject in place of
-// RequireSession. Deliberately unguessable so a hardcoded owner in a handler
+// testOwner is deliberately unguessable so a hardcoded owner in a handler
 // can't pass by coincidence.
 const testOwner = "test-owner-7f3a"
 
 // testBounds is the default 9:00–17:00 day the fake serves.
 var testBounds = block.Bounds{Start: 18, End: 34}
 
-// authedRequest is an httptest request carrying the owner RequireSession
-// would have stashed.
+// authedRequest carries the owner RequireSession would have stashed.
 func authedRequest(method, target string, body string) *http.Request {
 	req := httptest.NewRequest(method, target, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -160,9 +155,7 @@ func threeBlocks() []block.Block {
 	}
 }
 
-// assertOrder checks that the ids appear in body in the given order — the
-// observable contract of a server-rendered column, without pinning markup
-// details beyond the data-id anchors DragInit reads.
+// assertOrder checks that the ids appear in body in the given order.
 func assertOrder(t *testing.T, body string, ids ...string) {
 	t.Helper()
 	last := -1
@@ -179,9 +172,8 @@ func assertOrder(t *testing.T, body string, ids ...string) {
 	}
 }
 
-// openEvents connects to an SSE handler over a real server (the recorder
-// can't be read while a streaming handler writes) and returns a frame reader.
-// The connection dies with the test via context cancellation.
+// openEvents connects to an SSE handler over a real server (a recorder can't
+// be read while a streaming handler writes) and returns a frame reader.
 func openEvents(t *testing.T, h http.Handler) (*http.Response, *bufio.Reader) {
 	t.Helper()
 	// Stand in for RequireSession: handlers read the owner from the context.
@@ -204,9 +196,8 @@ func openEvents(t *testing.T, h http.Handler) (*http.Response, *bufio.Reader) {
 	return resp, bufio.NewReader(resp.Body)
 }
 
-// readFrame returns the next SSE frame (terminated by a blank line), skipping
-// `:keepalive`-style comment frames. Fails the test on EOF/timeout — callers
-// always expect a frame.
+// readFrame returns the next SSE frame, skipping `:keepalive`-style comment
+// frames; fails the test on EOF/timeout.
 func readFrame(t *testing.T, br *bufio.Reader) string {
 	t.Helper()
 	type result struct {
@@ -245,9 +236,8 @@ func readFrame(t *testing.T, br *bufio.Reader) string {
 	}
 }
 
-// On every connect the server renders the current authoritative column as an
-// element patch, so a (re)connecting client is made whole by one frame — no
-// replay needed. Also pins the connection-hardening headers.
+// A (re)connect is made whole by one full-column patch — no replay needed.
+// Also pins the connection-hardening headers.
 func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
@@ -274,17 +264,15 @@ func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	assertOrder(t, frame, "a", "b", "c")
 }
 
-// One mutation published on the shared bus — by either adapter's reorder
-// handler — reaches subscribers as an element patch in the committed order.
-// This is what makes a reorder in one adapter move the blocks in the other's
-// open tab.
+// A mutation published on the shared bus reaches subscribers as an element
+// patch in the committed order — what moves blocks in another open tab.
 func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
 	_, br := openEvents(t, EventsHandler(svc, broker))
-	readFrame(t, br) // connect snapshot (covered by its own test)
-	readFrame(t, br) // connect envelope signals (covered by its own test)
+	readFrame(t, br) // connect snapshot
+	readFrame(t, br) // connect envelope signals
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "b", Label: "Bravo", Position: 0},
@@ -299,8 +287,6 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	assertOrder(t, frame, "b", "c", "a")
 }
 
-// A published event's bounds render into the patch, so a bounds change in one
-// tab resizes the grid in every other open tab.
 func TestEventsStreamsPublishedBounds(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
@@ -320,9 +306,8 @@ func TestEventsStreamsPublishedBounds(t *testing.T) {
 	}
 }
 
-// On an idle stream the server emits `:keepalive` comment frames so
-// intermediaries (browser/NAT/Cloudflare) don't reap the connection. Interval
-// shrunk for the test; production cadence is 25s.
+// Keepalives stop intermediaries (browser/NAT/Cloudflare) reaping idle
+// streams. Interval shrunk for the test; production cadence is 25s.
 func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	old := keepaliveInterval
 	keepaliveInterval = 20 * time.Millisecond
@@ -359,10 +344,6 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 	}
 }
 
-// POST /blocks/layout carries the full proposed layout as Datastar signals
-// ({"layout":[{id,slot,span},...]}, what the drag/resize gestures @post once
-// the client computes the push), delegates to the core SetLayout, and responds
-// with an SSE element-patch of the committed column anchored on #block-list.
 func TestLayoutDelegatesToCoreAndPatchesColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 
@@ -400,10 +381,8 @@ func TestLayoutDelegatesToCoreAndPatchesColumn(t *testing.T) {
 	assertOrder(t, body, "b", "c", "a") // committed slot order, not submission order
 }
 
-// A layout the core rejects (overlap, out of bounds, stale block set, bad
-// span) patches back the *current authoritative* column at 200 — the
-// optimistic gesture visibly snaps back. Each typed domain error takes the
-// rollback path; only unexpected errors 500.
+// A rejected layout patches back the current authoritative column at 200, so
+// the optimistic gesture visibly snaps back; only unexpected errors 500.
 func TestLayoutRejectionPatchesAuthoritativeColumn(t *testing.T) {
 	for _, domainErr := range []error{
 		block.ErrNotSameBlocks, block.ErrOutOfBounds, block.ErrOverlap, block.ErrInvalidSpan,
@@ -431,9 +410,6 @@ func TestLayoutRejectionPatchesAuthoritativeColumn(t *testing.T) {
 	}
 }
 
-// POST /blocks/bounds carries {"start","end"} (slot indexes), delegates to the
-// core SetBounds, and responds with an element-patch of the column rendered at
-// the new extent so the grid resizes in the same round-trip.
 func TestBoundsDelegatesToCoreAndPatchesColumnAtNewExtent(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 
@@ -465,9 +441,7 @@ func TestBoundsDelegatesToCoreAndPatchesColumnAtNewExtent(t *testing.T) {
 	}
 }
 
-// A rejected bounds change (outside hard limits, or a shrink onto occupied
-// slots) responds 200 with the column re-rendered at the *current* bounds —
-// the plan is re-shown, nothing is lost silently.
+// A rejected bounds change responds 200 with the column at the current bounds.
 func TestBoundsRejectionPatchesCurrentExtent(t *testing.T) {
 	for _, domainErr := range []error{block.ErrInvalidBounds, block.ErrBoundsOccupied} {
 		t.Run(domainErr.Error(), func(t *testing.T) {
@@ -495,8 +469,6 @@ func TestBoundsRejectionPatchesCurrentExtent(t *testing.T) {
 	}
 }
 
-// CreateHandler delegates to the core with the modal's slot and label, then
-// patches the committed column carrying the new block.
 func TestCreateDelegatesToCoreAndPatchesColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 
@@ -522,8 +494,6 @@ func TestCreateDelegatesToCoreAndPatchesColumn(t *testing.T) {
 	}
 }
 
-// A rejected create (empty label, occupied or out-of-bounds slot) responds 200
-// with the current column re-rendered — the optimistic intent yields to truth.
 func TestCreateRejectionPatchesCurrentColumn(t *testing.T) {
 	for _, domainErr := range []error{block.ErrEmptyLabel, block.ErrOverlap, block.ErrOutOfBounds} {
 		t.Run(domainErr.Error(), func(t *testing.T) {
@@ -545,8 +515,6 @@ func TestCreateRejectionPatchesCurrentColumn(t *testing.T) {
 	}
 }
 
-// Clear delegates to the core (owner-scoped) and patches back the now-empty
-// column — the morph anchor survives, the cleared block labels don't.
 func TestClearDelegatesToCoreAndPatchesEmptyColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 
@@ -571,7 +539,6 @@ func TestClearDelegatesToCoreAndPatchesEmptyColumn(t *testing.T) {
 	}
 }
 
-// A core failure on clear surfaces as a 500 (no domain rejection path).
 func TestClearCoreErrorIs500(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks(), clearErr: errors.New("boom")}
 
@@ -584,11 +551,8 @@ func TestClearCoreErrorIs500(t *testing.T) {
 	}
 }
 
-// Keyed Datastar attributes separate plugin and key with a COLON on v1.0.2
-// (`data-on:reorder`, `data-signals:order`). The dash forms (`data-on-reorder`)
-// are looked up as nonexistent plugin names and silently skipped — no console
-// error, the drop just never POSTs. This test exists because that exact
-// regression shipped once.
+// Keyed Datastar attributes use a COLON (`data-on:layout`); the dash forms are
+// silently skipped as nonexistent plugins. That exact regression shipped once.
 func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	var b strings.Builder
 	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &b); err != nil {
@@ -607,8 +571,7 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	}
 }
 
-// Each block carries its persisted span as data-span; default blocks render
-// data-span="1". drag.js reads slot/span from these to seed each gesture.
+// drag.js reads slot/span from these attributes to seed each gesture.
 func TestColumnRendersPersistedSpan(t *testing.T) {
 	cs := []block.Block{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 2},
@@ -629,9 +592,7 @@ func TestColumnRendersPersistedSpan(t *testing.T) {
 	}
 }
 
-// Each block carries its immutable type as data-type, which the block's
-// data-[type=…] utilities key the per-type fill on; the attribute must survive
-// every morph so the color is stable across SSE re-renders.
+// data-type keys the per-type fill and must survive every morph.
 func TestColumnRendersBlockType(t *testing.T) {
 	cs := []block.Block{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 1, Type: block.BlockShallow},
@@ -649,18 +610,15 @@ func TestColumnRendersBlockType(t *testing.T) {
 	}
 }
 
-// The column renders every slot of the day as a first-class element carrying
-// its clock-slot index, so empty time is real markup (drop targets) and the
-// grid extent always matches the owner's bounds.
+// Empty time is real markup (drop targets), one slot element per bounds slot.
 func TestColumnRendersEverySlotInDay(t *testing.T) {
 	var b strings.Builder
 	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
-	// Slots/blocks carry utility classes after the structural hook, so match the
-	// `slot `/`block-item ` prefix (excludes slot-add, block-label, the blocks ul)
-	// rather than an exact class attribute.
+	// Match the `class="slot ` prefix: utility classes follow the structural
+	// hook, and the prefix excludes slot-add/block-label.
 	if got, want := strings.Count(body, `class="slot `), testBounds.End-testBounds.Start; got != want {
 		t.Errorf("want %d slot elements, got %d; body:\n%s", want, got, body)
 	}
@@ -672,18 +630,15 @@ func TestColumnRendersEverySlotInDay(t *testing.T) {
 	if strings.Contains(body, `data-slot="34"`) {
 		t.Errorf("slot 34 is past day end (end-exclusive); body:\n%s", body)
 	}
-	// DOM order now follows the schedule: a block renders right after its start
-	// slot, before the next slot (1.3.2 reading order). Paint order is handled by
-	// z-index, not DOM order, so blocks no longer trail all slots. threeBlocks
-	// starts "a" at slot 18, so it must appear before slot 19.
+	// A block renders right after its start slot (reading order); paint order
+	// is handled by z-index, not DOM order.
 	if aIdx, slot19 := strings.Index(body, `data-id="a"`), strings.Index(body, `data-slot="19"`); aIdx < 0 || aIdx > slot19 {
 		t.Errorf("block a (slot 18) must render before slot 19 (interleaved by slot); body:\n%s", body)
 	}
 }
 
-// An occupied slot row is visual chrome only — its block carries the time, so
-// the slot is aria-hidden and renders no Add button (kept out of the AT tree,
-// a11y #2b). A free slot is the opposite: visible to AT, holds the Add button.
+// An occupied slot is chrome only: aria-hidden, no Add button. A free slot is
+// the opposite — visible to AT and holds the Add button.
 func TestSlotAccessibilityTracksOccupancy(t *testing.T) {
 	var b strings.Builder
 	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &b); err != nil {
@@ -693,8 +648,7 @@ func TestSlotAccessibilityTracksOccupancy(t *testing.T) {
 	occupied := block.OccupiedSlots(threeBlocks()) // a@18, b@19, c@20 (span 1)
 	for s := testBounds.Start; s < testBounds.End; s++ {
 		el := slotElement(t, body, s)
-		// The gutter <span> is always aria-hidden, so test the <li> open tag,
-		// not the whole element, for the slot's own aria-hidden.
+		// The gutter <span> is always aria-hidden, so test only the <li> open tag.
 		open, _, _ := strings.Cut(el, ">")
 		hidden := strings.Contains(open, `aria-hidden="true"`)
 		hasAdd := strings.Contains(el, "slot-add")
@@ -711,9 +665,8 @@ func TestSlotAccessibilityTracksOccupancy(t *testing.T) {
 	}
 }
 
-// slotElement returns the full <li>…</li> of the day-grid slot for index n —
-// the element with class="slot …", not a block that may share the same
-// data-slot. Slots never nest an <li>, so the next </li> closes it.
+// slotElement returns the <li>…</li> of the day-grid slot for index n (not a
+// block sharing the data-slot). Slots never nest an <li>, so the next </li> closes it.
 func slotElement(t *testing.T, body string, n int) string {
 	t.Helper()
 	want := `data-slot="` + strconv.Itoa(n) + `"`
@@ -736,8 +689,6 @@ func slotElement(t *testing.T, body string, n int) string {
 	return ""
 }
 
-// Each slot carries a time gutter label: hour slots read like "9:00", half-hour
-// slots like "9:30" — the paper time-block-notebook axis.
 func TestColumnRendersTimeGutter(t *testing.T) {
 	var b strings.Builder
 	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &b); err != nil {
@@ -754,9 +705,8 @@ func TestColumnRendersTimeGutter(t *testing.T) {
 	}
 }
 
-// Blocks render their placement from slot/span: the clock slot as data-slot and
-// a grid-row computed against the day's start, so a block at 11:00 paints at
-// 11:00 whatever the bounds are and morphs stay idempotent.
+// grid-row is computed against the day's start, so a block at 11:00 paints at
+// 11:00 whatever the bounds are.
 func TestColumnPlacesBlocksBySlotAndSpan(t *testing.T) {
 	cs := []block.Block{
 		{ID: "a", Label: "Alpha", Position: 18, Span: 1},
@@ -779,9 +729,8 @@ func TestColumnPlacesBlocksBySlotAndSpan(t *testing.T) {
 	}
 }
 
-// The column carries the owner's day bounds as data attributes on #block-list,
-// so every morph re-asserts the grid extent the client renders and drags
-// against — bounds and blocks can never drift apart across patches.
+// Every morph re-asserts the day bounds on #block-list, so bounds and blocks
+// can never drift apart across patches.
 func TestColumnRendersDayBounds(t *testing.T) {
 	var b strings.Builder
 	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &b); err != nil {
@@ -795,9 +744,6 @@ func TestColumnRendersDayBounds(t *testing.T) {
 	}
 }
 
-// GET / renders the column server-side, blocks in the order the core service
-// returns them, and wires the page to the live stream (/events) so foreign
-// reorders arrive as patches.
 func TestPageRendersColumnInServiceOrder(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 
@@ -824,9 +770,8 @@ func TestPageRendersColumnInServiceOrder(t *testing.T) {
 	}
 }
 
-// Every column patch carries the recomputed occupied envelope as a
-// patch-signals frame, so the once-rendered bounds modal's disabled options
-// track the live layout (a block added/moved/removed in this or another tab).
+// Every column patch carries the recomputed occupied envelope as patch-signals,
+// so the once-rendered bounds modal's disabled options track the live layout.
 func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
@@ -844,7 +789,6 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 		}
 	}
 
-	// A publish recomputes the envelope from the event's blocks.
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "a", Position: 12, Span: 2}, // occupies 12,13 → end 14
 	}})
@@ -860,8 +804,6 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 	}
 }
 
-// A mutation response (here a bounds edit) re-patches the envelope alongside
-// the committed column, so the modal's options reflect the new truth at 200.
 func TestBoundsResponsePatchesEnvelopeSignals(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 

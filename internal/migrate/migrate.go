@@ -12,15 +12,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// migrations/*.sql is embedded so the scratch runtime image (no shell, no
-// sqlite CLI) can apply schema on boot in the machine that mounts the volume.
+// Embedded so the scratch runtime image (no shell, no sqlite CLI) can apply
+// schema on boot.
 //
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// Run applies pending migrations via goose,
-// recording versions in goose_db_version.
-// we run migrations forward-only: no "down" sections.
+// Run applies pending migrations via goose (forward-only, run-once).
 func Run(ctx context.Context, dbURL string) error {
 	db, err := sql.Open("sqlite", dbURL)
 	if err != nil {
@@ -28,8 +26,6 @@ func Run(ctx context.Context, dbURL string) error {
 	}
 	defer func() { _ = db.Close() }()
 
-	// sub makes the embedded migrations subdir the
-	// root for passing the .sql files to goose
 	sub, err := fs.Sub(migrationsFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("sub fs: %w", err)
@@ -40,8 +36,7 @@ func Run(ctx context.Context, dbURL string) error {
 	}
 
 	results, err := gooseProvider.Up(ctx)
-	// Report applied files even on failure so
-	// a bad migration is diagnosable from logs
+	// Report applied files even on failure so a bad migration is diagnosable.
 	for _, r := range results {
 		fmt.Printf("migrate: applied %s\n", r.Source.Path)
 	}

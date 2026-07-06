@@ -2,10 +2,8 @@ package components
 
 import "fmt"
 
-// LoginStyles is the login flow's surviving keyframe CSS (ADR 0006 non-goal):
-// the amoeba backdrop's spin animation and its reduced-motion off-switch. Passed
-// to Layout's <head> by the login route. @keyframes is global, so it sits outside
-// the @scope.
+// LoginStyles is CSS because it's keyframe-driven: the amoeba spin and its
+// reduced-motion off-switch. @keyframes is global, so it sits outside the @scope.
 templ LoginStyles() {
 	<style>
 		@scope (.login-main) {
@@ -31,13 +29,10 @@ templ LoginStyles() {
 	</style>
 }
 
-// LoginAmoeba wraps the login content in an undulating amoeboid backdrop: a
-// large SVG blob morphing via SMIL while slowly rotating (prototype winner b).
-// turnstileSiteKey threads through to the email form's human-presence widget;
-// empty (dev, no Turnstile configured) renders no widget — local login is open.
+// LoginAmoeba wraps the login content in an undulating SVG-blob backdrop.
+// An empty turnstileSiteKey (dev) renders no presence widget.
 templ LoginAmoeba(turnstileSiteKey string) {
 	<div class="relative w-full min-h-svh grid place-items-center overflow-hidden">
-		// w/h: on phones 150vw wins so the blob bleeds past the edges (wrap clips).
 		// -translate-* uses v4's `translate` property so centering composes with
 		// the keyframe's `transform: rotate`.
 		<svg class="login-amoeba-svg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(1000px,max(95vmin,150vw))] h-[min(1000px,max(95vmin,150vw))] text-column-bg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
@@ -62,10 +57,9 @@ templ LoginAmoeba(turnstileSiteKey string) {
 	</div>
 }
 
-// LoginEmailForm is step 1: #login-form is the morph anchor both steps patch onto.
-// A real <form> so Enter submits; data-on:submit prevents the native submission.
-// The Turnstile widget's callback dispatches a window event that sets the
-// $turnstileToken signal, which rides along on @post for server-side verify.
+// LoginEmailForm is step 1: #login-form is the morph anchor both steps patch
+// onto. A real <form> so Enter submits; data-on:submit prevents the native
+// submission.
 templ LoginEmailForm(turnstileSiteKey string) {
 	<form
 		id="login-form"
@@ -93,15 +87,9 @@ templ LoginEmailForm(turnstileSiteKey string) {
 	</form>
 }
 
-// turnstileWidget renders the Cloudflare Turnstile human-presence widget. It's a
-// cross-origin iframe, so only data-theme/data-size/data-appearance are tunable;
-// the callback hands the token to Datastar via a window CustomEvent. Rendered only
-// when a sitekey is configured (prod); dev login skips it entirely.
-//
-// data-appearance="interaction-only" keeps the widget invisible for the vast
-// majority of (human) visitors — it only materializes a challenge for genuinely
-// suspicious requests. So it flows inline in the form with no fixed positioning:
-// there's normally nothing to see, and on the rare challenge it fits the column.
+// turnstileWidget renders the Cloudflare Turnstile widget; its callback hands
+// the token to Datastar via a window CustomEvent. interaction-only keeps it
+// invisible unless a request looks suspicious, so it flows inline in the form.
 templ turnstileWidget(siteKey string) {
 	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 	<script>
@@ -113,10 +101,8 @@ templ turnstileWidget(siteKey string) {
 	<div class="cf-turnstile" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible" data-appearance="interaction-only"></div>
 }
 
-// LoginCodeForm is step 2, patched over #login-form. The response is identical
-// whether a code was sent (no account enumeration); a failed verify re-patches a
-// generic error. A complete 6-digit code verifies immediately; Enter/button are
-// fallbacks.
+// LoginCodeForm is step 2, patched over #login-form. A complete 6-digit code
+// verifies immediately; Enter/button are fallbacks.
 templ LoginCodeForm(errMsg string) {
 	<form id="login-form" class="flex flex-col gap-6" data-on:submit="@post('/login/verify')">
 		<p class="m-0 text-ink-muted text-sm font-medium">A 6-digit code is on its way.</p>

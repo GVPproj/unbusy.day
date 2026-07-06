@@ -1,5 +1,5 @@
-// Unit tests for the pure keyboard decision reducer (PRD: keyboard-accessible
-// blocks). Mirrors push.test.js. Run: node --test internal/frontend/jstest
+// Unit tests for the pure keyboard decision reducer.
+// Run: node --test internal/frontend/jstest
 import test from "node:test";
 import assert from "node:assert/strict";
 import { keyboardLayout } from "../static/keys.js";
@@ -46,9 +46,8 @@ test("ArrowDown skips past a taller block below instead of stalling on an infeas
 		{ id: "a", slot: 18, span: 1 }, // span-1 block against the top edge
 		{ id: "b", slot: 19, span: 2 }, // taller block touching directly below
 	];
-	// Stepping a→19 is infeasible: b can't slide up into a's single vacated slot
-	// without passing the top edge. The move skips to slot 20 — b takes the top,
-	// a lands just below — rather than freezing on the blocked single step.
+	// Stepping a→19 is infeasible (b can't clear the top edge), so the move
+	// skips to slot 20 rather than freezing on the blocked single step.
 	assert.equal(pushLayout(bounds, current, { id: "a", slot: 19, span: 1 }), null);
 	const out = keyboardLayout(bounds, current, { id: "a", mode: "move" }, "ArrowDown");
 	assert.equal(out.kind, "moved");
@@ -56,8 +55,8 @@ test("ArrowDown skips past a taller block below instead of stalling on an infeas
 });
 
 test("ArrowUp skips past a taller block above instead of stalling", () => {
-	// An up-move displaces blocks downward, so its symmetric stall is against the
-	// BOTTOM edge: a tight day where b can't slide down to clear a's single step.
+	// An up-move displaces blocks downward, so its symmetric stall is against
+	// the BOTTOM edge.
 	const tight = { start: 18, end: 21 };
 	const current = [
 		{ id: "b", slot: 18, span: 2 }, // taller block at the top
@@ -70,12 +69,9 @@ test("ArrowUp skips past a taller block above instead of stalling", () => {
 });
 
 test("walking a span-1 block up past two tall blocks matches a single pointer drop (no accumulated shove)", () => {
-	// Two span-2 blocks stacked at the top, a span-1 mover below both. Stepping the
-	// mover to the very top must slide each tall block down by ONE slot (the mover's
-	// span) — exactly what a pointer drop at the top yields — not by their own span.
-	// Each press recomputes the cascade from the grab-START layout (passed as
-	// `current`) against the running target threaded back through grabbed.slot, so
-	// displaced blocks can't accumulate into a double shove + gaps.
+	// Each press recomputes the cascade from the grab-START layout against the
+	// running target (grabbed.slot), so displaced blocks slide by the mover's
+	// span — never accumulating into a double shove + gaps.
 	const start = [
 		{ id: "x", slot: 18, span: 2 }, // 9:00–10:00
 		{ id: "y", slot: 20, span: 2 }, // 10:00–11:00
@@ -89,7 +85,7 @@ test("walking a span-1 block up past two tall blocks matches a single pointer dr
 		slot = out.slot; // thread the running target back in, as the glue does
 	}
 	assert.equal(slot, 18); // reached the top edge
-	// Identical to one pointer drop of `a` at the top: tall blocks each down by one.
+	// Identical to one pointer drop of `a` at the top.
 	assert.deepEqual(out.layout, pushLayout(bounds, start, { id: "a", slot: 18, span: 1 }));
 	assert.deepEqual(out.layout, [
 		{ id: "x", slot: 19, span: 2 },
@@ -178,9 +174,8 @@ test("a resize step reports the resulting span so the glue can thread it back", 
 });
 
 test("ArrowDown grows from the running span cursor, not the start layout's span", () => {
-	// `current` is the resize-START layout (mover at span 1); the running target
-	// span is threaded through grabbed.span, exactly as move threads grabbed.slot.
-	// A second grow must go 2→3 — computed fresh from start — not 1→2 again.
+	// The running target span threads through grabbed.span (as move threads
+	// grabbed.slot): a second grow must go 2→3, not 1→2 again.
 	const start = [{ id: "a", slot: 20, span: 1 }];
 	const out = keyboardLayout(bounds, start, { id: "a", mode: "resize", span: 2 }, "ArrowDown");
 	assert.equal(out.span, 3);
@@ -191,10 +186,9 @@ test("ArrowDown grows from the running span cursor, not the start layout's span"
 });
 
 test("shrinking after a compressing grow restores the neighbour's span (recomputed from start)", () => {
-	// Tight day: growing `a` past the free space compresses `b` (3→2). Shrinking
-	// back must UNDO that. If each step recomputed from the running (already
-	// compressed) layout instead of `start`, `b` could never grow back — compress
-	// only shrinks. This is the resize analog of the move "no accumulated shove".
+	// Shrinking must UNDO the grow's compression of `b`. Recomputing from the
+	// running (already compressed) layout would never let b grow back — compress
+	// only shrinks.
 	const tight = { start: 18, end: 24 };
 	const start = [
 		{ id: "a", slot: 18, span: 1 },
@@ -209,7 +203,6 @@ test("shrinking after a compressing grow restores the neighbour's span (recomput
 	}
 	assert.equal(span, 4); // 1→2→3→4
 	assert.equal(out.layout.find((p) => p.id === "b").span, 2); // b compressed by the grow
-	// now shrink one slot: b must return to its full span 3, packed below a.
 	out = keyboardLayout(tight, start, { id: "a", mode: "resize", span }, "ArrowUp");
 	assert.equal(out.span, 3);
 	assert.equal(out.layout.find((p) => p.id === "b").span, 3);
@@ -219,8 +212,8 @@ test("shrinking after a compressing grow restores the neighbour's span (recomput
 	);
 });
 
-// The glue relies on null to mean "not my key" — so it won't preventDefault and
-// the browser keeps its native behaviour (Tab to move focus, page scroll, etc.).
+// null means "not my key": the glue won't preventDefault, so the browser keeps
+// its native behaviour (Tab focus, page scroll).
 test("an unhandled key returns null", () => {
 	const current = [{ id: "a", slot: 20, span: 1 }];
 	assert.equal(keyboardLayout(bounds, current, { id: "a", mode: "move" }, "Tab"), null);

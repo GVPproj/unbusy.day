@@ -1,5 +1,4 @@
-// Integration tests over an ephemeral SQLite database (the DB is the system
-// boundary). No external container needed; the file dies with the temp dir.
+// Integration tests over an ephemeral SQLite database.
 package auth_test
 
 import (
@@ -19,7 +18,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// captureMailer records sent codes — the dev seam under test control.
 type captureMailer struct{ codes []string }
 
 func (m *captureMailer) SendCode(_ context.Context, _, code string) error {
@@ -27,22 +25,18 @@ func (m *captureMailer) SendCode(_ context.Context, _, code string) error {
 	return nil
 }
 
-// passResolver makes every domain look deliverable — the DNS seam under test
-// control, so MX validation never reaches live DNS in unit tests.
+// passResolver makes every domain look deliverable, so MX validation never
+// reaches live DNS in tests.
 type passResolver struct{}
 
 func (passResolver) LookupMX(context.Context, string) ([]*net.MX, error) {
 	return []*net.MX{{Host: "mx.example.test.", Pref: 10}}, nil
 }
 
-// newSvc builds an auth.Service whose DNS resolver always passes, so tests that
-// use unroutable .test addresses still mail codes after MX validation landed.
 func newSvc(db *sql.DB, mailer auth.Mailer) *auth.Service {
 	return auth.NewService(db, mailer, auth.WithResolver(passResolver{}))
 }
 
-// newDB returns a handle to an ephemeral SQLite database with the schema
-// migrated in.
 func newDB(t *testing.T) *sql.DB {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "auth_test.db")
@@ -58,7 +52,6 @@ func newDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// newUser inserts a throwaway allowlisted user and returns its email.
 func newUser(t *testing.T, db *sql.DB) string {
 	t.Helper()
 	b := make([]byte, 8)
@@ -74,8 +67,8 @@ func newUser(t *testing.T, db *sql.DB) string {
 	return email
 }
 
-// The full happy path: request → mail → verify → session resolves → logout
-// revokes. Also pins single use: a redeemed code never verifies twice.
+// Happy path: request → mail → verify → session resolves → logout revokes.
+// Also pins single use: a redeemed code never verifies twice.
 func TestRequestVerifyLogout(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -103,7 +96,6 @@ func TestRequestVerifyLogout(t *testing.T) {
 		t.Fatalf("incomplete session: %+v", sess)
 	}
 
-	// Single use: the redeemed code is gone.
 	if _, err := svc.VerifyCode(ctx, email, code); !errors.Is(err, auth.ErrInvalidCode) {
 		t.Fatalf("reuse: want ErrInvalidCode, got %v", err)
 	}
@@ -121,9 +113,8 @@ func TestRequestVerifyLogout(t *testing.T) {
 	}
 }
 
-// Open signup: an unknown, deliverable email now gets a code mailed, but no
-// user row is created until the code is verified (item 3 — account creation
-// deferred to VerifyCode). The pending code is keyed by email with NULL user_id.
+// Open signup: an unknown, deliverable email gets a code mailed, but no user
+// row is created until the code is verified.
 func TestRequestCodeUnknownEmailIssuesPendingCode(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -165,8 +156,8 @@ func TestRequestCodeThrottled(t *testing.T) {
 	}
 }
 
-// Once the ~60s window passes, a new request issues a fresh code that
-// verifies; the superseded code is dead (one active code per user).
+// Past the throttle window a fresh code issues and verifies; the superseded
+// code is dead (one active code per user).
 func TestRequestCodeThrottleReleases(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -193,9 +184,8 @@ func TestRequestCodeThrottleReleases(t *testing.T) {
 	}
 }
 
-// backdateCode shifts one of the user's login_code timestamps into the past —
-// the only way to test time-dependent paths without clock injection. Timestamps
-// are RFC3339 TEXT, so the shift is read-parse-rewrite in Go.
+// backdateCode shifts a login_code timestamp into the past — there is no clock
+// injection. Timestamps are RFC3339 TEXT, so the shift is read-parse-rewrite.
 func backdateCode(t *testing.T, db *sql.DB, email, column string, by time.Duration) {
 	t.Helper()
 	shiftColumn(t, db,
@@ -205,7 +195,7 @@ func backdateCode(t *testing.T, db *sql.DB, email, column string, by time.Durati
 }
 
 // shiftColumn reads a TEXT RFC3339 timestamp via sel, subtracts by, and writes
-// it back via upd. Both queries bind email as their final/only WHERE param.
+// it back via upd.
 func shiftColumn(t *testing.T, db *sql.DB, sel, upd, email string, by time.Duration) {
 	t.Helper()
 	var cur string
@@ -226,7 +216,6 @@ func shiftColumn(t *testing.T, db *sql.DB, sel, upd, email string, by time.Durat
 	}
 }
 
-// An expired session no longer resolves (absolute 30-day expiry, ADR 0002).
 func TestUserForSessionExpired(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -252,7 +241,6 @@ func TestUserForSessionExpired(t *testing.T) {
 	}
 }
 
-// An expired code never verifies, even when it's the right code.
 func TestVerifyCodeExpired(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -270,8 +258,7 @@ func TestVerifyCodeExpired(t *testing.T) {
 	}
 }
 
-// Email is matched case/whitespace-insensitively and the code survives
-// stray whitespace — what users actually paste from a mail client.
+// Email and code survive the case/whitespace mess users paste from a mail client.
 func TestVerifyCodeNormalizesInput(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -291,7 +278,6 @@ func TestVerifyCodeNormalizesInput(t *testing.T) {
 	}
 }
 
-// fakeResolver returns canned MX results — lets a test stand in for live DNS.
 type fakeResolver struct {
 	mx  []*net.MX
 	err error
@@ -301,8 +287,7 @@ func (f fakeResolver) LookupMX(context.Context, string) ([]*net.MX, error) {
 	return f.mx, f.err
 }
 
-// A domain with no MX record is undeliverable: no code is mailed, and the
-// response stays the non-committal nil (no enumeration).
+// No MX record: nothing mailed, response stays the non-committal nil (no enumeration).
 func TestRequestCodeRejectsNoMX(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -317,7 +302,6 @@ func TestRequestCodeRejectsNoMX(t *testing.T) {
 	}
 }
 
-// A syntactically invalid address is shed before any DNS lookup or send.
 func TestRequestCodeRejectsBadSyntax(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -336,8 +320,7 @@ func TestRequestCodeRejectsBadSyntax(t *testing.T) {
 	}
 }
 
-// A transient DNS error must fail open — a resolver hiccup can't lock a real
-// user out, so the code still mails.
+// A transient DNS error fails open — a resolver hiccup can't lock a real user out.
 func TestRequestCodeFailsOpenOnTransientDNSError(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -354,7 +337,7 @@ func TestRequestCodeFailsOpenOnTransientDNSError(t *testing.T) {
 }
 
 // Re-requesting a code must NOT reset the attempt budget — an attacker can't
-// farm a fresh 5 guesses by asking for a new code. The count carries forward.
+// farm a fresh 5 guesses by asking for a new code.
 func TestRequestCodeCarriesAttemptsForward(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -394,9 +377,8 @@ func TestRequestCodeCarriesAttemptsForward(t *testing.T) {
 	}
 }
 
-// Carry-forward decays: a user who exhausts the budget recovers after the
-// recovery window — re-requesting an old-enough code resets attempts to 0.
-// This is story 14's recovery guarantee; carry-forward must not be permanent.
+// Carry-forward decays: an exhausted budget recovers after the recovery
+// window — it must not be permanent.
 func TestRequestCodeAttemptsDecayAfterRecoveryWindow(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -414,24 +396,20 @@ func TestRequestCodeAttemptsDecayAfterRecoveryWindow(t *testing.T) {
 		}
 	}
 
-	// Age the budget past the recovery window, then re-request. Both clocks move:
-	// created_at to clear the throttle, attempts_since to trip the decay.
+	// Both clocks move: created_at clears the throttle, attempts_since trips the decay.
 	backdateCode(t, db, email, "created_at", 11*time.Minute)
 	backdateCode(t, db, email, "attempts_since", 11*time.Minute)
 	if err := svc.RequestCode(ctx, email); err != nil {
 		t.Fatalf("recovery request: %v", err)
 	}
-	// Budget reset: the fresh code verifies again.
 	if _, err := svc.VerifyCode(ctx, email, mailer.codes[1]); err != nil {
 		t.Fatalf("after recovery window, fresh code must verify; got %v", err)
 	}
 }
 
-// The recovery clock must survive a re-issue: re-requesting rewrites created_at
-// (the throttle clock) but must NOT push the attempt-budget's recovery deadline
-// out. Otherwise a user retrying after a lockout — or an attacker pinning a known
-// email — stays locked indefinitely. Regression for the created_at/attempts_since
-// coupling: decay keys on attempts_since (when the budget began), not created_at.
+// A re-issue rewrites created_at (the throttle clock) but must NOT reset
+// attempts_since — decay keys on when the budget began, or a retrying user
+// stays locked indefinitely.
 func TestRequestCodeReissueDoesNotResetRecoveryClock(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -449,8 +427,7 @@ func TestRequestCodeReissueDoesNotResetRecoveryClock(t *testing.T) {
 		}
 	}
 
-	// 5 min pass, then re-issue (throttle released). The re-issue must preserve
-	// attempts_since (budget still 5 min old), not reset it to now.
+	// 5 min pass, then re-issue: attempts_since must stay 5 min old, not reset.
 	backdateCode(t, db, email, "created_at", 5*time.Minute)
 	backdateCode(t, db, email, "attempts_since", 5*time.Minute)
 	if err := svc.RequestCode(ctx, email); err != nil {
@@ -461,9 +438,8 @@ func TestRequestCodeReissueDoesNotResetRecoveryClock(t *testing.T) {
 		t.Fatalf("re-issue must not reset the budget; fresh code should fail, got %v", err)
 	}
 
-	// 6 more min elapse (budget now ~11 min old, past recoveryWindow). Had the
-	// earlier re-issue reset attempts_since, the budget would read only ~6 min old
-	// here and stay locked — the bug this guards against.
+	// 6 more min (budget ~11 min old, past recoveryWindow). Had the re-issue
+	// reset attempts_since, the budget would read ~6 min old and stay locked.
 	backdateCode(t, db, email, "created_at", 61*time.Second)
 	backdateCode(t, db, email, "attempts_since", 6*time.Minute)
 	if err := svc.RequestCode(ctx, email); err != nil {
@@ -474,8 +450,8 @@ func TestRequestCodeReissueDoesNotResetRecoveryClock(t *testing.T) {
 	}
 }
 
-// Carry-forward must not lock out an honest user: one mistype, then a resend,
-// and the fresh code still verifies within the remaining budget.
+// Carry-forward must not lock out an honest user: one mistype plus a resend
+// still verifies within the remaining budget.
 func TestRequestCodeResendStillVerifiesWithinBudget(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -499,10 +475,8 @@ func TestRequestCodeResendStillVerifiesWithinBudget(t *testing.T) {
 	}
 }
 
-// The global send ceiling is a reputation/cost backstop independent of source:
-// once outbound OTP mail hits the ceiling in the rolling window, the breaker
-// trips and further sends stop, with the same non-committal nil response (no
-// enumeration). Distinct from the per-source rate limit (item 1).
+// The global send ceiling is a source-independent backstop; tripping it still
+// returns the non-committal nil (no enumeration).
 func TestRequestCodeSendCeilingTrips(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -511,7 +485,7 @@ func TestRequestCodeSendCeilingTrips(t *testing.T) {
 		auth.WithSendCeiling(3, time.Minute))
 	ctx := context.Background()
 
-	// 4 distinct users → 4 real sends attempted, but the ceiling is 3.
+	// 4 distinct users → 4 sends attempted, but the ceiling is 3.
 	for i := range 4 {
 		email := newUser(t, db)
 		if err := svc.RequestCode(ctx, email); err != nil {
@@ -523,7 +497,6 @@ func TestRequestCodeSendCeilingTrips(t *testing.T) {
 	}
 }
 
-// No ceiling configured (dev/unset env) is permissive: every send goes out.
 func TestRequestCodeNoSendCeilingIsPermissive(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -541,8 +514,6 @@ func TestRequestCodeNoSendCeilingIsPermissive(t *testing.T) {
 	}
 }
 
-// userCount reports how many user rows exist for an email — proves whether
-// VerifyCode created (or refrained from creating) an account.
 func userCount(t *testing.T, db *sql.DB, email string) int {
 	t.Helper()
 	var n int
@@ -553,9 +524,8 @@ func userCount(t *testing.T, db *sql.DB, email string) int {
 	return n
 }
 
-// makePendingCode requests a code for an unregistered email — post-flip this
-// naturally yields the pre-account state: a login_code keyed by email with a
-// NULL user_id and no user row. Returns the live code.
+// makePendingCode requests a code for an unregistered email, yielding a
+// login_code keyed by email with NULL user_id and no user row.
 func makePendingCode(t *testing.T, svc *auth.Service, mailer *captureMailer, email string) string {
 	t.Helper()
 	if err := svc.RequestCode(context.Background(), email); err != nil {
@@ -564,8 +534,8 @@ func makePendingCode(t *testing.T, svc *auth.Service, mailer *captureMailer, ema
 	return mailer.codes[len(mailer.codes)-1]
 }
 
-// A correct code for an email with no user row is the account-creation point:
-// VerifyCode mints the user and returns a working session (item 3 plumbing).
+// VerifyCode is the account-creation point: a correct code for an email with
+// no user row mints the user and returns a working session.
 func TestVerifyCodeCreatesAccountForPendingEmail(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -594,8 +564,6 @@ func TestVerifyCodeCreatesAccountForPendingEmail(t *testing.T) {
 	}
 }
 
-// A wrong code for a pending email creates no user — an unverified requester
-// can't conjure an account for an address they don't control.
 func TestVerifyCodeWrongCodeCreatesNoAccount(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}

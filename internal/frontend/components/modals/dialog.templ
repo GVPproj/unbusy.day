@@ -15,9 +15,9 @@ const (
 	dialogButtonSecondaryClass = "py-[0.35rem] px-3 rounded border border-rail-border bg-transparent text-inherit text-sm cursor-pointer"
 )
 
-// DialogStyles stays CSS by ADR 0006 non-goals: the blur-fade open transition
-// (a transition driver) and its ::backdrop scrim, hooked on `app-dialog`. Entry
-// only — close is instant, so UA display:none takes over with no exit flash.
+// DialogStyles stays CSS (ADR 0008): the blur-fade open transition and its
+// ::backdrop scrim. Entry only — close is instant, so UA display:none takes
+// over with no exit flash.
 templ DialogStyles() {
 	<style>
 		@scope (.app-dialog) {

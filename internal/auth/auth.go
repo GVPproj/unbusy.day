@@ -1,8 +1,6 @@
 // Package auth is passwordless email-OTP authentication over DB-backed
-// sessions (ADRs 0001/0002): 10-min single-use 6-digit codes, one active code
-// per email, 5 verify attempts, ~60s request throttle, codes stored hashed.
-// Codes are keyed by email so one can exist before its user row; a verified
-// code for an unregistered email mints the account (item 3).
+// sessions (ADRs 0001/0002). Codes are keyed by email so one can exist before
+// its user row; a verified code for an unregistered email mints the account.
 package auth
 
 import (
@@ -28,20 +26,17 @@ const (
 	codeTTL         = 10 * time.Minute
 	maxAttempts     = 5
 	requestThrottle = 60 * time.Second
-	// recoveryWindow decays the carried-forward attempt budget: a re-issue once
-	// the budget (attempts_since) is older than this resets attempts, so an
-	// honest user who exhausts their guesses recovers after a cooldown (story 14).
+	// recoveryWindow decays the carried-forward attempt budget so an honest
+	// user who exhausts their guesses recovers after a cooldown.
 	recoveryWindow = 10 * time.Minute
 )
 
-// ErrInvalidCode covers every verify failure — unknown email, wrong code,
-// expired, too many attempts — one error so responses can't enumerate.
+// ErrInvalidCode covers every verify failure — one error so responses can't
+// enumerate accounts.
 var ErrInvalidCode = errors.New("invalid or expired code")
 
-// ErrNoSession signals a missing, expired, or revoked session token.
 var ErrNoSession = errors.New("no valid session")
 
-// Session is one login: the opaque token the cookie carries plus its owner.
 type Session struct {
 	Token     string
 	UserID    string
@@ -55,18 +50,15 @@ type Service struct {
 	ceiling  *sendCeiling // nil = no global send ceiling (dev/unset env)
 }
 
-// Option configures a Service at construction (mirrors the env-driven seams).
 type Option func(*Service)
 
-// WithResolver overrides the DNS resolver used for MX validation — tests inject
-// a fake so address validation never touches live DNS.
+// WithResolver overrides the DNS resolver used for MX validation (tests).
 func WithResolver(r Resolver) Option {
 	return func(s *Service) { s.resolver = r }
 }
 
-// WithSendCeiling caps total outbound OTP mail at max sends per rolling window
-// across all sources (the global circuit breaker, item 4). Unset → no ceiling
-// (dev-safe permissive mode, mirrors LogMailer).
+// WithSendCeiling caps total outbound OTP mail per rolling window — the global
+// circuit breaker.
 func WithSendCeiling(max int, window time.Duration) Option {
 	return func(s *Service) { s.ceiling = newSendCeiling(max, window) }
 }
@@ -79,9 +71,8 @@ func NewService(db *sql.DB, mailer Mailer, opts ...Option) *Service {
 	return s
 }
 
-// formatTime renders a timestamp as UTC RFC3339 TEXT — fixed-width and
-// string-sortable, so `expires_at`/`created_at` comparisons work as plain
-// string `<`/`>` in SQLite.
+// formatTime renders UTC RFC3339 TEXT — fixed-width and string-sortable, so
+// timestamp comparisons work as plain string `<`/`>` in SQLite.
 func formatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
@@ -91,20 +82,16 @@ func formatTime(t time.Time) string {
 func (s *Service) RequestCode(ctx context.Context, email string) error {
 	email = normalizeEmail(email)
 
-	// Open signup: an unknown email is no longer a no-op. We still look up an
-	// existing user so the code carries their user_id; an unregistered email
-	// gets a code keyed by email with a NULL user_id, and VerifyCode mints the
-	// account on a correct code (item 3). The defensive layers below — rate
-	// limit (upstream), suppression, MX validation, send ceiling — replace the
-	// allowlist as the email-bombing blast-radius bound.
+	// Open signup: an unregistered email gets a code with a NULL user_id;
+	// VerifyCode mints the account on a correct code.
 	var userID sql.NullString
 	err := s.db.QueryRowContext(ctx, `SELECT id FROM "user" WHERE email = ?`, email).Scan(&userID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
-	// Never mail a hard-bounced or complaining address — protects SES reputation.
-	// Same silent no-op as unknown/throttled, so no enumeration signal leaks.
+	// Suppressed and undeliverable addresses no-op silently, same as throttled —
+	// no enumeration signal leaks.
 	if suppressed, err := s.IsSuppressed(ctx, email); err != nil {
 		return err
 	} else if suppressed {
@@ -112,8 +99,6 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		return nil
 	}
 
-	// Shed bad-syntax / no-MX addresses before spending send quota. Same silent
-	// no-op as unknown/throttled, so validation leaks no enumeration signal.
 	if !s.deliverable(ctx, email) {
 		log.Printf("auth: undeliverable address %s, skipping OTP", email)
 		return nil
@@ -130,14 +115,9 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 	throttleCutoff := formatTime(now.Add(-requestThrottle))
 	recoveryCutoff := formatTime(now.Add(-recoveryWindow))
 
-	// One active code per email (item 3: codes are keyed by email so a code can
-	// exist before its user row). The WHERE guard is the ~60s request throttle;
-	// zero rows written means throttled — same nil response, no email. attempts
-	// carries forward on re-issue (no fresh 5-guess budget for an attacker). The
-	// decay keys on attempts_since — when the budget began — not created_at, so a
-	// re-issue (which rewrites created_at as the throttle clock) can't push the
-	// recovery deadline out: the window elapses even under a storm of re-requests,
-	// and an honest user recovers from a lockout once attempts_since ages out.
+	// One active code per email; the WHERE guard is the request throttle (zero
+	// rows = throttled). attempts carries forward on re-issue, decaying by
+	// attempts_since — not created_at, which re-issues rewrite.
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO login_code (email, user_id, code_hash, attempts, attempts_since, expires_at, created_at)
 		VALUES (?, ?, ?, 0, ?, ?, ?)
@@ -157,10 +137,7 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		return nil // throttled
 	}
 
-	// Global send ceiling: a tripped breaker stops sending (and alerts) rather
-	// than torching domain reputation. Same silent nil as throttled/unknown so
-	// no enumeration signal leaks (story 10). Checked here, post-throttle, so
-	// only real sends count toward the ceiling.
+	// Checked post-throttle so only real sends count toward the ceiling.
 	if s.ceiling != nil && !s.ceiling.allow(now) {
 		log.Printf("auth: send ceiling tripped — OTP to %s skipped (circuit breaker)", email)
 		return nil
@@ -178,10 +155,8 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// The immediate write lock (_txlock=immediate) serialises concurrent verifies
-	// so the attempt counter races no one — no row-level FOR UPDATE needed. The
-	// code is keyed by email; user_id is NULL for a not-yet-registered email
-	// (item 3) and is filled in once we mint the account below.
+	// _txlock=immediate serialises concurrent verifies, so the attempt counter
+	// races no one.
 	var userID sql.NullString
 	var codeHash string
 	var attempts, expired int
@@ -209,9 +184,8 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 		return nil, ErrInvalidCode
 	}
 
-	// Account-creation point (item 3): a correct code for an email with no user
-	// row mints the account here, in the same tx that births the session. The
-	// frontend's idempotent Seeder runs post-verify and seeds starter blocks.
+	// A correct code for an email with no user row mints the account, in the
+	// same tx that births the session.
 	ownerID := userID.String
 	if !userID.Valid {
 		ownerID, err = newUserID()
@@ -251,8 +225,7 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 	return &Session{Token: token, UserID: ownerID, ExpiresAt: expiresAt}, nil
 }
 
-// UserForSession resolves a cookie token to its user id — one indexed PK
-// SELECT per request, no write (absolute expiry, ADR 0002).
+// UserForSession resolves a cookie token to its user id (absolute expiry, ADR 0002).
 func (s *Service) UserForSession(ctx context.Context, token string) (string, error) {
 	var userID string
 	err := s.db.QueryRowContext(ctx,
@@ -266,7 +239,6 @@ func (s *Service) UserForSession(ctx context.Context, token string) (string, err
 	return userID, nil
 }
 
-// Logout revokes the session — immediate and authoritative (ADR 0002).
 func (s *Service) Logout(ctx context.Context, token string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM session WHERE token = ?`, token)
 	return err
@@ -276,8 +248,8 @@ func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// newCode returns a 6-digit numeric OTP. Security rests on expiry + attempt
-// limits, not entropy (ADR 0001).
+// newCode returns a 6-digit OTP; security rests on expiry + attempt limits,
+// not entropy (ADR 0001).
 func newCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	if err != nil {
@@ -286,8 +258,6 @@ func newCode() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-// newUserID returns an opaque user id minted at account creation (item 3).
-// The `u_` prefix mirrors the seeded allowlist ids; 128 bits is ample.
 func newUserID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -296,7 +266,6 @@ func newUserID() (string, error) {
 	return "u_" + hex.EncodeToString(b), nil
 }
 
-// newToken returns the opaque high-entropy session token (256 bits, hex).
 func newToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {

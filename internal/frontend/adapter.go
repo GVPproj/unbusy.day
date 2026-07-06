@@ -15,13 +15,12 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// keepaliveInterval is the SSE idle-heartbeat cadence: 25s `:keepalive`
-// comments defeat intermediary idle closes. A var so tests can shrink it.
+// keepaliveInterval is the SSE heartbeat cadence, defeating intermediary idle
+// closes. A var so tests can shrink it.
 var keepaliveInterval = 25 * time.Second
 
-// BlockService is the frontend's view of the core blocks service;
-// *block.Service satisfies it. The seam keeps the handlers testable without
-// a real database.
+// BlockService is the frontend's view of the core service; *block.Service
+// satisfies it.
 type BlockService interface {
 	List(ctx context.Context, owner string) ([]block.Block, error)
 	Bounds(ctx context.Context, owner string) (block.Bounds, error)
@@ -33,8 +32,7 @@ type BlockService interface {
 	Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error)
 }
 
-// snapshot reads the owner's authoritative column and day bounds — the pair
-// every render needs.
+// snapshot reads the owner's authoritative column and day bounds.
 func snapshot(ctx context.Context, svc BlockService, owner string) ([]block.Block, block.Bounds, error) {
 	bs, err := svc.List(ctx, owner)
 	if err != nil {
@@ -44,9 +42,7 @@ func snapshot(ctx context.Context, svc BlockService, owner string) ([]block.Bloc
 	return bs, b, err
 }
 
-// PageHandler serves the column page, server-rendered from the core service's
-// authoritative order. Origin-rendered on every hit — no-cache keeps the entry
-// document honest while the Datastar/Motion bundles edge-cache on their CDNs.
+// PageHandler serves the column page, server-rendered on every hit (no-cache).
 func PageHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bs, b, err := snapshot(r.Context(), svc, ownerFrom(r.Context()))
@@ -63,9 +59,8 @@ func PageHandler(svc BlockService) http.Handler {
 	})
 }
 
-// patchColumn opens an SSE response and patches the authoritative column onto
-// #block-list — the shared tail of the mutation handlers, where the committed
-// (or rolled-back) truth is re-asserted over the client's optimistic gesture.
+// patchColumn patches the authoritative column onto #block-list — the shared
+// tail of every mutation handler.
 func patchColumn(w http.ResponseWriter, r *http.Request, bs []block.Block, b block.Bounds) {
 	sse := datastar.NewSSE(w, r)
 	if err := sse.PatchElementTempl(components.BlockColumn(bs, b)); err != nil {
@@ -74,25 +69,20 @@ func patchColumn(w http.ResponseWriter, r *http.Request, bs []block.Block, b blo
 	patchEnvelope(sse, bs)
 }
 
-// patchEnvelope re-patches the occupied envelope signals (firstOccupiedSlot/
-// lastOccupiedEnd) alongside a column patch, so the once-rendered bounds modal's
-// disabled options track the live layout. Best-effort: a send failure only
-// leaves the modal's constraint stale until the next patch.
+// patchEnvelope re-patches the occupied-envelope signals so the bounds modal's
+// disabled options track the live layout. Best-effort.
 func patchEnvelope(sse *datastar.ServerSentEventGenerator, bs []block.Block) {
 	if err := sse.MarshalAndPatchSignals(block.OccupiedEnvelope(bs)); err != nil {
 		log.Printf("ds patch envelope: %v", err)
 	}
 }
 
-// layoutSignals is the Datastar signals body the drag/resize gestures @post:
-// the full proposed layout after the client-computed push (ADR 0005).
 type layoutSignals struct {
 	Layout []block.Placement `json:"layout"`
 }
 
-// LayoutHandler is the one mutation endpoint for the Day Plan: it submits the
-// whole client-computed layout to the core and responds with an SSE
-// element-patch of the committed column.
+// LayoutHandler submits the whole client-computed layout (ADR 0005) and
+// responds with an element-patch of the committed column.
 func LayoutHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig layoutSignals
@@ -107,8 +97,8 @@ func LayoutHandler(svc BlockService) http.Handler {
 		switch {
 		case errors.Is(err, block.ErrNotSameBlocks), errors.Is(err, block.ErrOutOfBounds),
 			errors.Is(err, block.ErrOverlap), errors.Is(err, block.ErrInvalidSpan):
-			// Rollback at 200: patch back the authoritative column so the
-			// rejected gesture visibly snaps back (house convention).
+			// Domain rejection: 200 + re-render of the authoritative column, so
+			// the rejected optimistic gesture visibly snaps back (house convention).
 			bs, err = svc.List(r.Context(), owner)
 			if err != nil {
 				log.Printf("ds layout rollback list: %v", err)
@@ -133,16 +123,13 @@ func LayoutHandler(svc BlockService) http.Handler {
 	})
 }
 
-// boundsSignals is the Datastar signals body the bounds-settings UI @posts:
-// the day's new extent as slot indexes from 00:00.
 type boundsSignals struct {
 	Start int `json:"start"`
 	End   int `json:"end"`
 }
 
-// BoundsHandler edits the owner's day extent and responds with an
-// element-patch of the column rendered at the (possibly unchanged) committed
-// bounds — success resizes the grid, rejection re-asserts the current plan.
+// BoundsHandler edits the owner's day extent and patches the column at the
+// committed bounds.
 func BoundsHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig boundsSignals
@@ -155,8 +142,6 @@ func BoundsHandler(svc BlockService) http.Handler {
 		err := svc.SetBounds(r.Context(), owner, sig.Start, sig.End)
 		switch {
 		case errors.Is(err, block.ErrInvalidBounds), errors.Is(err, block.ErrBoundsOccupied):
-			// Rejection at 200: the snapshot below re-renders the current
-			// extent, so the plan is re-shown unchanged (house convention).
 			log.Printf("200 rejection bounds: %v", err)
 		case err != nil:
 			log.Printf("ds bounds: %v", err)
@@ -174,19 +159,14 @@ func BoundsHandler(svc BlockService) http.Handler {
 	})
 }
 
-// createSignals is the Datastar signals body the new-block modal @posts:
-// the target slot and the typed label.
 type createSignals struct {
 	Slot  int    `json:"addslot"`
 	Label string `json:"addlabel"`
 	Type  string `json:"addtype"`
 }
 
-// CreateHandler inserts a new block at the modal's slot and responds with an
-// element-patch of the committed column. A domain rejection (empty label,
-// occupied or out-of-bounds slot) re-renders the authoritative column at 200,
-// so the modal's optimistic intent simply yields to the truth (house
-// convention).
+// CreateHandler inserts a new block at the modal's slot and patches the
+// committed column.
 func CreateHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig createSignals
@@ -200,7 +180,6 @@ func CreateHandler(svc BlockService) http.Handler {
 		switch {
 		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrOutOfBounds),
 			errors.Is(err, block.ErrOverlap), errors.Is(err, block.ErrInvalidBlockType):
-			// Rejection at 200: the snapshot below re-renders the current column.
 			log.Printf("200 rejection create: %v", err)
 		case err != nil:
 			log.Printf("ds create: %v", err)
@@ -218,16 +197,11 @@ func CreateHandler(svc BlockService) http.Handler {
 	})
 }
 
-// deleteSignals is the Datastar signals body the per-block delete button
-// @posts: the id of the block to remove, written by the button on click.
 type deleteSignals struct {
 	ID string `json:"deleteid"`
 }
 
-// DeleteHandler removes the clicked block and responds with an element-patch
-// of the committed column. An unknown id (ErrBlockNotFound) re-renders the
-// authoritative column at 200, so a stale click simply yields to the truth
-// (house convention).
+// DeleteHandler removes the clicked block and patches the committed column.
 func DeleteHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig deleteSignals
@@ -240,7 +214,6 @@ func DeleteHandler(svc BlockService) http.Handler {
 		_, err := svc.Delete(r.Context(), owner, sig.ID)
 		switch {
 		case errors.Is(err, block.ErrBlockNotFound):
-			// Rejection at 200: the snapshot below re-renders the current column.
 			log.Printf("200 rejection delete: %v", err)
 		case err != nil:
 			log.Printf("ds delete: %v", err)
@@ -258,10 +231,7 @@ func DeleteHandler(svc BlockService) http.Handler {
 	})
 }
 
-// ClearHandler removes all of the owner's blocks and responds with an
-// element-patch of the now-empty column. The nav's confirm dialog gates the
-// gesture client-side; there's no domain rejection, so any error is a 500.
-// Working hours are untouched — only blocks are cleared.
+// ClearHandler removes all the owner's blocks; bounds are untouched.
 func ClearHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		owner := ownerFrom(r.Context())
@@ -281,17 +251,12 @@ func ClearHandler(svc BlockService) http.Handler {
 	})
 }
 
-// renameSignals is the Datastar signals body the inline label editor @posts:
-// the edited block's id and its new label text.
 type renameSignals struct {
 	ID    string `json:"renameid"`
 	Label string `json:"renamelabel"`
 }
 
-// RenameHandler updates the edited block's label and responds with an
-// element-patch of the committed column. A blank label or unknown id re-renders
-// the authoritative column at 200, so the inline edit yields to the truth
-// (house convention).
+// RenameHandler updates the edited block's label and patches the committed column.
 func RenameHandler(svc BlockService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig renameSignals
@@ -304,7 +269,6 @@ func RenameHandler(svc BlockService) http.Handler {
 		_, err := svc.Rename(r.Context(), owner, sig.ID, sig.Label)
 		switch {
 		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrBlockNotFound):
-			// Rejection at 200: the snapshot below re-renders the current column.
 			log.Printf("200 rejection rename: %v", err)
 		case err != nil:
 			log.Printf("ds rename: %v", err)
@@ -322,13 +286,10 @@ func RenameHandler(svc BlockService) http.Handler {
 	})
 }
 
-// EventsHandler is the live read path: the blocks pub/sub rendered as templ
-// element-patches. The first frame is the current authoritative column, so a
-// (re)connecting client is made whole by one render — no ring buffer, no
-// Last-Event-ID.
+// EventsHandler is the live SSE read path. The first frame is the full current
+// column, so a (re)connecting client is made whole by one render.
 func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// NewSSE sets text/event-stream + no-cache; the buffering header is ours.
 		w.Header().Set("X-Accel-Buffering", "no")
 
 		rc := http.NewResponseController(w)
@@ -338,10 +299,8 @@ func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
 		owner := ownerFrom(r.Context())
 
 		// Subscribe before the snapshot so a mutation committed in between is
-		// waiting on the channel rather than lost. Frames are full-state
-		// renders, so the worst interleaving is one redundant patch — never a
-		// silently missed order. The subscription is owner-keyed: only this
-		// user's mutations wake this connection.
+		// waiting on the channel rather than lost; the worst interleaving is
+		// one redundant full-state patch.
 		sub := broker.Subscribe(owner)
 		defer sub.Close()
 

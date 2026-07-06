@@ -1,8 +1,7 @@
 // Motion-powered drag + stretch for the #block-list day grid: transforms the
-// real <li> (no ghost), previews the client-computed push cascade live
-// (push.js, ADR 0005), commits as a FLIP, then dispatches one `layout` event
-// carrying the full resulting layout. Listeners are delegated to #block-list
-// (morph-stable) so wiring survives patches.
+// real <li> (no ghost), previews the push cascade live (push.js, ADR 0005),
+// commits as a FLIP, then dispatches one `layout` event with the full layout.
+// Listeners are delegated to #block-list so wiring survives morphs.
 import {
   animate,
   motionValue,
@@ -12,8 +11,7 @@ import { pushLayout } from "./push.js";
 import { keyboardLayout } from "./keys.js";
 
 const list = document.getElementById("block-list");
-// Visually-hidden assertive live region in BlocksPage, OUTSIDE #block-list so it
-// survives every morph; the keyboard path speaks action feedback through it.
+// Assertive live region outside #block-list so it survives every morph.
 const announcer = document.getElementById("sr-announce");
 const SPRING = { type: "spring", stiffness: 600, damping: 38 };
 
@@ -30,8 +28,7 @@ const placementOf = (c) => ({
 });
 const layoutIn = () => blocksIn().map(placementOf);
 
-// Row pitch from consecutive slot rows — every slot is a real fixed-height
-// grid row now, so geometry is measured, never derived from a probe block.
+// Row pitch measured from consecutive slot rows.
 function slotPitch() {
   const slots = [...list.querySelectorAll(":scope > .slot")];
   if (slots.length > 1)
@@ -68,8 +65,7 @@ let grab = null; // active keyboard move (grab → arrow → drop), null when id
 let kresize = null; // active keyboard resize on a focused grip, null when idle
 let settling = false;
 
-// Past this many px the gesture is a drag, not a tap; below it a pointerup on
-// a label opens the inline editor (TAP_SLOP keeps a shaky click still an edit).
+// Past this many px the gesture is a drag, not a tap-to-edit.
 const TAP_SLOP = 4;
 
 list.addEventListener("pointerdown", (e) => {
@@ -77,8 +73,7 @@ list.addEventListener("pointerdown", (e) => {
   // A pointer gesture supersedes an in-progress keyboard grab/resize.
   if (grab) cancelGrab();
   if (kresize) cancelKbResize();
-  // A label already in edit mode owns its own pointer (caret/selection) —
-  // don't capture it into a drag gesture.
+  // A label in edit mode owns its own pointer (caret/selection).
   if (e.target.closest(".block-label[contenteditable]")) return;
   const el = e.target.closest(".block-item");
   if (!el || el.parentElement !== list) return;
@@ -110,13 +105,11 @@ list.addEventListener("pointercancel", (e) => {
   settleResize(e, false);
 });
 
-// Keyboard move, delegated on #block-list (morph-stable) beside the pointer
-// listeners. Only the block body (the <li>) is the move tab stop — the grip
-// (resize), delete button, and rename editor each own their own keys. Arrows
-// are inert until a block is grabbed, so they never fight focus navigation.
+// Keyboard move. Only the block body is the move tab stop — the grip, delete
+// button, and rename editor own their own keys. Arrows are inert until a block
+// is grabbed, so they never fight focus navigation.
 list.addEventListener("keydown", (e) => {
   if (drag || resize || settling) return;
-  // Grip (resize separator) owns its own keys; e.target is the grip when focused.
   const grip = e.target.closest(".grip");
   if (grip && grip.closest(".block-item")?.parentElement === list) {
     handleResizeKey(e, grip);
@@ -129,8 +122,7 @@ list.addEventListener("keydown", (e) => {
       e.preventDefault();
       startGrab(el);
     } else if (e.key === "F2") {
-      // F2 enters the inline editor without a pointer (the established
-      // rename-in-place key); Enter is taken by grab/drop, so it can't be reused.
+      // The established rename-in-place key; Enter is taken by grab/drop.
       e.preventDefault();
       const label = el.querySelector(".block-label");
       if (label) enterEdit(label);
@@ -149,9 +141,8 @@ list.addEventListener("keydown", (e) => {
   }
 });
 
-// Focus leaving a grabbed block (e.g. Tab) abandons the move and snaps it back;
-// focus leaving a resizing grip COMMITS (the splitter convention — blur saves),
-// so Tab moves on with the change kept. drop/commit/cancel already nulled state.
+// Focus leaving a grabbed block abandons the move; focus leaving a resizing
+// grip COMMITS (the splitter convention — blur saves).
 list.addEventListener("focusout", (e) => {
   if (grab && e.target === grab.el) cancelGrab();
   if (kresize && e.target === kresize.grip) commitKbResize(false);
@@ -165,8 +156,8 @@ function sibsFor(el) {
   for (const c of blocksIn()) {
     if (c === el) continue;
     const y = motionValue(0);
-    // h0 is the block's natural height (margins make it ~3px under span*pitch);
-    // springing height from here keeps unchanged siblings from twitching.
+    // h0 is the natural height (margins put it under span*pitch); springing
+    // from here keeps unchanged siblings from twitching.
     const h0 = c.getBoundingClientRect().height;
     const h = motionValue(h0);
     sibs.set(c, {
@@ -181,9 +172,8 @@ function sibsFor(el) {
   return sibs;
 }
 
-// Spring every other block to its slot delta — and, when compression changed
-// its span, its height — under layout `lay` (the live preview). A sibling back
-// at its original span springs height to its natural h0, undoing compression.
+// Spring every other block to its slot delta (and, under compression, its
+// height) for the live preview layout `lay`.
 function springSibs(g, lay) {
   const by = new Map(lay.map((p) => [p.id, p]));
   g.sibs.forEach((s, c) => {
@@ -199,8 +189,7 @@ function springSibs(g, lay) {
   });
 }
 
-// Stop every sibling spring, detach its styleEffect, and clear the transform
-// and height Motion left behind — shared by the drag and resize settle paths.
+// Stop sibling springs and clear the styles Motion left behind.
 function teardownSibs(g) {
   g.sibs.forEach((s, c) => {
     if (s.yAnim) s.yAnim.stop();
@@ -211,7 +200,6 @@ function teardownSibs(g) {
   });
 }
 
-// Every sibling's in-flight springs (position and height), for awaiting on settle.
 const sibAnims = (g) => [...g.sibs.values()].flatMap((s) => [s.yAnim, s.hAnim]);
 
 // Tell the server the gesture's result — unless nothing changed, or a foreign
@@ -240,9 +228,8 @@ function startDrag(e, el) {
     bounds,
     current: layoutIn(),
     pitch,
-    // Transform clamp: the held block can't translate past the day's first/last
-    // legal slot. A translate beyond the grid grows the scroll container's
-    // overflow without bound (and the auto-scroll loop would never hit a limit).
+    // Clamp: a translate past the grid grows the scroll container's overflow
+    // without bound.
     minY: (bounds.start - orig.slot) * pitch,
     maxY: (bounds.end - orig.span - orig.slot) * pitch,
     detach: styleEffect(el, { x, y }),
@@ -254,37 +241,29 @@ function startDrag(e, el) {
     startY: e.clientY,
     lastX: e.clientX,
     lastY: e.clientY,
-    // edge auto-scroll state: current per-frame velocity and the live rAF id
     scrollV: 0,
     raf: 0,
-    // a tap (no movement) on the label opens the inline editor at pointerup
     moved: false,
     downTarget: e.target,
   };
   el.classList.add("dragging");
 }
 
-// Set the held block's transform from the last pointer position and preview the
-// cascade under it. Split out of pointermove so the auto-scroll loop can re-apply
-// it each frame (the pointer is stationary while the container scrolls under it).
+// Split out of pointermove so the auto-scroll loop can re-apply the transform
+// each frame (the pointer is stationary while the container scrolls under it).
 function applyDrag() {
   const d = drag;
   const dx = d.lastX - d.startX;
   const dy = d.lastY - d.startY;
   if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) d.moved = true;
-  // Clamp into the day so the block can't be dragged past the first/last slot
-  // (which would stretch the scroll container without bound).
   const y = Math.max(d.minY, Math.min(d.maxY, dy));
   d.x.set(dx);
   d.y.set(y);
   previewDrag(d.orig.slot + Math.round(y / d.pitch));
 }
 
-// Edge auto-scroll: when the pointer nears the top/bottom of the scroll container
-// (#block-list is the only scroll region — ADR scroll commit), scroll it so the
-// held block can be dragged past the visible viewport. Speed ramps with depth
-// into the EDGE band; the rAF loop self-sustains while the pointer holds at an
-// edge (no further pointermove fires), and stops at the scroll limits.
+// Edge auto-scroll. Speed ramps with depth into the EDGE band; the rAF loop
+// self-sustains while the pointer holds at an edge (no pointermove fires).
 const EDGE = 48; // px band at each edge that triggers auto-scroll
 const MAX_SPEED = 16; // px per frame at the very edge
 
@@ -300,17 +279,16 @@ function autoScroll(clientY) {
   if (d.scrollV && !d.raf) d.raf = requestAnimationFrame(scrollTick);
 }
 
-// One auto-scroll frame: scroll, then keep the transform math consistent by
-// folding the actual scrolled distance into startY (the pointer's clientY is
-// fixed, so the held block keeps tracking it and the target slot stays right).
+// One auto-scroll frame: scroll, then fold the scrolled distance into startY
+// so the held block keeps tracking the stationary pointer.
 function scrollTick() {
   const d = drag;
-  if (!d) return; // settle nulled the gesture mid-flight
+  if (!d) return;
   d.raf = 0;
-  if (!d.scrollV) return; // pointer left the edge band
+  if (!d.scrollV) return;
   const before = list.scrollTop;
   list.scrollTop += d.scrollV;
-  const moved = list.scrollTop - before; // 0 at a scroll limit
+  const moved = list.scrollTop - before;
   if (!moved) return;
   d.startY -= moved;
   applyDrag();
@@ -336,8 +314,7 @@ function previewDrag(slot) {
 async function settleDrag(e, commit) {
   if (!drag || e.pointerId !== drag.pointerId) return;
   const d = drag;
-  // A tap (committed, no movement) on the label opens the inline editor once
-  // the no-op settle finishes — caret placed where the pointer went down.
+  // A tap (no movement) on the label opens the inline editor after the settle.
   const editLabel =
     commit && !d.moved ? d.downTarget.closest(".block-label") : null;
   if (!commit) d.valid = { slot: d.orig.slot, layout: d.current };
@@ -346,15 +323,14 @@ async function settleDrag(e, commit) {
   drag = null;
   settling = true;
   try {
-    // land the held block AND let in-flight sibling springs finish
     await Promise.all([
       animate(d.x, 0, SPRING),
       animate(d.y, (d.valid.slot - d.orig.slot) * d.pitch, SPRING),
       ...sibAnims(d),
     ]);
   } finally {
-    // Teardown and the layout write below share one synchronous frame:
-    // same pixels, new grid placement (FLIP).
+    // Teardown and the layout write share one synchronous frame: same pixels,
+    // new grid placement (FLIP).
     d.detach();
     teardownSibs(d);
     d.el.style.transform = "";
@@ -372,12 +348,9 @@ async function settleDrag(e, commit) {
 
 // ---- inline label edit -----------------------------------------------
 
-// Turn a label into a plaintext editor, then commit on blur or Enter / revert on
-// Escape. A pointer tap passes the click point (x, y) and leaves focus to the
-// platform — tap-to-rename is unchanged. Keyboard entry (F2) passes no point: the
-// caret goes to the end and focus is steered back to the block, since with no
-// pointer there's nothing to land focus on after the commit morph. A changed,
-// non-empty label dispatches `rename` on #block-list (the server's morph wins).
+// Turn a label into a plaintext editor: commit on blur or Enter, revert on
+// Escape. A pointer tap passes the click point; keyboard entry (F2) passes
+// none — caret to the end, focus steered back to the block across the morph.
 function enterEdit(label, x, y) {
   const block = label.closest(".block-item");
   if (!block) return; // a morph detached the label during the settle await
@@ -422,18 +395,16 @@ function enterEdit(label, x, y) {
   label.addEventListener("blur", onBlur);
 }
 
-// Collapse the selection to the end of the label — the keyboard rename entry
-// point, which has no pointer location to honour.
 function caretToEnd(label) {
   const sel = getSelection();
   const range = document.createRange();
   range.selectNodeContents(label);
-  range.collapse(false); // false = end
+  range.collapse(false);
   sel.removeAllRanges();
   sel.addRange(range);
 }
 
-// Drop the caret at the click point, falling back to the standards/WebKit APIs.
+// Drop the caret at the click point.
 function placeCaret(x, y) {
   const sel = getSelection();
   let range = null;
@@ -445,8 +416,8 @@ function placeCaret(x, y) {
       range.collapse(true);
     }
   } else {
-    // WebKit fallback (older Safari lacks caretPositionFromPoint); the dynamic
-    // key keeps TS from resolving the deprecated caretRangeFromPoint member.
+    // Older Safari lacks caretPositionFromPoint; the dynamic key keeps TS from
+    // resolving the deprecated caretRangeFromPoint member.
     const key = /** @type {string} */ ("caretRangeFromPoint");
     const fromPoint = document[key];
     if (fromPoint) range = fromPoint.call(document, x, y);
@@ -469,8 +440,8 @@ function startResize(e, el) {
     orig,
     h,
     pitch,
-    // vertical margin the CSS leaves around a block; preserved so a resized
-    // block keeps the same gap a static one has rather than filling the slot.
+    // CSS margin around a block, preserved so a resized block keeps the same
+    // gap a static one has.
     margin: orig.span * pitch - h0,
     bounds: boundsNow(),
     current: layoutIn(),
@@ -533,14 +504,12 @@ async function settleResize(e, commit) {
 
 // ---- keyboard move (grab → move → drop) ------------------------------
 //
-// Space/Enter grabs the focused block, Up/Down move it one slot (optimistic,
-// DOM-only via writeLayout — no spring, no per-key server round-trip), Space/
-// Enter drops it with one `layout` event (the same the drag path dispatches),
-// Escape cancels and snaps back. The rbd/dnd-kit convention; perceivability is
-// carried by #sr-announce and the reused .dragging lift, not aria-grabbed.
+// Space/Enter grabs, Up/Down move one slot (optimistic, DOM-only), Space/Enter
+// drops with one `layout` event, Escape cancels. The rbd/dnd-kit convention;
+// perceivability is carried by #sr-announce, not aria-grabbed.
 
-// Mirror of the server timeLabel/blockTimeRange helpers (column.templ) so spoken
-// times match the visible gutter: a slot index in 30-min steps from 00:00.
+// Mirrors the server timeLabel/blockTimeRange helpers (column.templ) so spoken
+// times match the visible gutter.
 const timeLabel = (s) => Math.floor(s / 2) + (s % 2 ? ":30" : ":00");
 const timeRange = (slot, span) => timeLabel(slot) + " to " + timeLabel(slot + span);
 const rangeOf = (id, layout) => {
@@ -560,38 +529,30 @@ function announce(msg) {
 function startGrab(el) {
   const start = layoutIn();
   const p = start.find((q) => q.id === el.dataset.id);
-  // `start` is the immutable grab-origin layout every step's cascade is recomputed
-  // from (so displacements can't accumulate into gaps a drag never makes); `slot`
-  // is the mover's running target, playing the role the pointer does for a drag.
+  // `start` is the immutable grab-origin layout each step recomputes from;
+  // `slot` is the running target, playing the pointer's role.
   grab = { el, id: el.dataset.id, bounds: boundsNow(), start, layout: start, slot: p.slot };
   el.classList.add("dragging");
   announce(labelOf(el) + " grabbed, " + timeLabel(p.slot) + ". Use up and down arrows to move.");
 }
 
-// One arrow step: the reducer recomputes the cascade from grab.start (never the
-// running layout, so displacements don't accumulate) against the running target
-// slot; we write the result straight to the DOM (moves are discrete, so no spring)
-// and announce the new range — or announce a blocked edge and change nothing.
+// One arrow step: recompute the cascade from grab.start (never the running
+// layout, so displacements don't accumulate) and write it straight to the DOM.
 function moveGrab(key) {
   const res = keyboardLayout(grab.bounds, grab.start, { id: grab.id, mode: "move", slot: grab.slot }, key);
   if (!res) return;
   if (res.kind === "blocked") {
-    // Blocked = no legal slot further this way (the day edge, or an immovable
-    // cascade short of it); a direction-truthful phrasing covers both cases.
     announce(key === "ArrowUp" ? "Can't move earlier." : "Can't move later.");
     return;
   }
   grab.slot = res.slot;
   grab.layout = res.layout;
   writeLayout(grab.layout, grab.bounds.start);
-  // Scroll the moved block into view so a keyboard move past the viewport edge
-  // stays visible (#block-list is the contained scroll region).
   grab.el.scrollIntoView({ block: "nearest" });
   announce(rangeOf(grab.id, grab.layout));
 }
 
-// Commit: clear grab state, then (only if anything actually moved) dispatch the
-// same `layout` event a drag drop does and steer focus back once the morph lands.
+// Drop dispatches the same `layout` event a drag does (if anything moved).
 function dropGrab() {
   const g = grab;
   grab = null;
@@ -602,8 +563,6 @@ function dropGrab() {
   list.dispatchEvent(new CustomEvent("layout", { detail: { layout: g.layout } }));
 }
 
-// Escape (or focus leaving the block): snap the DOM back to the grab's start and
-// dispatch nothing — the move is abandoned.
 function cancelGrab() {
   const g = grab;
   grab = null;
@@ -612,15 +571,14 @@ function cancelGrab() {
   announce("Move cancelled.");
 }
 
-// After a commit morph, return focus to the acted-on target (resolved fresh each
-// mutation, since the morph may replace it). idiomorph may preserve the element
-// (stable id) and keep focus, or replace it and drop focus to <body>; refocus
-// only in the latter case so we never yank focus the user has since moved
-// elsewhere (e.g. a blur-commit where they Tabbed on). Bounded so it can't leak.
+// After a commit morph, return focus to the acted-on target. idiomorph may
+// preserve the element and keep focus, or replace it and drop focus to <body>;
+// refocus only in the latter case so we never yank focus the user moved
+// elsewhere. Bounded so the observer can't leak.
 function restoreFocusAfterMorph(resolve) {
   const refocus = () => {
     const a = document.activeElement;
-    if (a && a !== document.body) return; // focus already where the user wants it
+    if (a && a !== document.body) return;
     const el = resolve();
     if (el) el.focus();
   };
@@ -631,15 +589,11 @@ function restoreFocusAfterMorph(resolve) {
 
 // ---- keyboard resize (APG Window Splitter) ---------------------------
 //
-// The grip is role="separator"; Up/Down grow/shrink by one slot, Home/End jump
-// to the min (one slot) / max legal span, all optimistic + DOM-only via the
-// reducer + writeLayout (compress cascade, no spring). Enter or blur commits one
-// `layout` event (the drag path's); Escape reverts. Each step recomputes from
-// the grab-START layout against the running span cursor, so shrinking undoes a
-// grow's compression. aria-valuenow/valuetext track the live span as a clock range.
+// The grip is role="separator"; Up/Down grow/shrink one slot, Home/End jump to
+// min/max span, all optimistic + DOM-only. Enter or blur commits one `layout`
+// event; Escape reverts. Each step recomputes from the grab-START layout, so
+// shrinking undoes a grow's compression.
 
-// First arrow/Home/End on a focused grip starts the gesture; Enter/Escape only
-// act once one is underway. Keys are preventDefaulted so they don't scroll.
 function handleResizeKey(e, grip) {
   if (["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) {
     e.preventDefault();
@@ -658,8 +612,6 @@ function startKbResize(grip) {
   const el = grip.closest(".block-item");
   const start = layoutIn();
   const p = start.find((q) => q.id === el.dataset.id);
-  // `start` is the immutable resize-origin layout; `span` is the running target,
-  // threaded back into the reducer each step (the resize analog of grab.slot).
   kresize = { el, grip, id: el.dataset.id, bounds: boundsNow(), start, layout: start, span: p.span };
   el.classList.add("resizing");
 }
@@ -676,23 +628,19 @@ function stepKbResize(key) {
   r.layout = res.layout;
   writeLayout(r.layout, r.bounds.start);
   updateGripValue(r.grip, r.id, r.layout);
-  // Keep the grip (the growing bottom edge) in view as the block stretches past
-  // the contained scroll region's viewport.
   r.grip.scrollIntoView({ block: "nearest" });
   announce(rangeOf(r.id, r.layout));
 }
 
-// Keep the separator's reported value in step with the live span (Window
-// Splitter): valuenow is the span in slots, valuetext the spoken clock range.
+// valuenow is the span in slots, valuetext the spoken clock range.
 function updateGripValue(grip, id, layout) {
   const p = layout.find((q) => q.id === id);
   grip.setAttribute("aria-valuenow", p.span);
   grip.setAttribute("aria-valuetext", timeRange(p.slot, p.span));
 }
 
-// Commit: dispatch the same `layout` event a pointer resize does (only if the
-// span changed). `refocus` is true on Enter (focus stays, steer it back across
-// the morph) and false on blur (the user Tabbed on — leave focus where it went).
+// `refocus` is true on Enter (steer focus back across the morph) and false on
+// blur (the user Tabbed on — leave focus where it went).
 function commitKbResize(refocus) {
   const r = kresize;
   kresize = null;
@@ -704,8 +652,6 @@ function commitKbResize(refocus) {
   list.dispatchEvent(new CustomEvent("layout", { detail: { layout: r.layout } }));
 }
 
-// Escape: snap the DOM (and the grip's reported value) back to the start span
-// and dispatch nothing — the resize is abandoned.
 function cancelKbResize() {
   const r = kresize;
   kresize = null;

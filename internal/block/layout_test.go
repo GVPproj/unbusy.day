@@ -7,7 +7,6 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// A proposed layout identical to the current one is always valid.
 func TestValidateLayout_IdenticalLayoutIsValid(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34} // 9:00–17:00
 	current := []block.Block{
@@ -25,7 +24,6 @@ func TestValidateLayout_IdenticalLayoutIsValid(t *testing.T) {
 	}
 }
 
-// Moving a block into an empty gap and an exact fit at the day's end are valid.
 func TestValidateLayout_AcceptsMoveIntoGapAndExactFitAtEnd(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34}
 	current := []block.Block{
@@ -41,7 +39,6 @@ func TestValidateLayout_AcceptsMoveIntoGapAndExactFitAtEnd(t *testing.T) {
 	}
 }
 
-// A run before the day's start or past its end is out of bounds.
 func TestValidateLayout_RejectsOutOfBounds(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34}
 	current := []block.Block{
@@ -72,7 +69,6 @@ func TestValidateLayout_RejectsOutOfBounds(t *testing.T) {
 	}
 }
 
-// Two blocks' runs may not share a slot, partially or fully.
 func TestValidateLayout_RejectsOverlap(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34}
 	current := []block.Block{
@@ -103,7 +99,6 @@ func TestValidateLayout_RejectsOverlap(t *testing.T) {
 	}
 }
 
-// A zero or negative span is invalid before any bounds/overlap reasoning.
 func TestValidateLayout_RejectsNonPositiveSpan(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34}
 	current := []block.Block{{ID: "a", Position: 18, Span: 1}}
@@ -115,7 +110,6 @@ func TestValidateLayout_RejectsNonPositiveSpan(t *testing.T) {
 	}
 }
 
-// A layout that drops, invents, or repeats an id is not the same block set.
 func TestValidateLayout_RejectsBlockSetMismatch(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34}
 	current := []block.Block{
@@ -149,7 +143,6 @@ func TestValidateLayout_RejectsBlockSetMismatch(t *testing.T) {
 	}
 }
 
-// A span-1 block occupies exactly its position slot.
 func TestOccupiedSlots_SingleBlock(t *testing.T) {
 	got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: 1}})
 	want := map[int]bool{20: true}
@@ -158,7 +151,6 @@ func TestOccupiedSlots_SingleBlock(t *testing.T) {
 	}
 }
 
-// A multi-slot block occupies every slot in [Position, Position+Span).
 func TestOccupiedSlots_MultiSpanBlock(t *testing.T) {
 	got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: 3}})
 	for _, s := range []int{20, 21, 22} {
@@ -171,7 +163,7 @@ func TestOccupiedSlots_MultiSpanBlock(t *testing.T) {
 	}
 }
 
-// A zero or negative span is floored to one occupied slot, matching spanOr1.
+// Non-positive spans floor to one occupied slot, matching spanOr1.
 func TestOccupiedSlots_FloorsSpanAtOne(t *testing.T) {
 	for _, span := range []int{0, -1} {
 		got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: span}})
@@ -181,7 +173,6 @@ func TestOccupiedSlots_FloorsSpanAtOne(t *testing.T) {
 	}
 }
 
-// Multiple blocks union their occupied slots; gaps between them stay free.
 func TestOccupiedSlots_UnionsBlocks(t *testing.T) {
 	got := block.OccupiedSlots([]block.Block{
 		{ID: "a", Position: 18, Span: 2}, // 18,19
@@ -197,33 +188,28 @@ func TestOccupiedSlots_UnionsBlocks(t *testing.T) {
 	}
 }
 
-// No blocks yields an empty set (every slot free).
 func TestOccupiedSlots_Empty(t *testing.T) {
 	if got := block.OccupiedSlots(nil); len(got) != 0 {
 		t.Fatalf("want empty, got %v", got)
 	}
 }
 
-// OccupiedEnvelope returns the day's occupied extent: the earliest slot any
-// block sits in and the slot just past the latest. A fittable working-hours
-// window must start no later than FirstSlot and end no earlier than LastEnd.
+// OccupiedEnvelope is the day's occupied extent: earliest occupied slot to the
+// slot just past the latest.
 func TestOccupiedEnvelope(t *testing.T) {
 	cases := []struct {
 		name               string
 		blocks             []block.Block
 		wantFirst, wantEnd int
 	}{
-		// No blocks: collapse to sentinels that leave the whole legal range
-		// pickable (start ≤ MaxDayEnd and end ≥ MinDayStart are always true).
+		// No blocks: sentinels that leave the whole legal range pickable
+		// (start ≤ MaxDayEnd and end ≥ MinDayStart are always true).
 		{"empty", nil, block.MaxDayEnd, block.MinDayStart},
-		// A single span-2 block claims [20,22): envelope is exactly its run.
 		{"single", []block.Block{{ID: "a", Position: 20, Span: 2}}, 20, 22},
-		// Blocks with a gap: envelope spans from the first to past the last.
 		{"gap", []block.Block{
 			{ID: "a", Position: 19, Span: 1},
 			{ID: "b", Position: 24, Span: 2}, // ends at 26
 		}, 19, 26},
-		// Flush to the hard limits: envelope is the full legal day.
 		{"flush", []block.Block{
 			{ID: "a", Position: block.MinDayStart, Span: 1},
 			{ID: "b", Position: block.MaxDayEnd - 1, Span: 1},

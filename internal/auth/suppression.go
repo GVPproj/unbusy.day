@@ -8,12 +8,10 @@ import (
 	"time"
 )
 
-// ErrInvalidReason guards the suppression reason against the table CHECK.
 var ErrInvalidReason = errors.New("suppression reason must be bounce or complaint")
 
-// Suppress records an address as undeliverable (hard bounce) or complaining so
-// RequestCode never mails it again. Idempotent: a repeat upserts the latest
-// reason/detail. Fed by the SES → SNS feedback webhook.
+// Suppress records an address RequestCode must never mail again. Idempotent;
+// fed by the SES → SNS feedback webhook.
 func (s *Service) Suppress(ctx context.Context, email, reason, detail string) error {
 	if reason != "bounce" && reason != "complaint" {
 		return fmt.Errorf("%w: %q", ErrInvalidReason, reason)
@@ -28,7 +26,6 @@ func (s *Service) Suppress(ctx context.Context, email, reason, detail string) er
 	return err
 }
 
-// IsSuppressed reports whether email is on the suppression list.
 func (s *Service) IsSuppressed(ctx context.Context, email string) (bool, error) {
 	email = normalizeEmail(email)
 	var one int

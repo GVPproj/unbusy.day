@@ -21,14 +21,13 @@ type AuthService interface {
 	Logout(ctx context.Context, token string) error
 }
 
-// Seeder gives a fresh user their starter blocks on first login (ADR 0003);
-// *block.Service satisfies it.
+// Seeder gives a fresh user their starter blocks; *block.Service satisfies it.
 type Seeder interface {
 	Seed(ctx context.Context, owner string) error
 }
 
-// LoginPageHandler renders the email step of the OTP flow. turnstileSiteKey is
-// empty in dev (no widget rendered); set in prod it renders the presence widget.
+// LoginPageHandler renders the email step of the OTP flow; an empty
+// turnstileSiteKey (dev) renders no presence widget.
 func LoginPageHandler(turnstileSiteKey string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -39,7 +38,6 @@ func LoginPageHandler(turnstileSiteKey string) http.Handler {
 	})
 }
 
-// loginSignals is the Datastar signals body the login forms @post.
 type loginSignals struct {
 	Email          string `json:"email"`
 	Code           string `json:"code"`
@@ -47,8 +45,7 @@ type loginSignals struct {
 }
 
 // RequestCodeHandler issues a login code. The response is identical whether
-// the email exists, was throttled, or got a code — no account enumeration —
-// so it always patches the same code-entry form.
+// the email exists, was throttled, or got a code — no account enumeration.
 func RequestCodeHandler(a AuthService, pv PresenceVerifier) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig loginSignals
@@ -57,9 +54,8 @@ func RequestCodeHandler(a AuthService, pv PresenceVerifier) http.Handler {
 			return
 		}
 
-		// Human-presence gate (Turnstile): a failed or errored check returns the
-		// same non-committal patched form and never issues a code — a script
-		// bypassing the widget gains nothing, and the response can't enumerate.
+		// A failed or errored presence check returns the same non-committal
+		// patched form and never issues a code.
 		if ok, err := pv.Verify(r.Context(), sig.TurnstileToken, clientIP(r, true)); err != nil || !ok {
 			if err != nil {
 				log.Printf("ds presence verify: %v", err)
@@ -77,9 +73,8 @@ func RequestCodeHandler(a AuthService, pv PresenceVerifier) http.Handler {
 	})
 }
 
-// patchLoginCodeForm writes the non-committal code-entry patch — the single
-// identical response for a real send, a throttle, an unknown email, or a failed
-// presence check (no enumeration).
+// patchLoginCodeForm writes the single non-committal code-entry patch every
+// RequestCode outcome shares (no enumeration).
 func patchLoginCodeForm(w http.ResponseWriter, r *http.Request) {
 	sse := datastar.NewSSE(w, r)
 	if err := sse.PatchElementTempl(components.LoginCodeForm("")); err != nil {
@@ -87,9 +82,8 @@ func patchLoginCodeForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// VerifyCodeHandler redeems the code: on success it seeds the new user's
-// starter blocks, sets the session cookie, and redirects to the board. A bad
-// code re-patches the form with a generic error (200 + hypermedia truth).
+// VerifyCodeHandler redeems the code: on success it seeds starter blocks, sets
+// the session cookie, and redirects to the board.
 func VerifyCodeHandler(a AuthService, seeder Seeder, secureCookies bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig loginSignals
@@ -127,8 +121,8 @@ func VerifyCodeHandler(a AuthService, seeder Seeder, secureCookies bool) http.Ha
 	})
 }
 
-// LogoutHandler revokes the session row (immediate, server-side; ADR 0002),
-// expires the cookie, and redirects to the login page.
+// LogoutHandler revokes the session row, expires the cookie, and redirects to
+// the login page.
 func LogoutHandler(a AuthService, secureCookies bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(SessionCookie); err == nil {

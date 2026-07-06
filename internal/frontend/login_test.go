@@ -1,6 +1,5 @@
-// Login-flow adapter tests: a fake AuthService stands in for *auth.Service
-// (the DB is the system boundary); templ rendering is real, pinning the
-// observable wire behavior of the OTP flow.
+// Login-flow adapter tests: a fake AuthService stands in for *auth.Service;
+// templ rendering is real.
 package frontend
 
 import (
@@ -51,8 +50,8 @@ func (f *fakeSeeder) Seed(_ context.Context, owner string) error {
 	return nil
 }
 
-// Requesting a code always patches the same code-entry form onto #login-form
-// — identical for known and unknown emails, so responses can't enumerate.
+// The patched code form is identical for known and unknown emails, so
+// responses can't enumerate.
 func TestRequestCodePatchesCodeForm(t *testing.T) {
 	a := &fakeAuth{}
 	req := httptest.NewRequest(http.MethodPost, "/login/code",
@@ -73,8 +72,6 @@ func TestRequestCodePatchesCodeForm(t *testing.T) {
 	}
 }
 
-// A good code seeds the user's starter blocks, sets the session cookie
-// (HttpOnly, SameSite=Lax), and redirects to the board.
 func TestVerifyCodeSetsCookieSeedsAndRedirects(t *testing.T) {
 	a := &fakeAuth{}
 	seeder := &fakeSeeder{}
@@ -109,8 +106,6 @@ func TestVerifyCodeSetsCookieSeedsAndRedirects(t *testing.T) {
 	}
 }
 
-// A bad code re-patches the code form with an error at 200 — same
-// hypermedia-truth contract as a rejected reorder. No cookie.
 func TestVerifyCodeRejectionRepatchesForm(t *testing.T) {
 	a := &fakeAuth{verifyErr: auth.ErrInvalidCode}
 	req := httptest.NewRequest(http.MethodPost, "/login/verify",
@@ -130,8 +125,8 @@ func TestVerifyCodeRejectionRepatchesForm(t *testing.T) {
 	}
 }
 
-// Unauthenticated page loads bounce to /login; the SSE and mutation
-// endpoints get a bare 401 (a redirect would feed HTML to EventSource/@post).
+// Unauthenticated page loads bounce to /login; SSE and mutation endpoints get
+// a bare 401 — a redirect would feed HTML to EventSource/@post.
 func TestRequireSessionGate(t *testing.T) {
 	a := &fakeAuth{sessionErr: auth.ErrNoSession}
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +147,6 @@ func TestRequireSessionGate(t *testing.T) {
 		t.Errorf("mutation: want 401, got %d", rec.Code)
 	}
 
-	// SSE gets a bare 401 too — a 303 would feed the login HTML to EventSource.
 	req = httptest.NewRequest(http.MethodGet, "/events", nil)
 	rec = httptest.NewRecorder()
 	RequireSession(a, next).ServeHTTP(rec, req)
@@ -161,7 +155,6 @@ func TestRequireSessionGate(t *testing.T) {
 	}
 }
 
-// A valid cookie passes through with the owner stashed in the context.
 func TestRequireSessionPassesOwner(t *testing.T) {
 	a := &fakeAuth{}
 	var got string

@@ -1,6 +1,5 @@
-// Rate-limit middleware tests: drive the limiter through real http requests,
-// asserting status codes and whether the wrapped handler ran. Small bursts via
-// the in-package config so limits trip deterministically without sleeping.
+// Rate-limit middleware tests. Small bursts so limits trip deterministically
+// without sleeping.
 package frontend
 
 import (
@@ -10,7 +9,6 @@ import (
 	"time"
 )
 
-// okHandler records whether it ran and 200s.
 func okHandler(ran *int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*ran++
@@ -24,7 +22,6 @@ func postFrom(ip string) *http.Request {
 	return req
 }
 
-// Requests within the per-IP burst reach the wrapped handler.
 func TestRateLimitAllowsWithinBurst(t *testing.T) {
 	rl := newRateLimiter(rateLimitConfig{perIPEvery: time.Second, perIPBurst: 3, globalEvery: time.Second, globalBurst: 100})
 	ran := 0
@@ -42,8 +39,6 @@ func TestRateLimitAllowsWithinBurst(t *testing.T) {
 	}
 }
 
-// The request past the per-IP burst is rejected with 429 and never reaches the
-// wrapped handler.
 func TestRateLimitRejectsOverIPBurst(t *testing.T) {
 	rl := newRateLimiter(rateLimitConfig{perIPEvery: time.Hour, perIPBurst: 2, globalEvery: time.Second, globalBurst: 100})
 	ran := 0
@@ -63,13 +58,11 @@ func TestRateLimitRejectsOverIPBurst(t *testing.T) {
 	}
 }
 
-// One IP exhausting its bucket doesn't penalize another IP.
 func TestRateLimitIsolatesIPs(t *testing.T) {
 	rl := newRateLimiter(rateLimitConfig{perIPEvery: time.Hour, perIPBurst: 1, globalEvery: time.Second, globalBurst: 100})
 	ran := 0
 	h := rl.Limit(okHandler(&ran))
 
-	// First IP burns its single token, then is blocked.
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, postFrom("1.1.1.1"))
 	rec = httptest.NewRecorder()
@@ -78,7 +71,6 @@ func TestRateLimitIsolatesIPs(t *testing.T) {
 		t.Fatalf("2nd from same IP: got %d, want 429", rec.Code)
 	}
 
-	// A different IP still has its own full bucket.
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, postFrom("2.2.2.2"))
 	if rec.Code != http.StatusOK {
@@ -93,8 +85,7 @@ func TestRateLimitGlobalCeiling(t *testing.T) {
 	ran := 0
 	h := rl.Limit(okHandler(&ran))
 
-	// Each request from a fresh IP (well under perIPBurst), so only the global
-	// bucket can stop them: 3 allowed, the 4th rejected.
+	// Fresh IP per request, so only the global bucket can stop them.
 	codes := []int{}
 	for _, ip := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4"} {
 		rec := httptest.NewRecorder()
@@ -110,14 +101,12 @@ func TestRateLimitGlobalCeiling(t *testing.T) {
 }
 
 // When trusted (behind Fly's proxy), the per-IP bucket keys on Fly-Client-IP,
-// not the shared edge RemoteAddr — so two real clients behind the same proxy
-// don't share a bucket, and one client can't escape its bucket by reconnecting.
+// not the shared edge RemoteAddr — clients behind the proxy must not share a bucket.
 func TestRateLimitTrustsFlyClientIP(t *testing.T) {
 	rl := newRateLimiter(rateLimitConfig{perIPEvery: time.Hour, perIPBurst: 1, globalEvery: time.Second, globalBurst: 100, trustProxy: true})
 	ran := 0
 	h := rl.Limit(okHandler(&ran))
 
-	// Same RemoteAddr (the proxy), different real clients via the header.
 	send := func(clientIP string) int {
 		req := postFrom("100.64.0.1") // shared Fly edge addr
 		req.Header.Set("Fly-Client-IP", clientIP)
@@ -136,8 +125,7 @@ func TestRateLimitTrustsFlyClientIP(t *testing.T) {
 	}
 }
 
-// When not trusted, the header is ignored and we key on RemoteAddr — a local
-// attacker can't spoof Fly-Client-IP to mint fresh buckets.
+// When not trusted, a spoofed Fly-Client-IP can't mint fresh buckets.
 func TestRateLimitIgnoresFlyClientIPWhenUntrusted(t *testing.T) {
 	rl := newRateLimiter(rateLimitConfig{perIPEvery: time.Hour, perIPBurst: 1, globalEvery: time.Second, globalBurst: 100, trustProxy: false})
 	ran := 0
@@ -153,14 +141,12 @@ func TestRateLimitIgnoresFlyClientIPWhenUntrusted(t *testing.T) {
 	if c := send("9.9.9.9"); c != http.StatusOK {
 		t.Fatalf("1st: got %d, want 200", c)
 	}
-	// Different spoofed header, same RemoteAddr → still the same bucket → blocked.
 	if c := send("8.8.8.8"); c != http.StatusTooManyRequests {
 		t.Fatalf("2nd spoofed: got %d, want 429", c)
 	}
 }
 
-// sweep drops per-IP buckets idle beyond maxIdle so the map can't grow without
-// bound under a churn of distinct source IPs.
+// sweep drops idle per-IP buckets so the map can't grow without bound.
 func TestRateLimitSweepEvictsIdleIPs(t *testing.T) {
 	rl := newRateLimiter(rateLimitConfig{perIPEvery: time.Hour, perIPBurst: 1, globalEvery: time.Second, globalBurst: 100})
 	h := rl.Limit(okHandler(new(int)))
@@ -171,7 +157,6 @@ func TestRateLimitSweepEvictsIdleIPs(t *testing.T) {
 		t.Fatalf("after one request: %d buckets, want 1", got)
 	}
 
-	// Force every bucket's lastSeen into the past, then sweep.
 	rl.expireAll()
 	rl.sweep(time.Minute)
 	if got := rl.numIPs(); got != 0 {

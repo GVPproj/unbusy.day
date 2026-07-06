@@ -7,9 +7,8 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// DateHeading renders today's date at the column's top-left. On mobile it's a
-// non-scrolling header bar above the scrolling block list (own bg + z-index);
-// on desktop a plain heading. The hamburger toggle is separate (see MenuToggle).
+// DateHeading renders today's date; on mobile it's a non-scrolling header bar
+// above the scrolling block list.
 templ DateHeading() {
 	<div
 		class="flex items-center justify-between gap-2 mb-2 shrink-0 sm:min-h-8 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:pt-3 max-sm:px-4 max-sm:bg-column-bg"
@@ -21,8 +20,7 @@ templ DateHeading() {
 }
 
 // BlockColumn is the patch fragment: #block-list is the morph anchor every SSE
-// patch and layout response lands on; drag.js reads the data-id attributes to
-// build the layout. Page and patch render share it so they can't drift.
+// patch lands on. Page and patch render share it so they can't drift.
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"
@@ -44,8 +42,7 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 				@blockItem(c, b.Start, b.End)
 			}
 		}
-		// Out-of-bounds blocks can't happen (ValidateLayout/SetBounds enforce it),
-		// but render any anyway so a stray block is never silently dropped.
+		// Render out-of-bounds blocks anyway so a stray one is never silently dropped.
 		for _, c := range cs {
 			if c.Position < b.Start || c.Position >= b.End {
 				@blockItem(c, b.Start, b.End)
@@ -55,11 +52,9 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 	</ul>
 }
 
-// nowPill marks the viewer's current local time across the day grid. The server
-// can't know the viewer's clock, so it renders hidden and now-pill.js reveals it
-// at the current slot with the time label. Part of BlockColumn so it survives
-// every SSE morph (#now-pill is the anchor). aria-hidden: a purely visual marker
-// duplicating the system clock, kept out of the AT tree.
+// nowPill renders hidden (the server can't know the viewer's clock) and
+// now-pill.js reveals it. Part of BlockColumn so it survives every morph;
+// aria-hidden because it just duplicates the system clock.
 templ nowPill() {
 	<li
 		id="now-pill"
@@ -73,13 +68,11 @@ templ nowPill() {
 	</li>
 }
 
-// slot is one 30-minute row of the day grid (clock-slot index + gutter label).
-// Explicit grid-row keeps auto-placement from skipping rows blocks occupy. Slots
-// have no data-id, so they never enter the layout payload. The "add" button
-// renders only for free slots, so it never sits behind a covering block in the
-// tab order. An occupied row is chrome only, so aria-hidden (a11y #2b).
+// slot is one 30-minute row of the day grid. Explicit grid-row keeps
+// auto-placement from skipping rows blocks occupy; the "add" button renders
+// only for free slots so it never sits behind a block in the tab order.
 templ slot(s, dayStart int, occupied bool) {
-	// Half-hour rows (odd slot index) get a dashed top rule; hour rows stay solid.
+	// Half-hour rows get a dashed top rule; hour rows stay solid.
 	<li
 		class={ "slot col-span-full flex items-start border-t border-rail-border", templ.KV("border-dashed", s%2 == 1) }
 		data-slot={ strconv.Itoa(s) }
@@ -107,8 +100,7 @@ templ slot(s, dayStart int, occupied bool) {
 	</li>
 }
 
-// byStartSlot indexes blocks by their start slot so BlockColumn can emit each
-// one inline at its row. The no-overlap invariant guarantees one per slot.
+// byStartSlot indexes blocks by start slot; no-overlap guarantees one per slot.
 func byStartSlot(cs []block.Block) map[int]block.Block {
 	m := make(map[int]block.Block, len(cs))
 	for _, c := range cs {
@@ -117,8 +109,7 @@ func byStartSlot(cs []block.Block) map[int]block.Block {
 	return m
 }
 
-// timeLabel renders a slot index (30-min steps from 00:00) as gutter text:
-// hours as "9:00", half-hours as the ":30" tick.
+// timeLabel renders a slot index (30-min steps from 00:00) as gutter text.
 func timeLabel(s int) string {
 	if s%2 == 1 {
 		return strconv.Itoa(s/2) + ":30"

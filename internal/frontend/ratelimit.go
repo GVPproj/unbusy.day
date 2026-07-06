@@ -9,8 +9,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// rateLimitConfig is the in-package knob set; production uses the defaults in
-// NewLoginRateLimiter, tests dial small bursts so limits trip deterministically.
 type rateLimitConfig struct {
 	perIPEvery  time.Duration // one token per this interval, per source IP
 	perIPBurst  int
@@ -19,15 +17,14 @@ type rateLimitConfig struct {
 	trustProxy  bool // honor Fly-Client-IP (only behind Fly's proxy)
 }
 
-// LoginRateLimiter bounds the pre-auth send path on POST /login/code: a
-// per-source-IP bucket against the spam cannon, plus a global bucket as the
-// blast-radius ceiling when an attacker spreads across many IPs. In-process by
-// design — single always-on machine (no Redis), same as the pub/sub broker.
 type ipEntry struct {
 	lim      *rate.Limiter
 	lastSeen time.Time
 }
 
+// LoginRateLimiter bounds the pre-auth send path on POST /login/code: a
+// per-source-IP bucket plus a global cross-IP ceiling. In-process by design,
+// like the broker.
 type LoginRateLimiter struct {
 	cfg    rateLimitConfig
 	global *rate.Limiter
@@ -37,9 +34,7 @@ type LoginRateLimiter struct {
 }
 
 // NewLoginRateLimiter builds the production limiter and starts its idle-bucket
-// sweeper. Defaults: per IP ~1 req/6s burst 5 (generous for a human, brutal for
-// a script); global ~10 req/min burst 20 (the cross-IP blast-radius ceiling).
-// trustProxy must be true only when the app sits behind Fly's proxy.
+// sweeper. trustProxy must be true only behind Fly's proxy.
 func NewLoginRateLimiter(trustProxy bool) *LoginRateLimiter {
 	l := newRateLimiter(rateLimitConfig{
 		perIPEvery:  6 * time.Second,
@@ -104,8 +99,8 @@ func (l *LoginRateLimiter) expireAll() {
 	}
 }
 
-// Limit wraps next, rejecting requests that exceed the per-IP or global rate
-// with a bare 429 (no enumeration signal — this gate is IP-based, not email).
+// Limit wraps next, rejecting requests over the per-IP or global rate with a
+// bare 429.
 func (l *LoginRateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := clientIP(r, l.cfg.trustProxy)
@@ -117,9 +112,8 @@ func (l *LoginRateLimiter) Limit(next http.Handler) http.Handler {
 	})
 }
 
-// clientIP is the source key. Behind Fly the real visitor is Fly-Client-IP
-// (RemoteAddr is the edge proxy); trust it only when we know we're behind that
-// proxy, else a local attacker could spoof the header to dodge the limit.
+// clientIP trusts Fly-Client-IP only behind Fly's proxy — otherwise an
+// attacker could spoof the header to dodge the limit.
 func clientIP(r *http.Request, trustProxy bool) string {
 	if trustProxy {
 		if ip := r.Header.Get("Fly-Client-IP"); ip != "" {

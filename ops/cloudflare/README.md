@@ -1,4 +1,4 @@
-# Cloudflare cache rules (PRD D3 / M3b)
+# Cloudflare cache rules
 
 `cache-rules.json` is the canonical, version-controlled definition of the two
 Cache Rules in front of `hello-cards.fly.dev` at the apex `unbusy.day`. It is the
@@ -11,14 +11,12 @@ catch-all `true` rule (respect origin) is **first**, and the `/events` bypass
 rule comes **after** it so it wins for that path.
 
 - (b) default → `cache: true` + `respect_origin`: honours origin `Cache-Control`.
-  The frontend is server-rendered Datastar + templ, served `no-cache`, so the
-  edge revalidates the entry document on every hit (F4). Static runtimes
-  (Datastar, Motion) load from jsdelivr, not the origin, so there
-  are no origin assets to edge-cache.
+  The frontend is server-rendered and served `no-cache`, so the edge
+  revalidates the entry document on every hit. Static runtimes (Datastar,
+  Motion) load from jsdelivr, not the origin.
 - (a) `/events` suffix → `cache: false`. SSE stays un-buffered because it is
   never cached; the origin also sets `Cache-Control: no-cache` +
-  `X-Accel-Buffering: no` (F2) and the Go server disables `WriteTimeout` for
-  the stream.
+  `X-Accel-Buffering: no` and disables `WriteTimeout` for the stream.
 
 ## Apply
 
@@ -34,7 +32,7 @@ curl -X PUT \
   --data @ops/cloudflare/cache-rules.json
 ```
 
-## Verify (criterion 6 — no token needed)
+## Verify (no token needed)
 
 ```bash
 curl -I https://unbusy.day/                      # cf-cache-status: DYNAMIC (origin no-cache)
@@ -42,9 +40,6 @@ curl --no-buffer -N https://unbusy.day/events    # event-by-event, not buffered
 ```
 
 > **Provenance:** the live zone was configured via the Cloudflare dashboard and
-> criterion 6 was verified end-to-end with the curl checks above (entry document
-> `DYNAMIC`, the SSE stream un-buffered, observed from colo `YVR`).
-> This file is the reproducible spec of that state; it was authored to the
-> Cloudflare cache-rules schema, not byte-captured from the live ruleset (that
-> read needs `CLOUDFLARE_API_TOKEN`, absent on the deploy machine). Re-applying
-> it reproduces the verified behaviour.
+> verified end-to-end with the curl checks above. This file is the reproducible
+> spec of that state, authored to the cache-rules schema rather than
+> byte-captured from the live ruleset.

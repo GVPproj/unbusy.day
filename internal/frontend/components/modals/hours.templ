@@ -42,10 +42,10 @@ func clockLabel(s int) string {
 	return strconv.Itoa(s/2) + ":00"
 }
 
-// HoursModal is the day-bounds editor. Selects cover the hard 5:00–18:00 limits;
-// options outside the occupied envelope disable reactively (firstOccupiedSlot/
-// lastOccupiedEnd signals) so a shrink-into-occupied window is never offered.
-// Server still enforces the limits as a concurrent-edit safety net.
+// HoursModal is the day-bounds editor. Selects cover the hard 4:00–18:00
+// limits; options outside the occupied envelope disable reactively so a
+// shrink-into-occupied window is never offered. Server still enforces the
+// limits as a concurrent-edit safety net.
 templ HoursModal(b block.Bounds, env block.Envelope) {
 	<dialog
 		id="bounds-modal"

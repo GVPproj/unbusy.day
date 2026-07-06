@@ -1,30 +1,14 @@
 // Command loadtest is the connection-ceiling drill: a concurrent-SSE ramp
-// against the live origin to find the per-connection ceiling on shared-cpu-1x.
-//
-// It is black-box and client-side only — no access to the box is needed. Each
-// virtual client opens one real EventSource-shaped GET /events. We force
-// HTTP/1.1 with keep-alives disabled so every client maps to exactly ONE
-// origin TCP connection (HTTP/2 would multiplex many streams over few conns
-// and hide the FD/conn ceiling we are trying to measure).
-//
-// The frontend is Datastar + templ: the /events stream and the layout
-// response are SSE `event: datastar-patch-elements` frames (full-column
-// renders), the layout POST ships its placements as a Datastar signals JSON
-// body, and the authoritative layout is read from the data-id/slot/span
-// attributes in the server-rendered page at /.
-//
-// The ramp opens connections in steps, holds, and at peak fires a real layout
-// and measures how fast + how COMPLETELY the mutation fans out to every held
-// subscriber — the degradation that triggers scale-out is not "connections
-// refused" but "fan-out stops reaching everyone".
+// against the live origin. Each virtual client holds one GET /events over
+// forced HTTP/1.1 (h2 would multiplex and hide the conn ceiling); at peak it
+// fires a real layout and measures how completely fan-out reaches the fleet.
 //
 // Usage (run from repo root):
 //
 //	go run ./ops/loadtest -url https://hello-cards.fly.dev \
 //	  -steps 250,500,1000,1500,2000 -hold 12s -peak-hold 45s
 //
-// Hitting *.fly.dev directly (not the Cloudflare apex) keeps the measurement
-// at the app: CF would pool/multiplex origin conns and muddy the count.
+// Hit *.fly.dev directly — Cloudflare would pool origin conns and muddy the count.
 package main
 
 import (
@@ -77,9 +61,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// One shared transport, but every request gets a fresh TCP conn:
-	// DisableKeepAlives + an empty TLSNextProto map pins us to HTTP/1.1 so
-	// 1 client == 1 connection at the origin.
+	// DisableKeepAlives + an empty TLSNextProto map pins HTTP/1.1 so
+	// 1 client == 1 origin connection.
 	tr := &http.Transport{
 		DisableKeepAlives:   true,
 		MaxConnsPerHost:     0,
@@ -95,7 +78,6 @@ func main() {
 	rootCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Live reporter.
 	repDone := make(chan struct{})
 	go reporter(rootCtx, st, repDone)
 
@@ -116,17 +98,15 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				// Release the dial slot once the handshake resolves (success
-				// OR failure), NOT when the long-lived stream finally closes —
-				// otherwise sem caps total held connections instead of pacing
-				// concurrent dials, and the ramp wedges at -burst.
+				// Release the dial slot when the handshake resolves, NOT when
+				// the stream closes — otherwise sem caps held connections
+				// instead of pacing dials and the ramp wedges at -burst.
 				var once sync.Once
 				release := func() { once.Do(func() { <-sem }) }
 				holdConn(rootCtx, client, *url, st, release)
 			}()
 			opened++
 		}
-		// Let the burst settle, then hold.
 		settleAndHold(rootCtx, st, target, *hold)
 		if *probeEach && rootCtx.Err() == nil {
 			fanoutProbe(rootCtx, client, *url, st)
@@ -164,11 +144,10 @@ func main() {
 	finalReport(st)
 }
 
-// holdConn opens one SSE stream and reads it until ctx is cancelled or the
-// stream errors. It is the unit of "one concurrent connection".
+// holdConn opens one SSE stream and reads it until ctx cancels or the stream
+// errors — the unit of "one concurrent connection". Every early-return path
+// must call release so a failed dial doesn't leak its slot.
 func holdConn(ctx context.Context, client *http.Client, base string, st *stats, release func()) {
-	// release frees the caller's dial slot the moment the handshake resolves.
-	// Guard every early-return path so a failed dial doesn't leak the slot.
 	st.attempted.Add(1)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/events", nil)
 	if err != nil {
@@ -209,9 +188,8 @@ func holdConn(ctx context.Context, client *http.Client, base string, st *stats, 
 		case strings.HasPrefix(line, ":keepalive"):
 			st.keepalives.Add(1)
 		case strings.HasPrefix(line, "event: "+string(datastar.EventTypePatchElements)):
-			// One mutation == one element-patch frame. The first frame after
-			// connect is the snapshot; fanoutProbe baselines off a counter
-			// delta, so that connect-time patch never skews a probe.
+			// The first frame after connect is the snapshot; fanoutProbe
+			// baselines off a counter delta, so it never skews a probe.
 			st.events.Add(1)
 		}
 		if ctx.Err() != nil {
@@ -220,9 +198,8 @@ func holdConn(ctx context.Context, client *http.Client, base string, st *stats, 
 	}
 }
 
-// fanoutProbe fires a real layout commit and measures how long until the held fleet
-// observes it: time-to-first-event and time-to-90%-of-active. This is the
-// load-bearing signal — a healthy machine fans out to ~everyone fast.
+// fanoutProbe fires a real layout commit and measures time-to-first-event and
+// time-to-90%-of-active across the held fleet — the load-bearing signal.
 func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stats) {
 	active := st.active.Load()
 	layout, err := currentLayout(ctx, client, base)
@@ -269,21 +246,19 @@ func fanoutProbe(ctx context.Context, client *http.Client, base string, st *stat
 	}
 }
 
-// placement mirrors block.Placement's wire shape in the layout signals body.
+// placement mirrors block.Placement's wire shape.
 type placement struct {
 	ID   string `json:"id"`
 	Slot int    `json:"slot"`
 	Span int    `json:"span"`
 }
 
-// blockRe pulls each block's id/span/slot out of the server-rendered page in
-// document order. Only blocks carry data-id; the day-grid slots don't, so they
-// never enter the layout.
+// blockRe pulls id/span/slot from the rendered page. Only blocks carry
+// data-id; the day-grid slots don't, so they never enter the layout.
 var blockRe = regexp.MustCompile(`data-id="([^"]+)" data-span="(\d+)" data-slot="(\d+)"`)
 
-// currentLayout reads the authoritative layout from the rendered page at /.
-// There is no JSON read endpoint — the Datastar frontend is HTML over the
-// wire — so we scrape the placement attributes the column renders.
+// currentLayout scrapes the authoritative layout from the page at / — there is
+// no JSON read endpoint; the frontend is HTML over the wire.
 func currentLayout(ctx context.Context, client *http.Client, base string) ([]placement, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/", nil)
 	resp, err := client.Do(req)
@@ -312,12 +287,10 @@ func currentLayout(ctx context.Context, client *http.Client, base string) ([]pla
 	return layout, nil
 }
 
-// postLayout re-submits the current layout verbatim: SetLayout publishes on
-// every commit, so an identity layout still exercises the full fan-out path
-// while always passing validation.
+// postLayout re-submits the current layout verbatim: an identity layout still
+// publishes on commit, exercising fan-out while always passing validation.
 func postLayout(ctx context.Context, client *http.Client, base string, layout []placement) error {
-	// Datastar reads a non-GET body as the signals JSON object directly, so
-	// the {"layout":[...]} signals body is the whole request body.
+	// Datastar reads a non-GET body as the signals JSON object directly.
 	payload, _ := json.Marshal(map[string][]placement{"layout": layout})
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/blocks/layout", strings.NewReader(string(payload)))
 	req.Header.Set("Content-Type", "application/json")

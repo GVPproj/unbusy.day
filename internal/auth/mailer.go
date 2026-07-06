@@ -10,14 +10,12 @@ import (
 	"time"
 )
 
-// Mailer is the email seam (ADR 0001): production swaps in a real provider
-// (Resend / Postmark / SES) without touching this package's logic.
+// Mailer is the email seam (ADR 0001).
 type Mailer interface {
 	SendCode(ctx context.Context, email, code string) error
 }
 
-// LogMailer is the dev implementation: the code lands on stdout, so no
-// external email service is required to run the app.
+// LogMailer is the dev implementation: the code lands on stdout.
 type LogMailer struct{}
 
 func (LogMailer) SendCode(_ context.Context, email, code string) error {
@@ -25,18 +23,14 @@ func (LogMailer) SendCode(_ context.Context, email, code string) error {
 	return nil
 }
 
-// SMTPMailer sends codes over SMTP — the production path (AWS SES SMTP, but
-// any STARTTLS host works). Stdlib net/smtp keeps the dependency at zero.
+// SMTPMailer is the production path (AWS SES SMTP, but any STARTTLS host works).
 type SMTPMailer struct {
 	addr    string // host:port
 	auth    smtp.Auth
-	from    string // From header / envelope sender; must be a verified address
-	logoPNG []byte // optional; when set, embedded via cid: instead of a text wordmark
+	from    string // must be a verified sender address
+	logoPNG []byte // optional; embedded via cid: instead of a text wordmark
 }
 
-// NewSMTPMailer wires credentials into a Mailer. host is the SMTP endpoint
-// (e.g. email-smtp.us-west-2.amazonaws.com); SES SMTP creds go in user/pass.
-// logoPNG (nil = none) is embedded inline (cid:) as the email header logo.
 func NewSMTPMailer(host, port, user, pass, from string, logoPNG []byte) *SMTPMailer {
 	return &SMTPMailer{
 		addr:    net.JoinHostPort(host, port),
@@ -46,18 +40,17 @@ func NewSMTPMailer(host, port, user, pass, from string, logoPNG []byte) *SMTPMai
 	}
 }
 
-// SendCode mails one OTP. ctx is unused: stdlib SendMail has no context hook,
-// and SES is fast — the dial-level timeout is the server's default.
+// ctx is unused: stdlib SendMail has no context hook.
 func (m *SMTPMailer) SendCode(_ context.Context, email, code string) error {
 	return smtp.SendMail(m.addr, m.auth, m.from, []string{email}, m.message(email, code))
 }
 
-// accent is the Solarized-blue brand color, hardcoded because email clients
-// have no access to the app's CSS custom-property theme tokens.
+// accent is the brand color, hardcoded — email clients can't read the app's
+// CSS theme tokens.
 const accent = "#268bd2"
 
-// Fixed multipart delimiters. Static is fine: neither appears in the OTP
-// (digits), the boilerplate copy, or base64 output (no "-" in that alphabet).
+// Fixed multipart delimiters. Static is safe: none can appear in the OTP,
+// the copy, or base64 output.
 const (
 	altBoundary = "ubd-otp-alt-1f8c" // wraps the text/plain + text/html parts
 	relBoundary = "ubd-otp-rel-1f8c" // wraps the alternative + the inline logo
@@ -74,7 +67,6 @@ func (m *SMTPMailer) message(to, code string) []byte {
 
 	hasLogo := len(m.logoPNG) > 0
 	if hasLogo {
-		// multipart/related wraps the alternative body + the cid: logo image.
 		b.WriteString("Content-Type: multipart/related; boundary=\"")
 		b.WriteString(relBoundary)
 		b.WriteString("\"\r\n\r\n")
@@ -83,8 +75,6 @@ func (m *SMTPMailer) message(to, code string) []byte {
 		b.WriteString("\r\n")
 	}
 
-	// The alternative container (its own header line either starts the message
-	// or nests inside related).
 	b.WriteString("Content-Type: multipart/alternative; boundary=\"")
 	b.WriteString(altBoundary)
 	b.WriteString("\"\r\n\r\n")
@@ -96,8 +86,6 @@ func (m *SMTPMailer) message(to, code string) []byte {
 	b.WriteString("Your login code is " + code + "\r\n\r\n")
 	b.WriteString("It expires in 10 minutes. If you didn't request it, ignore this email.\r\n\r\n")
 
-	// HTML part: light branding — styles are inline only (email clients drop
-	// <style>/external CSS), colors hardcoded to neutral grays + the accent.
 	b.WriteString("--")
 	b.WriteString(altBoundary)
 	b.WriteString("\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n")
@@ -107,7 +95,6 @@ func (m *SMTPMailer) message(to, code string) []byte {
 	b.WriteString("--\r\n")
 
 	if hasLogo {
-		// The inline image part, referenced by <img src="cid:ubd-logo">.
 		b.WriteString("\r\n--")
 		b.WriteString(relBoundary)
 		b.WriteString("\r\nContent-Type: image/png\r\n")
@@ -135,16 +122,15 @@ func base64Wrap(data []byte) string {
 	return b.String()
 }
 
-// htmlBody renders the centered, inline-styled OTP email. The header is the
-// embedded PNG logo when present (cid:), else an accent-colored text wordmark
-// (no SVG — Gmail strips it).
+// htmlBody renders the inline-styled OTP email (email clients drop <style>).
+// The header is the cid: logo when present, else a text wordmark — no SVG,
+// Gmail strips it.
 func htmlBody(code string, hasLogo bool) string {
 	header := `<div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;color:` + accent + `;">unbusy.day</div>`
 	if hasLogo {
 		header = `<img src="cid:` + logoCID + `" width="72" height="72" alt="unbusy.day" style="display:inline-block;border:0;border-radius:16px;">`
 	}
-	// Uniform 24px vertical rhythm via margin-top on each block (flex/gap is
-	// unsupported in Outlook). The code box is wrapped so its margin applies.
+	// Vertical rhythm via margin-top on each block; flex/gap is unsupported in Outlook.
 	return `<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#f5f5f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">

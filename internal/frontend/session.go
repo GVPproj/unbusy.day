@@ -9,11 +9,10 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/auth"
 )
 
-// SessionCookie carries the opaque session token (ADR 0002).
 const SessionCookie = "session"
 
-// SessionResolver is the middleware's view of the auth service;
-// *auth.Service satisfies it.
+// SessionResolver is the middleware's view of the auth service; *auth.Service
+// satisfies it.
 type SessionResolver interface {
 	UserForSession(ctx context.Context, token string) (string, error)
 }
@@ -28,16 +27,13 @@ func ownerFrom(ctx context.Context) string {
 	return owner
 }
 
-// withOwner returns ctx carrying the authenticated user id. Exposed to tests;
-// production code only enters owners via RequireSession.
 func withOwner(ctx context.Context, owner string) context.Context {
 	return context.WithValue(ctx, ownerKey, owner)
 }
 
-// RequireSession resolves the session cookie to a user id and stashes it in
-// the request context. Unauthenticated page loads bounce to /login; the SSE
-// and mutation endpoints get a bare 401 (a redirect would feed HTML to
-// EventSource and @post).
+// RequireSession stashes the session cookie's user id in the request context.
+// Unauthenticated page loads bounce to /login; SSE and mutation endpoints get
+// a bare 401 (a redirect would feed HTML to EventSource and @post).
 func RequireSession(resolver SessionResolver, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(SessionCookie)
@@ -60,8 +56,8 @@ func RequireSession(resolver SessionResolver, next http.Handler) http.Handler {
 	})
 }
 
-// sessionCookie builds the auth cookie per ADR 0002: HttpOnly, SameSite=Lax
-// (baseline CSRF defense for the POSTs), Secure in production only.
+// sessionCookie builds the auth cookie (ADR 0002); SameSite=Lax is the
+// baseline CSRF defense for the POSTs.
 func sessionCookie(token string, expires time.Time, secure bool) *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookie,

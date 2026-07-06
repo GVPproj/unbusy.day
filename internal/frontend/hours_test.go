@@ -1,7 +1,5 @@
-// Bounds-editing UI tests: a native <dialog> (theme-modal house style) whose
-// selects cover the hard 5:00–18:00 limits and whose Save posts the chosen
-// extent to /blocks/bounds as Datastar signals. Options outside the occupied
-// envelope disable reactively so an impossible window is never offered.
+// Bounds-editing UI tests: a native <dialog> whose selects cover the hard
+// 4:00–18:00 limits and whose Save posts the chosen extent to /blocks/bounds.
 package frontend
 
 import (
@@ -19,9 +17,8 @@ import (
 // first occupied slot 18, last occupied end 21.
 var testEnvelope = block.Envelope{FirstSlot: 18, LastEnd: 21}
 
-// The modal offers every legal half-hour boundary (start 5:00–17:30, end
-// 5:30–18:00) and pre-selects the owner's current bounds, so opening it shows
-// the day as configured.
+// The modal offers every legal half-hour boundary and pre-selects the owner's
+// current bounds.
 func TestHoursModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
 	var b strings.Builder
 	if err := modals.HoursModal(testBounds, testEnvelope).Render(context.Background(), &b); err != nil {
@@ -41,7 +38,7 @@ func TestHoursModalOffersLegalRangeWithCurrentSelected(t *testing.T) {
 			t.Errorf("missing pre-selected option %q; body:\n%s", want, body)
 		}
 	}
-	// Hard limits: start options span 5:00–17:30 (10–35), end 5:30–18:00 (11–36).
+	// Spot-check options inside the hard limits at both ends of each select.
 	for _, want := range []string{
 		`<option value="10"`, `5:00</option>`,
 		`<option value="35"`, `17:30</option>`,
@@ -86,7 +83,7 @@ func TestHoursModalBindsDisabledToEnvelopeSignals(t *testing.T) {
 }
 
 // With no blocks the envelope collapses to its sentinels, so every option's
-// binding evaluates false and the full 5:00–18:00 range stays pickable.
+// binding evaluates false and the full legal range stays pickable.
 func TestHoursModalEmptyDayOffersFullRange(t *testing.T) {
 	var b strings.Builder
 	if err := modals.HoursModal(testBounds, block.OccupiedEnvelope(nil)).Render(context.Background(), &b); err != nil {

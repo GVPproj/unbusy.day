@@ -1,8 +1,5 @@
-// Render tests for the keyboard-accessibility surface (PRD:
-// keyboard-accessible blocks). These pin the *server-rendered semantics* a
-// screen reader and the keyboard glue depend on — focusable blocks, the resize
-// separator, and the live-region/instructions scaffolding — never the glue
-// itself (drag.js is verified manually, per the PRD's stated coverage gap).
+// Render tests pinning the server-rendered accessibility semantics; the
+// keyboard glue itself (drag.js) is verified manually.
 package frontend
 
 import (
@@ -15,7 +12,6 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/routes"
 )
 
-// renderPage renders the full BlocksPage to a string for assertions.
 func renderPage(t *testing.T, cs []block.Block, b block.Bounds) string {
 	t.Helper()
 	var sb strings.Builder
@@ -25,9 +21,8 @@ func renderPage(t *testing.T, cs []block.Block, b block.Bounds) string {
 	return sb.String()
 }
 
-// blockListElement returns the <ul id="block-list">…</ul> substring — the SSE
-// patch target. block-list nests only <li>s (no inner <ul>), so the first
-// </ul> after the opening tag closes it.
+// blockListElement returns the <ul id="block-list">…</ul> substring; it nests
+// no inner <ul>, so the first </ul> closes it.
 func blockListElement(t *testing.T, body string) string {
 	t.Helper()
 	i := strings.Index(body, `id="block-list"`)
@@ -42,11 +37,8 @@ func blockListElement(t *testing.T, body string) string {
 	return body[open : i+end+len("</ul>")]
 }
 
-// The live-region and instructions nodes must live OUTSIDE #block-list (the SSE
-// patch target) so every morph leaves them intact: the announcer keeps its
-// queued text and aria-describedby never dangles. #sr-announce is an assertive
-// live region; #dnd-instructions carries the static usage text each block
-// points at via aria-describedby.
+// The live-region and instructions nodes must live OUTSIDE #block-list so SSE
+// morphs leave them intact (queued announcer text, aria-describedby targets).
 func TestPageRendersLiveRegionAndInstructionsOutsidePatchTarget(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 	list := blockListElement(t, body)
@@ -61,8 +53,7 @@ func TestPageRendersLiveRegionAndInstructionsOutsidePatchTarget(t *testing.T) {
 	}
 }
 
-// blockOpenTag returns the opening <li …> tag of the block with the given
-// data-id — the block's own attributes, not its children's.
+// blockOpenTag returns the opening <li …> tag of the block with the given data-id.
 func blockOpenTag(t *testing.T, body, id string) string {
 	t.Helper()
 	marker := `data-id="` + id + `"`
@@ -78,8 +69,7 @@ func blockOpenTag(t *testing.T, body, id string) string {
 	return body[open : i+close+1]
 }
 
-// gripOpenTag returns the opening <span …> tag of the resize grip in body.
-// Single-block columns have exactly one grip.
+// gripOpenTag returns the opening <span …> tag of the (single) resize grip.
 func gripOpenTag(t *testing.T, body string) string {
 	t.Helper()
 	i := strings.Index(body, `class="grip`)
@@ -94,11 +84,8 @@ func gripOpenTag(t *testing.T, body string) string {
 	return body[open : i+close+1]
 }
 
-// The grip is exposed as an APG Window Splitter: a focusable role="separator"
-// that controls its block and reports the current span as aria-valuenow/min/max
-// with the clock range as aria-valuetext, so a screen-reader user can resize it
-// with the arrow keys. It must NOT be aria-hidden any longer. The block carries
-// a matching id so aria-controls resolves.
+// The grip is an APG Window Splitter: a focusable role="separator" reporting
+// span via aria-value*; it must not be aria-hidden, and aria-controls must resolve.
 func TestGripIsResizeSeparator(t *testing.T) {
 	cs := []block.Block{{ID: "a", Label: "Deep Work", Position: 20, Span: 2}}
 	var sb strings.Builder
@@ -131,9 +118,6 @@ func TestGripIsResizeSeparator(t *testing.T) {
 	}
 }
 
-// A block is a normal tab stop (tabindex 0) that announces itself as a
-// "schedule block" and points at the shared usage instructions, so a screen
-// reader user lands on it, hears what it is, and hears how to operate it.
 func TestBlockIsFocusableAndDescribed(t *testing.T) {
 	var sb strings.Builder
 	if err := components.BlockColumn(threeBlocks(), testBounds).Render(context.Background(), &sb); err != nil {

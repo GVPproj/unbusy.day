@@ -1,10 +1,6 @@
-// Live "now" pill: marks the viewer's current LOCAL time on the day grid.
-// The server can't know the viewer's clock, so this is the one client-side
-// bit — it positions the server-rendered #now-pill element (see column.templ)
-// at the current 30-min slot and fills its time label. Same pass strikes through
-// the labels of blocks that have fully elapsed (end slot at/above the pill).
-// Re-runs on a timer and after every SSE morph of #block-list (idiomorph
-// re-renders the pill hidden).
+// Live "now" pill: positions the server-rendered #now-pill at the viewer's
+// current LOCAL time (which the server can't know) and strikes through elapsed
+// blocks. Re-runs on a timer and after every SSE morph of #block-list.
 
 let observer;
 
@@ -12,8 +8,7 @@ function place() {
 	const list = document.getElementById("block-list");
 	const pill = document.getElementById("now-pill");
 	if (!list || !pill) return;
-	// Suspend the observer: our writes below mutate #block-list and reacting
-	// to them would loop.
+	// Suspend the observer: reacting to our own writes below would loop.
 	if (observer) observer.disconnect();
 
 	const d = new Date();
@@ -23,9 +18,8 @@ function place() {
 
 	if (slot >= dayStart && slot < dayEnd) {
 		pill.style.gridRow = String(slot - dayStart + 1);
-		// Offset within the slot: the pill pins to the slot's top edge, so push
-		// it down by the fraction of the 30 min already elapsed. Measure a real
-		// slot's pixel height since --slot-h can be a non-fixed calc().
+		// Push down by the elapsed fraction of the slot; measure a real slot's
+		// height since --slot-h can be a non-fixed calc().
 		const minsIntoSlot = d.getHours() * 60 + d.getMinutes() - slot * 30;
 		const sample = list.querySelector(".slot");
 		const slotH = sample ? sample.offsetHeight : 0;
@@ -38,14 +32,11 @@ function place() {
 		pill.hidden = true;
 	}
 
-	// Strike through blocks that have fully elapsed: a block is "past" once its
-	// end slot (start + span) sits at or above the now pill (<= current slot).
 	for (const item of list.querySelectorAll(".block-item")) {
 		const start = parseInt(item.dataset.slot || "0", 10);
 		const span = parseInt(item.dataset.span || "1", 10);
 		const label = item.querySelector(".block-label");
 		if (label) label.classList.toggle("past", start + span <= slot);
-		// The block the now pill currently sits inside gets an accent left rail.
 		item.classList.toggle("active", start <= slot && slot < start + span);
 	}
 
@@ -62,7 +53,7 @@ function boot() {
 		});
 	}
 	place();
-	setInterval(place, 20000); // follow the clock forward
+	setInterval(place, 20000);
 }
 
 if (document.readyState === "loading") {

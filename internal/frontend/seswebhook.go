@@ -20,8 +20,7 @@ import (
 	"time"
 )
 
-// Suppressor is the webhook's view of the auth service; *auth.Service satisfies
-// it. Bounce/complaint feedback lands an address on the suppression list.
+// Suppressor is the webhook's view of the auth service; *auth.Service satisfies it.
 type Suppressor interface {
 	Suppress(ctx context.Context, email, reason, detail string) error
 }
@@ -42,8 +41,7 @@ type snsMessage struct {
 	SigningCertURL   string `json:"SigningCertURL"`
 }
 
-// sesNotification is the SES bounce/complaint payload carried in the SNS
-// Message field. We read only the recipients we must suppress.
+// sesNotification is the SES bounce/complaint payload carried in the SNS Message field.
 type sesNotification struct {
 	NotificationType string `json:"notificationType"`
 	Bounce           struct {

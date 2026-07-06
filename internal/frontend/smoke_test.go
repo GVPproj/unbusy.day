@@ -7,12 +7,8 @@ import (
 	"testing"
 )
 
-// The smoke page must render an HTML document with a stable #smoke-target
-// (Datastar's default outer-morph patches by id; without a match the SDK is a
-// silent no-op) and a reference to /_smoke/events so the browser opens the
-// stream on load. It deliberately does not pin the attribute syntax — that's
-// verified in a real browser, and locking it here would couple us to RC-era
-// naming.
+// Datastar's outer-morph patches by id; without a #smoke-target match the SDK
+// is a silent no-op. Attribute syntax is deliberately unpinned (browser-verified).
 func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/_smoke", nil)
 	rec := httptest.NewRecorder()
@@ -35,13 +31,9 @@ func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
 	}
 }
 
-// On connect the handler must ship one element-patch frame whose body is a
-// templ-rendered #smoke-target. Asserts coarsely on purpose — the SDK owns the
-// exact data-line layout — pinning only: the SSE content type, the verified
-// 1.0+ event name "datastar-patch-elements" (renamed from the RC-era
-// "datastar-merge-fragments"), and that the #smoke-target id reaches the wire
-// so outer-morph finds its anchor. Streams over a real server because a
-// ResponseRecorder can't be read while a streaming handler writes.
+// Asserts coarsely — the SDK owns the data-line layout — pinning only the SSE
+// content type, the 1.0+ event name "datastar-patch-elements" (renamed from
+// the RC-era "datastar-merge-fragments"), and the #smoke-target anchor.
 func TestSmokeEventsEmitsDatastarPatchElementsFrame(t *testing.T) {
 	resp, br := openEvents(t, SmokeEventsHandler())
 

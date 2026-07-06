@@ -1,4 +1,4 @@
-// Unit tests for the pure push cascade (ADR 0005). Run: node --test frontend/jstest
+// Unit tests for the pure push cascade. Run: node --test internal/frontend/jstest
 import test from "node:test";
 import assert from "node:assert/strict";
 import { pushLayout } from "../static/push.js";
@@ -41,8 +41,7 @@ test("a gap absorbs the push so blocks past the gap stay put", () => {
 });
 
 test("a grow that would force a block past the day end rejects whole", () => {
-	// A drag can always slide displaced blocks into the slot it vacated, so only
-	// a resize (which frees nothing) can still overflow an edge and reject.
+	// Only a resize (which vacates nothing) can overflow an edge and reject.
 	const current = [
 		{ id: "a", slot: 30, span: 1 },
 		{ id: "b", slot: 32, span: 2 }, // flush against end 34

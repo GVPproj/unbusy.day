@@ -1,7 +1,5 @@
-// Package pubsub is the in-process fan-out bus, keyed by user (ADR 0003): a
-// mutation event reaches only its owner's live SSE subscribers. Single-machine
-// only — cross-instance fan-out would need an external bus (LISTEN/NOTIFY or
-// Redis).
+// Package pubsub is the in-process fan-out bus, keyed by user (ADR 0003).
+// Single-machine only — cross-instance fan-out would need an external bus.
 package pubsub
 
 import (
@@ -10,17 +8,14 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
-// Broker fans block.Events to the OWNER's
-// live subscribers (ie. their phone, their laptop).
-// It implements block.Publisher. Reconnect recovery is a
-// full snapshot re-render on the read
-// path (see EventsHandler), so the bus keeps no history.
+// Broker fans block.Events to the owner's live subscribers (their phone, their
+// laptop). Implements block.Publisher; keeps no history — reconnect recovery
+// is a full re-render on the read path.
 type Broker struct {
 	mu   sync.Mutex
 	subs map[string]map[*Subscription]struct{} // owner -> subscribers
 }
 
-// New returns a Broker.
 func New() *Broker {
 	return &Broker{subs: make(map[string]map[*Subscription]struct{})}
 }
@@ -33,7 +28,6 @@ type Subscription struct {
 	ch     chan block.Event
 }
 
-// Subscribe registers a new subscriber for owner's events.
 func (b *Broker) Subscribe(owner string) *Subscription {
 	ch := make(chan block.Event, 16)
 	sub := &Subscription{Events: ch, broker: b, owner: owner, ch: ch}
@@ -47,11 +41,8 @@ func (b *Broker) Subscribe(owner string) *Subscription {
 	return sub
 }
 
-// Publish fans an event to the owner's current subscribers only — other
-// users' connections never wake (no cross-user activity timing leak).
-// Delivery is non-blocking: a subscriber whose buffer is full is skipped
-// rather than stalling the origin; it recovers on its next EventSource
-// reconnect, which re-renders the full column.
+// Publish fans an event to the owner's subscribers, non-blocking: a slow
+// consumer is skipped and recovers on its next EventSource reconnect.
 func (b *Broker) Publish(e block.Event) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -59,12 +50,12 @@ func (b *Broker) Publish(e block.Event) {
 	for sub := range b.subs[e.Owner] {
 		select {
 		case sub.ch <- e:
-		default: // slow consumer — drop; it'll catch up on reconnect
+		default:
 		}
 	}
 }
 
-// Close unsubscribes; safe to call once.
+// Close unsubscribes.
 func (s *Subscription) Close() {
 	s.broker.mu.Lock()
 	if set := s.broker.subs[s.owner]; set != nil {

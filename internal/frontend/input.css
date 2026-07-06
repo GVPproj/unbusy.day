@@ -1,21 +1,10 @@
 @import "tailwindcss" source(none);
 @source "./**/*.templ";
 
-/* Tailwind v4 input — CSS-first, no JS config (ADR 0008 / PRD). The pinned
-   standalone binary scans the .templ sources for utility classes and emits
-   internal/frontend/static/output.css (go:embed-served, gitignored, regenerated
-   in dev/CI/Docker like *_templ.go).
-
-   source(none) turns off Tailwind's automatic file detection so the scan never
-   touches .go / *_templ.go; the @source above restricts it to .templ only
-   (PRD §15). Paths are relative to this file.
-
-   The design tokens and runtime theming are UNCHANGED — they live in the
-   baseStyles block of layouts/layout.templ. @theme inline bridges those live
-   custom properties into the Tailwind utility namespaces: the inline keyword
-   makes utilities emit var(--token) at the use site rather than copying a frozen
-   value, so the data-colorscheme/data-feeling swap keeps hot-swapping every
-   utility. One mapping line per token. */
+/* Tailwind v4 input (ADR 0008). source(none) + @source restrict the scan to
+   .templ files, never .go / *_templ.go. Design tokens live in layout.templ's
+   baseStyles; @theme *inline* makes utilities emit var(--token) at the use
+   site rather than a frozen value, so the live theme swap keeps working. */
 @theme inline {
 	/* color-* → bg-*, text-*, border-* utilities resolving to live tokens */
 	--color-bg: var(--bg);
@@ -39,12 +28,8 @@
 	--font-sans: var(--font-family);
 }
 
-/* Theme-aware default focus ring — one source of truth so every focusable
-   element (nav links, modal buttons, inputs, the menu toggle) shows an accent
-   ring that tracks the live colorscheme instead of the OS default. In @layer
-   base (below utilities) so component focus-visible:* utilities still override
-   it: the block's inset ring, slot-add/grip outline-none, the type swatches.
-   var(--accent) resolves at the use site, so it hot-swaps with the theme. */
+/* Theme-aware default focus ring. In @layer base (below utilities) so
+   component focus-visible:* utilities still override it. */
 @layer base {
 	:focus-visible {
 		outline: 2px solid var(--accent);

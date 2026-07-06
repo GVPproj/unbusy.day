@@ -16,8 +16,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// newDB returns a handle to an ephemeral SQLite database with the schema
-// migrated in. No external container needed; the file dies with the temp dir.
 func newDB(t *testing.T) *sql.DB {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "block_test.db")
@@ -33,8 +31,8 @@ func newDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// newOwner creates a throwaway user and seeds their starter block. Cleanup
-// deletes the user; the blocks go with it (ON DELETE CASCADE).
+// newOwner creates a throwaway user with starter blocks; cleanup deletes the
+// user and the blocks cascade.
 func newOwner(t *testing.T, db *sql.DB, svc *block.Service) string {
 	t.Helper()
 	ctx := context.Background()
@@ -55,7 +53,6 @@ func newOwner(t *testing.T, db *sql.DB, svc *block.Service) string {
 	return id
 }
 
-// Seed is first-login-only: a second call must not duplicate the starter block.
 func TestSeed_Idempotent(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -74,8 +71,6 @@ func TestSeed_Idempotent(t *testing.T) {
 	}
 }
 
-// Starter blocks land in the first slots after the default day start (9:00),
-// span 1 each, so a new user's plan is valid against their bounds.
 func TestSeed_PlacesStarterBlocksAtDayStart(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -99,8 +94,6 @@ func TestSeed_PlacesStarterBlocksAtDayStart(t *testing.T) {
 	}
 }
 
-// Owner scoping (ADR 0003): one user's mutations never touch or read
-// another's blocks, and both owners can hold position 0.
 func TestOwnersAreIsolated(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -124,8 +117,7 @@ func TestOwnersAreIsolated(t *testing.T) {
 		}
 	}
 
-	// A layout submitted under a's scope with b's ids is not a's block set, so
-	// nothing of b's can be moved or resized through a.
+	// A layout under a's scope with b's ids is not a's block set.
 	layout := make([]block.Placement, len(bcs))
 	for i, c := range bcs {
 		layout[i] = block.Placement{ID: c.ID, Slot: c.Position, Span: c.Span + 1}
@@ -142,8 +134,6 @@ func TestOwnersAreIsolated(t *testing.T) {
 	}
 }
 
-// A valid full layout (a move into a gap plus a grow) commits and is what
-// List returns afterwards, ordered by slot.
 func TestSetLayout_CommitsAndListReflects(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -192,8 +182,6 @@ func TestSetLayout_CommitsAndListReflects(t *testing.T) {
 	check(after, "list")
 }
 
-// A rejected layout surfaces its typed domain error, persists nothing, and
-// fans nothing out.
 func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -253,10 +241,8 @@ func TestSetLayout_RejectionLeavesStateUntouched(t *testing.T) {
 	}
 }
 
-// Overlap regression: the Postgres gist EXCLUDE backstop is gone under SQLite,
-// so ValidateLayout is the sole overlap guard. An overlapping layout must reject
-// whole and persist nothing through the full service path (not just the unit
-// validator), since nothing downstream would catch it.
+// Under SQLite there is no DB overlap constraint — ValidateLayout is the sole
+// guard, so the full service path must reject and persist nothing.
 func TestSetLayout_OverlapRejectedWithoutDBBackstop(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -269,7 +255,7 @@ func TestSetLayout_OverlapRejectedWithoutDBBackstop(t *testing.T) {
 	}
 	a, b, c := initial[0], initial[1], initial[2]
 
-	// a spans slots 20–21; b sits on 21 — a direct overlap ValidateLayout catches.
+	// a spans slots 20–21; b sits on 21.
 	overlap := []block.Placement{
 		{ID: a.ID, Slot: 20, Span: 2},
 		{ID: b.ID, Slot: 21, Span: 1},
@@ -289,7 +275,6 @@ func TestSetLayout_OverlapRejectedWithoutDBBackstop(t *testing.T) {
 	}
 }
 
-// A committed layout fans out one event carrying the owner key and new layout.
 func TestSetLayout_PublishesEvent(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -326,9 +311,8 @@ func TestSetLayout_PublishesEvent(t *testing.T) {
 	}
 }
 
-// Concurrent layout mutations serialize on SQLite's write lock (_txlock=immediate
-// + busy_timeout): every submission is a valid layout, so all succeed and the
-// final state is exactly one of them — no torn or interleaved layout survives.
+// Concurrent layouts serialize on SQLite's write lock (_txlock=immediate +
+// busy_timeout): all succeed and the final state is exactly one of them, never torn.
 func TestSetLayout_ConcurrentMutationsLastWriterWins(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -382,8 +366,6 @@ func TestSetLayout_ConcurrentMutationsLastWriterWins(t *testing.T) {
 	}
 }
 
-// Bounds may shrink into empty slots; the change persists and fans out an
-// event carrying the new bounds so live tabs re-render the grid.
 func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -409,8 +391,6 @@ func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
 	}
 }
 
-// A shrink that would strand a block outside the day is rejected whole, on
-// either side, and persists nothing.
 func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -437,7 +417,7 @@ func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
 	}
 }
 
-// Hard limits: start ≥ 5:00, end ≤ 18:00, end > start.
+// Hard limits: start ≥ 4:00, end ≤ 18:00, end > start.
 func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -459,8 +439,6 @@ func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
 	}
 }
 
-// Create inserts a span-1 block at a free slot, returns it in the committed
-// column ordered by slot, and fans out one event carrying the new column.
 func TestCreate_InsertsBlockAndPublishes(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -499,8 +477,6 @@ func TestCreate_InsertsBlockAndPublishes(t *testing.T) {
 	}
 }
 
-// Clear removes every block, leaves the day bounds intact, and fans out one
-// empty column.
 func TestClear_RemovesAllBlocksAndPublishes(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -539,8 +515,7 @@ func TestClear_RemovesAllBlocksAndPublishes(t *testing.T) {
 	}
 }
 
-// Clearing an already-empty day is a harmless no-op that still re-asserts the
-// empty column over the bus.
+// Clearing an already-empty day still re-asserts the empty column over the bus.
 func TestClear_EmptyDayIsNoOp(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -566,8 +541,6 @@ func TestClear_EmptyDayIsNoOp(t *testing.T) {
 	}
 }
 
-// A valid type passed to Create round-trips: it comes back on the created
-// block, in the persisted column, and in the published event.
 func TestCreate_TypeRoundTrips(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -595,8 +568,6 @@ func TestCreate_TypeRoundTrips(t *testing.T) {
 	}
 }
 
-// A non-empty unknown type rejects with ErrInvalidBlockType, persisting nothing
-// and fanning out nothing.
 func TestCreate_InvalidTypeRejected(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -619,8 +590,7 @@ func TestCreate_InvalidTypeRejected(t *testing.T) {
 	}
 }
 
-// A blank type defaults to shallow, both on create and on the seeded starters
-// (which rely on the DB column default).
+// A blank type defaults to shallow; the seeded starters rely on the DB column default.
 func TestCreate_BlankTypeDefaultsToShallow(t *testing.T) {
 	db := newDB(t)
 	svc := block.NewService(db, nil)
@@ -651,9 +621,6 @@ func mustList(t *testing.T, svc *block.Service, ctx context.Context, owner strin
 	return cs
 }
 
-// Create rejects an empty (or whitespace-only) label, an out-of-bounds slot,
-// and a slot already covered by a block — each persists nothing and fans out
-// nothing.
 func TestCreate_Rejections(t *testing.T) {
 	cases := map[string]struct {
 		label string
@@ -721,8 +688,6 @@ func TestRename_UpdatesLabelAndPublishes(t *testing.T) {
 	}
 }
 
-// Rename rejects a blank label and an id this owner doesn't own — each persists
-// nothing and fans out nothing.
 func TestRename_Rejections(t *testing.T) {
 	db := newDB(t)
 	pub := &capturePub{}
@@ -747,8 +712,6 @@ func TestRename_Rejections(t *testing.T) {
 	}
 }
 
-// Valid accepts exactly the three canonical types; anything else (including
-// blank or wrong-case) is invalid.
 func TestBlockType_Valid(t *testing.T) {
 	for _, bt := range []block.BlockType{block.BlockDeep, block.BlockShallow, block.BlockBreak} {
 		if !bt.Valid() {
@@ -762,7 +725,6 @@ func TestBlockType_Valid(t *testing.T) {
 	}
 }
 
-// capturePub records every published Event so a test can assert fan-out.
 type capturePub struct{ events []block.Event }
 
 func (c *capturePub) Publish(e block.Event) { c.events = append(c.events, e) }

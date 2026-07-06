@@ -9,9 +9,7 @@ import (
 	"testing"
 )
 
-// TestSMTPMailerMessageNoLogo asserts that without a logo the OTP email is a
-// multipart/alternative carrying both a text/plain and text/html part with the
-// code, and no image part.
+// Without a logo the OTP email is multipart/alternative (plain + html), no image part.
 func TestSMTPMailerMessageNoLogo(t *testing.T) {
 	m := NewSMTPMailer("smtp.example.com", "587", "user", "pass", "login@unbusy.day", nil)
 	raw := m.message("dev@example.com", "482913")
@@ -29,9 +27,8 @@ func TestSMTPMailerMessageNoLogo(t *testing.T) {
 	}
 }
 
-// TestSMTPMailerMessageWithLogo asserts a logo produces a multipart/related
-// wrapping the alternative body plus an inline cid: image part, and that the
-// HTML references that cid.
+// A logo produces multipart/related wrapping the alternative body plus an
+// inline cid: image part the HTML references.
 func TestSMTPMailerMessageWithLogo(t *testing.T) {
 	m := NewSMTPMailer("smtp.example.com", "587", "user", "pass", "login@unbusy.day", []byte("\x89PNGfakebytes"))
 	raw := m.message("dev@example.com", "482913")
@@ -58,8 +55,6 @@ func TestSMTPMailerMessageWithLogo(t *testing.T) {
 	}
 }
 
-// topLevel parses the raw message and returns its top-level media type, params,
-// and undecoded body.
 func topLevel(t *testing.T, raw []byte) (string, map[string]string, string) {
 	t.Helper()
 	msg, err := mail.ReadMessage(strings.NewReader(string(raw)))
@@ -77,8 +72,8 @@ func topLevel(t *testing.T, raw []byte) (string, map[string]string, string) {
 	return mt, params, string(b)
 }
 
-// readParts walks a multipart body and maps each part's media type to its raw
-// (undecoded) content. For a nested multipart part it maps the whole raw part.
+// readParts maps each part's media type to its raw content; a nested multipart
+// part maps whole.
 func readParts(t *testing.T, body, boundary string) map[string]string {
 	t.Helper()
 	out := map[string]string{}

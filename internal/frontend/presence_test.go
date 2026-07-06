@@ -8,8 +8,6 @@ import (
 	"testing"
 )
 
-// fakePresence is a PresenceVerifier under test control: ok decides the verdict,
-// and it records whether Verify ran.
 type fakePresence struct {
 	ok     bool
 	err    error
@@ -23,8 +21,6 @@ func (f *fakePresence) Verify(_ context.Context, token, _ string) (bool, error) 
 	return f.ok, f.err
 }
 
-// A passing human-presence check lets the request reach RequestCode and patches
-// the code-entry form as usual.
 func TestRequestCodePassingPresenceReachesRequestCode(t *testing.T) {
 	a := &fakeAuth{}
 	pv := &fakePresence{ok: true}
@@ -48,9 +44,8 @@ func TestRequestCodePassingPresenceReachesRequestCode(t *testing.T) {
 	}
 }
 
-// A failing presence check returns the same non-committal patched form and
-// never calls RequestCode — a script bypassing the widget gains nothing, and
-// the response can't be told apart from a real send (no enumeration).
+// A failing presence check returns the same non-committal patched form — it
+// can't be told apart from a real send (no enumeration).
 func TestRequestCodeFailingPresenceSkipsRequestCode(t *testing.T) {
 	a := &fakeAuth{}
 	pv := &fakePresence{ok: false}
@@ -71,8 +66,7 @@ func TestRequestCodeFailingPresenceSkipsRequestCode(t *testing.T) {
 	}
 }
 
-// With no Turnstile secret configured (dev), the verifier no-ops: Verify passes
-// so local login needs no Cloudflare account — mirrors LogMailer.
+// No Turnstile secret (dev) means a permissive no-op verifier — mirrors LogMailer.
 func TestNewPresenceVerifierNoSecretIsPermissive(t *testing.T) {
 	pv := NewPresenceVerifier("")
 	ok, err := pv.Verify(context.Background(), "", "127.0.0.1")

@@ -1,20 +1,10 @@
 # Component CSS scoped per leaf via native @scope
 
 > **Superseded by ADR 0008 for component styling.** The "want reusable
-> cross-component class names" revisit-trigger in the last sentence came true: we
-> adopted utility-first Tailwind v4 and then migrated **all** component styling to
-> the markup level (PRD-Finish-Tailwind), including the file this ADR piloted
-> (`login.templ`) and the hardest one (`column.templ` — its ~290-line
-> `ColumnStyles()` `@scope` block is gone, day grid and drag states and all). The
-> leaf-only `@scope` rule below no longer governs any component styling. CSS now
-> survives **only** for the foundational, non-component kind: design tokens and
-> theme palettes (`baseStyles`), `@font-face`, `@keyframes` and their
-> `animation:`/`transition:` drivers (the hamburger/logo/amoeba animations, the
-> dialog blur-fade), and the rare `::backdrop`/SVG-filter the Tailwind variants
-> don't cover cleanly — each kept in a small co-located `<style>`/`@scope` island
-> with a one-line comment stating why. The few `@scope` blocks that remain
-> (`login.templ`, `modals/dialog.templ`) hold only those islands, not component
-> styling.
+> cross-component class names" revisit-trigger in the last sentence came true:
+> all component styling migrated to utility-first Tailwind v4 in the markup.
+> CSS survives only for foundational, non-component things (see ADR 0008); the
+> few remaining `@scope` blocks hold only those islands.
 
 Component styles are co-located in each component's `*Styles` block but render
 into one shared `<head>`, so class names share a global namespace — a `.status`

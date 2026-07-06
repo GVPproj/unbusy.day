@@ -1,8 +1,6 @@
 // Distribute a grow's deficit across the blocks below it, closest-first: the
 // block nearest the handle shrinks to its one-slot floor before the next gives
-// up a single slot. Pure: below-block runs (sorted closest-first) + the slots
-// available below the grower → compressed runs (same order), or null when even
-// every block at span 1 can't fit the grow.
+// anything up. Returns null when even every block at span 1 can't fit.
 export function compressBelow(below, available) {
 	const out = below.map((p) => ({ id: p.id, span: p.span }));
 	let deficit = out.reduce((s, p) => s + p.span, 0) - available;
@@ -15,30 +13,20 @@ export function compressBelow(below, available) {
 	return deficit <= 0 ? out : null;
 }
 
-// Pure push cascade (ADR 0005): given the day bounds, the current layout,
-// and one block's proposed placement, returns the full resulting layout —
-// displaced blocks slide toward the slot the moved block vacated (so a
-// down-drag pushes others up and an up-drag pushes others down, the "slide
-// behind" reorder), gaps absorb first — or null when any block would be
-// forced past either edge of the day. With `compress` (the resize-grow path),
-// a grow that would shove the stack below past the bottom edge compresses those
-// blocks closest-first instead of rejecting.
+// Pure push cascade (ADR 0005): one block's proposed placement → the full
+// resulting layout. Displaced blocks slide toward the slot the moved block
+// vacated, gaps absorb first; null when any block would be forced past either
+// edge. With `compress` (resize-grow), an overflowing grow compresses the
+// stack below closest-first instead of rejecting.
 export function pushLayout(bounds, current, moved, { compress = false } = {}) {
-	// Fixed runs nothing may overlap; the moved block's run is fixed first,
-	// then each settled block's. Displaced blocks sweep outward from the moved
-	// block and are pushed past whatever they overlap — the minimum distance,
-	// in the direction of the vacated slot — so gaps absorb the cascade.
 	if (moved.slot < bounds.start || moved.slot + moved.span > bounds.end) return null;
-	// Direction: dragging down (past the block's old slot) slides displaced
-	// blocks up into the vacated space; dragging up (or a resize, same slot)
-	// pushes them down. The old slot lives in `current`; `moved` is the new one.
+	// Dragging down slides displaced blocks up into the vacated space; dragging
+	// up (or a resize, same slot) pushes them down.
 	const was = current.find((p) => p.id === moved.id);
 	const up = was ? moved.slot > was.slot : false;
 
-	// Resize-grow compression: the blocks below the grower must fit packed into
-	// [moved.bottom, bounds.end). Free space (the bottom gap plus inter-block
-	// gaps) absorbs first — only when tight-packing still overflows do we
-	// compress the surplus away closest-first; otherwise the normal sweep runs.
+	// Only when tight-packing the blocks below still overflows do we compress;
+	// otherwise free space absorbs the grow via the normal sweep.
 	if (compress && !up) {
 		const below = current
 			.filter((p) => p.id !== moved.id && p.slot > moved.slot)
@@ -47,7 +35,7 @@ export function pushLayout(bounds, current, moved, { compress = false } = {}) {
 		const tight = below.reduce((s, p) => s + p.span, 0);
 		if (tight > available) {
 			const compressed = compressBelow(below, available);
-			if (!compressed) return null; // even span-1 floors can't fit the grow
+			if (!compressed) return null;
 			const out = new Map(current.map((p) => [p.id, { ...p }]));
 			out.set(moved.id, { ...moved });
 			let slot = moved.slot + moved.span;
@@ -60,8 +48,8 @@ export function pushLayout(bounds, current, moved, { compress = false } = {}) {
 	}
 	const fixed = [{ slot: moved.slot, span: moved.span }];
 	const out = new Map([[moved.id, { ...moved }]]);
-	// Sweep from the moved block outward: ascending pushes down, descending up,
-	// so each displaced block clears the runs already settled before it.
+	// Sweep outward from the moved block so each displaced block clears the
+	// runs already settled before it.
 	const others = current
 		.filter((p) => p.id !== moved.id)
 		.slice()

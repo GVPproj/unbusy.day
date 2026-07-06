@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// A suppressed address gets no OTP, even though it's an allowlisted user —
-// RequestCode no-ops silently (no mailer call), same as unknown/throttled.
+// A suppressed address gets no OTP — RequestCode no-ops silently, same as
+// unknown/throttled.
 func TestSuppressedAddressSkipsOTP(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -29,8 +29,6 @@ func TestSuppressedAddressSkipsOTP(t *testing.T) {
 	}
 }
 
-// Suppress upserts (idempotent) and is case/space-insensitive on the address,
-// matching RequestCode's normalizeEmail.
 func TestSuppressNormalizesAndUpserts(t *testing.T) {
 	db := newDB(t)
 	svc := newSvc(db, &captureMailer{})
@@ -48,7 +46,6 @@ func TestSuppressNormalizesAndUpserts(t *testing.T) {
 	}
 }
 
-// An unknown reason is rejected before touching the DB.
 func TestSuppressRejectsBadReason(t *testing.T) {
 	svc := newSvc(newDB(t), &captureMailer{})
 	if err := svc.Suppress(context.Background(), "x@y.test", "spam", ""); err == nil {

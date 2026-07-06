@@ -1,15 +1,12 @@
 package components
 
-// Icons pair with the font under the "feeling" axis: $_feeling (mirrored to
-// :root[data-feeling] by the layout) selects "cozy" (solar duotone) or "pixel"
-// (8-bit pixelarticons). Both sets ship; IconStyles shows one, so the swap is live
-// with no round-trip. All draw with currentColor (--nav-icon themes them).
-// SVGs use a 24-unit viewBox and render at 24px — the integer size that maps the
-// pixel grid 1:1 to device pixels so 8-bit edges stay crisp.
+// Icons pair with the font under the "feeling" axis: both sets ship and
+// IconStyles shows one, so the swap is live with no round-trip. All draw with
+// currentColor. 24px maps the pixel grid 1:1 to device pixels so 8-bit edges
+// stay crisp.
 
-// IconStyles toggles the two sets and pins the 24px size. Global (not @scope-d) so
-// it works wherever an icon renders. Intentionally CSS (ADR 0006 non-goal): almost
-// all @keyframes/animation drivers plus the :root[data-feeling] display toggle.
+// IconStyles is global (not @scope-d) so it works wherever an icon renders;
+// CSS because it's @keyframes drivers plus the :root[data-feeling] toggle.
 templ IconStyles() {
 	<style>
 		.icon { width: 24px; height: 24px; display: block; }
@@ -19,7 +16,7 @@ templ IconStyles() {
 		:root[data-feeling="pixel"] .icon-solar { display: none; }
 		:root[data-feeling="pixel"] .icon-pixel { display: block; }
 
-		/* Animated hamburger (prototype winners): cozy "Jelly Wobble" + pixel
+		/* Animated hamburger: cozy "Jelly Wobble" + pixel
 		   "Tetris Drop". Both ship; feeling toggles which shows. The X-morph is
 		   driven by .open on the toggle button (data-class:open="$_navopen"). */
 		.menu-cozy, .menu-pixel { position: relative; width: 24px; height: 24px; }

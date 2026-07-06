@@ -1,6 +1,5 @@
-// Package block is the transport-agnostic core service: the Datastar/SSE
-// frontend drives one Service, so day-plan layout logic lives once.
-// Every query is owner-scoped (ADR 0003): each User privately owns their Blocks.
+// Package block is the transport-agnostic core service. All mutation logic
+// lives here once; every query is owner-scoped (ADR 0003).
 package block
 
 import (
@@ -12,8 +11,7 @@ import (
 	"strings"
 )
 
-// BlockType is a Block's flat three-way tag: deep/shallow work or break. Chosen
-// at creation and immutable after (delete + recreate to change). Default shallow.
+// BlockType is a Block's tag: deep/shallow work or break. Immutable after creation.
 type BlockType string
 
 const (
@@ -22,7 +20,6 @@ const (
 	BlockBreak   BlockType = "break"
 )
 
-// Valid reports whether t is one of the three canonical types.
 func (t BlockType) Valid() bool {
 	switch t {
 	case BlockDeep, BlockShallow, BlockBreak:
@@ -32,41 +29,29 @@ func (t BlockType) Valid() bool {
 }
 
 type Block struct {
-	ID       string `json:"id"`
-	Label    string `json:"label"`
-	Position int    `json:"position"`
-	// Span is the block's height in stretch slots (≥1).
-	Span int `json:"span"`
-	// Type is the block's deep/shallow/break tag, set at creation.
-	Type BlockType `json:"type"`
+	ID       string    `json:"id"`
+	Label    string    `json:"label"`
+	Position int       `json:"position"`
+	Span     int       `json:"span"` // height in slots (≥1)
+	Type     BlockType `json:"type"`
 }
 
-// Event is one mutation fanned out over the in-process pub/sub: the owner key
-// plus the full ordered block list. The broker routes by Owner so a mutation
-// only wakes that User's subscribers (ADR 0003).
+// Event is a full post-mutation snapshot, routed by Owner (ADR 0003).
 type Event struct {
 	Owner  string  `json:"owner"`
 	Blocks []Block `json:"blocks"`
 	Bounds Bounds  `json:"bounds"`
 }
 
-// Publisher is the seam between the core mutation and transport fan-out. The
-// Service owns the publish call but not the bus, so the Broker can live in
-// another package without an import cycle. A nil Publisher skips fan-out.
+// Publisher is the pub/sub seam; nil skips fan-out. The Service publishes
+// post-commit only, so subscribers never see uncommitted state.
 type Publisher interface {
 	Publish(Event)
 }
 
-// ErrInvalidSpan signals a span below the one-slot floor.
 var ErrInvalidSpan = errors.New("span must be at least 1")
-
-// ErrEmptyLabel signals a create with a blank label.
 var ErrEmptyLabel = errors.New("block label is required")
-
-// ErrBlockNotFound signals a delete or rename of a block this owner doesn't own.
 var ErrBlockNotFound = errors.New("block not found")
-
-// ErrInvalidBlockType signals a create with a type outside deep/shallow/break.
 var ErrInvalidBlockType = errors.New("invalid block type")
 
 type Service struct {
@@ -74,8 +59,6 @@ type Service struct {
 	pub Publisher
 }
 
-// NewService wires the core service over a SQLite handle and a Publisher. pub
-// may be nil (e.g. unit tests with no bus): Reorder then skips fan-out.
 func NewService(db *sql.DB, pub Publisher) *Service {
 	return &Service{db: db, pub: pub}
 }
@@ -84,13 +67,10 @@ func (s *Service) List(ctx context.Context, owner string) ([]Block, error) {
 	return queryBlocks(ctx, s.db, owner)
 }
 
-// Seed gives a new User their starter blocks on first login (ADR 0003) so the
-// day plan is populated before any create-block UI exists. No-op if the owner
-// already has blocks; ids are generated, never hand-picked.
+// Seed inserts starter blocks on first login; no-op if the owner has blocks.
 func (s *Service) Seed(ctx context.Context, owner string) error {
 	labels := []string{"Alpha", "Bravo", "Charlie"}
 	var b strings.Builder
-	// Starter blocks take the first slots after the owner's day start, span 1.
 	// SQLite has no column-alias on a VALUES subquery, so the row set is a CTE.
 	b.WriteString(`WITH v(id, label, pos) AS (VALUES `)
 	args := make([]any, 0, len(labels)*3+3)
@@ -111,26 +91,21 @@ func (s *Service) Seed(ctx context.Context, owner string) error {
 	return err
 }
 
-// LayoutResult is the post-mutation column returned to the caller.
 type LayoutResult struct {
 	Blocks []Block `json:"blocks"`
 }
 
-// CreateResult is the post-create column returned to the caller.
 type CreateResult struct {
 	Blocks []Block `json:"blocks"`
 }
 
-// Create inserts a new span-1 block labeled at slot for owner. It rejects a
-// blank label, a slot outside the day's bounds, or a slot already covered by a
-// block — same write-transaction and post-commit fan-out shape as SetLayout.
+// Create inserts a new span-1 block at slot; rejects a blank label, a slot
+// outside bounds, or an occupied slot.
 func (s *Service) Create(ctx context.Context, owner, label string, slot int, typ BlockType) (*CreateResult, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
 		return nil, ErrEmptyLabel
 	}
-	// Blank type defaults to shallow (the DB column default); a non-empty unknown
-	// value is rejected rather than silently coerced.
 	typ = BlockType(strings.TrimSpace(string(typ)))
 	if typ == "" {
 		typ = BlockShallow
@@ -178,21 +153,17 @@ func (s *Service) Create(ctx context.Context, owner, label string, slot int, typ
 		return nil, err
 	}
 
-	// Fan out post-commit so subscribers never observe an uncommitted insert.
 	if s.pub != nil {
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
 	return &CreateResult{Blocks: bs}, nil
 }
 
-// DeleteResult is the post-delete column returned to the caller.
 type DeleteResult struct {
 	Blocks []Block `json:"blocks"`
 }
 
-// Delete removes the owner's block by id, then fans out the new column. It
-// rejects an id the owner doesn't own (ErrBlockNotFound) — same
-// write-transaction and post-commit fan-out shape as Create.
+// Delete removes the owner's block by id; ErrBlockNotFound if they don't own it.
 func (s *Service) Delete(ctx context.Context, owner, id string) (*DeleteResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -223,23 +194,18 @@ func (s *Service) Delete(ctx context.Context, owner, id string) (*DeleteResult, 
 		return nil, err
 	}
 
-	// Fan out post-commit so subscribers never observe an uncommitted delete.
 	if s.pub != nil {
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
 	return &DeleteResult{Blocks: bs}, nil
 }
 
-// ClearResult is the post-clear column returned to the caller.
 type ClearResult struct {
 	Blocks []Block `json:"blocks"`
 }
 
-// Clear removes every one of the owner's blocks in one mutation, then fans out
-// the now-empty column. The day extent is untouched (bounds unchanged). No
-// domain rejection — clearing an already-empty day is a harmless no-op that
-// still re-asserts the empty column. Same write-transaction and post-commit
-// fan-out shape as Delete.
+// Clear removes all the owner's blocks; bounds are untouched and an
+// already-empty day is a harmless no-op.
 func (s *Service) Clear(ctx context.Context, owner string) (*ClearResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -264,21 +230,17 @@ func (s *Service) Clear(ctx context.Context, owner string) (*ClearResult, error)
 		return nil, err
 	}
 
-	// Fan out post-commit so subscribers never observe an uncommitted clear.
 	if s.pub != nil {
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
 	return &ClearResult{Blocks: bs}, nil
 }
 
-// RenameResult is the post-rename column returned to the caller.
 type RenameResult struct {
 	Blocks []Block `json:"blocks"`
 }
 
-// Rename changes the owner's block label, then fans out the new column. A blank
-// label rejects (ErrEmptyLabel) and an id the owner doesn't own rejects
-// (ErrBlockNotFound) — same write-transaction and post-commit fan-out as Delete.
+// Rename changes the owner's block label.
 func (s *Service) Rename(ctx context.Context, owner, id, label string) (*RenameResult, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
@@ -314,7 +276,6 @@ func (s *Service) Rename(ctx context.Context, owner, id, label string) (*RenameR
 		return nil, err
 	}
 
-	// Fan out post-commit so subscribers never observe an uncommitted rename.
 	if s.pub != nil {
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
@@ -322,11 +283,10 @@ func (s *Service) Rename(ctx context.Context, owner, id, label string) (*RenameR
 }
 
 // SetLayout replaces the owner's whole layout in one mutation (ADR 0005): the
-// client computes the push, the server enforces the invariants via
-// ValidateLayout inside the write transaction (SQLite serializes writes).
+// client computes the push, the server enforces the invariants.
+// _txlock=immediate takes the write lock at BeginTx, so reads inside the tx
+// can't be invalidated by a concurrent writer before commit.
 func (s *Service) SetLayout(ctx context.Context, owner string, layout []Placement) (*LayoutResult, error) {
-	// _txlock=immediate takes the write lock at BeginTx, so these reads can't be
-	// invalidated by a concurrent writer before we validate and commit.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -345,8 +305,6 @@ func (s *Service) SetLayout(ctx context.Context, owner string, layout []Placemen
 		return nil, err
 	}
 
-	// Single bulk UPDATE. SQLite serializes writes at the database level, so no
-	// row-level locking is needed; intermediate overlaps never surface.
 	var b strings.Builder
 	b.WriteString(`WITH v(id, slot, span) AS (VALUES `)
 	args := make([]any, 0, len(layout)*3+1)
@@ -371,29 +329,23 @@ func (s *Service) SetLayout(ctx context.Context, owner string, layout []Placemen
 		return nil, err
 	}
 
-	// Fan out post-commit so subscribers never observe an uncommitted layout.
 	if s.pub != nil {
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: bounds})
 	}
 	return &LayoutResult{Blocks: bs}, nil
 }
 
-// Bounds reads the owner's day bounds for the render path.
 func (s *Service) Bounds(ctx context.Context, owner string) (Bounds, error) {
 	return queryBounds(ctx, s.db, owner)
 }
 
-// SetBounds edits the owner's day extent. Hard limits 5:00–18:00, end after
-// start; the day may only shrink into empty slots — a shrink onto an occupied
-// slot rejects whole, same shape as a layout rejection.
+// SetBounds edits the owner's day extent; a shrink onto an occupied slot
+// rejects whole.
 func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) error {
 	if start < MinDayStart || end > MaxDayEnd || end <= start {
 		return ErrInvalidBounds
 	}
 
-	// _txlock=immediate takes the write lock at BeginTx, so a concurrent layout
-	// mutation can't slip a block outside the new bounds between this check and
-	// commit.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -418,23 +370,18 @@ func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) e
 		return err
 	}
 
-	// Fan out post-commit so live tabs re-render the grid at its new extent.
 	if s.pub != nil {
 		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: Bounds{Start: start, End: end}})
 	}
 	return nil
 }
 
-// querier is the read surface shared by *sql.DB and *sql.Tx, so the same query
-// helpers run on the render path (db) and inside a mutation (tx).
+// querier is the read surface shared by *sql.DB and *sql.Tx.
 type querier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// queryBlocks reads the owner's blocks in position order. Runs on both the
-// render path (db) and inside a mutation tx. The explicit column list lives
-// here once — keep it in sync with scanBlocks.
 func queryBlocks(ctx context.Context, q querier, owner string) ([]Block, error) {
 	rows, err := q.QueryContext(ctx,
 		`SELECT id, label, position, span, type FROM block WHERE owner_id = ? ORDER BY position`, owner)
@@ -444,7 +391,6 @@ func queryBlocks(ctx context.Context, q querier, owner string) ([]Block, error) 
 	return scanBlocks(rows)
 }
 
-// queryBounds reads the owner's day extent.
 func queryBounds(ctx context.Context, q querier, owner string) (Bounds, error) {
 	var b Bounds
 	err := q.QueryRowContext(ctx,
@@ -452,7 +398,6 @@ func queryBounds(ctx context.Context, q querier, owner string) (Bounds, error) {
 	return b, err
 }
 
-// newID is a generated unique block id — hand-picked ids can't repeat across Users.
 func newID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
