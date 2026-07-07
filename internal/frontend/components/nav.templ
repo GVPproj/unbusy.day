@@ -1,19 +1,14 @@
 package components
 
-// sidenavClasses is the rail↔drawer geometry: a sticky desktop rail that below
-// sm becomes a right-side off-canvas drawer slid in by the `.open` hook.
-// Translate/transition are max-sm-only so the rail never picks up a transform.
-const sidenavClasses = "sidenav w-24 shrink-0 flex flex-col gap-1 py-3 px-2 bg-nav-bg text-nav-ink sticky top-0 h-screen max-sm:fixed max-sm:inset-y-0 max-sm:right-0 max-sm:z-30 max-sm:w-[260px] max-sm:gap-2 max-sm:py-4 max-sm:px-3 max-sm:translate-x-full max-sm:[&.open]:translate-x-0 max-sm:transition-transform max-sm:duration-200 max-sm:shadow-[var(--shadow-lift)]"
-
-// navlinkClasses is the shared rail-link styling: a centered icon-over-label
-// stack on desktop that becomes a row in the mobile drawer.
-const navlinkClasses = "flex flex-col items-center gap-0.5 py-2 px-1 border-none rounded text-inherit no-underline text-[0.85rem] font-bold whitespace-nowrap cursor-pointer hover:bg-[var(--nav-hover)] max-sm:flex-row max-sm:gap-3.5 max-sm:py-3.5 max-sm:px-4 max-sm:text-xl"
+// Styling lives in app.css: @scope (.sidenav) owns the rail↔drawer geometry,
+// .menu-toggle/.nav-scrim the mobile chrome. `.open` (data-class:open) is the
+// drawer/X-morph hook.
 
 // MenuToggle is the mobile hamburger, rendered at .shell level so it escapes
 // the header's stacking context and floats above the open drawer.
 templ MenuToggle() {
 	<button
-		class="hidden max-sm:grid max-sm:fixed max-sm:top-3.5 max-sm:right-4 max-sm:z-40 place-items-center p-[0.4rem] border border-rail-border rounded bg-surface text-ink cursor-pointer shadow-(--shadow-rest)"
+		class="menu-toggle"
 		data-on:click="$_navopen = !$_navopen"
 		data-attr:aria-expanded="$_navopen ? 'true' : 'false'"
 		data-class:open="$_navopen"
@@ -27,31 +22,31 @@ templ MenuToggle() {
 }
 
 templ SideNav() {
-	<div class="hidden fixed inset-0 z-20 bg-(--scrim) max-sm:[&.open]:block" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
-	<nav id="sidenav" class={ sidenavClasses } data-class:open="$_navopen">
-		<div title="unbusy.day" class="font-bold text-xl text-center mb-3 text-nav-icon max-sm:self-start max-sm:ml-4">
+	<div class="nav-scrim" data-class:open="$_navopen" data-on:click="$_navopen = false"></div>
+	<nav id="sidenav" class="sidenav" data-class:open="$_navopen">
+		<div title="unbusy.day" class="nav-logo">
 			@UBLogo("51", "22", 0.35)
 		</div>
-		<button class={ navlinkClasses } commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="leading-0 text-nav-icon">
+		<button commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="nav-icon">
 				@IconHours()
 			</span><span>Set Hours</span>
 		</button>
 		// Disabled on an empty day: the envelope collapses to first >= last.
-		<button class={ navlinkClasses + " disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" } data-attr:disabled="$firstOccupiedSlot >= $lastOccupiedEnd" commandfor="clear-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="leading-0 text-nav-icon">
+		<button data-attr:disabled="$firstOccupiedSlot >= $lastOccupiedEnd" commandfor="clear-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="nav-icon">
 				@IconClear()
 			</span><span>Clear</span>
 		</button>
-		<button class={ navlinkClasses + " mt-auto" } commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="leading-0 text-nav-icon">
+		<button class="nav-tail" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="nav-icon">
 				@IconTheme()
 			</span><span>Theme</span>
 		</button>
-		<button class={ navlinkClasses + " max-sm:mb-6" } data-on:click="@post('/logout')">
-			<span class="leading-0 text-nav-icon">
+		<button data-on:click="@post('/logout')">
+			<span class="nav-icon">
 				@IconLogout()
-			</span><span class="min-w-max">Log Out</span>
+			</span><span>Log Out</span>
 		</button>
 	</nav>
 }

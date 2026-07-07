@@ -1,6 +1,6 @@
 # 004 — Harden the supply-chain surface (CDN scripts + downloaded binaries)
 
-Status: backlog
+Status: backlog (Exposure 1 only — Exposure 2 resolved by ADR 0011, 2026-07-07)
 Date: 2026-06-16
 
 ## Why this is worth doing
@@ -56,6 +56,11 @@ bundle into `static/`**; it's the only option that fully closes the ESM-import
 gap and it fits the embed-everything architecture.
 
 ## Exposure 2 — Tailwind binary downloaded without checksum verification
+
+> **Resolved 2026-07-07 by removal, not hardening**: the plain-CSS migration
+> (ADR 0011) deleted the Tailwind toolchain entirely — no downloaded build
+> binary remains anywhere in dev, CI, or the Docker build. The section below
+> is kept for the record.
 
 The Tailwind v4 standalone binary is version-pinned in three places
 (Taskfile.yml `TAILWIND_VERSION`, Dockerfile `ARG TAILWIND_VERSION`, CI) but

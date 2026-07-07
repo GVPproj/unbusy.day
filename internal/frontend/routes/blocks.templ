@@ -11,8 +11,8 @@ import (
 // semantics: Datastar's default 'auto' never reconnects after a *clean* stream
 // end, leaving the tab silently deaf.
 templ BlocksPage(cs []block.Block, b block.Bounds) {
-	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})", components.IconStyles(), modals.DialogStyles()) {
-		<div class="shell flex min-h-screen" data-signals:_navopen="false">
+	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
+		<div class="shell" data-signals:_navopen="false">
 			@components.SideNav()
 			@components.MenuToggle()
 			@modals.ThemeModal()
@@ -20,9 +20,8 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@modals.CreateModal()
 			@modals.ClearModal()
 			@modals.DialogInit()
-			// A flex column at every size so DateHeading is a fixed header and the
-			// .blocks grid is the only scroll region.
-			<main class="column w-full max-w-[520px] mx-auto my-12 p-4 bg-column-bg rounded-lg flex flex-col overflow-hidden sm:max-h-[calc(100svh-6rem)] max-sm:max-w-none max-sm:m-0 max-sm:p-0 max-sm:rounded-none max-sm:h-svh">
+			// .shell/.column geometry lives in app.css's layout layer.
+			<main class="column">
 				@components.DateHeading()
 				@components.BlockColumn(cs, b)
 				// Keyboard-a11y scaffolding, kept OUTSIDE #block-list so SSE morphs

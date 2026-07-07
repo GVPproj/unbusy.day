@@ -6,21 +6,21 @@ package modals
 templ ClearModal() {
 	<dialog
 		id="clear-modal"
-		class={ dialogClass }
+		class="app-dialog"
 		closedby="any"
 		aria-labelledby="clear-modal-title"
 	>
-		<h2 id="clear-modal-title" class={ dialogH2Class }>Clear all blocks?</h2>
-		<p class="m-0 text-base text-ink-muted">A fresh and empty day plan lies ahead.</p>
-		<footer class={ dialogFooterClass }>
+		<h2 id="clear-modal-title">Clear all blocks?</h2>
+		<p>A fresh and empty day plan lies ahead.</p>
+		<footer>
 			<button
-				class={ dialogButtonSecondaryClass }
+				class="btn btn-secondary"
 				autofocus
 				commandfor="clear-modal"
 				command="close"
 			>Cancel</button>
 			<button
-				class="py-[0.35rem] px-3 rounded border-none bg-danger text-bg text-sm cursor-pointer"
+				class="btn btn-danger"
 				commandfor="clear-modal"
 				command="close"
 				data-on:click="@post('/blocks/clear')"

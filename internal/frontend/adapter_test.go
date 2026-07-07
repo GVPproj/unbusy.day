@@ -617,9 +617,9 @@ func TestColumnRendersEverySlotInDay(t *testing.T) {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
-	// Match the `class="slot ` prefix: utility classes follow the structural
-	// hook, and the prefix excludes slot-add/block-label.
-	if got, want := strings.Count(body, `class="slot `), testBounds.End-testBounds.Start; got != want {
+	// `class="slot` followed by a quote or space (`slot` alone or `slot half`)
+	// excludes slot-add/block-label.
+	if got, want := strings.Count(body, `class="slot"`)+strings.Count(body, `class="slot `), testBounds.End-testBounds.Start; got != want {
 		t.Errorf("want %d slot elements, got %d; body:\n%s", want, got, body)
 	}
 	for _, want := range []string{`data-slot="18"`, `data-slot="33"`} {
@@ -680,7 +680,7 @@ func slotElement(t *testing.T, body string, n int) string {
 			break
 		}
 		el := rest[i : i+end+len("</li>")]
-		if open, _, _ := strings.Cut(el, ">"); strings.Contains(open, `class="slot `) && strings.Contains(open, want) {
+		if open, _, _ := strings.Cut(el, ">"); (strings.Contains(open, `class="slot"`) || strings.Contains(open, `class="slot `)) && strings.Contains(open, want) {
 			return el
 		}
 		rest = rest[i+3:]

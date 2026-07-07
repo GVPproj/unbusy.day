@@ -1,5 +1,10 @@
 # Utility-first CSS via the Tailwind v4 standalone binary
 
+> **Superseded by ADR 0011.** Component styling migrated back to plain CSS —
+> one hand-authored `app.css` on cascade layers and `@scope` with a shared
+> class tier — and Tailwind (binary, input/output CSS, build wiring) was
+> removed on 2026-07-07.
+
 Component styling moves from co-located `@scope` CSS blocks (ADR 0006) to
 Tailwind v4 utility classes written directly in the templ markup. The compiler
 is the official **standalone binary** — no Node, no npm, preserving the

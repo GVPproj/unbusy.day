@@ -2,40 +2,13 @@ package components
 
 import "fmt"
 
-// LoginStyles is CSS because it's keyframe-driven: the amoeba spin and its
-// reduced-motion off-switch. @keyframes is global, so it sits outside the @scope.
-templ LoginStyles() {
-	<style>
-		@scope (.login-main) {
-			.login-amoeba-svg {
-				animation: login-amoeba-spin 90s linear infinite;
-			}
-
-			@media (prefers-reduced-motion: reduce) {
-				.login-amoeba-svg {
-					animation: none;
-				}
-				.login-amoeba-svg animate {
-					display: none;
-				}
-			}
-		}
-
-		@keyframes login-amoeba-spin {
-			to {
-				transform: rotate(360deg);
-			}
-		}
-	</style>
-}
+// Styles live in static/app.css under @scope (.login-main).
 
 // LoginAmoeba wraps the login content in an undulating SVG-blob backdrop.
 // An empty turnstileSiteKey (dev) renders no presence widget.
 templ LoginAmoeba(turnstileSiteKey string) {
-	<div class="relative w-full min-h-svh grid place-items-center overflow-hidden">
-		// -translate-* uses v4's `translate` property so centering composes with
-		// the keyframe's `transform: rotate`.
-		<svg class="login-amoeba-svg absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(1000px,max(95vmin,150vw))] h-[min(1000px,max(95vmin,150vw))] text-column-bg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+	<div class="login-amoeba">
+		<svg class="login-amoeba-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
 			<path fill="currentColor">
 				<animate
 					attributeName="d"
@@ -48,8 +21,8 @@ templ LoginAmoeba(turnstileSiteKey string) {
 				></animate>
 			</path>
 		</svg>
-		<div class="relative w-[min(20rem,calc(100vw-2rem))] py-[clamp(2rem,10vmin,6rem)] flex flex-col gap-6">
-			<div class="text-accent ">
+		<div class="login-stack">
+			<div class="login-logo">
 				@UBLogo("153", "66", 0.8)
 			</div>
 			@LoginEmailForm(turnstileSiteKey)
@@ -63,14 +36,13 @@ templ LoginAmoeba(turnstileSiteKey string) {
 templ LoginEmailForm(turnstileSiteKey string) {
 	<form
 		id="login-form"
-		class="flex flex-col gap-6"
 		data-signals:email="''"
 		data-signals:code="''"
 		data-signals:turnstileToken="''"
 		data-on:turnstile-ok__window="$turnstileToken = evt.detail"
 		data-on:submit="@post('/login/code')"
 	>
-		<p class="m-0 text-ink-muted text-sm font-medium">We'll email you a one-time code.</p>
+		<p>We'll email you a one-time code.</p>
 		<input
 			type="email"
 			placeholder="you@example.com"
@@ -78,9 +50,8 @@ templ LoginEmailForm(turnstileSiteKey string) {
 			required
 			aria-label="Email address"
 			data-bind:email
-			class="h-12 text-lg font-medium px-3 text-center border border-rail-border rounded bg-surface text-ink placeholder:text-ink-muted"
 		/>
-		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Send code</button>
+		<button type="submit">Send code</button>
 		if turnstileSiteKey != "" {
 			@turnstileWidget(turnstileSiteKey)
 		}
@@ -104,13 +75,13 @@ templ turnstileWidget(siteKey string) {
 // LoginCodeForm is step 2, patched over #login-form. A complete 6-digit code
 // verifies immediately; Enter/button are fallbacks.
 templ LoginCodeForm(errMsg string) {
-	<form id="login-form" class="flex flex-col gap-6" data-on:submit="@post('/login/verify')">
-		<p class="m-0 text-ink-muted text-sm font-medium">A 6-digit code is on its way.</p>
+	<form id="login-form" data-on:submit="@post('/login/verify')">
+		<p>A 6-digit code is on its way.</p>
 		if errMsg != "" {
-			<p role="alert" class="m-0 text-ink-error text-sm font-medium">{ errMsg }</p>
+			<p role="alert">{ errMsg }</p>
 		}
 		@otpInput()
-		<button type="submit" class="text-base font-bold p-[0.6rem] border-none rounded bg-accent text-bg cursor-pointer">Verify</button>
+		<button type="submit">Verify</button>
 	</form>
 }
 
@@ -118,9 +89,8 @@ templ LoginCodeForm(errMsg string) {
 // on top so autofill and paste keep working. The handler strips non-digits and
 // auto-submits at six.
 templ otpInput() {
-	<div class="group relative flex w-full gap-[0.4rem] items-center justify-between">
+	<div class="otp">
 		<input
-			class="absolute inset-0 w-full h-full opacity-0 text-lg caret-transparent cursor-pointer"
 			inputmode="numeric"
 			pattern="[0-9]*"
 			autocomplete="one-time-code"
@@ -136,7 +106,7 @@ templ otpInput() {
 		/>
 		for i := range 6 {
 			if i > 0 {
-				<span class="text-ink-muted font-bold select-none" aria-hidden="true">-</span>
+				<span class="otp-sep" aria-hidden="true">-</span>
 			}
 			@otpBox(i)
 		}
@@ -144,10 +114,9 @@ templ otpInput() {
 }
 
 templ otpBox(i int) {
-	// active box (index === $code.length) takes the accent border only while the
-	// input is focused — group-focus-within + the .active hook.
+	// active box (index === $code.length) accents via .otp:focus-within in CSS.
 	<span
-		class="flex-1 h-12 grid place-items-center text-xl font-bold border border-rail-border rounded bg-surface text-ink group-focus-within:[&.active]:border-accent"
+		class="otp-box"
 		aria-hidden="true"
 		data-text={ fmt.Sprintf("$code[%d] || ''", i) }
 		data-class:active={ fmt.Sprintf("$code.length === %d", i) }

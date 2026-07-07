@@ -22,8 +22,8 @@ func Asset(name string) ([]byte, error) {
 }
 
 // StaticHandler serves /static/* from the embedded assets. In a templ watch
-// session (TEMPL_DEV_MODE) it serves from disk instead, so `tailwindcss
-// --watch` rewriting output.css is live without a Go rebuild.
+// session (TEMPL_DEV_MODE) it serves from disk instead, so app.css/JS edits
+// land live without a Go rebuild.
 func StaticHandler() http.Handler {
 	var fs http.Handler
 	if os.Getenv("TEMPL_DEV_MODE") != "" {

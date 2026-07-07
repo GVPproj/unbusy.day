@@ -10,8 +10,8 @@ import (
 // code-entry step. Signals are global, so $email survives the morph and rides
 // along with $code on /login/verify.
 templ LoginPage(turnstileSiteKey string) {
-	@layouts.Layout("unbusy.day — log in", "", components.LoginStyles()) {
-		<main class="login-main text-center">
+	@layouts.Layout("unbusy.day — log in", "") {
+		<main class="login-main">
 			<h1 class="sr-only">Log in to unbusy.day</h1>
 			@components.LoginAmoeba(turnstileSiteKey)
 		</main>

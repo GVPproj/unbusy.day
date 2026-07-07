@@ -1,10 +1,10 @@
 # Component CSS scoped per leaf via native @scope
 
-> **Superseded by ADR 0008 for component styling.** The "want reusable
-> cross-component class names" revisit-trigger in the last sentence came true:
-> all component styling migrated to utility-first Tailwind v4 in the markup.
-> CSS survives only for foundational, non-component things (see ADR 0008); the
-> few remaining `@scope` blocks hold only those islands.
+> **Superseded by ADR 0008, then revived in amended form by ADR 0011.** The
+> "want reusable cross-component class names" revisit-trigger came true and
+> styling migrated to Tailwind v4 (ADR 0008); ADR 0011 later brought the
+> per-leaf `@scope` idea back — in one hand-authored `app.css` on cascade
+> layers, paired with the shared class tier this ADR lacked.
 
 Component styles are co-located in each component's `*Styles` block but render
 into one shared `<head>`, so class names share a global namespace — a `.status`
