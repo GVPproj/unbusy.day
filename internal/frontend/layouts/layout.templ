@@ -1,11 +1,10 @@
 package layouts
 
-// Layout is the document shell. Routes pass their page's *Styles blocks via
-// the variadic styles param; they render in <head>, never inside a patched
-// fragment, so SSE patches don't re-ship CSS. streamInit is the body's
-// `data-init` expression — not the RC-era `data-on-load`, which is a silent
-// no-op on v1.0.2.
-templ Layout(title string, streamInit string, styles ...templ.Component) {
+// Layout is the document shell. All CSS is the single app.css <link> in
+// <head>, never inside a patched fragment, so SSE patches don't re-ship CSS.
+// streamInit is the body's `data-init` expression — not the RC-era
+// `data-on-load`, which is a silent no-op on v1.0.2.
+templ Layout(title string, streamInit string) {
 	<!DOCTYPE html>
 	<html
 		lang="en"
@@ -50,17 +49,8 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 				}
 			</script>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
-			@baseStyles()
-			// Hand-authored stylesheet (plain-CSS migration). Linked BEFORE
-			// output.css so its cascade layers pin below Tailwind's utilities —
-			// see the coexistence note at the top of app.css.
+			// The single hand-authored stylesheet (ADR 0011).
 			<link rel="stylesheet" href="/static/app.css"/>
-			// Tailwind utilities, loaded after baseStyles so they resolve against
-			// the live design tokens.
-			<link rel="stylesheet" href="/static/output.css"/>
-			for _, s := range styles {
-				@s
-			}
 		</head>
 		<body
 			if streamInit != "" {
@@ -70,165 +60,4 @@ templ Layout(title string, streamInit string, styles ...templ.Component) {
 			{ children... }
 		</body>
 	</html>
-}
-
-// baseStyles owns the design tokens, @font-face, and the body shell. Themes
-// override the color tokens via :root[data-colorscheme]; swapping the
-// attribute hot-swaps every color.
-templ baseStyles() {
-	<style>
-		/* Zen Maru Gothic (SIL OFL, latin subset) — self-hosted from /static/fonts */
-		@font-face {
-			font-family: "Zen Maru Gothic";
-			font-style: normal;
-			font-weight: 400;
-			font-display: swap;
-			src: url(/static/fonts/zen-maru-gothic-400-latin.woff2) format("woff2");
-		}
-		@font-face {
-			font-family: "Zen Maru Gothic";
-			font-style: normal;
-			font-weight: 500;
-			font-display: swap;
-			src: url(/static/fonts/zen-maru-gothic-500-latin.woff2) format("woff2");
-		}
-		@font-face {
-			font-family: "Zen Maru Gothic";
-			font-style: normal;
-			font-weight: 700;
-			font-display: swap;
-			src: url(/static/fonts/zen-maru-gothic-700-latin.woff2) format("woff2");
-		}
-
-		/* Gohu (GohuFont uni14 Nerd Font, WTFPL) — crisp bitmap pixel font,
-		   self-hosted latin subset. Only Regular ships; 700 falls back to 400. */
-		@font-face {
-			font-family: "Gohu";
-			font-style: normal;
-			font-weight: 400;
-			font-display: swap;
-			src: url(/static/fonts/gohu-400-latin.woff2) format("woff2");
-		}
-
-		/* Font tokens — paired with the icon set under one "feeling", driven by $_feeling. */
-		:root,
-		:root[data-feeling="cozy"] {
-			--font-family: "Zen Maru Gothic", system-ui, sans-serif;
-			--line-height: 1.5;
-		}
-		/* Gohu's bitmap metrics sit tight; give it extra leading so rows
-		   breathe like cozy. */
-		:root[data-feeling="pixel"] {
-			--font-family: "Gohu", ui-monospace, monospace;
-			--line-height: 1.7;
-		}
-
-		/* Solarized Light (default) */
-		:root,
-		:root[data-colorscheme="solarized-light"] {
-			--bg: hsl(44, 86%, 94%);
-			--ink: hsl(195, 7%, 32%);
-			--ink-muted: hsl(194, 14%, 40%); /* Solarized base01 #586e75 — 5.0:1 on bg (WCAG AA) */
-			--ink-error: hsl(1, 71%, 52%);
-			--surface: hsl(44, 86%, 94%);
-			--column-bg: hsl(46, 42%, 88%);
-			--rail-border: hsl(44, 27%, 79%);
-			--nav-bg: hsl(192, 81%, 14%);
-			--nav-ink: hsl(46, 42%, 88%);
-			--nav-hover: rgba(253, 246, 227, 0.15);
-			--nav-icon: hsl(45, 100%, 40%);
-			--gutter-ink: hsl(192, 81%, 14%); /* nav-bg: legible against column-bg */
-			--accent: hsl(205, 69%, 49%);
-			--danger: hsl(1, 71%, 52%); /* canonical Solarized red #dc322f — destructive actions */
-			--scrim: rgba(0, 43, 54, 0.35);
-			--shadow-rest: 0 1px 1px rgba(88, 110, 117, 0.25);
-			--shadow-lift: 0 4px 8px rgba(88, 110, 117, 0.25);
-			--gap: 0.5rem;
-			--block-pad: 0.75rem;
-			--radius: 4px;
-			--radius-lg: 8px;
-			
-			/* Block-type fills: deep→blue tint and break→green tint over a darker
-			   same-hue ink; shallow keeps the pre-feature block look (surface/ink)
-			   so the default type matches every block on main. */
-			--type-deep: hsl(205, 70%, 87%);
-			--type-deep-ink: hsl(205, 75%, 27%);
-			--type-shallow: var(--surface);
-			--type-shallow-ink: var(--ink);
-			--type-break: hsl(135, 42%, 82%);
-			--type-break-ink: hsl(135, 55%, 22%);
-		}
-
-		/* Solarized Dark Osaka (craftzdog's solarized-osaka.nvim palette) */
-		:root[data-colorscheme="solarized-osaka"] {
-			--bg: hsl(192, 100%, 5%);
-			--ink: hsl(184, 10%, 74%);
-			--ink-muted: hsl(186, 8%, 55%); /* Solarized base0 #839496 — 4.9:1 on surface (WCAG AA) */
-			--ink-error: hsl(1, 71%, 52%);
-			--surface: hsl(192, 100%, 10%);
-			--column-bg: hsl(192, 100%, 7%);
-			--rail-border: hsl(194, 65%, 17%);
-			--nav-bg: hsl(195, 100%, 3%);
-			--nav-ink: hsl(184, 8%, 65%);
-			--nav-hover: rgba(158, 171, 172, 0.12);
-			--nav-icon: hsl(58, 63%, 44%);
-			--gutter-ink: var(--nav-icon);
-			--accent: hsl(175, 60%, 40%);
-			--danger: hsl(1, 71%, 52%); /* canonical Solarized red #dc322f — destructive actions */
-			--scrim: rgba(0, 0, 0, 0.55);
-			--shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
-			--shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
-			
-			/* Dark scheme: deep/break fill with same-hue ink; shallow keeps the
-			   pre-feature block look (surface/ink) so the default type is unchanged. */
-			--type-deep: hsl(205, 55%, 25%);
-			--type-deep-ink: hsl(205, 70%, 80%);
-			--type-shallow: var(--surface);
-			--type-shallow-ink: var(--ink);
-			--type-break: hsl(237, 42%, 22%);
-			--type-break-ink: hsl(236, 100%, 90%);
-		}
-
-		/* Catppuccin Mocha */
-		:root[data-colorscheme="catppuccin-mocha"] {
-			--bg: hsl(240, 21%, 15%);
-			--ink: hsl(227, 63%, 92%);
-			--ink-muted: hsl(228, 24%, 72%); /* Catppuccin Subtext0 #a6adc8 — 5.7:1 on surface (WCAG AA) */
-			--ink-error: hsl(343, 81%, 75%);
-			--surface: hsl(237, 16%, 23%);
-			--column-bg: hsl(240, 21%, 12%);
-			--rail-border: hsl(235, 13%, 31%);
-			--nav-bg: hsl(240, 23%, 9%);
-			--nav-ink: hsl(226, 64%, 88%);
-			--nav-hover: rgba(205, 214, 244, 0.12);
-			--nav-icon: hsl(23, 92%, 75%);
-			--gutter-ink: var(--nav-icon);
-			--accent: hsl(267, 84%, 81%);
-			--danger: hsl(343, 81%, 75%); /* canonical Catppuccin Mocha Red #f38ba8 — destructive actions */
-			--scrim: rgba(17, 17, 27, 0.55);
-			--shadow-rest: 0 1px 1px rgba(17, 17, 27, 0.5);
-			--shadow-lift: 0 4px 8px rgba(17, 17, 27, 0.5);
-			
-			/* Catppuccin Mocha: deep/break darkened-hue fills with bright pastel
-			   same-hue ink; shallow keeps the pre-feature block look (surface/ink). */
-			--type-deep: hsl(217, 50%, 30%);
-			--type-deep-ink: hsl(217, 90%, 82%);
-			--type-shallow: var(--surface);
-			--type-shallow-ink: var(--ink);
-			--type-break: hsl(189, 45%, 24%);
-			--type-break-ink: hsl(189, 71%, 73%);
-		}
-
-		* {
-			box-sizing: border-box;
-		}
-
-		body {
-			margin: 0;
-			font-family: var(--font-family);
-			line-height: var(--line-height);
-			background: var(--bg);
-			color: var(--ink);
-		}
-	</style>
 }

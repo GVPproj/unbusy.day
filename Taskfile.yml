@@ -1,14 +1,9 @@
 version: "3"
 
-# versions.env is the single source of truth for non-Go tool versions
-# ($TAILWIND_VERSION); the Dockerfile and CI read the same file. templ's version
-# lives in go.mod (derived via `go list -m`). `task check:versions` flags drift.
-dotenv: [".env", "versions.env"]
-
-vars:
-  TAILWIND_BIN: tmp/tailwindcss
-  TAILWIND_IN: internal/frontend/input.css
-  TAILWIND_OUT: internal/frontend/static/output.css
+# templ's version lives in go.mod (derived via `go list -m`); CDN bundles are
+# pinned as exact tags in the templ shells / drag.js. `task check:versions`
+# flags drift.
+dotenv: [".env"]
 
 tasks:
   default:
@@ -25,15 +20,12 @@ tasks:
       # TEMPL_DEV_MODE); Go changes restart `go run .`. Don't run air alongside —
       # it rebuilds on every .templ edit and defeats the fast path.
       # We wait out startup 502s (curl -f) before opening the browser.
-      # Tailwind --watch regenerates output.css on .templ edits; it writes plain
-      # CSS so it never triggers a Go rebuild, and TEMPL_DEV_MODE serves static/
-      # from disk, so new utility classes land live without a rebuild.
+      # TEMPL_DEV_MODE serves static/ from disk, so app.css edits land live
+      # without a rebuild.
       - |
         opener=open; command -v xdg-open >/dev/null && opener=xdg-open
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; "$opener" "http://127.0.0.1:7331/") &
-        {{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --watch &
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
-    deps: [tailwind:install]
 
   dev:tailscale:
     desc: "Like `dev`, but also serves :7331 over Tailscale (HTTPS) for phone testing"
@@ -54,25 +46,6 @@ tasks:
         fi
         task dev
 
-  tailwind:install:
-    desc: "Download the pinned Tailwind v4 standalone binary into tmp/ (no Node)"
-    status:
-      - test -x {{.TAILWIND_BIN}} && {{.TAILWIND_BIN}} --help 2>&1 | grep -q "v$TAILWIND_VERSION"
-    cmds:
-      - |
-        os=$(uname -s | tr '[:upper:]' '[:lower:]'); [ "$os" = darwin ] && os=macos
-        arch=$(uname -m); [ "$arch" = aarch64 ] && arch=arm64; [ "$arch" = x86_64 ] && arch=x64
-        mkdir -p tmp
-        curl -sL -o {{.TAILWIND_BIN}} \
-          "https://github.com/tailwindlabs/tailwindcss/releases/download/v$TAILWIND_VERSION/tailwindcss-${os}-${arch}"
-        chmod +x {{.TAILWIND_BIN}}
-
-  css:
-    desc: "Generate the embedded utility stylesheet (output.css)"
-    deps: [tailwind:install]
-    cmds:
-      - "{{.TAILWIND_BIN}} -i {{.TAILWIND_IN}} -o {{.TAILWIND_OUT}} --minify"
-
   check:versions:
     desc: "Compare pinned tool/CDN versions against latest upstream releases"
     cmds:
@@ -91,7 +64,6 @@ tasks:
           else printf '  ✗ %-11s pinned %s, latest %s\n' "$1" "$2" "$3"; rc=1; fi; }
         rc=0
         report templ "$(go list -m github.com/a-h/templ | awk '{print $2}' | sed 's/^v//')" "$(gh_latest a-h/templ)"
-        report tailwind "$TAILWIND_VERSION" "$(gh_latest tailwindlabs/tailwindcss)"
         report ds-sdk "$(go list -m github.com/starfederation/datastar-go | awk '{print $2}' | sed 's/^v//')" "$(gh_tag starfederation/datastar-go)"
         # Datastar client bundle: a CDN tag in the templ shells (both must agree).
         ds_client=$(grep -rhoE 'datastar@v[0-9.]+' internal/frontend/smoke.templ internal/frontend/layouts/layout.templ | sed 's/.*@v//' | sort -u)
@@ -116,7 +88,7 @@ tasks:
 
   build:
     desc: "Build the Go binary"
-    deps: [templ, css]
+    deps: [templ]
     cmds:
       - go build -o tmp/unbusy ./cmd/unbusy
 
