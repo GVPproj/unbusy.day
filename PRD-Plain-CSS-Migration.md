@@ -194,14 +194,15 @@ a time.
 
 ### Phase 5 — Column & blocks (the big one)
 
-- [ ] Port `BlockColumn` grid, slots, gutter, slot-add, now-pill into
+- [x] Port `BlockColumn` grid, slots, gutter, slot-add, now-pill into
       `@scope (.blocks)`
-- [ ] Port `blockItem`: type fills via `&[data-type=…]`, drag/resize states
+- [x] Port `blockItem`: type fills via `&[data-type=…]`, drag/resize states
       via `&.dragging`/`&.resizing`, grip + delete reveal, inset focus ring,
       line-clamp on `var(--span)`, coarse-pointer variants
-- [ ] Port `DateHeading` and the `blocks.templ` page shell
-- [ ] Resolve the unstyled `.past` hook (style it or remove the JS toggle)
-- [ ] Verify: full matrix + drag lift, push preview, resize cue, keyboard
+- [x] Port `DateHeading` and the `blocks.templ` page shell
+- [x] Resolve the unstyled `.past` hook (styled: `line-through`, matching
+      now-pill.js's documented intent)
+- [x] Verify: full matrix + drag lift, push preview, resize cue, keyboard
       grab/move/resize, delete reveal on hover and touch
 
 ### Phase 6 — Teardown & docs

@@ -141,10 +141,40 @@
 }
 
 /* ============================================================
-   layout — the shell: nav rail/drawer geometry, page grid.
-   (populated in the nav and column phases)
+   layout — the page shell (routes/blocks.templ): nav rail beside
+   a centered column; on mobile the column is the full viewport.
    ============================================================ */
 @layer layout {
+	.shell {
+		display: flex;
+		min-height: 100vh;
+	}
+
+	/* A flex column at every size so DateHeading is a fixed header and
+	   the .blocks grid is the only scroll region. */
+	.column {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-width: 520px;
+		margin: 3rem auto;
+		padding: 1rem;
+		background: var(--column-bg);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+
+		@media (width >= 40rem) {
+			max-height: calc(100svh - 6rem);
+		}
+
+		@media (width < 40rem) {
+			max-width: none;
+			height: 100svh;
+			margin: 0;
+			padding: 0;
+			border-radius: 0;
+		}
+	}
 }
 
 /* ============================================================
@@ -916,5 +946,355 @@
 	.open .menu-cat svg { animation: none; }
 	*/
 
-	/* --- components/column.templ + column_block.templ → @scope (.blocks) --- */
+	/* --- components/column.templ DateHeading: non-scrolling header above
+	       the block list; on mobile it becomes a fixed-height opaque bar. --- */
+	.date-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+		flex-shrink: 0;
+
+		h1 {
+			font-weight: 700;
+			color: var(--ink);
+		}
+
+		@media (width >= 40rem) {
+			min-height: 2rem;
+		}
+
+		@media (width < 40rem) {
+			z-index: 11;
+			height: 3.5rem;
+			margin-bottom: 0;
+			padding-top: 0.75rem;
+			padding-inline: 1rem;
+			background: var(--column-bg);
+		}
+	}
+
+	/* --- components/column.templ + column_block.templ → @scope (.blocks):
+	       the day grid. Column 1 is the time gutter, column 2 the blocks;
+	       rows are 30-min slots sized by --slot-h. z-order: block 1,
+	       dragging/resizing 2, now-pill 3. --- */
+	@scope (.blocks) {
+		:scope {
+			display: grid;
+			grid-template-columns: 3.5rem 1fr;
+			grid-auto-rows: var(--slot-h, calc(1lh + 2 * var(--block-pad)));
+			flex: 1;
+			min-height: 0;
+			overflow-y: auto;
+			overflow-x: hidden;
+
+			/* Taller touch slots. */
+			@media (pointer: coarse) {
+				--slot-h: calc(1lh + 2.5rem);
+			}
+
+			@media (width < 40rem) {
+				padding: 0.75rem 1rem 1rem;
+			}
+		}
+
+		/* One 30-min row: hour rows solid, half-hour rows dashed (.half). */
+		.slot {
+			grid-column: 1 / -1;
+			display: flex;
+			align-items: flex-start;
+			border-top: 1px solid var(--rail-border);
+
+			&.half {
+				border-top-style: dashed;
+			}
+		}
+
+		.gutter {
+			width: 3.5rem;
+			padding-top: 0.125rem;
+			font-size: var(--text-sm);
+			line-height: var(--text-sm--line-height);
+			color: var(--gutter-ink);
+			user-select: none;
+		}
+
+		/* Free-slot "add" target: dashed accent border + plus icon on
+		   hover/focus only. */
+		.slot-add {
+			flex: 1;
+			align-self: stretch;
+			display: grid;
+			place-items: center;
+			appearance: none;
+			margin-block: 0.125rem;
+			border: 1px dashed transparent;
+			border-radius: var(--radius);
+			background: transparent;
+			cursor: pointer;
+
+			.icon {
+				width: 18px;
+				height: 18px;
+				color: var(--accent);
+				opacity: 0;
+				transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+
+			&:hover,
+			&:focus-visible {
+				border-color: var(--accent);
+				background: color-mix(in srgb, var(--accent) 8%, transparent);
+
+				.icon {
+					opacity: 1;
+				}
+			}
+
+			&:focus-visible {
+				outline: none;
+			}
+		}
+
+		/* Live "now" marker: a zero-height full-width row now-pill.js
+		   positions; the time chip hangs in the gutter. */
+		#now-pill {
+			grid-column: 1 / -1;
+			align-self: start;
+			position: relative;
+			height: 0;
+			z-index: 3;
+			pointer-events: none;
+		}
+
+		.now-time {
+			position: absolute;
+			right: calc(100% - 3.5rem);
+			top: 50%;
+			translate: 0 -50%;
+			display: inline-flex;
+			align-items: center;
+			padding: 0.125rem 0.25rem;
+			border-radius: var(--radius);
+			font-size: var(--text-sm);
+			line-height: 1;
+			font-weight: 700;
+			color: var(--bg);
+			background: var(--accent);
+		}
+
+		/* One draggable block. Focus ring is INSET — an outset ring would
+		   be sheared by the grid's overflow-x: hidden. */
+		.block-item {
+			position: relative;
+			z-index: 1;
+			grid-column-start: 2;
+			display: flex;
+			align-items: flex-start;
+			padding: 0.65rem 0.75rem 0.75rem;
+			margin-top: 0.125rem;
+			margin-bottom: 1px;
+			border-radius: var(--radius);
+			background: var(--surface);
+			font-weight: 600;
+			cursor: grab;
+			user-select: none;
+			touch-action: none;
+			overflow: hidden;
+
+			&[data-type="deep"] {
+				background: var(--type-deep);
+				color: var(--type-deep-ink);
+			}
+			&[data-type="shallow"] {
+				background: var(--type-shallow);
+				color: var(--type-shallow-ink);
+			}
+			&[data-type="break"] {
+				background: var(--type-break);
+				color: var(--type-break-ink);
+			}
+
+			&:focus-visible {
+				outline: 2px solid var(--accent);
+				outline-offset: -2px;
+			}
+
+			&.dragging {
+				z-index: 2;
+				cursor: grabbing;
+				opacity: 0.85;
+				box-shadow: var(--shadow-lift);
+			}
+
+			&.resizing {
+				z-index: 2;
+
+				.block-label {
+					opacity: 0.4;
+				}
+
+				.resize-cue {
+					display: flex;
+				}
+
+				.grip::after {
+					opacity: 1;
+				}
+			}
+
+			/* The block the clock is inside: accent bar on the left edge. */
+			&.active::before {
+				content: "";
+				position: absolute;
+				left: 0;
+				inset-block: 0;
+				width: 0.25rem;
+				background: var(--accent);
+			}
+
+			&:hover {
+				.block-delete,
+				.grip::after {
+					opacity: 1;
+				}
+			}
+		}
+
+		/* Label clamps to the block's row span (unprefixed line-clamp is
+		   not Baseline yet); unclamps while contenteditable for renames. */
+		.block-label {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: var(--span);
+			overflow: hidden;
+			min-width: 0;
+			max-width: calc(100% - 1.5rem);
+			width: fit-content;
+			margin-right: 1.5rem;
+			overflow-wrap: anywhere;
+			cursor: text;
+
+			&[contenteditable] {
+				display: block;
+				overflow: visible;
+				-webkit-box-orient: horizontal;
+				-webkit-line-clamp: unset;
+				user-select: text;
+				outline: none;
+			}
+
+			/* Elapsed block (now-pill.js toggle). */
+			&.past {
+				text-decoration: line-through;
+			}
+		}
+
+		/* Delete reveals on block hover / focus; always visible on touch. */
+		.block-delete {
+			position: absolute;
+			top: var(--block-pad);
+			right: var(--block-pad);
+			appearance: none;
+			padding: 0;
+			border: 0;
+			border-radius: 0.25rem;
+			background: transparent;
+			color: var(--nav-icon);
+			opacity: 0;
+			transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+			cursor: pointer;
+
+			&:hover {
+				color: var(--accent);
+			}
+
+			&:focus-visible {
+				opacity: 1;
+				outline: 2px solid var(--accent);
+				outline-offset: 2px;
+			}
+
+			@media (pointer: coarse) {
+				opacity: 1;
+			}
+		}
+
+		/* Resize handle along the bottom edge; ::after is the visible pill.
+		   On touch it's taller, narrower (drag still wins the edges), and
+		   always shown. */
+		.grip {
+			position: absolute;
+			inset-inline: 0;
+			bottom: 0;
+			height: 0.625rem;
+			cursor: ns-resize;
+
+			&::after {
+				content: "";
+				position: absolute;
+				left: 50%;
+				bottom: 3px;
+				width: 1.75rem;
+				height: 3px;
+				border-radius: 0.125rem;
+				translate: -50% 0;
+				background: var(--nav-icon);
+				opacity: 0;
+				transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+
+			&:focus-visible {
+				outline: none;
+
+				&::after {
+					opacity: 1;
+					background: var(--accent);
+					outline: 2px solid var(--accent);
+					outline-offset: 2px;
+				}
+			}
+
+			@media (pointer: coarse) {
+				height: 22px;
+				inset-inline: 25%;
+
+				&::after {
+					opacity: 1;
+				}
+			}
+		}
+
+		/* Arrows + dashed spine shown only while resizing (see
+		   .resizing above); decorative. */
+		.resize-cue {
+			display: none;
+			position: absolute;
+			inset: 0;
+			z-index: 10;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding-block: 0.5rem;
+			pointer-events: none;
+
+			svg {
+				flex-shrink: 0;
+				filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.1))
+					drop-shadow(0 1px 1px rgb(0 0 0 / 0.06));
+			}
+
+			span {
+				width: 0.125rem;
+				flex: 1;
+				min-height: 0.25rem;
+				background: repeating-linear-gradient(
+					to bottom,
+					var(--accent) 0 6px,
+					transparent 6px 10px
+				);
+			}
+		}
+	}
 }

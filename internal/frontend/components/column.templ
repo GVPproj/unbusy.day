@@ -7,13 +7,14 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
 
+// Styling lives in app.css: .date-heading, and @scope (.blocks) for the day
+// grid (slots, gutter, slot-add, now-pill, block items).
+
 // DateHeading renders today's date; on mobile it's a non-scrolling header bar
 // above the scrolling block list.
 templ DateHeading() {
-	<div
-		class="flex items-center justify-between gap-2 mb-2 shrink-0 sm:min-h-8 max-sm:z-11 max-sm:mb-0 max-sm:h-14 max-sm:pt-3 max-sm:px-4 max-sm:bg-column-bg"
-	>
-		<h1 class="m-0 font-bold text-ink">
+	<div class="date-heading">
+		<h1>
 			{ time.Now().Format("Monday, January 2") }
 		</h1>
 	</div>
@@ -24,7 +25,7 @@ templ DateHeading() {
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"
-		class="blocks list-none m-0 p-0 grid grid-cols-[3.5rem_1fr] auto-rows-(--slot-h,calc(1lh+2*var(--block-pad))) pointer-coarse:[--slot-h:calc(1lh+2.5rem)] flex-1 min-h-0 overflow-y-auto overflow-x-hidden max-sm:px-4 max-sm:pt-3 max-sm:pb-4"
+		class="blocks"
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"
@@ -59,12 +60,9 @@ templ nowPill() {
 	<li
 		id="now-pill"
 		aria-hidden="true"
-		class="col-span-full self-start relative h-0 z-3 pointer-events-none"
 		hidden
 	>
-		<span
-			class="now-time absolute right-[calc(100%-3.5rem)] top-1/2 -translate-y-1/2 inline-flex items-center px-1 py-0.5 rounded  text-sm font-bold leading-none text-bg bg-accent"
-		></span>
+		<span class="now-time"></span>
 	</li>
 }
 
@@ -72,9 +70,9 @@ templ nowPill() {
 // auto-placement from skipping rows blocks occupy; the "add" button renders
 // only for free slots so it never sits behind a block in the tab order.
 templ slot(s, dayStart int, occupied bool) {
-	// Half-hour rows get a dashed top rule; hour rows stay solid.
+	// Half-hour rows (.half) get a dashed top rule; hour rows stay solid.
 	<li
-		class={ "slot col-span-full flex items-start border-t border-rail-border", templ.KV("border-dashed", s%2 == 1) }
+		class={ "slot", templ.KV("half", s%2 == 1) }
 		data-slot={ strconv.Itoa(s) }
 		style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }
 		if occupied {
@@ -82,13 +80,13 @@ templ slot(s, dayStart int, occupied bool) {
 		}
 	>
 		<span
-			class="gutter w-14 pt-0.5 text-sm text-(--gutter-ink) select-none"
+			class="gutter"
 			aria-hidden="true"
 		>{ timeLabel(s) }</span>
 		if !occupied {
 			<button
 				type="button"
-				class="slot-add flex-1 self-stretch appearance-none bg-transparent border border-dashed border-transparent rounded my-0.5 p-0 cursor-pointer grid place-items-center hover:border-accent focus-visible:border-accent focus-visible:outline-none hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] focus-visible:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] [&_.icon]:size-[18px] [&_.icon]:text-accent [&_.icon]:opacity-0 [&_.icon]:transition-opacity [&:hover_.icon]:opacity-100 [&:focus-visible_.icon]:opacity-100"
+				class="slot-add"
 				commandfor="create-modal"
 				command="show-modal"
 				data-on:click={ "$addslot = " + strconv.Itoa(s) }

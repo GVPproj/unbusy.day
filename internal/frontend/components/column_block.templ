@@ -8,13 +8,11 @@ import (
 
 // blockItem is one draggable grid item. data-id is the idiomorph key; data-slot/
 // data-span persist the clock placement, grid-row paints it relative to day start.
+// Styling lives in app.css's @scope (.blocks); `block-item`/`dragging`/`resizing`
+// are drag.js hooks, `active`/`past` are now-pill.js hooks.
 templ blockItem(c block.Block, dayStart, dayEnd int) {
-	// `block-item`/`dragging`/`resizing` are drag.js hooks (`block-item`, not
-	// `block`, to dodge Tailwind's display:block). z-1 paints the block above
-	// the slot rules it spans; dragging/resizing lift to z-2, now-pill is z-3.
-	// Focus ring is INSET — an outset ring would be sheared by overflow-x-hidden.
 	<li
-		class="block-item group relative z-1 col-start-2 flex items-start font-semibold cursor-grab select-none touch-none overflow-hidden bg-surface rounded pt-[0.65rem] px-3 pb-3 mt-0.5 mb-px data-[type=deep]:bg-(--type-deep) data-[type=deep]:text-(--type-deep-ink) data-[type=shallow]:bg-(--type-shallow) data-[type=shallow]:text-(--type-shallow-ink) data-[type=break]:bg-(--type-break) data-[type=break]:text-(--type-break-ink) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent [&.dragging]:cursor-grabbing [&.dragging]:opacity-[0.85] [&.dragging]:z-2 [&.dragging]:[box-shadow:var(--shadow-lift)] [&.resizing]:z-2  [&.resizing_.block-label]:opacity-40 [&.active]:before:content-[''] [&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:inset-y-0 [&.active]:before:w-1 [&.active]:before:bg-accent"
+		class="block-item"
 		tabindex="0"
 		aria-roledescription="schedule block"
 		aria-describedby="dnd-instructions"
@@ -27,10 +25,10 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 	>
 		// Clock span read first by AT — otherwise it lives only in the CSS grid-row.
 		<span class="sr-only">{ blockTimeRange(c) + ", " }</span>
-		<span class="block-label min-w-0 max-w-[calc(100%-1.5rem)] w-fit mr-6 wrap-anywhere cursor-text line-clamp-(--span) [&[contenteditable]]:line-clamp-none [&[contenteditable]]:select-text [&[contenteditable]]:outline-none">{ c.Label }</span>
+		<span class="block-label">{ c.Label }</span>
 		<button
 			type="button"
-			class="block-delete absolute top-(--block-pad) right-(--block-pad) appearance-none bg-transparent border-0 p-0 rounded-sm cursor-pointer text-nav-icon opacity-0 transition-opacity duration-120 [&_.icon]:size-6 hover:text-accent focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent group-hover:opacity-100 pointer-coarse:opacity-100"
+			class="block-delete"
 			aria-label={ "Delete " + c.Label }
 			data-on:pointerdown="evt.stopPropagation()"
 			data-on:click={ "$deleteid = '" + c.ID + "'; @post('/blocks/delete')" }
@@ -40,7 +38,7 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 		// APG Window Splitter: aria-valuemax is the day-end ceiling — the true
 		// compressible max is probed live by the End key.
 		<span
-			class="grip absolute inset-x-0 bottom-0 h-2.5 cursor-ns-resize pointer-coarse:h-[22px] pointer-coarse:inset-x-1/4 after:content-[''] after:absolute after:left-1/2 after:bottom-[3px] after:w-7 after:h-[3px] after:rounded-xs after:-translate-x-1/2 after:bg-nav-icon after:opacity-0 after:transition-opacity after:duration-120 pointer-coarse:after:opacity-100 group-hover:after:opacity-100 group-[.resizing]:after:opacity-100 focus-visible:after:opacity-100 focus-visible:after:bg-accent focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent focus-visible:outline-none"
+			class="grip"
 			role="separator"
 			tabindex="0"
 			aria-controls={ c.ID }
@@ -51,12 +49,12 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 			aria-valuetext={ blockTimeRange(c) }
 		></span>
 		// Resize cue, shown only while resizing; decorative.
-		<span aria-hidden="true" class="hidden group-[.resizing]:flex absolute inset-0 z-10 flex-col items-center justify-center py-2 pointer-events-none">
-			<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow shrink-0">
+		<span aria-hidden="true" class="resize-cue">
+			<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M5 9 L11 3 L17 9"></path>
 			</svg>
-			<span class="w-0.5 flex-1 min-h-1 bg-[repeating-linear-gradient(to_bottom,var(--accent)_0_6px,transparent_6px_10px)]"></span>
-			<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow shrink-0">
+			<span></span>
+			<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M5 2 L11 8 L17 2"></path>
 			</svg>
 		</span>
