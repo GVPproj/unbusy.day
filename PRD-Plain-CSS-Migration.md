@@ -185,11 +185,11 @@ a time.
 
 ### Phase 4 — Nav
 
-- [ ] Port rail↔drawer geometry to `@scope (.sidenav)` with nested
+- [x] Port rail↔drawer geometry to `@scope (.sidenav)` with nested
       `@media (width < 40rem)`; delete `sidenavClasses`/`navlinkClasses`
-- [ ] Port `MenuToggle` + scrim; fold `IconStyles` (icons, hamburger
+- [x] Port `MenuToggle` + scrim; fold `IconStyles` (icons, hamburger
       animations, feeling toggles) into `app.css`
-- [ ] Verify: drawer slide, scrim, hamburger morph both feelings,
+- [x] Verify: drawer slide, scrim, hamburger morph both feelings,
       disabled Clear state
 
 ### Phase 5 — Column & blocks (the big one)

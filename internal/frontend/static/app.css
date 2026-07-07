@@ -552,7 +552,369 @@
 		}
 	}
 
-	/* --- components/nav.templ → @scope (.sidenav) --- */
+	/* --- components/nav.templ → @scope (.sidenav): a sticky desktop rail
+	       that below sm becomes a right-side off-canvas drawer slid in by
+	       the `.open` hook (data-class:open="$_navopen"). --- */
+	@scope (.sidenav) {
+		:scope {
+			position: sticky;
+			top: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			width: 6rem;
+			height: 100vh;
+			flex-shrink: 0;
+			padding: 0.75rem 0.5rem;
+			background: var(--nav-bg);
+			color: var(--nav-ink);
+
+			/* Translate/transition live here only, so the rail never picks up
+			   a transform. */
+			@media (width < 40rem) {
+				position: fixed;
+				inset-block: 0;
+				right: 0;
+				z-index: 30;
+				width: 260px;
+				gap: 0.5rem;
+				padding: 1rem 0.75rem;
+				translate: 100% 0;
+				transition: translate 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+				box-shadow: var(--shadow-lift);
+
+				&.open {
+					translate: 0 0;
+				}
+			}
+		}
+
+		.nav-logo {
+			margin-bottom: 0.75rem;
+			font-size: var(--text-xl);
+			line-height: var(--text-xl--line-height);
+			font-weight: 700;
+			text-align: center;
+			color: var(--nav-icon);
+
+			@media (width < 40rem) {
+				align-self: flex-start;
+				margin-left: 1rem;
+			}
+		}
+
+		/* Rail link: centered icon-over-label stack on desktop that becomes
+		   a row in the mobile drawer. */
+		button {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 0.125rem;
+			padding: 0.5rem 0.25rem;
+			border-radius: var(--radius);
+			font-size: 0.85rem;
+			font-weight: 700;
+			white-space: nowrap;
+			cursor: pointer;
+
+			&:hover {
+				background: var(--nav-hover);
+			}
+
+			/* Clear on an empty day: the envelope collapses to first >= last. */
+			&:disabled {
+				opacity: 0.4;
+				cursor: not-allowed;
+
+				&:hover {
+					background: transparent;
+				}
+			}
+
+			@media (width < 40rem) {
+				flex-direction: row;
+				gap: 0.875rem;
+				padding: 0.875rem 1rem;
+				font-size: var(--text-xl);
+				line-height: var(--text-xl--line-height);
+			}
+		}
+
+		/* Labels never squeeze mid drawer-slide. */
+		button span:last-child {
+			min-width: max-content;
+		}
+
+		.nav-icon {
+			line-height: 0;
+			color: var(--nav-icon);
+		}
+
+		/* Start of the bottom-pinned group (Theme, Log Out). */
+		.nav-tail {
+			margin-top: auto;
+		}
+
+		:scope > button:last-child {
+			@media (width < 40rem) {
+				margin-bottom: 1.5rem;
+			}
+		}
+	}
+
+	/* components/nav.templ MenuToggle: the mobile hamburger, fixed at .shell
+	   level so it floats above the open drawer. */
+	.menu-toggle {
+		display: none;
+
+		@media (width < 40rem) {
+			display: grid;
+			place-items: center;
+			position: fixed;
+			top: 0.875rem;
+			right: 1rem;
+			z-index: 40;
+			padding: 0.4rem;
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius);
+			background: var(--surface);
+			color: var(--ink);
+			cursor: pointer;
+			box-shadow: var(--shadow-rest);
+		}
+	}
+
+	/* components/nav.templ: click-away scrim behind the open drawer. */
+	.nav-scrim {
+		display: none;
+		position: fixed;
+		inset: 0;
+		z-index: 20;
+		background: var(--scrim);
+
+		@media (width < 40rem) {
+			&.open {
+				display: block;
+			}
+		}
+	}
+
+	/* --- components/icon.templ (global, not @scope-d — icons render in the
+	       nav, modals, and column). Both feeling sets ship; the
+	       :root[data-feeling] toggle shows one, so the swap is live with no
+	       round-trip. --- */
+	.icon {
+		width: 24px;
+		height: 24px;
+		display: block;
+	}
+	.icon-pixel {
+		image-rendering: pixelated;
+	}
+	/* Default (no/unknown data-feeling) shows solar; the rest are opt-in. */
+	.icon-pixel {
+		display: none;
+	}
+	:root[data-feeling="pixel"] .icon-solar {
+		display: none;
+	}
+	:root[data-feeling="pixel"] .icon-pixel {
+		display: block;
+	}
+
+	/* Animated hamburger: cozy "Jelly Wobble" + pixel "Tetris Drop". Both
+	   ship; feeling toggles which shows. The X-morph is driven by .open on
+	   the toggle button (data-class:open="$_navopen"). */
+	.menu-cozy,
+	.menu-pixel {
+		position: relative;
+		width: 24px;
+		height: 24px;
+	}
+	.menu-cozy {
+		display: block;
+	}
+	.menu-pixel {
+		display: none;
+		image-rendering: pixelated;
+	}
+	:root[data-feeling="pixel"] .menu-cozy {
+		display: none;
+	}
+	:root[data-feeling="pixel"] .menu-pixel {
+		display: block;
+	}
+
+	/* cozy-1 Jelly Wobble: idle sway, squash on hover */
+	.menu-cozy {
+		animation: menu-wobble 2.8s ease-in-out 1 forwards;
+		transform-origin: center;
+	}
+	.menu-cozy .bar {
+		position: absolute;
+		left: 2px;
+		right: 2px;
+		top: 50%;
+		height: 3px;
+		margin-top: -1.5px;
+		background: currentColor;
+		border-radius: 3px;
+		transition:
+			transform 0.35s cubic-bezier(0.68, -0.55, 0.27, 1.55),
+			opacity 0.2s;
+	}
+	.menu-cozy .bar:nth-child(1) {
+		transform: translateY(-7px);
+	}
+	.menu-cozy .bar:nth-child(3) {
+		transform: translateY(7px);
+	}
+	button:hover:not(.open) .menu-cozy {
+		animation: menu-squash 0.55s ease;
+	}
+
+	/* pixel-3 Tetris Drop: rows of blocks fall in on a loop */
+	.menu-pixel .trow {
+		position: absolute;
+		left: 1px;
+		right: 1px;
+		top: 50%;
+		height: 4px;
+		margin-top: -2px;
+		display: flex;
+		gap: 1px;
+		justify-content: space-between;
+		transition:
+			transform 0.3s steps(3),
+			opacity 0.2s;
+	}
+	.menu-pixel .trow:nth-child(1) {
+		transform: translateY(-7px);
+	}
+	.menu-pixel .trow:nth-child(3) {
+		transform: translateY(7px);
+	}
+	.menu-pixel .trow i {
+		width: 4px;
+		height: 4px;
+		background: currentColor;
+		animation: menu-drop 2.6s steps(5) 1 both;
+	}
+	.menu-pixel .trow:nth-child(1) i:nth-child(1) {
+		animation-delay: 0s;
+	}
+	.menu-pixel .trow:nth-child(1) i:nth-child(2) {
+		animation-delay: 0.1s;
+	}
+	.menu-pixel .trow:nth-child(1) i:nth-child(3) {
+		animation-delay: 0.2s;
+	}
+	.menu-pixel .trow:nth-child(1) i:nth-child(4) {
+		animation-delay: 0.3s;
+	}
+	.menu-pixel .trow:nth-child(2) i {
+		animation-delay: 0.45s;
+	}
+	.menu-pixel .trow:nth-child(3) i {
+		animation-delay: 0.7s;
+	}
+
+	/* open -> X (both feelings); idle motion freezes so the X reads clean */
+	.open .menu-cozy {
+		animation: none;
+	}
+	.open .menu-cozy .bar:nth-child(1) {
+		transform: translateY(0) rotate(45deg);
+	}
+	.open .menu-cozy .bar:nth-child(2) {
+		transform: scaleX(0);
+		opacity: 0;
+	}
+	.open .menu-cozy .bar:nth-child(3) {
+		transform: translateY(0) rotate(-45deg);
+	}
+	.open .menu-pixel .trow i {
+		animation: none;
+	}
+	.open .menu-pixel .trow:nth-child(1) {
+		transform: translateY(0) rotate(45deg);
+	}
+	.open .menu-pixel .trow:nth-child(2) {
+		transform: scaleX(0);
+		opacity: 0;
+	}
+	.open .menu-pixel .trow:nth-child(3) {
+		transform: translateY(0) rotate(-45deg);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.menu-cozy,
+		.menu-cozy .bar,
+		.menu-pixel .trow i {
+			animation: none !important;
+		}
+	}
+
+	@keyframes menu-wobble {
+		0% {
+			transform: rotate(-4deg) scale(1.03, 0.97);
+		}
+		50% {
+			transform: rotate(4deg) scale(0.97, 1.03);
+		}
+		100% {
+			transform: none;
+		}
+	}
+	@keyframes menu-squash {
+		0% {
+			transform: scale(1, 1);
+		}
+		30% {
+			transform: scale(1.3, 0.7);
+		}
+		60% {
+			transform: scale(0.82, 1.22);
+		}
+		100% {
+			transform: scale(1, 1);
+		}
+	}
+	@keyframes menu-drop {
+		0% {
+			transform: translateY(-18px);
+			opacity: 0;
+		}
+		12% {
+			opacity: 1;
+		}
+		28%,
+		100% {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
+
+	/* cozy-3 "Sleepy Cat" — kept for future A/B testing. To use: uncomment
+	   this block and swap the .menu-cat markup in IconMenu in for .menu-cozy.
+	.menu-cat { display: block; position: relative; width: 24px; height: 24px; }
+	:root[data-feeling="pixel"] .menu-cat { display: none; }
+	.menu-cat svg { width: 24px; height: 24px; display: block; overflow: visible; animation: menu-catbreathe 3.6s ease-in-out 1 forwards; transform-origin: center; }
+	@keyframes menu-catbreathe { 0%, 100% { transform: scale(.95); } 50% { transform: scale(1.06); } }
+	.menu-cat .eye-open { opacity: 0; transition: opacity .2s; }
+	.menu-cat .eye-closed { opacity: 1; transition: opacity .2s; }
+	button:hover .menu-cat .eye-open { opacity: 1; }
+	button:hover .menu-cat .eye-closed { opacity: 0; }
+	.menu-cat .ear { transition: transform .3s; transform-origin: center bottom; }
+	button:hover .menu-cat .ear { transform: translateY(-2px) scaleY(1.15); }
+	.menu-cat .grp { transition: opacity .25s; }
+	.menu-cat .xg { opacity: 0; }
+	.menu-cat .xg line { stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .35s ease .08s; }
+	.open .menu-cat .grp { opacity: 0; }
+	.open .menu-cat .xg { opacity: 1; }
+	.open .menu-cat .xg line { stroke-dashoffset: 0; }
+	.open .menu-cat svg { animation: none; }
+	*/
 
 	/* --- components/column.templ + column_block.templ → @scope (.blocks) --- */
 }

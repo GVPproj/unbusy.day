@@ -11,7 +11,7 @@ import (
 // semantics: Datastar's default 'auto' never reconnects after a *clean* stream
 // end, leaving the tab silently deaf.
 templ BlocksPage(cs []block.Block, b block.Bounds) {
-	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})", components.IconStyles()) {
+	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
 		<div class="shell flex min-h-screen" data-signals:_navopen="false">
 			@components.SideNav()
 			@components.MenuToggle()
