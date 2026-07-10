@@ -1,0 +1,85 @@
+package modals
+
+// GuideModal is a four-step walkthrough of the why/how of time-blocking. It is
+// self-contained (renders on both the app and login pages), so it must not
+// reference app-only signals. $_guidestep is client-only (underscore = never
+// shipped to the server); data-on:close resets it so every open starts at 1.
+// The panes share one fixed-height .guide-body so the dialog never resizes as
+// steps change.
+templ GuideModal() {
+	<dialog
+		id="guide-modal"
+		class="app-dialog guide-dialog"
+		closedby="any"
+		aria-labelledby="guide-modal-title"
+		data-signals:_guidestep="1"
+		data-on:close="$_guidestep = 1"
+	>
+		<h2
+			id="guide-modal-title"
+			data-text="$_guidestep === 1 ? 'Why time-block?' : $_guidestep === 2 ? 'Set your hours, then fill them' : $_guidestep === 3 ? 'Shape the day' : 'Time is finite'"
+		></h2>
+		<div class="guide-body">
+			<div class="guide-pane" data-show="$_guidestep === 1">
+				<p>Time-blocking means giving every stretch of your day a specific job, instead of reacting to whatever lands in front of you.</p>
+				<p>The payoff: a planned ~40-hour week does the work of an unstructured 60. You spend your hours on purpose, like capital.</p>
+				<p>The plan <em>will</em> break — that's fine. When the day shifts, you re-block. The win is intentionality, not rigid obedience.</p>
+			</div>
+			<div class="guide-pane" data-show="$_guidestep === 2">
+				<p>Fix your hours first with <strong>Set Hours</strong> — that's the container, and everything has to fit inside it. Then tap <strong>+</strong> on any free slot to add a named block and give it a type:</p>
+				<ul class="guide-figure guide-types">
+					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free, demanding work you want to defend.</span></li>
+					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — logistics and admin.</span></li>
+					<li><span class="guide-swatch" data-type="break" aria-hidden="true"></span><span><strong>Break</strong> — deliberate rest.</span></li>
+				</ul>
+			</div>
+			<div class="guide-pane" data-show="$_guidestep === 3">
+				<p><strong>Drag</strong> a block to move it; <strong>stretch</strong> the grip to resize. Neighbours push out of the way. When reality changes, rearrange — the plan is meant to be rewritten.</p>
+				@guideColumn() {
+					<span class="gc-block" data-type="deep" style="grid-row:1 / span 2">Deep Work</span>
+					<span class="gc-block gc-grip" data-type="shallow" style="grid-row:3 / span 1">Email</span>
+					<span class="gc-block" data-type="break" style="grid-row:4 / span 2">Lunch</span>
+				}
+			</div>
+			<div class="guide-pane" data-show="$_guidestep === 4">
+				<p>If a move would overflow the day, the whole move snaps back. The app won't let you pretend you have more hours than you do — that constraint is the point. <strong>Clear</strong> wipes the plan for a fresh day.</p>
+				@guideColumn() {
+					<span class="gc-block" data-type="shallow" style="grid-row:1 / span 2">Wrap-up</span>
+					<span class="gc-block" data-type="deep" style="grid-row:3 / span 2">Focus</span>
+					// Spills into row 6, past the last slot rule — dashed + dimmed so it
+					// reads as the move that overflows the day and snaps back.
+					<span class="gc-block gc-overflow" data-type="break" style="grid-row:5 / span 2">Overflow ↓</span>
+				}
+				<p class="guide-credit">Based on Cal Newport's time-blocking method, from <em>Deep Work</em>.</p>
+			</div>
+		</div>
+		<footer class="guide-footer">
+			<div class="guide-dots" aria-hidden="true">
+				<span class="guide-dot" data-class:active="$_guidestep === 1"></span>
+				<span class="guide-dot" data-class:active="$_guidestep === 2"></span>
+				<span class="guide-dot" data-class:active="$_guidestep === 3"></span>
+				<span class="guide-dot" data-class:active="$_guidestep === 4"></span>
+			</div>
+			<div class="guide-controls">
+				<button class="btn btn-secondary" data-show="$_guidestep > 1" data-on:click="$_guidestep--">Back</button>
+				<button class="btn" data-show="$_guidestep < 4" data-on:click="$_guidestep++">Next</button>
+				<button class="btn" data-show="$_guidestep === 4" commandfor="guide-modal" command="close">Done</button>
+			</div>
+		</footer>
+	</dialog>
+}
+
+// guideColumn is a static, non-interactive miniature of the app's day grid
+// (column.templ): a time gutter beside token-coloured blocks on slot rules.
+// It mirrors the real column's look without its slot math, drag wiring, or a
+// colliding #block-list. Children are the .gc-block spans placed by grid-row.
+templ guideColumn() {
+	<div class="guide-figure guide-column" aria-hidden="true">
+		<div class="gc-slot" style="grid-row:1"><span class="gc-gutter">9:00</span></div>
+		<div class="gc-slot gc-half" style="grid-row:2"><span class="gc-gutter">9:30</span></div>
+		<div class="gc-slot" style="grid-row:3"><span class="gc-gutter">10:00</span></div>
+		<div class="gc-slot gc-half" style="grid-row:4"><span class="gc-gutter">10:30</span></div>
+		<div class="gc-slot" style="grid-row:5"><span class="gc-gutter">11:00</span></div>
+		{ children... }
+	</div>
+}

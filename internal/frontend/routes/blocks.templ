@@ -19,6 +19,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@modals.HoursModal(b, block.OccupiedEnvelope(cs))
 			@modals.CreateModal()
 			@modals.ClearModal()
+			@modals.GuideModal()
 			@modals.DialogInit()
 			// .shell/.column geometry lives in app.css's layout layer.
 			<main class="column">

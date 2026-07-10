@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
 	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
 )
 
@@ -14,6 +15,10 @@ templ LoginPage(turnstileSiteKey string) {
 		<main class="login-main">
 			<h1 class="sr-only">Log in to unbusy.day</h1>
 			@components.LoginAmoeba(turnstileSiteKey)
+			// Mounted at .login-main level, outside #login-form, so the
+			// email→code SSE morph never touches the dialog.
+			@modals.GuideModal()
+			@modals.DialogInit()
 		</main>
 	}
 }

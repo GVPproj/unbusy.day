@@ -52,6 +52,7 @@ templ LoginEmailForm(turnstileSiteKey string) {
 			data-bind:email
 		/>
 		<button type="submit">Send code</button>
+		<button type="button" class="outline-btn" commandfor="guide-modal" command="show-modal">Why?</button>
 		if turnstileSiteKey != "" {
 			@turnstileWidget(turnstileSiteKey)
 		}

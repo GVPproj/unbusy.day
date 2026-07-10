@@ -477,6 +477,20 @@
 			cursor: pointer;
 		}
 
+		/* "Why?" opens the Guide: same footprint as Send code but outlined and
+		   subordinate, so the primary action stays obvious. */
+		.outline-btn {
+			font-size: var(--text-base);
+			line-height: var(--text-base--line-height);
+			font-weight: 700;
+			padding: 0.6rem;
+			border: 1px solid var(--rail-border);
+			border-radius: var(--radius);
+			background: transparent;
+			color: var(--ink-muted);
+			cursor: pointer;
+		}
+
 		.otp {
 			position: relative;
 			display: flex;
@@ -710,6 +724,184 @@
 				outline: 2px solid var(--accent);
 				outline-offset: 1px;
 			}
+		}
+
+		/* guide.templ: wider dialog, left-aligned copy, a fixed-height body so
+		   the dialog never resizes between steps, two token-driven figures,
+		   progress dots + Back/Next controls. */
+		:scope.guide-dialog {
+			width: min(440px, calc(100vw - 2rem));
+			text-align: left; /* override .login-main's centered text on the login mount */
+		}
+
+		/* Fixed height + all panes stacked in one grid cell, so stepping never
+		   reflows the dialog — pane content can't influence the body size. Sized
+		   to clear the tallest pane. */
+		.guide-body {
+			display: grid;
+			height: 23rem;
+		}
+
+		.guide-pane {
+			grid-area: 1 / 1;
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		/* pane 2 figure: three type swatches beside their descriptions. */
+		.guide-types {
+			list-style: none;
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+
+			li {
+				display: flex;
+				align-items: start;
+				gap: 0.6rem;
+				font-size: var(--text-sm);
+				line-height: var(--text-sm--line-height);
+				color: var(--ink);
+			}
+		}
+
+		.guide-swatch {
+			flex-shrink: 0;
+			width: 1.4rem;
+			height: 1.4rem;
+			margin-top: 0.1rem;
+			border-radius: var(--radius);
+			box-shadow: inset 0 0 0 1px var(--rail-border);
+
+			&[data-type="deep"] {
+				background: var(--type-deep);
+			}
+			&[data-type="shallow"] {
+				background: var(--type-shallow);
+			}
+			&[data-type="break"] {
+				background: var(--type-break);
+			}
+		}
+
+		/* panes 3 & 4 figure: a faithful miniature of the app day grid
+		   (column.templ) — 3.5rem time gutter + token-coloured blocks on
+		   slot rules, over the column surface. */
+		.guide-column {
+			padding: 0.4rem 0.6rem 0.75rem;
+			border-radius: var(--radius);
+			background: var(--column-bg);
+			display: grid;
+			grid-template-columns: 3.5rem 1fr;
+			grid-auto-rows: 1.65rem;
+		}
+
+		.gc-slot {
+			grid-column: 1 / -1;
+			display: flex;
+			align-items: flex-start;
+			border-top: 1px solid var(--rail-border);
+
+			&.gc-half {
+				border-top-style: dashed;
+			}
+		}
+
+		.gc-gutter {
+			width: 3.5rem;
+			padding-top: 0.1rem;
+			font-size: 0.75rem;
+			color: var(--gutter-ink);
+		}
+
+		.gc-block {
+			position: relative;
+			grid-column-start: 2;
+			margin: 0.125rem 0 1px;
+			padding: 0.25rem 0.5rem;
+			border-radius: var(--radius);
+			font-size: 0.8rem;
+			font-weight: 600;
+			overflow: hidden;
+
+			&[data-type="deep"] {
+				background: var(--type-deep);
+				color: var(--type-deep-ink);
+			}
+			&[data-type="shallow"] {
+				background: var(--type-shallow);
+				color: var(--type-shallow-ink);
+				box-shadow: inset 0 0 0 1px var(--rail-border);
+			}
+			&[data-type="break"] {
+				background: var(--type-break);
+				color: var(--type-break-ink);
+			}
+		}
+
+		/* echoes the real resize grip: a short accent pill on the bottom edge. */
+		.gc-grip::after {
+			content: "";
+			position: absolute;
+			left: 50%;
+			bottom: 3px;
+			width: 1.5rem;
+			height: 3px;
+			border-radius: 0.125rem;
+			translate: -50% 0;
+			background: var(--accent);
+		}
+
+		/* the block that won't fit: dashed and dimmed, hanging past the last
+		   slot rule to read as "overflows the day — snaps back". */
+		.gc-overflow {
+			opacity: 0.55;
+			background: transparent;
+			border: 1px dashed var(--accent);
+			color: var(--ink-muted);
+		}
+
+		.guide-credit {
+			font-size: var(--text-sm);
+			line-height: var(--text-sm--line-height);
+			font-style: italic;
+		}
+
+		/* footer: dots pinned left, Back/Next right (overrides the flex-end
+		   default on the shared dialog footer). */
+		.guide-footer {
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.guide-dots {
+			display: flex;
+			gap: 0.4rem;
+		}
+
+		.guide-dot {
+			width: 0.5rem;
+			height: 0.5rem;
+			border-radius: 50%;
+			background: transparent;
+			box-shadow: inset 0 0 0 1px var(--ink-muted);
+
+			&.active {
+				background: var(--accent);
+				box-shadow: none;
+			}
+		}
+
+		.guide-controls {
+			display: flex;
+			gap: var(--gap);
+		}
+
+		/* Back (.btn-secondary) has a 1px border; give Next/Done a transparent
+		   one so the footer height doesn't jump 2px when Back appears. */
+		.guide-controls .btn:not(.btn-secondary) {
+			border: 1px solid transparent;
 		}
 	}
 

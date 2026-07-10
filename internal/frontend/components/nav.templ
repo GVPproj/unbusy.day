@@ -43,6 +43,11 @@ templ SideNav() {
 				@IconTheme()
 			</span><span>Theme</span>
 		</button>
+		<button commandfor="guide-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="nav-icon">
+				@IconGuide()
+			</span><span>Guide</span>
+		</button>
 		<button data-on:click="@post('/logout')">
 			<span class="nav-icon">
 				@IconLogout()
