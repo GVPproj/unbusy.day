@@ -1,6 +1,12 @@
 package modals
 
-// GuideModal is a four-step walkthrough of the why/how of time-blocking. It is
+import (
+	"strconv"
+
+	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+)
+
+// GuideModal is a three-step walkthrough of the why/how of time-blocking. It is
 // self-contained (renders on both the app and login pages), so it must not
 // reference app-only signals. $_guidestep is client-only (underscore = never
 // shipped to the server); data-on:close resets it so every open starts at 1.
@@ -17,43 +23,41 @@ templ GuideModal() {
 	>
 		<h2
 			id="guide-modal-title"
-			data-text="$_guidestep === 1 ? 'What is this?' : $_guidestep === 2 ? 'Set your hours, then fill them' : $_guidestep === 3 ? 'Shape the day' : 'Time is finite'"
+			data-text="$_guidestep === 1 ? 'What is this thing?' : $_guidestep === 2 ? 'Set your working hours, then use them well' : 'Shape the day'"
 		></h2>
 		<div class="guide-body">
 			<div class="guide-pane" data-show="$_guidestep === 1">
-				<p>Time-blocking means giving every stretch of your day a specific job, instead of reacting to whatever lands in front of you.</p>
-				<p>The payoff: a planned ~40-hour week does the work of an unstructured 60. You spend your hours on purpose, like capital.</p>
-				<p>The plan <em>will</em> break — that's fine. When the day shifts, you re-block. The win is intentionality, not rigid obedience.</p>
+				<p>Unbusy is a <strong>Time-block planning</strong> app! Time-blocking is giving every minute of your workday <strong>a job</strong>, as opposed to just freewheeling and <em>context switching</em> all day. It's a less overwhelming, less frantic approach to having a brain.</p>
+				<p>Cal Newport, who champions the method, reckons a time-blocked 40-hour week gets as much done as an unstructured 60-hour one — you're spending your hours <strong>on purpose</strong>, like an investor spends capital. And yes, the plan <em>will</em> break. That's fine! When reality intervenes, just rearrange the blocks. The win is <strong>intentionality</strong>, not obedience.</p>
 			</div>
 			<div class="guide-pane" data-show="$_guidestep === 2">
-				<p>Fix your hours first with <strong>Set Hours</strong> — that's the container, and everything has to fit inside it. Then tap <strong>+</strong> on any free slot to add a named block and give it a type:</p>
+				<p>It's always <em>today</em> in this app.  Start your day with a clean slate, first adding any appointments / commitments / meetings. Then allocate the rest of the time, trying to get as much <strong>Deep Work</strong> done as possible.</p>
+				<p>Tap <strong>+</strong> on any free slot to add a <strong>Time-block</strong>.</p>
+				@guideColumn(false, 1) {
+					<span class="gc-add" style="grid-row:1">
+						@components.IconPlus()
+					</span>
+				}
+				<p>Give it one of three types:</p>
 				<ul class="guide-figure guide-types">
-					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free, demanding work you want to defend.</span></li>
-					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — logistics and admin.</span></li>
-					<li><span class="guide-swatch" data-type="break" aria-hidden="true"></span><span><strong>Break</strong> — deliberate rest.</span></li>
+					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free hard work. The main bit!</span></li>
+					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — logistics, communications, "admin".</span></li>
+					<li><span class="guide-swatch" data-type="break" aria-hidden="true"></span><span><strong>Break</strong> — plan these!  "Scroll phone"? "Shred guitar"?</span></li>
 				</ul>
 			</div>
 			<div class="guide-pane" data-show="$_guidestep === 3">
 				<p><strong>Drag</strong> a block to move it; <strong>stretch</strong> the grip to resize. Neighbours push out of the way. Try it below — when reality changes, rearrange; the plan is meant to be rewritten.</p>
-				@guideColumn(true) {
-					<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="1" data-span="2" style="grid-row:1 / span 2"><span class="gc-label">Deep Work</span>@gcHandle()
-</span>
-					<span class="gc-block" data-type="shallow" data-id="email" data-slot="3" data-span="1" style="grid-row:3 / span 1"><span class="gc-label">Email</span>@gcHandle()
-</span>
-					<span class="gc-block" data-type="break" data-id="lunch" data-slot="4" data-span="2" style="grid-row:4 / span 2"><span class="gc-label">Lunch</span>@gcHandle()
-</span>
+				@guideColumn(true, 5) {
+					<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="1" data-span="2" style="grid-row:1 / span 2">
+						<span class="gc-label">Deep Work</span>@gcHandle()
+					</span>
+					<span class="gc-block" data-type="shallow" data-id="email" data-slot="3" data-span="1" style="grid-row:3 / span 1">
+						<span class="gc-label">Email</span>@gcHandle()
+					</span>
+					<span class="gc-block" data-type="break" data-id="lunch" data-slot="4" data-span="2" style="grid-row:4 / span 2">
+						<span class="gc-label">Lunch</span>@gcHandle()
+					</span>
 				}
-			</div>
-			<div class="guide-pane" data-show="$_guidestep === 4">
-				<p>If a move would overflow the day, the whole move snaps back. The app won't let you pretend you have more hours than you do — that constraint is the point. <strong>Clear</strong> wipes the plan for a fresh day.</p>
-				@guideColumn(false) {
-					<span class="gc-block" data-type="shallow" style="grid-row:1 / span 2">Wrap-up</span>
-					<span class="gc-block" data-type="deep" style="grid-row:3 / span 2">Focus</span>
-					// Spills into row 6, past the last slot rule — dashed + dimmed so it
-					// reads as the move that overflows the day and snaps back.
-					<span class="gc-block gc-overflow" data-type="break" style="grid-row:5 / span 2">Overflow ↓</span>
-				}
-				<p class="guide-credit">Based on Cal Newport's time-blocking method, from <em>Deep Work</em>.</p>
 			</div>
 		</div>
 		<footer class="guide-footer">
@@ -61,12 +65,11 @@ templ GuideModal() {
 				<span class="guide-dot" data-class:active="$_guidestep === 1"></span>
 				<span class="guide-dot" data-class:active="$_guidestep === 2"></span>
 				<span class="guide-dot" data-class:active="$_guidestep === 3"></span>
-				<span class="guide-dot" data-class:active="$_guidestep === 4"></span>
 			</div>
 			<div class="guide-controls">
 				<button class="btn btn-secondary" data-show="$_guidestep > 1" data-on:click="$_guidestep--">Back</button>
-				<button class="btn" data-show="$_guidestep < 4" data-on:click="$_guidestep++">Next</button>
-				<button class="btn" data-show="$_guidestep === 4" commandfor="guide-modal" command="close">Done</button>
+				<button class="btn" data-show="$_guidestep < 3" data-on:click="$_guidestep++">Next</button>
+				<button class="btn" data-show="$_guidestep === 3" commandfor="guide-modal" command="close">Done</button>
 			</div>
 		</footer>
 	</dialog>
@@ -74,21 +77,30 @@ templ GuideModal() {
 	<script type="module" src="/static/guide-demo.js"></script>
 }
 
-// guideColumn is a miniature of the app's day grid (column.templ): a time
-// gutter beside token-coloured blocks on slot rules. It mirrors the real
-// column's look without a colliding #block-list. Children are the .gc-block
-// spans placed by grid-row. With demo, guide-demo.js makes the blocks
-// draggable/stretchable (pointer-only, client-side); demo children must carry
-// data-id/data-slot/data-span, a .gc-label, and @gcHandle().
-templ guideColumn(demo bool) {
+// guideColumn is a miniature of the app's day grid (column.templ): rows
+// half-hour slots from 9:00, a time gutter beside token-coloured blocks on
+// slot rules. It mirrors the real column's look without a colliding
+// #block-list. Children are the .gc-block spans placed by grid-row. With
+// demo, guide-demo.js makes the blocks draggable/stretchable (pointer-only,
+// client-side); demo children must carry data-id/data-slot/data-span, a
+// .gc-label, and @gcHandle().
+templ guideColumn(demo bool, rows int) {
 	<div class={ "guide-figure", "guide-column", templ.KV("gc-demo", demo) } aria-hidden="true">
-		<div class="gc-slot" style="grid-row:1"><span class="gc-gutter">9:00</span></div>
-		<div class="gc-slot gc-half" style="grid-row:2"><span class="gc-gutter">9:30</span></div>
-		<div class="gc-slot" style="grid-row:3"><span class="gc-gutter">10:00</span></div>
-		<div class="gc-slot gc-half" style="grid-row:4"><span class="gc-gutter">10:30</span></div>
-		<div class="gc-slot" style="grid-row:5"><span class="gc-gutter">11:00</span></div>
+		for i := 0; i < rows; i++ {
+			<div class={ "gc-slot", templ.KV("gc-half", i%2 == 1) } style={ "grid-row:" + strconv.Itoa(i+1) }>
+				<span class="gc-gutter">{ gcTime(i) }</span>
+			</div>
+		}
 		{ children... }
 	</div>
+}
+
+// gcTime labels slot i counting half-hours from 9:00.
+func gcTime(i int) string {
+	if i%2 == 1 {
+		return strconv.Itoa(9+i/2) + ":30"
+	}
+	return strconv.Itoa(9+i/2) + ":00"
 }
 
 // gcHandle is a demo block's resize grip plus the arrows-and-spine cue shown
