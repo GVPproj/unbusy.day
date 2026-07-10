@@ -739,13 +739,14 @@
 		   to clear the tallest pane. */
 		.guide-body {
 			display: grid;
-			height: 23rem;
+			height: 22rem;
 		}
 
 		.guide-pane {
 			grid-area: 1 / 1;
 			display: flex;
 			flex-direction: column;
+			justify-content: center;
 			gap: 0.75rem;
 		}
 
@@ -785,16 +786,16 @@
 			}
 		}
 
-		/* panes 3 & 4 figure: a faithful miniature of the app day grid
+		/* panes 2 & 3 figure: a faithful miniature of the app day grid
 		   (column.templ) — 3.5rem time gutter + token-coloured blocks on
-		   slot rules, over the column surface. */
+		   slot rules at near-true slot height, over the column surface. */
 		.guide-column {
 			padding: 0.4rem 0.6rem 0.75rem;
 			border-radius: var(--radius);
 			background: var(--column-bg);
 			display: grid;
 			grid-template-columns: 3.5rem 1fr;
-			grid-auto-rows: 1.65rem;
+			grid-auto-rows: 2.5rem;
 		}
 
 		.gc-slot {
@@ -840,13 +841,28 @@
 			}
 		}
 
-		/* pane 3's demo is live (guide-demo.js): near-true slot height, grab /
-		   stretch affordances, and the transition that animates pushed
-		   neighbours. .gc-dragging suspends it so the held block tracks the
-		   pointer 1:1. */
-		.gc-demo {
-			grid-auto-rows: 2.5rem;
+		/* pane 2: a free slot frozen in its hovered state — same values as the
+		   real .slot-add's hover reveal (column.templ). */
+		.gc-add {
+			grid-column-start: 2;
+			display: grid;
+			place-items: center;
+			margin-block: 0.125rem;
+			border: 1px dashed var(--accent);
+			border-radius: var(--radius);
+			background: color-mix(in srgb, var(--accent) 8%, transparent);
 
+			.icon {
+				width: 18px;
+				height: 18px;
+				color: var(--accent);
+			}
+		}
+
+		/* pane 3's demo is live (guide-demo.js): grab / stretch affordances and
+		   the transition that animates pushed neighbours. .gc-dragging suspends
+		   it so the held block tracks the pointer 1:1. */
+		.gc-demo {
 			.gc-block {
 				cursor: grab;
 				user-select: none;
@@ -935,21 +951,6 @@
 					transparent 6px 10px
 				);
 			}
-		}
-
-		/* the block that won't fit: dashed and dimmed, hanging past the last
-		   slot rule to read as "overflows the day — snaps back". */
-		.gc-overflow {
-			opacity: 0.55;
-			background: transparent;
-			border: 1px dashed var(--accent);
-			color: var(--ink-muted);
-		}
-
-		.guide-credit {
-			font-size: var(--text-sm);
-			line-height: var(--text-sm--line-height);
-			font-style: italic;
 		}
 
 		/* footer: dots pinned left, Back/Next right (overrides the flex-end
