@@ -840,17 +840,101 @@
 			}
 		}
 
-		/* echoes the real resize grip: a short accent pill on the bottom edge. */
-		.gc-grip::after {
-			content: "";
+		/* pane 3's demo is live (guide-demo.js): near-true slot height, grab /
+		   stretch affordances, and the transition that animates pushed
+		   neighbours. .gc-dragging suspends it so the held block tracks the
+		   pointer 1:1. */
+		.gc-demo {
+			grid-auto-rows: 2.5rem;
+
+			.gc-block {
+				cursor: grab;
+				user-select: none;
+				touch-action: none;
+				transition:
+					translate 0.18s ease,
+					height 0.18s ease;
+
+				&.gc-dragging {
+					z-index: 2;
+					transition: none;
+					cursor: grabbing;
+					opacity: 0.85;
+					box-shadow: var(--shadow-lift);
+				}
+
+				&.gc-resizing {
+					z-index: 2;
+					transition: height 0.18s ease;
+
+					.gc-label {
+						opacity: 0.4;
+					}
+
+					.gc-cue {
+						display: flex;
+					}
+				}
+			}
+		}
+
+		/* echoes the real resize grip: a bottom-edge handle whose ::after is a
+		   short accent pill. */
+		.gc-grip {
 			position: absolute;
-			left: 50%;
-			bottom: 3px;
-			width: 1.5rem;
-			height: 3px;
-			border-radius: 0.125rem;
-			translate: -50% 0;
-			background: var(--accent);
+			inset-inline: 0;
+			bottom: 0;
+			height: 0.75rem;
+			cursor: ns-resize;
+
+			&::after {
+				content: "";
+				position: absolute;
+				left: 50%;
+				bottom: 3px;
+				width: 1.5rem;
+				height: 3px;
+				border-radius: 0.125rem;
+				translate: -50% 0;
+				background: var(--accent);
+			}
+
+			/* taller, narrower on touch so drag still wins the edges. */
+			@media (pointer: coarse) {
+				height: 18px;
+				inset-inline: 25%;
+			}
+		}
+
+		/* arrows + dashed spine shown only while stretching; echoes the real
+		   .resize-cue. */
+		.gc-cue {
+			display: none;
+			position: absolute;
+			inset: 0;
+			z-index: 10;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding-block: 0.25rem;
+			pointer-events: none;
+
+			svg {
+				flex-shrink: 0;
+				filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.1))
+					drop-shadow(0 1px 1px rgb(0 0 0 / 0.06));
+			}
+
+			span {
+				width: 0.125rem;
+				flex: 1;
+				min-height: 0.25rem;
+				background: repeating-linear-gradient(
+					to bottom,
+					var(--accent) 0 6px,
+					transparent 6px 10px
+				);
+			}
 		}
 
 		/* the block that won't fit: dashed and dimmed, hanging past the last

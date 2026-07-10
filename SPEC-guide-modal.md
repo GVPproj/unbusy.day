@@ -209,8 +209,10 @@ rendering across all three colorschemes × two feelings.
   migration, no auto-showing for new users. On-demand only. (Possible follow-up.)
 - **Clickable progress dots**, a "Skip" affordance, or a step counter — dots +
   Back/Next only.
-- **Interactive / live demo** figures (draggable mock blocks). Figures are
-  static.
+- ~~**Interactive / live demo** figures (draggable mock blocks). Figures are
+  static.~~ *(Revised 2026-07-10: pane 3's column is now a live FE-only demo —
+  drag/stretch via `static/guide-demo.js` reusing `push.js`, committed nowhere.
+  Pane 4's overflow motif stays static.)*
 - **Quotes or outbound links** to calnewport.com from the modal.
 - **Reusing `BlockColumn`** or any slot-indexed grid markup inside the modal.
 - **Weekly / quarterly / shutdown-ritual** content — the app is the daily layer

@@ -62,6 +62,35 @@ func TestBlocksPageRendersGuideModalAndNavInvoker(t *testing.T) {
 	}
 }
 
+// Pane 3's column is a live demo: guide-demo.js is mounted, exactly one column
+// carries the gc-demo hook, and its blocks carry the placement data the script
+// reads (data-id/data-slot/data-span) plus a grip handle.
+func TestGuideModalDemoColumnWiring(t *testing.T) {
+	body := renderPage(t, threeBlocks(), testBounds)
+
+	if !strings.Contains(body, "guide-demo.js") {
+		t.Errorf("page missing the guide-demo.js module; body:\n%s", body)
+	}
+	if n := strings.Count(body, "gc-demo"); n != 1 {
+		t.Errorf("want exactly one gc-demo column, got %d; body:\n%s", n, body)
+	}
+	for _, want := range []string{
+		`data-id="deep-work" data-slot="1" data-span="2"`,
+		`data-id="email" data-slot="3" data-span="1"`,
+		`data-id="lunch" data-slot="4" data-span="2"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("demo column missing block placement %q; body:\n%s", want, body)
+		}
+	}
+	if n := strings.Count(body, `class="gc-grip"`); n != 3 {
+		t.Errorf("want a grip handle on each of the 3 demo blocks, got %d; body:\n%s", n, body)
+	}
+	if n := strings.Count(body, `class="gc-cue"`); n != 3 {
+		t.Errorf("want a resize cue on each of the 3 demo blocks, got %d; body:\n%s", n, body)
+	}
+}
+
 // The login page mounts the same dialog, the outlined non-submitting "Why?"
 // invoker, and the invoker-command fallback loader.
 func TestLoginPageRendersGuideModalAndWhyButton(t *testing.T) {

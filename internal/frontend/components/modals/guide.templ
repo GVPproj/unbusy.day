@@ -17,7 +17,7 @@ templ GuideModal() {
 	>
 		<h2
 			id="guide-modal-title"
-			data-text="$_guidestep === 1 ? 'Why time-block?' : $_guidestep === 2 ? 'Set your hours, then fill them' : $_guidestep === 3 ? 'Shape the day' : 'Time is finite'"
+			data-text="$_guidestep === 1 ? 'What is this?' : $_guidestep === 2 ? 'Set your hours, then fill them' : $_guidestep === 3 ? 'Shape the day' : 'Time is finite'"
 		></h2>
 		<div class="guide-body">
 			<div class="guide-pane" data-show="$_guidestep === 1">
@@ -34,16 +34,19 @@ templ GuideModal() {
 				</ul>
 			</div>
 			<div class="guide-pane" data-show="$_guidestep === 3">
-				<p><strong>Drag</strong> a block to move it; <strong>stretch</strong> the grip to resize. Neighbours push out of the way. When reality changes, rearrange — the plan is meant to be rewritten.</p>
-				@guideColumn() {
-					<span class="gc-block" data-type="deep" style="grid-row:1 / span 2">Deep Work</span>
-					<span class="gc-block gc-grip" data-type="shallow" style="grid-row:3 / span 1">Email</span>
-					<span class="gc-block" data-type="break" style="grid-row:4 / span 2">Lunch</span>
+				<p><strong>Drag</strong> a block to move it; <strong>stretch</strong> the grip to resize. Neighbours push out of the way. Try it below — when reality changes, rearrange; the plan is meant to be rewritten.</p>
+				@guideColumn(true) {
+					<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="1" data-span="2" style="grid-row:1 / span 2"><span class="gc-label">Deep Work</span>@gcHandle()
+</span>
+					<span class="gc-block" data-type="shallow" data-id="email" data-slot="3" data-span="1" style="grid-row:3 / span 1"><span class="gc-label">Email</span>@gcHandle()
+</span>
+					<span class="gc-block" data-type="break" data-id="lunch" data-slot="4" data-span="2" style="grid-row:4 / span 2"><span class="gc-label">Lunch</span>@gcHandle()
+</span>
 				}
 			</div>
 			<div class="guide-pane" data-show="$_guidestep === 4">
 				<p>If a move would overflow the day, the whole move snaps back. The app won't let you pretend you have more hours than you do — that constraint is the point. <strong>Clear</strong> wipes the plan for a fresh day.</p>
-				@guideColumn() {
+				@guideColumn(false) {
 					<span class="gc-block" data-type="shallow" style="grid-row:1 / span 2">Wrap-up</span>
 					<span class="gc-block" data-type="deep" style="grid-row:3 / span 2">Focus</span>
 					// Spills into row 6, past the last slot rule — dashed + dimmed so it
@@ -67,14 +70,18 @@ templ GuideModal() {
 			</div>
 		</footer>
 	</dialog>
+	// FE-only drag/stretch for the pane-3 demo column (.gc-demo); commits nothing.
+	<script type="module" src="/static/guide-demo.js"></script>
 }
 
-// guideColumn is a static, non-interactive miniature of the app's day grid
-// (column.templ): a time gutter beside token-coloured blocks on slot rules.
-// It mirrors the real column's look without its slot math, drag wiring, or a
-// colliding #block-list. Children are the .gc-block spans placed by grid-row.
-templ guideColumn() {
-	<div class="guide-figure guide-column" aria-hidden="true">
+// guideColumn is a miniature of the app's day grid (column.templ): a time
+// gutter beside token-coloured blocks on slot rules. It mirrors the real
+// column's look without a colliding #block-list. Children are the .gc-block
+// spans placed by grid-row. With demo, guide-demo.js makes the blocks
+// draggable/stretchable (pointer-only, client-side); demo children must carry
+// data-id/data-slot/data-span, a .gc-label, and @gcHandle().
+templ guideColumn(demo bool) {
+	<div class={ "guide-figure", "guide-column", templ.KV("gc-demo", demo) } aria-hidden="true">
 		<div class="gc-slot" style="grid-row:1"><span class="gc-gutter">9:00</span></div>
 		<div class="gc-slot gc-half" style="grid-row:2"><span class="gc-gutter">9:30</span></div>
 		<div class="gc-slot" style="grid-row:3"><span class="gc-gutter">10:00</span></div>
@@ -82,4 +89,19 @@ templ guideColumn() {
 		<div class="gc-slot" style="grid-row:5"><span class="gc-gutter">11:00</span></div>
 		{ children... }
 	</div>
+}
+
+// gcHandle is a demo block's resize grip plus the arrows-and-spine cue shown
+// while stretching — echoing the real block's grip/.resize-cue (column_block.templ).
+templ gcHandle() {
+	<span class="gc-grip"></span>
+	<span class="gc-cue">
+		<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M5 9 L11 3 L17 9"></path>
+		</svg>
+		<span></span>
+		<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M5 2 L11 8 L17 2"></path>
+		</svg>
+	</span>
 }
