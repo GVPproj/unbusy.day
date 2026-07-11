@@ -10,8 +10,9 @@ import (
 // self-contained (renders on both the app and login pages), so it must not
 // reference app-only signals. $_guidestep is client-only (underscore = never
 // shipped to the server); data-on:close resets it so every open starts at 1.
-// The panes share one fixed-height .guide-body so the dialog never resizes as
-// steps change.
+// All panes stack in one .guide-body grid cell and stay laid out (visibility,
+// not display, toggles them), so the body auto-sizes to the tallest pane in the
+// active font and the dialog never resizes as steps change.
 templ GuideModal() {
 	<dialog
 		id="guide-modal"
@@ -23,16 +24,16 @@ templ GuideModal() {
 	>
 		<h2
 			id="guide-modal-title"
-			data-text="$_guidestep === 1 ? 'What is this thing?' : $_guidestep === 2 ? 'Set your working hours, then use them well' : 'Shape the day'"
+			data-text="$_guidestep === 1 ? 'What is this thing?' : $_guidestep === 2 ? 'Set your work hours, use them well' : 'Shape the day'"
 		></h2>
 		<div class="guide-body">
-			<div class="guide-pane" data-show="$_guidestep === 1">
+			<div class="guide-pane" data-class:showing="$_guidestep === 1">
 				<p>Unbusy is a <strong>Time-block planning</strong> app! Time-blocking is giving every minute of your workday <strong>a job</strong>, as opposed to just freewheeling and <em>context switching</em> all day. It's a less overwhelming, less frantic approach to having a brain.</p>
 				<p>Cal Newport, who champions the method, reckons a time-blocked 40-hour week gets as much done as an unstructured 60-hour one — you're spending your hours <strong>on purpose</strong>, like an investor spends capital. And yes, the plan <em>will</em> break. That's fine! When reality intervenes, just rearrange the blocks. The win is <strong>intentionality</strong>, not obedience.</p>
 			</div>
-			<div class="guide-pane" data-show="$_guidestep === 2">
-				<p>It's always <em>today</em> in this app.  Start your day with a clean slate, first adding any appointments / commitments / meetings. Then allocate the rest of the time, trying to get as much <strong>Deep Work</strong> done as possible.</p>
-				<p>Tap <strong>+</strong> on any free slot to add a <strong>Time-block</strong>.</p>
+			<div class="guide-pane" data-class:showing="$_guidestep === 2">
+				<p>It's always <em>today</em> in this app.  Start your day with a clean slate, first adding any timed commitments. Then, build out your day, prioritizing <strong>Deep Work</strong>.</p>
+				<p>Tap <strong>+</strong> on a free slot to add a <strong>block</strong>.</p>
 				@guideColumn(false, 1) {
 					<span class="gc-add" style="grid-row:1">
 						@components.IconPlus()
@@ -40,12 +41,12 @@ templ GuideModal() {
 				}
 				<p>Give it one of three types:</p>
 				<ul class="guide-figure guide-types">
-					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free hard work. The main bit!</span></li>
-					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — logistics, communications, "admin".</span></li>
-					<li><span class="guide-swatch" data-type="break" aria-hidden="true"></span><span><strong>Break</strong> — plan these!  "Scroll phone"? "Shred guitar"?</span></li>
+					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free work.</span></li>
+					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — logistics, chat, "admin".</span></li>
+					<li><span class="guide-swatch" data-type="break" aria-hidden="true"></span><span><strong>Break</strong> — plan these! "Guitar"? "Pizza"?</span></li>
 				</ul>
 			</div>
-			<div class="guide-pane" data-show="$_guidestep === 3">
+			<div class="guide-pane" data-class:showing="$_guidestep === 3">
 				<p><strong>Drag</strong> a block to move it; <strong>stretch</strong> the grip to resize. Neighbours push out of the way. Try it below — when reality changes, rearrange; the plan is meant to be rewritten.</p>
 				@guideColumn(true, 5) {
 					<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="1" data-span="2" style="grid-row:1 / span 2">
