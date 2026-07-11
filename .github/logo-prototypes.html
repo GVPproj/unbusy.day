@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- PROTOTYPE — the full "unbusy.day" cursive wordmark (variant A), shown plain and with the
+     pixel-feeling mosaic filter, on mock GitHub README panels in light + dark.
+     First real use: the GitHub README header. Open directly: `open .github/logo-prototypes.html`.
+     Delete this file once the design is settled (fold the winner into .github/ as an svg). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>unbusy.day wordmark prototypes</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    background: #57534e;
+    padding: 2rem 1rem 7rem;
+  }
+  .panels { display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; max-width: 1200px; margin: 0 auto; }
+  /* mock GitHub README, light + dark */
+  .readme {
+    flex: 1 1 460px; max-width: 560px;
+    border-radius: 12px; padding: 3rem 2.5rem 2.5rem;
+    text-align: center;
+    font-family: -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  }
+  .readme.light { background: #ffffff; color: #1f2328; border: 1px solid #d1d9e0; }
+  .readme.dark  { background: #0d1117; color: #f0f6fc; border: 1px solid #3d444d; }
+  .readme .logo { margin: 0 auto 1.4rem; }
+  .readme .badges { display: flex; gap: 6px; justify-content: center; margin: 0 0 1rem; }
+  .readme .badges span {
+    font: 600 11px/1.9 Verdana, sans-serif; padding: 0 8px; border-radius: 3px;
+    background: #555; color: #fff;
+  }
+  .readme .badges span b { color: #4c1; font-weight: 600; }
+  .readme p { font-size: 15px; line-height: 1.5; }
+  .readme.light p { color: #59636e; }
+  .readme.dark  p { color: #9198a1; }
+
+  .sway {
+    animation: sway 5.9s ease-in-out infinite;
+    transform-origin: center;
+    display: inline-block;
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-1.8deg) translateY(0) scale(1.02, 0.98); }
+    25%      { transform: rotate(0deg) translateY(-2px) scale(0.99, 1.01); }
+    50%      { transform: rotate(1.8deg) translateY(0) scale(1.02, 0.98); }
+    75%      { transform: rotate(0deg) translateY(2px) scale(0.99, 1.01); }
+  }
+  @media (prefers-reduced-motion: reduce) { .sway { animation: none; } }
+
+</style>
+</head>
+<body>
+<div class="panels" id="panels"></div>
+
+<script>
+// ---- glyph library ------------------------------------------------------
+// Same coordinate system as the ub.d mark: x-height top y=9, baseline y≈20.5,
+// ascender top y=4, descenders to ~28. u/b/d/dot are lifted verbatim from
+// .github/ub-logo.svg (translated to local origin); n/s/y/a are drafted to match.
+// adv = pen advance to the next letter's origin.
+const G = {
+  u:   { d: 'M0 9 C-1 17, 1 21, 4.5 20.5 C8 20, 10 15, 10.5 9 C10 15, 9.5 20, 12 21 C14 21.8, 16 19, 17 15', adv: 17 },
+  n:   { d: 'M0 15 C1 12, 2.5 9.5, 3.5 9 C3 13, 2.5 17.5, 3.5 20.5 C4 16.5, 5.5 11, 8.5 9.5 C11 8.3, 12 10.5, 11.5 14 C11.2 16.3, 11 18.8, 12 20.5 C13 22, 15 19, 16 15', adv: 16 },
+  b:   { d: 'M0 15 L3 4 C2 11, 1.5 18, 2.5 20.5 C3.5 23, 8 22, 10 18.5 C12 15, 10 12, 6.5 14 C4.5 15.2, 3 17.5, 2.5 20.5 C3.5 23, 5.5 22.7, 7.5 21.5', adv: 12.5 },
+  s:   { d: 'M0 15 C1.4 12.6, 3.4 10.4, 5.4 9.6 C4.6 8.4, 2.6 8.6, 2 10 C1.4 11.6, 2.6 13, 4.4 13.9 C6.6 15, 7.6 16.4, 7 18.3 C6.4 20.2, 4 21.2, 2.4 20.3 C2 21.5, 3.4 21.8, 4.8 21.2 C6.4 20.5, 7.2 18, 7.5 15', adv: 7.5 },
+  y:   { d: 'M0 15 C1 12, 2.5 9.5, 3.5 9 C2.5 15.5, 4 20.8, 7 20.5 C10 20.2, 12 15.5, 13 9 C12.5 14, 12.1 18.5, 12.5 22.5 C12.9 26.5, 11 28.7, 8.5 27.8 C6.7 27.1, 6.7 24.8, 8.7 23.2', adv: 15 },
+  d:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.7 11, 9.5 7, 10 4 C9.5 11, 9 18, 10 20.5 C10.5 21.8, 12 21.5, 13 20', adv: 14 },
+  a:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.1 12.6, 8.4 10.7, 8.6 9 C8.3 13, 8.2 18, 9.2 20.5 C9.7 21.8, 11.2 21.5, 12.2 20', adv: 13.5 },
+  '.': { d: 'M0 20.5 L0.01 20.5', adv: 5.5 },
+};
+
+// Lay out a word; returns { paths: '<path/>…', width }.
+function word(text, x0 = 0) {
+  let x = x0, paths = '';
+  for (const ch of text) {
+    const g = G[ch];
+    if (ch === '.') x += 3; // dot floats between words like the original mark
+    paths += `<path d="${g.d}" transform="translate(${x.toFixed(1)} 0)"/>`;
+    x += g.adv;
+  }
+  return { paths, width: x - x0 };
+}
+
+const STROKE = 'stroke="hsl(45, 100%, 40%)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+const full = word('unbusy.day');
+
+// ---- feelings -----------------------------------------------------------
+// One design (full cursive), rendered plain and with the pixel-feeling mosaic
+// filter from logo.templ (pixelScale 1.0: cell 3, dilate 1, flood 1.5). The
+// filter sits on the inner <g> so userSpaceOnUse resolves in viewBox units.
+function wordmark(id, pixelScale) {
+  const cell = 3 * pixelScale, dilate = 1 * pixelScale, flood = cell / 2;
+  const filter = pixelScale ? `
+      <filter id="${id}" filterUnits="userSpaceOnUse" x="-8" y="-3" width="${(full.width + 16).toFixed(1)}" height="38">
+        <feFlood x="${flood}" y="${flood}" width="1" height="1"></feFlood>
+        <feComposite x="${flood}" y="${flood}" width="${cell}" height="${cell}"></feComposite>
+        <feTile result="grid"></feTile>
+        <feComposite in="SourceGraphic" in2="grid" operator="in"></feComposite>
+        <feMorphology operator="dilate" radius="${dilate}"></feMorphology>
+      </filter>` : '';
+  return `
+    <svg class="logo sway" viewBox="-4 0 ${(full.width + 8).toFixed(1)} 32" width="400" aria-label="unbusy.day"${pixelScale ? ' style="shape-rendering: crispEdges"' : ''}>
+      ${filter}
+      <g ${STROKE}${pixelScale ? ` filter="url(#${id})"` : ''}>${full.paths}</g>
+    </svg>`;
+}
+
+const ROWS = [
+  { name: 'plain', pixel: 0 },
+  { name: 'pixel feeling', pixel: 0.6 },
+];
+document.getElementById('panels').innerHTML = ROWS.map(row => ['light', 'dark'].map(theme => `
+  <div class="readme ${theme}">
+    <div class="logo">${wordmark(`px-${row.name.replace(/\W/g, '')}-${theme}`, row.pixel)}</div>
+    <!-- row label is page chrome, not part of the design -->
+    <div style="font: 11px ui-monospace, monospace; opacity: .45; margin: -0.9rem 0 0.9rem">${row.name}${row.pixel ? ` (scale ${row.pixel})` : ''}</div>
+    <div class="badges"><span>CI/CD <b>passing</b></span><span>go report <b>A+</b></span><span>go 1.24</span></div>
+    <p>Have a structured day. Time-block your schedule, track some progress, no rush.</p>
+  </div>`).join('')).join('');
+</script>
+</body>
+</html>
