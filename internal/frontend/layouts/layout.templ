@@ -24,6 +24,19 @@ templ Layout(title string, streamInit string) {
 				<link rel="manifest" href="/static/manifest.webmanifest"/>
 				<meta name="apple-mobile-web-app-title" content="unbusy"/>
 				<meta name="theme-color" content="hsl(192, 81%, 14%)"/>
+			// Share/unfurl card (iMessage, Slack, socials). Scrapers need absolute
+			// URLs, so the canonical domain is hardcoded rather than request-derived.
+			<meta name="description" content="Give every minute of your workday one job. A calm, Cal Newport-style time-block planner for today."/>
+			<meta property="og:type" content="website"/>
+			<meta property="og:site_name" content="unbusy.day"/>
+			<meta property="og:title" content="unbusy.day — time-block your day"/>
+			<meta property="og:description" content="Give every minute of your workday one job. A calm, Cal Newport-style time-block planner for today."/>
+			<meta property="og:url" content="https://unbusy.day/"/>
+			<meta property="og:image" content="https://unbusy.day/static/og.png"/>
+			<meta property="og:image:width" content="1200"/>
+			<meta property="og:image:height" content="630"/>
+			<meta property="og:image:alt" content="A day column with time blocks — Deep Work, Email, Coffee — beside the tagline: give every minute one job."/>
+			<meta name="twitter:card" content="summary_large_image"/>
 			// Apply the stored theme before first paint so a dark scheme doesn't
 			// flash the default light tokens until Datastar hydrates.
 			<script>
