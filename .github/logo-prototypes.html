@@ -73,15 +73,21 @@ const G = {
   b:   { d: 'M0 15 L3 4 C2 11, 1.5 18, 2.5 20.5 C3.5 23, 8 22, 10 18.5 C12 15, 10 12, 6.5 14 C4.5 15.2, 3 17.5, 2.5 20.5 C3.5 23, 5.5 22.7, 7.5 21.5', adv: 12.5 },
   s:   { d: 'M0 15 C1.4 12.6, 3.4 10.4, 5.4 9.6 C4.6 8.4, 2.6 8.6, 2 10 C1.4 11.6, 2.6 13, 4.4 13.9 C6.6 15, 7.6 16.4, 7 18.3 C6.4 20.2, 4 21.2, 2.4 20.3 C2 21.5, 3.4 21.8, 4.8 21.2 C6.4 20.5, 7.2 18, 7.5 15', adv: 7.5 },
   y:   { d: 'M0 15 C1 12, 2.5 9.5, 3.5 9 C2.5 15.5, 4 20.8, 7 20.5 C10 20.2, 12 15.5, 13 9 C12.5 14, 12.1 18.5, 12.5 22.5 C12.9 26.5, 11 28.7, 8.5 27.8 C6.7 27.1, 6.7 24.8, 8.7 23.2', adv: 15 },
+  // word-final y: same skeleton, but a wider bowl and a bigger, deeper descender
+  // loop whose tail sweeps back up further — the hand never draws the same letter twice
+  y2:  { d: 'M0 15 C1 12.3, 2.7 9.7, 3.7 9 C2.7 15.5, 4.3 20.8, 7.1 20.5 C10.1 20.1, 12.1 15.5, 13 9 C12.3 13.8, 11.9 18.2, 12.7 22.6 C13.5 27.4, 10.6 29.8, 7.8 28.5 C5.5 27.4, 6 24.2, 9.6 22.8', adv: 15 },
   d:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.7 11, 9.5 7, 10 4 C9.5 11, 9 18, 10 20.5 C10.5 21.8, 12 21.5, 13 20', adv: 14 },
   a:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.1 12.6, 8.4 10.7, 8.6 9 C8.3 13, 8.2 18, 9.2 20.5 C9.9 22, 11.5 19, 12.5 15', adv: 12.5 },
   '.': { d: 'M0 20.5 L0.01 20.5', adv: 5.5 },
 };
 
-// Lay out a word; returns { paths: '<path/>…', width }.
-function word(text, x0 = 0) {
+// The wordmark as glyph keys — the two y's use different variants on purpose.
+const WORD = ['u', 'n', 'b', 'u', 's', 'y', '.', 'd', 'a', 'y2'];
+
+// Lay out a glyph sequence; returns { paths: '<path/>…', width }.
+function word(glyphs, x0 = 0) {
   let x = x0, paths = '';
-  for (const ch of text) {
+  for (const ch of glyphs) {
     const g = G[ch];
     if (ch === '.') x += 3; // dot floats between words like the original mark
     paths += `<path d="${g.d}" transform="translate(${x.toFixed(1)} 0)"/>`;
@@ -92,7 +98,7 @@ function word(text, x0 = 0) {
 
 const INK = 'hsl(45, 100%, 40%)';
 const STROKE = `stroke="${INK}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-const full = word('unbusy.day');
+const full = word(WORD);
 const PX_PER_UNIT = 400 / (full.width + 8); // plain mark renders 400px wide; pixel marks match
 
 function plainmark() {
@@ -148,7 +154,7 @@ function pixelmark(cell) {
   // rasterize: mark every grid cell the pen passes through
   const byRow = new Map();
   let pen = 0, minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-  for (const ch of 'unbusy.day') {
+  for (const ch of WORD) {
     const g = G[ch];
     if (ch === '.') pen += 3;
     for (const p of samplePath(g.d, cell / 4)) {
