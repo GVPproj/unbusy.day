@@ -776,6 +776,12 @@
       &.showing {
         visibility: visible;
       }
+
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+      }
     }
 
     /* pane 2 figure: three type swatches beside their descriptions. */

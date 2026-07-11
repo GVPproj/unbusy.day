@@ -2,6 +2,7 @@ package modals
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 )
@@ -28,11 +29,13 @@ templ GuideModal() {
 		></h2>
 		<div class="guide-body">
 			<div class="guide-pane" data-class:showing="$_guidestep === 1">
-				<p>Unbusy is a <strong>Time-block planning</strong> app! Time-blocking is giving every minute of your workday <strong>a job</strong>, as opposed to just freewheeling and <em>context switching</em> all day. It's a less overwhelming, less frantic approach to having a brain.</p>
-				<p>Cal Newport, who champions the method, reckons a time-blocked 40-hour week gets as much done as an unstructured 60-hour one — you're spending your hours <strong>on purpose</strong>, like an investor spends capital. And yes, the plan <em>will</em> break. That's fine! When reality intervenes, just rearrange the blocks. The win is <strong>intentionality</strong>, not obedience.</p>
+				<p>Unbusy is a <strong>time-block planning</strong> app, inspired by Cal Newport's <a href="https://calnewport.com/deep-habits-the-importance-of-planning-every-minute-of-your-work-day/" target="_blank" rel="noopener">system</a>.</p>
+				<p>Time-blocking is giving every minute of your workday <strong>one job</strong>, avoiding the <a href="https://www.apa.org/topics/research/multitasking" target="_blank" rel="noopener"><em>costs</em></a> associated with <a href="https://calnewport.com/a-productivity-lesson-from-a-classic-arcade-game/" target="_blank" rel="noopener"><em>switching contexts</em></a> while you work. It's a less overwhelming, less frantic approach to having a brain.</p>
+				<p>Spend your limited work hours <strong>with care</strong>, like a { strconv.Itoa(time.Now().Year()) } grocery budget.</p>
+				<p>Plans change as the day goes by? Rearrange your blocks; stay in your plan.</p>
 			</div>
 			<div class="guide-pane" data-class:showing="$_guidestep === 2">
-				<p>It's always <em>today</em> in this app.  Start your day with a clean slate, first adding any timed commitments. Then, build out your day, prioritizing <strong>Deep Work</strong>.</p>
+				<p>It's always <em>today</em> in this app. Start your day with a clean slate, first adding any timed commitments. Then, build out your day, prioritizing <strong>Deep Work</strong>.</p>
 				<p>Tap <strong>+</strong> on a free slot to add a <strong>block</strong>.</p>
 				@guideColumn(false, 1) {
 					<span class="gc-add" style="grid-row:1">
@@ -41,13 +44,14 @@ templ GuideModal() {
 				}
 				<p>Give it one of three types:</p>
 				<ul class="guide-figure guide-types">
-					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free work.</span></li>
-					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — logistics, chat, "admin".</span></li>
+					<li><span class="guide-swatch" data-type="deep" aria-hidden="true"></span><span><strong>Deep</strong> — distraction-free work</span></li>
+					<li><span class="guide-swatch" data-type="shallow" aria-hidden="true"></span><span><strong>Shallow</strong> — meetings, "checking things"</span></li>
 					<li><span class="guide-swatch" data-type="break" aria-hidden="true"></span><span><strong>Break</strong> — plan these! "Guitar"? "Pizza"?</span></li>
 				</ul>
 			</div>
 			<div class="guide-pane" data-class:showing="$_guidestep === 3">
-				<p><strong>Drag</strong> a block to move it; <strong>stretch</strong> the grip to resize. Neighbours push out of the way. Try it below — when reality changes, rearrange; the plan is meant to be rewritten.</p>
+				<p><strong>Drag</strong> blocks to rearrange them; <strong>expand</strong> blocks using the grip line at the bottom. Blocks won't overlap, so things shift naturally into place.</p>
+				<p>Try it below!</p>
 				@guideColumn(true, 5) {
 					<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="1" data-span="2" style="grid-row:1 / span 2">
 						<span class="gc-label">Deep Work</span>@gcHandle()
@@ -56,7 +60,7 @@ templ GuideModal() {
 						<span class="gc-label">Email</span>@gcHandle()
 					</span>
 					<span class="gc-block" data-type="break" data-id="lunch" data-slot="4" data-span="2" style="grid-row:4 / span 2">
-						<span class="gc-label">Lunch</span>@gcHandle()
+						<span class="gc-label">Coffee</span>@gcHandle()
 					</span>
 				}
 			</div>
