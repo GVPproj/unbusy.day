@@ -1,6 +1,7 @@
 <!doctype html>
-<!-- PROTOTYPE — the full "unbusy.day" cursive wordmark (variant A), shown plain and with the
-     pixel-feeling mosaic filter, on mock GitHub README panels in light + dark.
+<!-- PROTOTYPE — the full "unbusy.day" cursive wordmark (variant A), shown plain and as a true
+     pixel rendering in the pixelarticons idiom (integer grid, 1-cell line weight, filled rect
+     runs, staircase curves), on mock GitHub README panels in light + dark.
      First real use: the GitHub README header. Open directly: `open .github/logo-prototypes.html`.
      Delete this file once the design is settled (fold the winner into .github/ as an svg). -->
 <html lang="en">
@@ -47,7 +48,13 @@
     50%      { transform: rotate(1.8deg) translateY(0) scale(1.02, 0.98); }
     75%      { transform: rotate(0deg) translateY(2px) scale(0.99, 1.01); }
   }
-  @media (prefers-reduced-motion: reduce) { .sway { animation: none; } }
+  /* pixel version: no smooth motion — a retro square-wave bob of exactly one on-screen cell */
+  .bob { display: inline-block; animation: bob 1.6s steps(1, end) infinite; }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(var(--bob, 5px)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .sway, .bob { animation: none; } }
 
 </style>
 </head>
@@ -67,7 +74,7 @@ const G = {
   s:   { d: 'M0 15 C1.4 12.6, 3.4 10.4, 5.4 9.6 C4.6 8.4, 2.6 8.6, 2 10 C1.4 11.6, 2.6 13, 4.4 13.9 C6.6 15, 7.6 16.4, 7 18.3 C6.4 20.2, 4 21.2, 2.4 20.3 C2 21.5, 3.4 21.8, 4.8 21.2 C6.4 20.5, 7.2 18, 7.5 15', adv: 7.5 },
   y:   { d: 'M0 15 C1 12, 2.5 9.5, 3.5 9 C2.5 15.5, 4 20.8, 7 20.5 C10 20.2, 12 15.5, 13 9 C12.5 14, 12.1 18.5, 12.5 22.5 C12.9 26.5, 11 28.7, 8.5 27.8 C6.7 27.1, 6.7 24.8, 8.7 23.2', adv: 15 },
   d:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.7 11, 9.5 7, 10 4 C9.5 11, 9 18, 10 20.5 C10.5 21.8, 12 21.5, 13 20', adv: 14 },
-  a:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.1 12.6, 8.4 10.7, 8.6 9 C8.3 13, 8.2 18, 9.2 20.5 C9.7 21.8, 11.2 21.5, 12.2 20', adv: 13.5 },
+  a:   { d: 'M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.1 12.6, 8.4 10.7, 8.6 9 C8.3 13, 8.2 18, 9.2 20.5 C9.9 22, 11.5 19, 12.5 15', adv: 12.5 },
   '.': { d: 'M0 20.5 L0.01 20.5', adv: 5.5 },
 };
 
@@ -83,39 +90,105 @@ function word(text, x0 = 0) {
   return { paths, width: x - x0 };
 }
 
-const STROKE = 'stroke="hsl(45, 100%, 40%)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+const INK = 'hsl(45, 100%, 40%)';
+const STROKE = `stroke="${INK}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
 const full = word('unbusy.day');
+const PX_PER_UNIT = 400 / (full.width + 8); // plain mark renders 400px wide; pixel marks match
 
-// ---- feelings -----------------------------------------------------------
-// One design (full cursive), rendered plain and with the pixel-feeling mosaic
-// filter from logo.templ (pixelScale 1.0: cell 3, dilate 1, flood 1.5). The
-// filter sits on the inner <g> so userSpaceOnUse resolves in viewBox units.
-function wordmark(id, pixelScale) {
-  const cell = 3 * pixelScale, dilate = 1 * pixelScale, flood = cell / 2;
-  const filter = pixelScale ? `
-      <filter id="${id}" filterUnits="userSpaceOnUse" x="-8" y="-3" width="${(full.width + 16).toFixed(1)}" height="38">
-        <feFlood x="${flood}" y="${flood}" width="1" height="1"></feFlood>
-        <feComposite x="${flood}" y="${flood}" width="${cell}" height="${cell}"></feComposite>
-        <feTile result="grid"></feTile>
-        <feComposite in="SourceGraphic" in2="grid" operator="in"></feComposite>
-        <feMorphology operator="dilate" radius="${dilate}"></feMorphology>
-      </filter>` : '';
+function plainmark() {
   return `
-    <svg class="logo sway" viewBox="-4 0 ${(full.width + 8).toFixed(1)} 32" width="400" aria-label="unbusy.day"${pixelScale ? ' style="shape-rendering: crispEdges"' : ''}>
-      ${filter}
-      <g ${STROKE}${pixelScale ? ` filter="url(#${id})"` : ''}>${full.paths}</g>
+    <svg class="logo sway" viewBox="-4 0 ${(full.width + 8).toFixed(1)} 32" width="400" aria-label="unbusy.day">
+      <g ${STROKE}>${full.paths}</g>
+    </svg>`;
+}
+
+// ---- pixel feeling ------------------------------------------------------
+// True pixel rendering in the pixelarticons idiom (studied from
+// halfmage/pixelarticons svg source — clock, zap, moon, heart, reload):
+//   - hard integer grid; line weight is uniformly ONE grid cell
+//     (theirs: 2px modules on a 24px icon — the grid IS the stroke)
+//   - filled axis-aligned rects only; fill, never stroke, no anti-aliasing
+//   - the whole mark is one merged <path> of M…h…v1h…z runs
+//   - curves become staircases; 45° runs are corner-touching squares
+// We rasterize the same cursive centerlines onto the grid, so plain and
+// pixel stay one drawing at two resolutions. `cell` is in glyph units:
+// smaller cell = finer grid (x-height ≈ 11.5 units → 11.5/cell cells tall).
+
+// Sample the M/C/L glyph paths densely (a point every ~`step` units).
+function samplePath(d, step) {
+  const tok = d.match(/[MCL]|-?[\d.]+/g);
+  const pts = [];
+  let i = 0, cur = null;
+  while (i < tok.length) {
+    const cmd = tok[i++];
+    if (cmd === 'M') { cur = { x: +tok[i++], y: +tok[i++] }; pts.push({ ...cur }); }
+    else if (cmd === 'L') {
+      const p = { x: +tok[i++], y: +tok[i++] };
+      const n = Math.max(1, Math.ceil(Math.hypot(p.x - cur.x, p.y - cur.y) / step));
+      for (let k = 1; k <= n; k++) pts.push({ x: cur.x + (p.x - cur.x) * k / n, y: cur.y + (p.y - cur.y) * k / n });
+      cur = p;
+    } else if (cmd === 'C') {
+      const p1 = { x: +tok[i++], y: +tok[i++] }, p2 = { x: +tok[i++], y: +tok[i++] }, p3 = { x: +tok[i++], y: +tok[i++] };
+      const chord = Math.hypot(p1.x - cur.x, p1.y - cur.y) + Math.hypot(p2.x - p1.x, p2.y - p1.y) + Math.hypot(p3.x - p2.x, p3.y - p2.y);
+      const n = Math.max(4, Math.ceil(chord / step));
+      for (let k = 1; k <= n; k++) {
+        const t = k / n, u = 1 - t;
+        pts.push({
+          x: u * u * u * cur.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+          y: u * u * u * cur.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+        });
+      }
+      cur = p3;
+    }
+  }
+  return pts;
+}
+
+function pixelmark(cell) {
+  // rasterize: mark every grid cell the pen passes through
+  const byRow = new Map();
+  let pen = 0, minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (const ch of 'unbusy.day') {
+    const g = G[ch];
+    if (ch === '.') pen += 3;
+    for (const p of samplePath(g.d, cell / 4)) {
+      const cx = Math.floor((p.x + pen) / cell), cy = Math.floor(p.y / cell);
+      if (!byRow.has(cy)) byRow.set(cy, new Set());
+      byRow.get(cy).add(cx);
+      minX = Math.min(minX, cx); maxX = Math.max(maxX, cx);
+      minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
+    }
+    pen += g.adv;
+  }
+  // emit horizontal runs as one merged pixelarticons-style path, in cell units
+  let d = '';
+  for (const cy of [...byRow.keys()].sort((a, b) => a - b)) {
+    const xs = [...byRow.get(cy)].sort((a, b) => a - b);
+    for (let i = 0; i < xs.length;) {
+      let j = i;
+      while (j + 1 < xs.length && xs[j + 1] === xs[j] + 1) j++;
+      d += `M${xs[i]} ${cy}h${j - i + 1}v1h${-(j - i + 1)}z`;
+      i = j + 1;
+    }
+  }
+  const w = maxX - minX + 3, h = maxY - minY + 3; // 1-cell padding all round
+  const cellPx = cell * PX_PER_UNIT;
+  return `
+    <svg class="logo bob" style="--bob: ${cellPx.toFixed(1)}px; shape-rendering: crispEdges"
+         viewBox="${minX - 1} ${minY - 1} ${w} ${h}" width="${Math.round(w * cellPx)}" aria-label="unbusy.day">
+      <path fill="${INK}" d="${d}"/>
     </svg>`;
 }
 
 const ROWS = [
-  { name: 'plain', pixel: 0 },
-  { name: 'pixel feeling', pixel: 0.6 },
+  { name: 'plain', html: plainmark() },
+  { name: 'pixel (cell 1.25)', html: pixelmark(1.25) },
 ];
 document.getElementById('panels').innerHTML = ROWS.map(row => ['light', 'dark'].map(theme => `
   <div class="readme ${theme}">
-    <div class="logo">${wordmark(`px-${row.name.replace(/\W/g, '')}-${theme}`, row.pixel)}</div>
+    <div class="logo">${row.html}</div>
     <!-- row label is page chrome, not part of the design -->
-    <div style="font: 11px ui-monospace, monospace; opacity: .45; margin: -0.9rem 0 0.9rem">${row.name}${row.pixel ? ` (scale ${row.pixel})` : ''}</div>
+    <div style="font: 11px ui-monospace, monospace; opacity: .45; margin: -0.9rem 0 0.9rem">${row.name}</div>
     <div class="badges"><span>CI/CD <b>passing</b></span><span>go report <b>A+</b></span><span>go 1.24</span></div>
     <p>Have a structured day. Time-block your schedule, track some progress, no rush.</p>
   </div>`).join('')).join('');
