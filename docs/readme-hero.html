@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<!-- Source for .github/readme-hero.png (the README banner). The og-card.html
+     layout minus the wordmark/domain — the README already opens with the logo.
+     Regenerate at 2x then downscale:
+       chrome - -headless - -screenshot=hero-2x.png - -window-size=1200,630 \
+         - -force-device-scale-factor=2 - -hide-scrollbars \
+         - -allow-file-access-from-files docs/readme-hero.html
+       sips -z 630 1200 hero-2x.png - -out .github/readme-hero.png
+     (join the "- -" pairs into double-dash flags; HTML comments forbid them) -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: "Zen Maru Gothic";
+    font-weight: 400;
+    src: url("../internal/frontend/static/fonts/zen-maru-gothic-400-latin.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Zen Maru Gothic";
+    font-weight: 500;
+    src: url("../internal/frontend/static/fonts/zen-maru-gothic-500-latin.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Zen Maru Gothic";
+    font-weight: 700;
+    src: url("../internal/frontend/static/fonts/zen-maru-gothic-700-latin.woff2") format("woff2");
+  }
+
+  :root {
+    /* solarized-light tokens from app.css */
+    --bg: hsl(44, 86%, 94%);
+    --ink: hsl(195, 7%, 32%);
+    --ink-muted: hsl(194, 14%, 40%);
+    --column-bg: hsl(46, 42%, 88%);
+    --rail-border: hsl(44, 27%, 79%);
+    --nav-bg: hsl(192, 81%, 14%);
+    --nav-ink: hsl(46, 42%, 88%);
+    --nav-icon: hsl(45, 100%, 40%);
+    --gutter-ink: hsl(192, 81%, 14%);
+    --type-deep: hsl(205, 70%, 87%);
+    --type-deep-ink: hsl(205, 75%, 27%);
+    --type-shallow: var(--bg);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(135, 42%, 82%);
+    --type-break-ink: hsl(135, 55%, 22%);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    font-family: "Zen Maru Gothic", sans-serif;
+    background: var(--nav-bg);
+    background-image: radial-gradient(ellipse 900px 700px at 24% 38%, hsl(192, 70%, 19%), transparent 70%);
+    display: flex;
+    align-items: center;
+  }
+
+  .copy {
+    flex: 1;
+    padding: 0 0 0 92px;
+    color: var(--nav-ink);
+  }
+  .tagline {
+    font-size: 60px;
+    font-weight: 700;
+    line-height: 1.18;
+    letter-spacing: 0.01em;
+    margin-bottom: 26px;
+  }
+  .tagline em {
+    font-style: normal;
+    color: var(--nav-icon);
+  }
+  .sub {
+    font-size: 29px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: hsl(46, 42%, 78%);
+    max-width: 22ch;
+  }
+
+  /* ---- mockup day column, echoing guideColumn / .blocks ---- */
+  .column-wrap {
+    width: 480px;
+    margin-right: 84px;
+    transform: rotate(-1.6deg);
+  }
+  .column {
+    background: var(--column-bg);
+    border-radius: 14px;
+    padding: 30px 26px 30px 20px;
+    box-shadow:
+      0 24px 60px rgba(0, 20, 26, 0.5),
+      0 4px 14px rgba(0, 20, 26, 0.35);
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    grid-auto-rows: 62px;
+  }
+  .slot {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: start;
+    border-top: 2px solid var(--rail-border);
+    padding-top: 6px;
+  }
+  .slot.half { border-top-style: dashed; }
+  .slot.first { border-top-color: transparent; }
+  .gutter {
+    font-size: 21px;
+    font-weight: 500;
+    color: var(--gutter-ink);
+    padding-left: 6px;
+  }
+  .slot-add {
+    justify-self: start;
+    align-self: center;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--rail-border);
+    color: var(--ink-muted);
+    display: flex; align-items: center; justify-content: center;
+    margin-left: 4px;
+  }
+  .block {
+    grid-column: 2;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 24px;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(88, 110, 117, 0.35);
+    margin: 4px 2px 4px 0;
+    position: relative;
+  }
+  .block .grip {
+    position: absolute;
+    left: 50%; bottom: 7px;
+    transform: translateX(-50%);
+    width: 44px; height: 4px;
+    border-radius: 2px;
+    background: currentColor;
+    opacity: 0.35;
+  }
+  .deep    { background: var(--type-deep);    color: var(--type-deep-ink); }
+  .shallow { background: var(--type-shallow); color: var(--type-shallow-ink); }
+  .break   { background: var(--type-break);   color: var(--type-break-ink); }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <div class="tagline">Give every minute <em>one&nbsp;job</em>.</div>
+    <div class="sub">A calm, time-block planner for today's work.</div>
+  </div>
+
+  <div class="column-wrap">
+    <div class="column">
+      <div class="slot first" style="grid-row:1"><span class="gutter">9:00</span>
+        <span class="slot-add">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+      </div>
+      <div class="slot half" style="grid-row:2"><span class="gutter">9:30</span></div>
+      <div class="slot" style="grid-row:3"><span class="gutter">10:00</span></div>
+      <div class="slot half" style="grid-row:4"><span class="gutter">10:30</span></div>
+      <div class="slot" style="grid-row:5"><span class="gutter">11:00</span></div>
+      <div class="slot half" style="grid-row:6"><span class="gutter">11:30</span></div>
+
+      <div class="block deep" style="grid-row: 2 / span 2;">Deep Work<span class="grip"></span></div>
+      <div class="block shallow" style="grid-row: 4;">Email<span class="grip"></span></div>
+      <div class="block break" style="grid-row: 5 / span 2;">Coffee<span class="grip"></span></div>
+    </div>
+  </div>
+</body>
+</html>
