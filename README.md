@@ -10,9 +10,7 @@
 
 Have a structured day. Time-block your schedule, track some progress, no rush.
 
-<p align="center">
-  <img src=".github/readme-hero.png" width="820" alt="A tilted day column with Deep Work, Email, and Coffee blocks beside the tagline: give every minute one job.">
-</p>
+![A tilted day column with Deep Work, Email, and Coffee blocks beside the tagline: a less overwhelming approach to having a brain.](.github/readme-hero.png)
 
 ## What is this thing?
 

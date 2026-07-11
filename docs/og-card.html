@@ -69,7 +69,7 @@
   }
   .wordmark { color: var(--nav-icon); margin-bottom: 20px; }
   .tagline {
-    font-size: 54px;
+    font-size: 48px;
     font-weight: 700;
     line-height: 1.18;
     letter-spacing: 0.01em;
@@ -123,15 +123,17 @@
     color: var(--gutter-ink);
     padding-left: 6px;
   }
+  /* free-slot add target frozen in its hover state, like .slot-add / .gc-add */
   .slot-add {
-    justify-self: start;
-    align-self: center;
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: 2px solid var(--rail-border);
-    color: var(--ink-muted);
+    grid-column: 2;
+    align-self: stretch;
+    justify-self: stretch;
     display: flex; align-items: center; justify-content: center;
-    margin-left: 4px;
+    margin: 4px 2px 4px 0;
+    border: 2px dashed var(--accent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--accent);
   }
   .block {
     grid-column: 2;
@@ -166,8 +168,8 @@
         <path d="M45.5 14 C45 10.8, 40 11.2, 38.5 14.5 C37 18, 39.5 21.8, 42.8 21 C44.8 20.4, 45.8 17.5, 46.3 14.5 C47.2 11, 48 7, 48.5 4 C48 11, 47.5 18, 48.5 20.5 C49 21.8, 50.5 21.5, 51.5 20"></path>
       </svg>
     </div>
-    <div class="tagline">Give every minute one&nbsp;job.</div>
-    <div class="sub">A calm, time-block planner for today's work.</div>
+    <div class="tagline">A less overwhelming approach to having a&nbsp;brain.</div>
+    <div class="sub">A time-block planning app for your work day.</div>
     <div class="domain">unbusy.day</div>
   </div>
 
@@ -175,7 +177,7 @@
     <div class="column">
       <div class="slot first" style="grid-row:1"><span class="gutter">9:00</span>
         <span class="slot-add">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="#fff" d="M12 8.25a.75.75 0 0 1 .75.75v2.25H15a.75.75 0 0 1 0 1.5h-2.25V15a.75.75 0 0 1-1.5 0v-2.25H9a.75.75 0 0 1 0-1.5h2.25V9a.75.75 0 0 1 .75-.75"/></svg>
         </span>
       </div>
       <div class="slot half" style="grid-row:2"><span class="gutter">9:30</span></div>
