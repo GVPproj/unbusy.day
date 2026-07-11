@@ -1,0 +1,88 @@
+package components
+
+import "fmt"
+
+// FullLogo is the full "unbusy.day" cursive wordmark — same hand as UBLogo's
+// "ub.d" mark (u/b/d/dot lifted verbatim, the rest drafted to match; the two
+// y's differ on purpose). Two renderings of one drawing: the plain stroked
+// cursive, and a true pixel rasterization in the pixelarticons idiom (integer
+// grid, 1-cell weight, filled rect runs) swapped in by the pixel feeling —
+// unlike UBLogo, which mosaics via an SVG filter. Path data generated from
+// .github/logo-prototypes.html. Strokes/fill inherit currentColor.
+templ FullLogo(width int) {
+	// pixel grid: cell 1.25 glyph units, 110 cols → 137.5 units wide vs the
+	// plain mark's 143-unit viewBox; scale the pixel svg so both render at
+	// the same physical size.
+	{{ pixelWidth := fmt.Sprintf("%.0f", 137.5*float64(width)/143) }}
+	<style>
+		/* Intentionally CSS (ADR 0006 non-goal): animation + feeling swap,
+		   not component styling. */
+		.full-logo {
+			/* inline-block keeps the wordmark in inline flow (centered by
+			   parent text-align). */
+			display: inline-block;
+		}
+		.full-logo-plain {
+			animation: full-logo-sway 5.9s ease-in-out infinite;
+			transform-origin: center;
+		}
+		@keyframes full-logo-sway {
+			0%,
+			100% {
+				transform: rotate(-1.8deg) translateY(0) scale(1.02, 0.98);
+			}
+			25% {
+				transform: rotate(0deg) translateY(-2px) scale(0.99, 1.01);
+			}
+			50% {
+				transform: rotate(1.8deg) translateY(0) scale(1.02, 0.98);
+			}
+			75% {
+				transform: rotate(0deg) translateY(2px) scale(0.99, 1.01);
+			}
+		}
+		/* pixel version: no smooth motion — a retro square-wave bob of exactly
+		   one grid cell (viewBox is 23 cells tall, so 1 cell = 100%/23). */
+		.full-logo-pixel {
+			display: none;
+			shape-rendering: crispEdges;
+			animation: full-logo-bob 1.6s steps(1, end) infinite;
+		}
+		@keyframes full-logo-bob {
+			0%,
+			100% {
+				transform: translateY(0);
+			}
+			50% {
+				transform: translateY(4.348%);
+			}
+		}
+		:root[data-feeling="pixel"] .full-logo-plain {
+			display: none;
+		}
+		:root[data-feeling="pixel"] .full-logo-pixel {
+			display: inline-block;
+		}
+		@media (prefers-reduced-motion: reduce) {
+			.full-logo-plain,
+			.full-logo-pixel {
+				animation: none;
+			}
+		}
+	</style>
+	<svg class="full-logo full-logo-plain" viewBox="-4 0 143 32" width={ fmt.Sprint(width) } fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="unbusy.day">
+		<path d="M0 9 C-1 17, 1 21, 4.5 20.5 C8 20, 10 15, 10.5 9 C10 15, 9.5 20, 12 21 C14 21.8, 16 19, 17 15"></path>
+		<path d="M0 15 C1 12, 2.5 9.5, 3.5 9 C3 13, 2.5 17.5, 3.5 20.5 C4 16.5, 5.5 11, 8.5 9.5 C11 8.3, 12 10.5, 11.5 14 C11.2 16.3, 11 18.8, 12 20.5 C13 22, 15 19, 16 15" transform="translate(17 0)"></path>
+		<path d="M0 15 L3 4 C2 11, 1.5 18, 2.5 20.5 C3.5 23, 8 22, 10 18.5 C12 15, 10 12, 6.5 14 C4.5 15.2, 3 17.5, 2.5 20.5 C3.5 23, 5.5 22.7, 7.5 21.5" transform="translate(33 0)"></path>
+		<path d="M0 9 C-1 17, 1 21, 4.5 20.5 C8 20, 10 15, 10.5 9 C10 15, 9.5 20, 12 21 C14 21.8, 16 19, 17 15" transform="translate(45.5 0)"></path>
+		<path d="M0 15 C1.4 12.6, 3.4 10.4, 5.4 9.6 C4.6 8.4, 2.6 8.6, 2 10 C1.4 11.6, 2.6 13, 4.4 13.9 C6.6 15, 7.6 16.4, 7 18.3 C6.4 20.2, 4 21.2, 2.4 20.3 C2 21.5, 3.4 21.8, 4.8 21.2 C6.4 20.5, 7.2 18, 7.5 15" transform="translate(62.5 0)"></path>
+		<path d="M0 15 C1 12, 2.5 9.5, 3.5 9 C2.5 15.5, 4 20.8, 7 20.5 C10 20.2, 12 15.5, 13 9 C12.5 14, 12.1 18.5, 12.5 22.5 C12.9 26.5, 11 28.7, 8.5 27.8 C6.7 27.1, 6.7 24.8, 8.7 23.2" transform="translate(70 0)"></path>
+		<path d="M0 20.5 L0.01 20.5" transform="translate(88 0)"></path>
+		<path d="M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.7 11, 9.5 7, 10 4 C9.5 11, 9 18, 10 20.5 C10.5 21.8, 12 21.5, 13 20" transform="translate(93.5 0)"></path>
+		<path d="M7 14 C6.5 10.8, 1.5 11.2, 0 14.5 C-1.5 18, 1 21.8, 4.3 21 C6.3 20.4, 7.3 17.5, 7.8 14.5 C8.1 12.6, 8.4 10.7, 8.6 9 C8.3 13, 8.2 18, 9.2 20.5 C9.9 22, 11.5 19, 12.5 15" transform="translate(107.5 0)"></path>
+		<path d="M0 15 C1 12.3, 2.7 9.7, 3.7 9 C2.7 15.5, 4.3 20.8, 7.1 20.5 C10.1 20.1, 12.1 15.5, 13 9 C12.3 13.8, 11.9 18.2, 12.7 22.6 C13.5 27.4, 10.6 29.8, 7.8 28.5 C5.5 27.4, 6 24.2, 9.6 22.8" transform="translate(120 0)"></path>
+	</svg>
+	<svg class="full-logo full-logo-pixel" viewBox="-2 2 110 23" width={ pixelWidth } fill="currentColor" role="img" aria-label="unbusy.day">
+		<path d="M28 3h1v1h-1zM82 3h1v1h-1zM28 4h1v1h-1zM82 4h1v1h-1zM28 5h1v1h-1zM82 5h1v1h-1zM27 6h2v1h-2zM82 6h1v1h-1zM-1 7h2v1h-2zM8 7h1v1h-1zM15 7h2v1h-2zM19 7h4v1h-4zM27 7h2v1h-2zM36 7h1v1h-1zM44 7h1v1h-1zM51 7h4v1h-4zM58 7h1v1h-1zM66 7h1v1h-1zM81 7h2v1h-2zM92 7h1v1h-1zM98 7h1v1h-1zM106 7h1v1h-1zM-1 8h1v1h-1zM8 8h1v1h-1zM15 8h2v1h-2zM18 8h2v1h-2zM22 8h1v1h-1zM27 8h2v1h-2zM36 8h1v1h-1zM44 8h1v1h-1zM51 8h3v1h-3zM57 8h2v1h-2zM66 8h1v1h-1zM81 8h2v1h-2zM92 8h1v1h-1zM97 8h2v1h-2zM106 8h1v1h-1zM-1 9h1v1h-1zM8 9h1v1h-1zM14 9h1v1h-1zM16 9h1v1h-1zM18 9h1v1h-1zM22 9h1v1h-1zM26 9h3v1h-3zM36 9h1v1h-1zM44 9h1v1h-1zM51 9h2v1h-2zM56 9h3v1h-3zM65 9h2v1h-2zM76 9h4v1h-4zM81 9h2v1h-2zM87 9h4v1h-4zM92 9h1v1h-1zM96 9h3v1h-3zM105 9h2v1h-2zM-1 10h1v1h-1zM7 10h2v1h-2zM14 10h1v1h-1zM16 10h3v1h-3zM22 10h1v1h-1zM26 10h1v1h-1zM28 10h1v1h-1zM32 10h3v1h-3zM36 10h1v1h-1zM44 10h1v1h-1zM50 10h4v1h-4zM56 10h1v1h-1zM58 10h1v1h-1zM65 10h2v1h-2zM75 10h2v1h-2zM79 10h4v1h-4zM86 10h2v1h-2zM91 10h2v1h-2zM96 10h1v1h-1zM98 10h1v1h-1zM105 10h2v1h-2zM-1 11h1v1h-1zM7 11h2v1h-2zM13 11h1v1h-1zM15 11h3v1h-3zM22 11h1v1h-1zM26 11h3v1h-3zM30 11h2v1h-2zM34 11h1v1h-1zM36 11h1v1h-1zM43 11h2v1h-2zM50 11h1v1h-1zM53 11h2v1h-2zM56 11h1v1h-1zM58 11h1v1h-1zM65 11h2v1h-2zM74 11h2v1h-2zM80 11h3v1h-3zM85 11h2v1h-2zM91 11h2v1h-2zM96 11h1v1h-1zM98 11h1v1h-1zM105 11h1v1h-1zM-1 12h2v1h-2zM7 12h2v1h-2zM13 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM22 12h1v1h-1zM26 12h2v1h-2zM29 12h2v1h-2zM34 12h3v1h-3zM43 12h2v1h-2zM49 12h2v1h-2zM55 12h2v1h-2zM58 12h1v1h-1zM64 12h2v1h-2zM74 12h1v1h-1zM80 12h1v1h-1zM82 12h1v1h-1zM85 12h1v1h-1zM91 12h2v1h-2zM95 12h2v1h-2zM98 12h1v1h-1zM105 12h1v1h-1zM0 13h1v1h-1zM6 13h3v1h-3zM12 13h2v1h-2zM15 13h3v1h-3zM22 13h1v1h-1zM25 13h3v1h-3zM29 13h1v1h-1zM34 13h3v1h-3zM43 13h2v1h-2zM49 13h1v1h-1zM55 13h1v1h-1zM58 13h2v1h-2zM64 13h2v1h-2zM74 13h1v1h-1zM80 13h1v1h-1zM82 13h1v1h-1zM85 13h1v1h-1zM91 13h2v1h-2zM95 13h1v1h-1zM99 13h1v1h-1zM104 13h2v1h-2zM0 14h1v1h-1zM6 14h1v1h-1zM8 14h1v1h-1zM12 14h1v1h-1zM15 14h2v1h-2zM22 14h1v1h-1zM25 14h1v1h-1zM28 14h2v1h-2zM34 14h1v1h-1zM36 14h2v1h-2zM42 14h1v1h-1zM44 14h1v1h-1zM48 14h2v1h-2zM55 14h1v1h-1zM59 14h1v1h-1zM63 14h3v1h-3zM74 14h1v1h-1zM80 14h1v1h-1zM82 14h1v1h-1zM85 14h1v1h-1zM91 14h2v1h-2zM95 14h1v1h-1zM99 14h1v1h-1zM103 14h3v1h-3zM0 15h2v1h-2zM4 15h2v1h-2zM8 15h1v1h-1zM11 15h2v1h-2zM16 15h1v1h-1zM22 15h1v1h-1zM24 15h2v1h-2zM28 15h1v1h-1zM33 15h2v1h-2zM37 15h2v1h-2zM41 15h2v1h-2zM44 15h2v1h-2zM48 15h1v1h-1zM54 15h2v1h-2zM59 15h2v1h-2zM62 15h2v1h-2zM65 15h1v1h-1zM74 15h2v1h-2zM79 15h2v1h-2zM82 15h1v1h-1zM86 15h1v1h-1zM90 15h2v1h-2zM93 15h2v1h-2zM99 15h2v1h-2zM102 15h2v1h-2zM105 15h1v1h-1zM1 16h4v1h-4zM8 16h4v1h-4zM16 16h1v1h-1zM23 16h2v1h-2zM28 16h1v1h-1zM32 16h2v1h-2zM38 16h4v1h-4zM45 16h4v1h-4zM51 16h4v1h-4zM60 16h3v1h-3zM65 16h1v1h-1zM70 16h1v1h-1zM75 16h5v1h-5zM82 16h9v1h-9zM93 16h2v1h-2zM100 16h3v1h-3zM105 16h1v1h-1zM28 17h5v1h-5zM52 17h2v1h-2zM65 17h1v1h-1zM83 17h1v1h-1zM106 17h1v1h-1zM62 18h1v1h-1zM66 18h1v1h-1zM102 18h2v1h-2zM106 18h1v1h-1zM61 19h2v1h-2zM65 19h2v1h-2zM101 19h2v1h-2zM106 19h1v1h-1zM61 20h1v1h-1zM65 20h1v1h-1zM101 20h1v1h-1zM106 20h1v1h-1zM61 21h2v1h-2zM64 21h2v1h-2zM101 21h1v1h-1zM105 21h1v1h-1zM62 22h3v1h-3zM101 22h2v1h-2zM104 22h2v1h-2zM102 23h2v1h-2z"></path>
+	</svg>
+}
