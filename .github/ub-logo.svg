@@ -1,12 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 55 26" fill="none" aria-label="ub.d">
   <!-- Standalone "ub.d" wordmark for the README (kept in sync with frontend/components/logo.templ).
        Rendered via <img>, so colors are explicit (no currentColor) and the sway animates an inner
-       group inside a padded viewBox to avoid clipping. -->
+       group inside a padded viewBox to avoid clipping.
+       Stroke is solarized-light's wordmark gold (app.css - -nav-icon); it reads on both GitHub themes. -->
   <style>
-    .mark { stroke: #2a2440; }
-    @media (prefers-color-scheme: dark) {
-      .mark { stroke: #c4b5fd; }
-    }
+    .mark { stroke: hsl(45, 100%, 40%); }
     .sway {
       animation: sway 5.9s ease-in-out infinite;
       transform-box: fill-box;
