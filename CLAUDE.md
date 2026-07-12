@@ -59,3 +59,13 @@ Key invariant: **page render and patch render share one templ component** (`comp
 - `DATABASE_URL` is a SQLite DSN in `.env` (copy `.env.example`) — `file:./tmp/unbusy.db` plus pragmas (WAL, `busy_timeout`, `foreign_keys`, `_txlock=immediate`).
 - Deploy is Fly via **`fly.app.toml`**: `flyctl deploy --config fly.app.toml`; CI auto-deploys on push to `main`. Production data is a SQLite file on a Fly volume backed up by scheduled volume snapshots (streaming backup deferred, docs/backlog/002). The app runs **exactly one always-on machine** — never scale to >1 or enable auto-stop (in-process pub/sub, single-writer SQLite).
 - `/healthz` is an in-process 200 only — a liveness probe, never a DB readiness check.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in Linear, team **Unbusy**. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
