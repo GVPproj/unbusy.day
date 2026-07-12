@@ -8,7 +8,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/GVPproj/unbusy.day)](https://goreportcard.com/report/github.com/GVPproj/unbusy.day)
 [![Go](https://img.shields.io/github/go-mod/go-version/GVPproj/unbusy.day?logo=go&logoColor=white)](https://go.dev)
 
-Have a structured day. Time-block your schedule, track some progress, no rush.
+Have a structured day with a time-blocked schedule.
 
 ![A tilted day column with Deep Work, Email, and Coffee blocks beside the tagline: a less overwhelming approach to having a brain.](.github/readme-hero.png)
 
