@@ -35,7 +35,6 @@ Endpoints read Datastar signals as a JSON body, not form fields.
 
 ## Gotchas
 
-- The pixel-feeling nav logo (UBLogo at pixelScale 0.35) renders blank in headless chromium — pre-existing SVG-filter quirk, not a regression (login's 0.6-scale logo renders fine).
 - Clearing the day via the Clear modal disables the nav Clear button (`$firstOccupiedSlot >= $lastOccupiedEnd`) — handy for probing disabled state, but it mutates the scratch DB; re-login with a fresh email to reseed starter blocks.
 - For a pre-change baseline: `git stash && task build && cp tmp/unbusy <scratch>/baseline && git stash pop && task build` (templ output is generated from markup, so a plain `go build` without `task build` can embed stale renders).
 - Pixel parity: run baseline + current on separate ports with FRESH DBs and separate sessions, freeze the client clock in both (`page.clock.install({time})` — otherwise the now-pill/past/active states drift between shots), then diff with `pixelmatch` + `pngjs` (npm-install in scratch; no imagemagick on this box).

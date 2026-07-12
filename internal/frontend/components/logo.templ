@@ -1,24 +1,22 @@
 package components
 
-import "fmt"
-
 // UBLogo is the "ub.d" wordmark — hand-drawn cursive "ub", a baseline dot, and a
-// standalone "d". Strokes inherit currentColor so the host sets the color.
-//
-// pixelScale tunes the "pixel" feeling's mosaic filter: 1.0 full, smaller subtler
-// (login 0.6, nav 0.3). Block grid is in viewBox units (~51×22); cell/dilate/flood
-// derive from the scale.
-templ UBLogo(width, height string, pixelScale float64) {
-	{{ cell := 3 * pixelScale }}
-	{{ dilate := 1 * pixelScale }}
-	{{ flood := cell / 2 }}
+// standalone "d". Two renderings of one drawing, like FullLogo: the plain stroked
+// cursive, and a true pixel rasterization in the pixelarticons idiom (integer
+// grid, 1-cell weight, filled rect runs) swapped in by the pixel feeling. Pixel
+// path generated from the same rasterizer as .github/logo-prototypes.html
+// (cell 1.25; 41 cells ≈ the plain mark's 51-unit viewBox, so both variants
+// share width/height). Strokes/fill inherit currentColor.
+templ UBLogo(width, height string) {
 	<style>
-		/* Intentionally CSS (ADR 0006 non-goal): @keyframes sway + the pixel
-		   mosaic SVG filter — animation/filter, not component styling. */
+		/* Intentionally CSS (ADR 0006 non-goal): animation + feeling swap,
+		   not component styling. */
 		.ub-logo {
 			/* inline-block keeps the wordmark in inline flow (centered by parent
 			   text-align); preflight would otherwise force display:block. */
 			display: inline-block;
+		}
+		.ub-logo-plain {
 			animation: ub-logo-sway 5.9s ease-in-out infinite;
 			transform-origin: center;
 		}
@@ -37,36 +35,41 @@ templ UBLogo(width, height string, pixelScale float64) {
 				transform: rotate(0deg) translateY(2px) scale(0.98, 1.02);
 			}
 		}
+		/* pixel version: no smooth motion — a retro square-wave bob of exactly
+		   one grid cell (viewBox is 17 cells tall, so 1 cell = 100%/17). */
+		.ub-logo-pixel {
+			display: none;
+			shape-rendering: crispEdges;
+			animation: ub-logo-bob 1.6s steps(1, end) infinite;
+		}
+		@keyframes ub-logo-bob {
+			0%,
+			100% {
+				transform: translateY(0);
+			}
+			50% {
+				transform: translateY(5.882%);
+			}
+		}
+		:root[data-feeling="pixel"] .ub-logo-plain {
+			display: none;
+		}
+		:root[data-feeling="pixel"] .ub-logo-pixel {
+			display: inline-block;
+		}
 		@media (prefers-reduced-motion: reduce) {
-			.ub-logo {
+			.ub-logo-plain,
+			.ub-logo-pixel {
 				animation: none;
 			}
 		}
-		/* Pixel feeling mosaics the wordmark via the SVG filter. It must go on the
-		   inner <g>, not the <svg>: filter:url() on the outer <svg> resolves
-		   userSpaceOnUse coords in CSS px (clipping to a corner), while on an SVG
-		   child it uses viewBox units (~51×22). */
-		:root[data-feeling="pixel"] .ub-logo {
-			shape-rendering: crispEdges;
-		}
-		:root[data-feeling="pixel"] .ub-logo .ub-glyphs {
-			filter: url(#ub-pixelate);
-		}
 	</style>
-	<svg class="ub-logo" viewBox="2 2 51 22" width={ width } height={ height } fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="unbusy.day">
-		<!-- userSpaceOnUse region in viewBox units; resolves correctly only
-		     because the filter is on .ub-glyphs (an SVG child). -->
-		<filter id="ub-pixelate" filterUnits="userSpaceOnUse" x="0" y="0" width="56" height="28">
-			<feFlood x={ fmt.Sprintf("%.3f", flood) } y={ fmt.Sprintf("%.3f", flood) } width="1" height="1"></feFlood>
-			<feComposite x={ fmt.Sprintf("%.3f", flood) } y={ fmt.Sprintf("%.3f", flood) } width={ fmt.Sprintf("%.3f", cell) } height={ fmt.Sprintf("%.3f", cell) }></feComposite>
-			<feTile result="grid"></feTile>
-			<feComposite in="SourceGraphic" in2="grid" operator="in"></feComposite>
-			<feMorphology operator="dilate" radius={ fmt.Sprintf("%.3f", dilate) }></feMorphology>
-		</filter>
-		<g class="ub-glyphs">
-			<path d="M5 9 C4 17, 6 21, 9.5 20.5 C13 20, 15 15, 15.5 9 C15 15, 14.5 20, 17 21 C19 21.8, 21 19, 22 15 L25 4 C24 11, 23.5 18, 24.5 20.5 C25.5 23, 30 22, 32 18.5 C34 15, 32 12, 28.5 14 C26.5 15.2, 25 17.5, 24.5 20.5 C25.5 23, 27.5 22.7, 29.5 21.5"></path>
-			<path d="M35 20.5 L35.01 20.5"></path>
-			<path d="M45.5 14 C45 10.8, 40 11.2, 38.5 14.5 C37 18, 39.5 21.8, 42.8 21 C44.8 20.4, 45.8 17.5, 46.3 14.5 C47.2 11, 48 7, 48.5 4 C48 11, 47.5 18, 48.5 20.5 C49 21.8, 50.5 21.5, 51.5 20"></path>
-		</g>
+	<svg class="ub-logo ub-logo-plain" viewBox="2 2 51 22" width={ width } height={ height } fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="unbusy.day">
+		<path d="M5 9 C4 17, 6 21, 9.5 20.5 C13 20, 15 15, 15.5 9 C15 15, 14.5 20, 17 21 C19 21.8, 21 19, 22 15 L25 4 C24 11, 23.5 18, 24.5 20.5 C25.5 23, 30 22, 32 18.5 C34 15, 32 12, 28.5 14 C26.5 15.2, 25 17.5, 24.5 20.5 C25.5 23, 27.5 22.7, 29.5 21.5"></path>
+		<path d="M35 20.5 L35.01 20.5"></path>
+		<path d="M45.5 14 C45 10.8, 40 11.2, 38.5 14.5 C37 18, 39.5 21.8, 42.8 21 C44.8 20.4, 45.8 17.5, 46.3 14.5 C47.2 11, 48 7, 48.5 4 C48 11, 47.5 18, 48.5 20.5 C49 21.8, 50.5 21.5, 51.5 20"></path>
+	</svg>
+	<svg class="ub-logo ub-logo-pixel" viewBox="2 2 41 17" width={ width } height={ height } fill="currentColor" role="img" aria-label="unbusy.day">
+		<path d="M19 3h2v1h-2zM38 3h1v1h-1zM19 4h1v1h-1zM38 4h1v1h-1zM19 5h1v1h-1zM38 5h1v1h-1zM19 6h1v1h-1zM38 6h1v1h-1zM3 7h2v1h-2zM12 7h1v1h-1zM18 7h2v1h-2zM37 7h2v1h-2zM3 8h1v1h-1zM12 8h1v1h-1zM18 8h2v1h-2zM37 8h2v1h-2zM3 9h1v1h-1zM12 9h1v1h-1zM18 9h2v1h-2zM32 9h4v1h-4zM37 9h2v1h-2zM3 10h1v1h-1zM11 10h2v1h-2zM17 10h3v1h-3zM23 10h3v1h-3zM31 10h2v1h-2zM35 10h4v1h-4zM3 11h1v1h-1zM11 11h2v1h-2zM17 11h1v1h-1zM19 11h1v1h-1zM21 11h3v1h-3zM25 11h2v1h-2zM30 11h2v1h-2zM36 11h3v1h-3zM3 12h2v1h-2zM11 12h2v1h-2zM17 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM26 12h1v1h-1zM30 12h1v1h-1zM36 12h1v1h-1zM38 12h1v1h-1zM4 13h1v1h-1zM10 13h3v1h-3zM16 13h2v1h-2zM19 13h2v1h-2zM26 13h1v1h-1zM30 13h1v1h-1zM36 13h1v1h-1zM38 13h1v1h-1zM4 14h1v1h-1zM10 14h1v1h-1zM12 14h1v1h-1zM16 14h1v1h-1zM19 14h2v1h-2zM25 14h1v1h-1zM30 14h1v1h-1zM36 14h1v1h-1zM38 14h1v1h-1zM4 15h2v1h-2zM8 15h2v1h-2zM12 15h1v1h-1zM15 15h2v1h-2zM19 15h1v1h-1zM24 15h2v1h-2zM30 15h2v1h-2zM35 15h2v1h-2zM38 15h1v1h-1zM5 16h4v1h-4zM12 16h4v1h-4zM19 16h1v1h-1zM23 16h2v1h-2zM28 16h1v1h-1zM31 16h5v1h-5zM38 16h4v1h-4zM19 17h5v1h-5zM39 17h1v1h-1z"></path>
 	</svg>
 }
