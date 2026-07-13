@@ -1753,7 +1753,7 @@
         min-height: 0.25rem;
         background: repeating-linear-gradient(
           to bottom,
-          var(--accent) 0 6px,
+          var(--nav-icon) 0 6px,
           transparent 6px 10px
         );
       }
