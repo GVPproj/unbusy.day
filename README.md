@@ -23,10 +23,10 @@ while you work. It's a less overwhelming, less frantic approach to having a brai
 
 It's always *today* in the app. Start your day with a clean slate, first adding
 any timed commitments, then build out the rest — prioritizing **Deep Work**.
-Every block gets one of three types:
+Every block gets one of four types:
 
 <p align="center">
-  <img src=".github/readme-types.png" width="560" alt="The three block types: Deep — distraction-free work; Shallow — meetings, checking things; Break — plan these!">
+  <img src=".github/readme-types.png" width="560" alt="The four block types: Deep — distraction-free work; Shallow — meetings, checking things; Break — plan these!; Appointment — a fixed-time commitment.">
 </p>
 
 **Drag** blocks to rearrange them, **stretch** them by the grip line at the

@@ -597,13 +597,14 @@ func TestColumnRendersBlockType(t *testing.T) {
 	cs := []block.Block{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 1, Type: block.BlockShallow},
 		{ID: "b", Label: "Bravo", Position: 1, Span: 1, Type: block.BlockBreak},
+		{ID: "c", Label: "Charlie", Position: 2, Span: 1, Type: block.BlockAppointment},
 	}
 	var b strings.Builder
 	if err := components.BlockColumn(cs, testBounds).Render(context.Background(), &b); err != nil {
 		t.Fatalf("render column: %v", err)
 	}
 	body := b.String()
-	for _, want := range []string{`data-slot="0" data-type="shallow"`, `data-slot="1" data-type="break"`} {
+	for _, want := range []string{`data-slot="0" data-type="shallow"`, `data-slot="1" data-type="break"`, `data-slot="2" data-type="appointment"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("column missing %q; body:\n%s", want, body)
 		}

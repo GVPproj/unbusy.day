@@ -15,10 +15,14 @@ Day Plan's bounds never moves a Block's time.
 
 ## Block Type
 The nature of a Block, chosen by the User at creation: **deep** (demanding,
-focused work), **shallow** (low-cognitive-demand work), or **break** (rest, not
-work). A flat three-way tag — deep and shallow are grades of work and break is
-its absence, but all three are treated as peer values of one attribute. Every
-Block has exactly one Block Type. Color-coded on the Day Plan.
+focused work), **shallow** (low-cognitive-demand work), **break** (rest, not
+work), or **appointment** (a fixed-time commitment — dentist, standup, school
+pickup). A flat four-way tag — deep and shallow are grades of work, break is its
+absence, appointment is an outside commitment, but all four are treated as peer
+values of one attribute. Appointment is only a color and label; it does not
+anchor a Block to the clock — appointment Blocks still drag, stretch, and get
+pushed like every other Block. Every Block has exactly one Block Type.
+Color-coded on the Day Plan.
 
 ## Day Plan
 A User's schedule for one day, in the Cal Newport time-blocking style. Each

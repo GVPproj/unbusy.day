@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Source for .github/readme-types.png (the README's three-block-types
+<!-- Source for .github/readme-types.png (the README's four-block-types
      figure), echoing the guide modal's .guide-types list. Transparent canvas
      so it sits on GitHub's light and dark themes alike.
      Regenerate at 2x then downscale:
@@ -33,6 +33,7 @@
     --type-deep: hsl(205, 70%, 87%);
     --type-shallow: var(--bg);
     --type-break: hsl(135, 42%, 82%);
+    --type-appointment: hsl(45, 90%, 80%);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -74,9 +75,10 @@
     border: 2px solid var(--rail-border);
     box-shadow: 0 1px 2px rgba(88, 110, 117, 0.3);
   }
-  .swatch.deep    { background: var(--type-deep); }
-  .swatch.shallow { background: var(--type-shallow); }
-  .swatch.break   { background: var(--type-break); }
+  .swatch.deep        { background: var(--type-deep); }
+  .swatch.shallow     { background: var(--type-shallow); }
+  .swatch.break       { background: var(--type-break); }
+  .swatch.appointment { background: var(--type-appointment); }
 </style>
 </head>
 <body>
@@ -84,6 +86,7 @@
     <div class="row"><span class="swatch deep"></span><span><strong>Deep</strong> — distraction-free work</span></div>
     <div class="row"><span class="swatch shallow"></span><span><strong>Shallow</strong> — meetings, &ldquo;checking things&rdquo;</span></div>
     <div class="row"><span class="swatch break"></span><span><strong>Break</strong> — plan these! &ldquo;Guitar&rdquo;? &ldquo;Pizza&rdquo;?</span></div>
+    <div class="row"><span class="swatch appointment"></span><span><strong>Appointment</strong> — a fixed-time commitment</span></div>
   </div>
 </body>
 </html>

@@ -11,18 +11,20 @@ import (
 	"strings"
 )
 
-// BlockType is a Block's tag: deep/shallow work or break. Immutable after creation.
+// BlockType is a Block's tag: deep/shallow work, break, or appointment (a
+// fixed-time commitment). A flat peer value — still movable. Immutable after creation.
 type BlockType string
 
 const (
-	BlockDeep    BlockType = "deep"
-	BlockShallow BlockType = "shallow"
-	BlockBreak   BlockType = "break"
+	BlockDeep        BlockType = "deep"
+	BlockShallow     BlockType = "shallow"
+	BlockBreak       BlockType = "break"
+	BlockAppointment BlockType = "appointment"
 )
 
 func (t BlockType) Valid() bool {
 	switch t {
-	case BlockDeep, BlockShallow, BlockBreak:
+	case BlockDeep, BlockShallow, BlockBreak, BlockAppointment:
 		return true
 	}
 	return false

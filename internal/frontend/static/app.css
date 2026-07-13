@@ -175,6 +175,8 @@
     --type-shallow-ink: var(--ink);
     --type-break: hsl(135, 42%, 82%);
     --type-break-ink: hsl(135, 55%, 22%);
+    --type-appointment: hsl(45, 90%, 80%);
+    --type-appointment-ink: hsl(45, 100%, 25%);
   }
 
   /* Solarized Dark Osaka (craftzdog's solarized-osaka.nvim palette) */
@@ -213,6 +215,8 @@
     --type-shallow-ink: var(--ink);
     --type-break: hsl(237, 42%, 22%);
     --type-break-ink: hsl(236, 100%, 90%);
+    --type-appointment: hsl(45, 55%, 22%);
+    --type-appointment-ink: hsl(45, 85%, 75%);
   }
 
   /* Catppuccin Mocha */
@@ -251,6 +255,8 @@
     --type-shallow-ink: var(--ink);
     --type-break: hsl(189, 45%, 24%);
     --type-break-ink: hsl(189, 71%, 73%);
+    --type-appointment: hsl(350, 40%, 26%);
+    --type-appointment-ink: hsl(350, 65%, 77%);
   }
 
   /* Type scale (same metrics/var names as Tailwind's text-sm/base/lg/xl,
@@ -738,6 +744,9 @@
         &[data-type="break"] {
           background: var(--type-break);
         }
+        &[data-type="appointment"] {
+          background: var(--type-appointment);
+        }
       }
 
       input:checked + .swatch {
@@ -784,7 +793,7 @@
       }
     }
 
-    /* pane 2 figure: three type swatches beside their descriptions. */
+    /* pane 2 figure: four type swatches beside their descriptions. */
     .guide-types {
       list-style: none;
       display: flex;
@@ -817,6 +826,9 @@
       }
       &[data-type="break"] {
         background: var(--type-break);
+      }
+      &[data-type="appointment"] {
+        background: var(--type-appointment);
       }
     }
 
@@ -872,6 +884,10 @@
       &[data-type="break"] {
         background: var(--type-break);
         color: var(--type-break-ink);
+      }
+      &[data-type="appointment"] {
+        background: var(--type-appointment);
+        color: var(--type-appointment-ink);
       }
     }
 
@@ -1556,6 +1572,10 @@
       &[data-type="break"] {
         background: var(--type-break);
         color: var(--type-break-ink);
+      }
+      &[data-type="appointment"] {
+        background: var(--type-appointment);
+        color: var(--type-appointment-ink);
       }
 
       &:focus-visible {

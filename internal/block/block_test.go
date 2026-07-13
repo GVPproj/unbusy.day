@@ -713,7 +713,7 @@ func TestRename_Rejections(t *testing.T) {
 }
 
 func TestBlockType_Valid(t *testing.T) {
-	for _, bt := range []block.BlockType{block.BlockDeep, block.BlockShallow, block.BlockBreak} {
+	for _, bt := range []block.BlockType{block.BlockDeep, block.BlockShallow, block.BlockBreak, block.BlockAppointment} {
 		if !bt.Valid() {
 			t.Errorf("%q should be valid", bt)
 		}
