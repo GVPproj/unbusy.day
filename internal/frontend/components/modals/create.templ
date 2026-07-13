@@ -2,8 +2,9 @@ package modals
 
 // CreateModal is the new-block editor. The slot-add button writes $addslot
 // before opening; Create @posts {addslot, addlabel, addtype} to /blocks. Signals
-// are plain (no underscore) so Datastar ships them in the body. Server enforces
-// invariants and rejects with a re-render of the truth.
+// are plain (no underscore) so Datastar ships them in the body. data-on:close
+// wipes addlabel/addtype so Cancel, backdrop, or Escape never reopens dirty.
+// Server enforces invariants and rejects with a re-render of the truth.
 templ CreateModal() {
 	<dialog
 		id="create-modal"
@@ -12,6 +13,7 @@ templ CreateModal() {
 		data-signals:addslot="0"
 		data-signals:addlabel="''"
 		data-signals:addtype="'shallow'"
+		data-on:close="$addlabel = ''; $addtype = 'shallow'"
 		aria-labelledby="create-modal-title"
 	>
 		<h2 id="create-modal-title">New Block</h2>
@@ -31,7 +33,7 @@ templ CreateModal() {
 				@createTypeOption("shallow", "Shallow")
 				@createTypeOption("deep", "Deep")
 				@createTypeOption("break", "Break")
-		@createTypeOption("appointment", "Appt")
+				@createTypeOption("appointment", "Appt")
 			</div>
 		</fieldset>
 		<footer>
@@ -40,7 +42,7 @@ templ CreateModal() {
 				class="btn"
 				commandfor="create-modal"
 				command="close"
-				data-on:click="@post('/blocks'); $addlabel = ''; $addtype = 'shallow'"
+				data-on:click="@post('/blocks')"
 			>Create</button>
 		</footer>
 	</dialog>
