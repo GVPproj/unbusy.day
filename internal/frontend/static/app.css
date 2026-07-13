@@ -1419,6 +1419,43 @@
       color: var(--ink);
     }
 
+    /* Live block countdown pill (countdown.js); type color mirrors the
+		   active block. Hidden until JS finds an active block. */
+    .block-countdown {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius);
+      font-size: inherit; /* match the date text */
+      line-height: 1;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--type-shallow-ink);
+      background: var(--surface);
+
+      /* Clear the fixed hamburger (right: 1rem) on mobile. */
+      @media (width < 40rem) {
+        margin-right: 3.25rem;
+      }
+
+      &[data-type="deep"] {
+        background: var(--type-deep);
+        color: var(--type-deep-ink);
+      }
+      &[data-type="shallow"] {
+        background: var(--type-shallow);
+        color: var(--type-shallow-ink);
+      }
+      &[data-type="break"] {
+        background: var(--type-break);
+        color: var(--type-break-ink);
+      }
+      &[data-type="appointment"] {
+        background: var(--type-appointment);
+        color: var(--type-appointment-ink);
+      }
+    }
+
     @media (width >= 40rem) {
       min-height: 2rem;
     }

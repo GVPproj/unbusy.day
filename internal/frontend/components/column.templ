@@ -14,9 +14,11 @@ import (
 // above the scrolling block list.
 templ DateHeading() {
 	<div class="date-heading">
-		<h1>
-			{ time.Now().Format("Monday, January 2") }
-		</h1>
+		<h1>{ time.Now().Format("Monday, January 2") }</h1>
+		// Live countdown of time left in the block active at the viewer's clock;
+		// countdown.js reveals and ticks it (the server can't know that clock).
+		// Hidden when no block is active; data-type drives the pill color.
+		<span id="block-countdown" class="block-countdown" aria-hidden="true" hidden></span>
 	</div>
 }
 
