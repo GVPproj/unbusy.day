@@ -30,13 +30,13 @@ let arb; // cross-gesture arbitration handle ({ keyboard, pointer })
 let grab = null; // active keyboard move (grab → arrow → drop), null when idle
 let kresize = null; // active keyboard resize on a focused grip, null when idle
 
-export function isActive() {
+function isActive() {
 	return grab !== null || kresize !== null;
 }
 
 // Revert any active keyboard gesture to its grab-START layout. Called when a
 // pointer gesture supersedes this path.
-export function cancel() {
+function cancel() {
 	if (grab) cancelGrab();
 	if (kresize) cancelKbResize();
 }
@@ -47,6 +47,8 @@ export function init(ctx, arbitration) {
 	arb = arbitration;
 	list.addEventListener("keydown", onKeydown);
 	list.addEventListener("focusout", onFocusout);
+	// The arbitration handle the entry stores as arb.keyboard.
+	return { isActive, cancel };
 }
 
 // valuenow is the span in slots, valuetext the spoken clock range.

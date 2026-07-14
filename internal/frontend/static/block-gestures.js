@@ -23,6 +23,15 @@
 
 import { init as initKeyboard } from "./gestures/keyboard.js";
 
+// Each path's init must hand back a live { isActive, cancel } handle — the whole
+// point of arbitration. A path that returns nothing would silently no-op every
+// guard (the UNB-26 regression), so fail loudly at boot instead.
+function bindArb(name, handle) {
+	if (!handle || typeof handle.isActive !== "function" || typeof handle.cancel !== "function")
+		throw new Error(`block-gestures: ${name} path returned no arbitration handle`);
+	return handle;
+}
+
 // `announce` is a function (msg) => void, not the #sr-announce element, so the
 // null-guard on a missing live region stays with the bootstrap that owns the DOM.
 export function initBlockGestures(list, announce) {
@@ -32,13 +41,13 @@ export function initBlockGestures(list, announce) {
 	// and can abort it (cancel). Populated as the modules init — keyboard
 	// synchronously, pointer once Motion has loaded.
 	const arb = {};
-	arb.keyboard = initKeyboard(ctx, arb);
+	arb.keyboard = bindArb("keyboard", initKeyboard(ctx, arb));
 
 	// Motion loads from a CDN over https, which node --test can't resolve, so
 	// the pointer path is imported lazily here (this entry never imports it at
 	// module top level). Keyboard gestures work immediately; pointer gestures
 	// wire up a few ms later once Motion arrives.
 	import("./gestures/pointer.js").then(({ init }) => {
-		arb.pointer = init(ctx, arb);
+		arb.pointer = bindArb("pointer", init(ctx, arb));
 	});
 }

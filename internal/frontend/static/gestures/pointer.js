@@ -39,13 +39,13 @@ let drag = null;
 let resize = null;
 let settling = false;
 
-export function isActive() {
+function isActive() {
 	return drag !== null || resize !== null || settling;
 }
 
 // Abort an in-flight drag/resize by reverting to its origin synchronously (no
 // spring — the gesture is being torn down, not committed). Mirrors pointercancel.
-export function cancel() {
+function cancel() {
 	if (drag) {
 		const d = drag;
 		drag = null;
@@ -75,6 +75,8 @@ export function init(ctx, arbitration) {
 	list.addEventListener("pointermove", onPointermove);
 	list.addEventListener("pointerup", onPointerup);
 	list.addEventListener("pointercancel", onPointercancel);
+	// The arbitration handle the entry stores as arb.pointer.
+	return { isActive, cancel };
 }
 
 function onPointerdown(e) {
