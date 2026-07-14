@@ -14,6 +14,7 @@ templ CreateModal() {
 		data-signals:addlabel="''"
 		data-signals:addtype="'shallow'"
 		data-on:close="$addlabel = ''; $addtype = 'shallow'"
+		data-on:keydown="(evt.metaKey || evt.ctrlKey) && evt.key === 'Enter' && (evt.preventDefault(), document.getElementById('create-submit').click())"
 		aria-labelledby="create-modal-title"
 	>
 		<h2 id="create-modal-title">New Block</h2>
@@ -39,6 +40,7 @@ templ CreateModal() {
 		<footer>
 			<button class="btn btn-secondary" commandfor="create-modal" command="close">Cancel</button>
 			<button
+				id="create-submit"
 				class="btn"
 				commandfor="create-modal"
 				command="close"

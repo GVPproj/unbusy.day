@@ -36,6 +36,7 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		data-signals:renamelabel="''"
 		data-on:layout="$layout = evt.detail.layout; @post('/blocks/layout')"
 		data-on:rename="$renameid = evt.detail.id; $renamelabel = evt.detail.label; @post('/blocks/rename')"
+		data-on:delete="$deleteid = evt.detail.id; @post('/blocks/delete')"
 	>
 		{{ occupied := block.OccupiedSlots(cs) }}
 		{{ startsAt := byStartSlot(cs) }}

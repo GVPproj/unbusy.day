@@ -225,3 +225,48 @@ test("an unknown grabbed id returns null", () => {
 	const current = [{ id: "a", slot: 20, span: 1 }];
 	assert.equal(keyboardLayout(bounds, current, { id: "zzz", mode: "move" }, "ArrowDown"), null);
 });
+
+// j/k are pure aliases folded into the reducer: identical layout + kind to the
+// arrow key they stand in for, in both move and resize modes.
+test("j moves a grabbed block exactly like ArrowDown", () => {
+	const current = [
+		{ id: "a", slot: 18, span: 1 },
+		{ id: "b", slot: 19, span: 1 },
+	];
+	const j = keyboardLayout(bounds, current, { id: "a", mode: "move" }, "j");
+	const down = keyboardLayout(bounds, current, { id: "a", mode: "move" }, "ArrowDown");
+	assert.deepEqual(j, down);
+	assert.equal(j.kind, "moved");
+});
+
+test("k moves a grabbed block exactly like ArrowUp", () => {
+	const current = [
+		{ id: "a", slot: 20, span: 1 },
+		{ id: "b", slot: 19, span: 1 },
+	];
+	const k = keyboardLayout(bounds, current, { id: "a", mode: "move" }, "k");
+	const up = keyboardLayout(bounds, current, { id: "a", mode: "move" }, "ArrowUp");
+	assert.deepEqual(k, up);
+});
+
+test("j/k resize a block exactly like ArrowDown/ArrowUp", () => {
+	const current = [{ id: "a", slot: 20, span: 2 }];
+	assert.deepEqual(
+		keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "j"),
+		keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "ArrowDown"),
+	);
+	assert.deepEqual(
+		keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "k"),
+		keyboardLayout(bounds, current, { id: "a", mode: "resize" }, "ArrowUp"),
+	);
+});
+
+test("the running-cursor threading works through the j/k aliases too", () => {
+	// grabbed.span from a prior k-step threads back in unchanged: j then grows
+	// from that running cursor, matching ArrowDown's behaviour.
+	const start = [{ id: "a", slot: 20, span: 1 }];
+	assert.deepEqual(
+		keyboardLayout(bounds, start, { id: "a", mode: "resize", span: 2 }, "j"),
+		keyboardLayout(bounds, start, { id: "a", mode: "resize", span: 2 }, "ArrowDown"),
+	);
+});

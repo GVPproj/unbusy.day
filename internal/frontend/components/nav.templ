@@ -48,6 +48,11 @@ templ SideNav() {
 				@IconGuide()
 			</span><span>Guide</span>
 		</button>
+		<button commandfor="shortcuts-modal" command="show-modal" data-on:click="$_navopen = false">
+			<span class="nav-icon">
+				@IconKeyboard()
+			</span><span>Shortcuts</span>
+		</button>
 		<button data-on:click="@post('/logout')">
 			<span class="nav-icon">
 				@IconLogout()

@@ -1040,6 +1040,75 @@
     }
   }
 
+  /* --- components/modals/shortcuts.templ → @scope (.shortcuts-dialog): the
+	       keyboard reference list. Wider than the default dialog to fit the
+	       description + key-cluster rows. --- */
+  @scope (.shortcuts-dialog) {
+    :scope[open] {
+      width: min(30rem, calc(100vw - 2rem));
+    }
+
+    .shortcuts {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    dl {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    /* Description left, key cluster right — mirrors the modal field rows. */
+    .sc-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    dt {
+      color: var(--ink-muted);
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+    }
+
+    dd {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    kbd {
+      font-family: inherit;
+      font-size: var(--text-sm);
+      line-height: 1;
+      min-width: 1.4rem;
+      padding: 0.2rem 0.4rem;
+      text-align: center;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--rail-border);
+      border-radius: var(--radius);
+    }
+
+    .sc-or {
+      color: var(--ink-muted);
+      font-size: var(--text-sm);
+      margin: 0 0.15rem;
+    }
+  }
+
   /* --- components/nav.templ → @scope (.sidenav): a sticky desktop rail
 	       that below sm becomes a right-side off-canvas drawer slid in by
 	       the `.open` hook (data-class:open="$_navopen"). --- */

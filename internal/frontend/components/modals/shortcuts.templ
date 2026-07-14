@@ -1,0 +1,99 @@
+package modals
+
+// ShortcutsModal is the keyboard reference: a native <dialog> opened from the
+// sidenav (commandfor) or the global `?` key (shortcuts.js). It's a static
+// reference list — no server signals. Block-scoped keys are grouped and
+// labelled so it's clear they act on the focused block (the WCAG 2.1.4
+// focus-scoping contract that keeps the letter tier toggle-free).
+templ ShortcutsModal() {
+	<dialog
+		id="shortcuts-modal"
+		class="app-dialog shortcuts-dialog"
+		closedby="any"
+		aria-labelledby="shortcuts-modal-title"
+	>
+		<h2 id="shortcuts-modal-title">Keyboard Shortcuts</h2>
+		<div class="shortcuts">
+			<section>
+				<h3>New block dialog</h3>
+				<dl>
+					@shortcut("Create the block") {
+						@key("⌘ / Ctrl")
+						@key("Enter")
+					}
+				</dl>
+			</section>
+			<section>
+				<h3>On a focused block</h3>
+				<dl>
+					@shortcut("Grab to move, then drop") {
+						@key("Space")
+					}
+					@shortcut("Move up / down while grabbed") {
+						@key("↑")
+						@key("↓")
+						@keyOr()
+						@key("j")
+						@key("k")
+					}
+					@shortcut("Rename") {
+						@key("r")
+						@keyOr()
+						@key("F2")
+					}
+					@shortcut("Delete") {
+						@key("Delete")
+						@keyOr()
+						@key("d")
+					}
+				</dl>
+			</section>
+			<section>
+				<h3>On a resize grip</h3>
+				<dl>
+					@shortcut("Grow / shrink") {
+						@key("↑")
+						@key("↓")
+						@keyOr()
+						@key("j")
+						@key("k")
+					}
+					@shortcut("Shortest / longest") {
+						@key("Home")
+						@key("End")
+					}
+				</dl>
+			</section>
+			<section>
+				<h3>Anywhere</h3>
+				<dl>
+					@shortcut("Show this reference") {
+						@key("?")
+					}
+				</dl>
+			</section>
+		</div>
+		<footer>
+			<button class="btn" commandfor="shortcuts-modal" command="close">Close</button>
+		</footer>
+	</dialog>
+}
+
+// shortcut is one reference row: a description and its key cluster.
+templ shortcut(desc string) {
+	<div class="sc-row">
+		<dt>{ desc }</dt>
+		<dd>
+			{ children... }
+		</dd>
+	</div>
+}
+
+templ key(label string) {
+	<kbd>{ label }</kbd>
+}
+
+// keyOr separates alternative key clusters ("↑ ↓ or j k").
+templ keyOr() {
+	<span class="sc-or">or</span>
+}

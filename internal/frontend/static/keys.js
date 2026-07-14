@@ -2,7 +2,15 @@
 // the next layout + an announcement `kind`. DOM-free; cascade delegated to push.js.
 import { pushLayout } from "./push.js";
 
+// Vim aliases: j/k are pure synonyms for ArrowDown/ArrowUp. Every surveyed app
+// (Gmail, GCal, Notion Calendar) means navigate down/up by j/k, never a
+// mutation. Folded in here so both move and resize call sites inherit it and
+// it's unit-testable at this seam; the DOM glue passes the raw key through.
+export const normalizeKey = (key) =>
+	key === "j" ? "ArrowDown" : key === "k" ? "ArrowUp" : key;
+
 export function keyboardLayout(bounds, current, grabbed, key) {
+	key = normalizeKey(key);
 	const cur = current.find((p) => p.id === grabbed.id);
 	if (!cur) return null;
 	if (grabbed.mode === "move") {

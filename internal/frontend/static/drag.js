@@ -8,7 +8,7 @@ import {
   styleEffect,
 } from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
 import { pushLayout } from "./push.js";
-import { keyboardLayout } from "./keys.js";
+import { keyboardLayout, normalizeKey } from "./keys.js";
 
 const list = document.getElementById("block-list");
 // Assertive live region outside #block-list so it survives every morph.
@@ -121,15 +121,22 @@ list.addEventListener("keydown", (e) => {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
       startGrab(el);
-    } else if (e.key === "F2") {
-      // The established rename-in-place key; Enter is taken by grab/drop.
+    } else if (e.key === "F2" || e.key === "r") {
+      // F2 is the established rename-in-place key; `r` is the vim-flavored
+      // alias. Enter is taken by grab/drop.
       e.preventDefault();
       const label = el.querySelector(".block-label");
       if (label) enterEdit(label);
+    } else if (e.key === "Backspace" || e.key === "Delete" || e.key === "d") {
+      // Calendar/canvas convention; `d` is the vim alias. Immediate, no confirm
+      // — the server re-render is the only safety net, like the mouse control.
+      e.preventDefault();
+      deleteBlock(el);
     }
     return;
   }
-  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+  const moveKey = normalizeKey(e.key);
+  if (moveKey === "ArrowUp" || moveKey === "ArrowDown") {
     e.preventDefault();
     moveGrab(e.key);
   } else if (e.key === " " || e.key === "Enter") {
@@ -542,7 +549,7 @@ function moveGrab(key) {
   const res = keyboardLayout(grab.bounds, grab.start, { id: grab.id, mode: "move", slot: grab.slot }, key);
   if (!res) return;
   if (res.kind === "blocked") {
-    announce(key === "ArrowUp" ? "Can't move earlier." : "Can't move later.");
+    announce(normalizeKey(key) === "ArrowUp" ? "Can't move earlier." : "Can't move later.");
     return;
   }
   grab.slot = res.slot;
@@ -571,6 +578,21 @@ function cancelGrab() {
   announce("Move cancelled.");
 }
 
+// ---- keyboard delete -------------------------------------------------
+//
+// Delete/Backspace/d on a focused block: dispatch the same `delete` event the
+// per-block delete button posts, and steer focus to a neighbouring block after
+// the commit morph so the keyboard user isn't stranded on <body>.
+function deleteBlock(el) {
+  const blocks = blocksIn();
+  const i = blocks.indexOf(el);
+  const neighbor = blocks[i + 1] || blocks[i - 1] || null;
+  announce("Deleted " + labelOf(el) + ".");
+  if (neighbor)
+    restoreFocusAfterMorph(() => document.getElementById(neighbor.dataset.id));
+  list.dispatchEvent(new CustomEvent("delete", { detail: { id: el.dataset.id } }));
+}
+
 // After a commit morph, return focus to the acted-on target. idiomorph may
 // preserve the element and keep focus, or replace it and drop focus to <body>;
 // refocus only in the latter case so we never yank focus the user moved
@@ -595,7 +617,7 @@ function restoreFocusAfterMorph(resolve) {
 // shrinking undoes a grow's compression.
 
 function handleResizeKey(e, grip) {
-  if (["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) {
+  if (["ArrowUp", "ArrowDown", "Home", "End"].includes(normalizeKey(e.key))) {
     e.preventDefault();
     if (!kresize) startKbResize(grip);
     stepKbResize(e.key);
@@ -621,7 +643,7 @@ function stepKbResize(key) {
   const res = keyboardLayout(r.bounds, r.start, { id: r.id, mode: "resize", span: r.span }, key);
   if (!res) return;
   if (res.kind === "blocked") {
-    announce(key === "ArrowUp" ? "Minimum length." : "Maximum length.");
+    announce(normalizeKey(key) === "ArrowUp" ? "Minimum length." : "Maximum length.");
     return;
   }
   r.span = res.span;
