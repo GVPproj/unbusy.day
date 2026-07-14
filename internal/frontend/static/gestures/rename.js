@@ -7,7 +7,8 @@
 // Turn a label into a plaintext editor: commit on blur or Enter, revert on
 // Escape. A pointer tap passes the click point (x, y); keyboard entry passes
 // none — caret to the end, focus steered back to the block across the morph.
-export function enterEdit(label, x, y, list) {
+// `list` leads (required context) ahead of the optional coordinates.
+export function enterEdit(list, label, x, y) {
 	const block = label.closest(".block-item");
 	if (!block) return; // a morph detached the label during the settle await
 	const id = block.dataset.id;

@@ -1,15 +1,21 @@
 // Block-gestures entry — the sole public seam for the pointer + keyboard
-// gestures on the #block-list day grid. Boots the two path modules and owns the
-// cross-gesture arbitration between them: a pointer gesture supersedes an
-// in-progress keyboard grab/resize, and keydown bails while the pointer path is
-// mid-gesture or settling (its FLIP settle must finish first).
+// gestures on the #block-list day grid. Boots the two path modules and wires the
+// shared arbitration registry (`arb`) between them: it hands each path a live
+// { isActive, cancel } handle to the other, then each path enforces the policy
+// itself — a pointerdown cancels an in-progress keyboard grab/resize, and keydown
+// bails while the pointer path is mid-gesture or settling (its FLIP settle must
+// finish first). The entry owns the wiring; the paths own the checks.
 //
 // This module never self-executes — it only exports initBlockGestures — so it
 // stays safe to import under node --test (it runs no DOM lookups at load time).
 //
 // Privacy: the `gestures/` modules are an implementation detail of this entry.
-// Import them only via block-gestures.js, never directly from a route, another
-// script, or a test. (Plain folder name — the privacy rule lives here, not in a
+// App code — routes, other scripts — must reach them only via block-gestures.js,
+// never past this seam. The one sanctioned exception is the co-located contract
+// test (jstest/block-gestures.test.js): it imports gestures/keyboard.js directly
+// because this entry can't load under node --test (pointer.js pulls Motion from a
+// CDN node can't resolve), and it verifies the arbitration handle the wiring
+// above depends on. (Plain folder name — the privacy rule lives here, not in a
 // `_`-prefixed path.)
 //
 // Event contract — three CustomEvents cross from the gesture modules to Datastar,

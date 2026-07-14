@@ -43,28 +43,27 @@ function isActive() {
 	return drag !== null || resize !== null || settling;
 }
 
-// Abort an in-flight drag/resize by reverting to its origin synchronously (no
-// spring — the gesture is being torn down, not committed). Mirrors pointercancel.
+// Abort an in-flight drag/resize by reverting to its origin synchronously — no
+// spring, since the gesture is being superseded, not settled. This is NOT
+// pointercancel: pointercancel routes through settleDrag/settleResize(e, false),
+// which springs the block back; this revert is immediate.
+//
+// Part of the symmetric { isActive, cancel } arbitration handle bindArb enforces,
+// but currently unreferenced: the keyboard path bails while the pointer is active
+// (isActive) rather than cancelling it. Kept so the contract holds if that policy
+// ever flips to pointer-preempts-keyboard.
 function cancel() {
 	if (drag) {
 		const d = drag;
 		drag = null;
 		if (d.raf) cancelAnimationFrame(d.raf);
-		d.detach();
-		teardownSibs(d);
-		d.el.style.transform = "";
-		d.el.classList.remove("dragging");
-		writeLayout(list, d.current, d.bounds.start);
+		tearDown(d, "drag", d.current);
 	}
 	if (resize) {
 		const r = resize;
 		resize = null;
 		if (r.hAnim) r.hAnim.stop();
-		r.detach();
-		teardownSibs(r);
-		r.el.style.height = "";
-		r.el.classList.remove("resizing");
-		writeLayout(list, r.current, r.bounds.start);
+		tearDown(r, "resize", r.current);
 	}
 }
 
@@ -166,6 +165,25 @@ function teardownSibs(g) {
 		c.style.transform = "";
 		c.style.height = "";
 	});
+}
+
+// Shared end-of-gesture teardown for both cancel and settle, drag and resize:
+// detach Motion's style hook, stop the sibling springs, clear the block's inline
+// style + active class, then write `layout` into the grid. The writeLayout is
+// guarded because a foreign morph during a settle await can detach the block, and
+// we must not re-assert stale sibling positions over the server's. `kind` is
+// "drag" (transform / .dragging) or "resize" (height / .resizing).
+function tearDown(g, kind, layout) {
+	g.detach();
+	teardownSibs(g);
+	if (kind === "drag") {
+		g.el.style.transform = "";
+		g.el.classList.remove("dragging");
+	} else {
+		g.el.style.height = "";
+		g.el.classList.remove("resizing");
+	}
+	if (g.el.parentElement === list) writeLayout(list, layout, g.bounds.start);
 }
 
 const sibAnims = (g) => [...g.sibs.values()].flatMap((s) => [s.yAnim, s.hAnim]);
@@ -296,16 +314,11 @@ async function settleDrag(e, commit) {
 	} finally {
 		// Teardown and the layout write share one synchronous frame: same pixels,
 		// new grid placement (FLIP).
-		d.detach();
-		teardownSibs(d);
-		d.el.style.transform = "";
-		d.el.classList.remove("dragging");
-		if (d.el.parentElement === list)
-			writeLayout(list, d.valid.layout, d.bounds.start);
+		tearDown(d, "drag", d.valid.layout);
 		settling = false;
 	}
 	if (editLabel && d.el.parentElement === list) {
-		enterEdit(editLabel, d.startX, d.startY, list);
+		enterEdit(list, editLabel, d.startX, d.startY);
 		return;
 	}
 	dispatchLayout(d);
@@ -374,12 +387,7 @@ async function settleResize(e, commit) {
 		);
 	} finally {
 		if (r.hAnim) r.hAnim.stop();
-		r.detach();
-		teardownSibs(r);
-		r.el.style.height = "";
-		r.el.classList.remove("resizing");
-		if (r.el.parentElement === list)
-			writeLayout(list, r.valid.layout, r.bounds.start);
+		tearDown(r, "resize", r.valid.layout);
 		settling = false;
 	}
 	dispatchLayout(r);

@@ -76,7 +76,7 @@ function onKeydown(e) {
 			// alias. Enter is taken by grab/drop.
 			e.preventDefault();
 			const label = el.querySelector(".block-label");
-			if (label) enterEdit(label, undefined, undefined, list);
+			if (label) enterEdit(list, label);
 		} else if (e.key === "Backspace" || e.key === "Delete" || e.key === "d") {
 			// Calendar/canvas convention; `d` is the vim alias. Immediate, no confirm
 			// — the server re-render is the only safety net, like the mouse control.
