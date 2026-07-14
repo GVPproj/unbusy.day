@@ -16,7 +16,7 @@ templ DateHeading() {
 	<div class="date-heading">
 		<h1>{ time.Now().Format("Monday, January 2") }</h1>
 		// Live countdown of time left in the block active at the viewer's clock;
-		// countdown.js reveals and ticks it (the server can't know that clock).
+		// now.js reveals and ticks it (the server can't know that clock).
 		// Hidden when no block is active; data-type drives the pill color.
 		<span id="block-countdown" class="block-countdown" aria-hidden="true" hidden></span>
 	</div>
@@ -61,7 +61,7 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 }
 
 // nowPill renders hidden (the server can't know the viewer's clock) and
-// now-pill.js reveals it. Part of BlockColumn so it survives every morph;
+// now.js reveals it. Part of BlockColumn so it survives every morph;
 // aria-hidden because it just duplicates the system clock.
 templ nowPill() {
 	<li

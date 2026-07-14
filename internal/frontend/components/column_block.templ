@@ -9,7 +9,7 @@ import (
 // blockItem is one draggable grid item. data-id is the idiomorph key; data-slot/
 // data-span persist the clock placement, grid-row paints it relative to day start.
 // Styling lives in app.css's @scope (.blocks); `block-item`/`dragging`/`resizing`
-// are block-gestures.js hooks, `active`/`past` are now-pill.js hooks.
+// are block-gestures.js hooks, `active`/`past` are now.js hooks.
 templ blockItem(c block.Block, dayStart, dayEnd int) {
 	<li
 		class="block-item"
