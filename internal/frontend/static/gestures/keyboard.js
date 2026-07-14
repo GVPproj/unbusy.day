@@ -47,7 +47,6 @@ export function init(ctx, arbitration) {
 	arb = arbitration;
 	list.addEventListener("keydown", onKeydown);
 	list.addEventListener("focusout", onFocusout);
-	// The arbitration handle the entry stores as arb.keyboard.
 	return { isActive, cancel };
 }
 
@@ -106,10 +105,7 @@ function onFocusout(e) {
 }
 
 // ---- keyboard move (grab → move → drop) ------------------------------
-//
-// Space/Enter grabs, Up/Down move one slot (optimistic, DOM-only), Space/Enter
-// drops with one `layout` event, Escape cancels. The rbd/dnd-kit convention;
-// perceivability is carried by #sr-announce, not aria-grabbed.
+// The rbd/dnd-kit convention; perceivability rides #sr-announce, not aria-grabbed.
 
 const labelOf = (el) => {
 	const l = el.querySelector(".block-label");
@@ -162,10 +158,8 @@ function cancelGrab() {
 }
 
 // ---- keyboard delete -------------------------------------------------
-//
-// Delete/Backspace/d on a focused block: dispatch the same `delete` event the
-// per-block delete button posts, and steer focus to a neighbouring block after
-// the commit morph so the keyboard user isn't stranded on <body>.
+// Dispatch the same `delete` event the per-block button posts, then steer focus
+// to a neighbour after the commit morph so the user isn't stranded on <body>.
 function deleteBlock(el) {
 	const blocks = blocksIn(list);
 	const i = blocks.indexOf(el);
@@ -177,10 +171,8 @@ function deleteBlock(el) {
 }
 
 // ---- keyboard resize (APG Window Splitter) ---------------------------
-//
-// The grip is role="separator"; Up/Down grow/shrink one slot, Home/End jump to
-// min/max span, all optimistic + DOM-only. Enter or blur commits one `layout`
-// event; Escape reverts. Each step recomputes from the grab-START layout, so
+// The grip is role="separator"; Home/End jump to min/max span. Enter or blur
+// commits, Escape reverts. Each step recomputes from the grab-START layout, so
 // shrinking undoes a grow's compression.
 
 function handleResizeKey(e, grip) {

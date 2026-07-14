@@ -1,20 +1,12 @@
-// The Day Plan's live "now" indicator — the one module for everything the server
-// can't render because it turns on the VIEWER'S local clock (CONTEXT.md: "The
-// User's current time of day is indicated live on the plan."). It merges what
-// were countdown.js + now-pill.js so the now-slot math and the #block-list scan
-// exist exactly once. Each tick it:
-//   • positions #now-pill at the current time and reveals it,
-//   • marks elapsed blocks .past and the block spanning now .active,
-//   • fills #block-countdown with the time left in that active block, tinted by
-//     its type via data-type.
-// The server render stays authoritative for layout; this only overlays "now".
+// The Day Plan's live "now" indicator — an overlay the server can't render
+// because it runs on the VIEWER'S local clock (CONTEXT.md). Merges the former
+// countdown.js + now-pill.js so the now-slot math and the .block-item scan exist
+// once. Each tick positions #now-pill, marks blocks .past/.active, and fills
+// #block-countdown with the time left in the active block.
 //
-// One tick a second (the countdown counts down in seconds), one MutationObserver
-// so the overlay snaps to an SSE morph within a frame instead of waiting out the
-// tick, one scan of .block-item feeding both the pill and the countdown.
-//
-// The time-math helpers below are pure and DOM-free so they run under
-// node --test (jstest/now.test.js); tick() is the only DOM glue.
+// One MutationObserver snaps the overlay to an SSE morph without waiting out the
+// tick. The time-math helpers are pure/DOM-free for node --test (now.test.js);
+// tick() is the only DOM glue.
 
 // Slots are 30-min steps from local midnight; SLOT_SECS is one slot in seconds.
 const SLOT_SECS = 1800;

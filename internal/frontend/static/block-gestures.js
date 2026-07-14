@@ -1,58 +1,38 @@
 // Block-gestures entry — the sole public seam for the pointer + keyboard
-// gestures on the #block-list day grid. Boots the two path modules and wires the
-// shared arbitration registry (`arb`) between them: it hands each path a live
-// { isActive, cancel } handle to the other, then each path enforces the policy
-// itself — a pointerdown cancels an in-progress keyboard grab/resize, and keydown
-// bails while the pointer path is mid-gesture or settling (its FLIP settle must
-// finish first). The entry owns the wiring; the paths own the checks.
+// gestures on #block-list. Boots both path modules and wires the shared
+// arbitration registry (`arb`): each path gets a live { isActive, cancel }
+// handle to the other and enforces the policy itself (pointerdown cancels a
+// keyboard grab; keydown bails while the pointer path is active/settling).
 //
-// This module never self-executes — it only exports initBlockGestures — so it
-// stays safe to import under node --test (it runs no DOM lookups at load time).
+// Exports only initBlockGestures (never self-executes), so it's safe to import
+// under node --test. The gestures/ modules are private to this entry; the one
+// exception is the contract test (jstest/block-gestures.test.js), which imports
+// gestures/keyboard.js directly since pointer.js pulls Motion from a CDN.
 //
-// Privacy: the `gestures/` modules are an implementation detail of this entry.
-// App code — routes, other scripts — must reach them only via block-gestures.js,
-// never past this seam. The one sanctioned exception is the co-located contract
-// test (jstest/block-gestures.test.js): it imports gestures/keyboard.js directly
-// because this entry can't load under node --test (pointer.js pulls Motion from a
-// CDN node can't resolve), and it verifies the arbitration handle the wiring
-// above depends on. (Plain folder name — the privacy rule lives here, not in a
-// `_`-prefixed path.)
-//
-// Event contract — three CustomEvents cross from the gesture modules to Datastar,
-// consumed by the `data-on:*` attributes on #block-list in column.templ:
-//   • layout  { detail: { layout: [{id, slot, span}, …] } }  — committed move/resize
-//   • rename  { detail: { id, label } }                       — inline label edit
-//   • delete  { detail: { id } }                              — keyboard delete
-// The per-block delete BUTTON posts directly via `data-on:click="@post(…)"` —
-// the idiomatic Datastar path for a stateless button; that asymmetry is intent,
-// not drift (UNB-26).
+// Event contract — CustomEvents to Datastar's data-on:* on #block-list:
+//   • layout { detail: { layout: [{id, slot, span}, …] } } — committed move/resize
+//   • rename { detail: { id, label } }                     — inline label edit
+//   • delete { detail: { id } }                            — keyboard delete
+// The per-block delete button posts directly via data-on:click (UNB-26).
 
 import { init as initKeyboard } from "./gestures/keyboard.js";
 
-// Each path's init must hand back a live { isActive, cancel } handle — the whole
-// point of arbitration. A path that returns nothing would silently no-op every
-// guard (the UNB-26 regression), so fail loudly at boot instead.
+// A path that returns no { isActive, cancel } handle would silently no-op every
+// arbitration guard (the UNB-26 regression), so fail loudly at boot instead.
 function bindArb(name, handle) {
 	if (!handle || typeof handle.isActive !== "function" || typeof handle.cancel !== "function")
 		throw new Error(`block-gestures: ${name} path returned no arbitration handle`);
 	return handle;
 }
 
-// `announce` is a function (msg) => void, not the #sr-announce element, so the
-// null-guard on a missing live region stays with the bootstrap that owns the DOM.
+// `announce` is a function (msg) => void, not the #sr-announce element.
 export function initBlockGestures(list, announce) {
 	const ctx = { list, announce };
 
-	// Cross-gesture arbitration: each path reads the other's state (isActive)
-	// and can abort it (cancel). Populated as the modules init — keyboard
-	// synchronously, pointer once Motion has loaded.
+	// Populated as the modules init — keyboard synchronously, pointer once Motion
+	// has loaded (imported lazily since node --test can't resolve its CDN URL).
 	const arb = {};
 	arb.keyboard = bindArb("keyboard", initKeyboard(ctx, arb));
-
-	// Motion loads from a CDN over https, which node --test can't resolve, so
-	// the pointer path is imported lazily here (this entry never imports it at
-	// module top level). Keyboard gestures work immediately; pointer gestures
-	// wire up a few ms later once Motion arrives.
 	import("./gestures/pointer.js").then(({ init }) => {
 		arb.pointer = bindArb("pointer", init(ctx, arb));
 	});

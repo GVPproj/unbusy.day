@@ -43,15 +43,11 @@ function isActive() {
 	return drag !== null || resize !== null || settling;
 }
 
-// Abort an in-flight drag/resize by reverting to its origin synchronously — no
-// spring, since the gesture is being superseded, not settled. This is NOT
-// pointercancel: pointercancel routes through settleDrag/settleResize(e, false),
-// which springs the block back; this revert is immediate.
-//
-// Part of the symmetric { isActive, cancel } arbitration handle bindArb enforces,
-// but currently unreferenced: the keyboard path bails while the pointer is active
-// (isActive) rather than cancelling it. Kept so the contract holds if that policy
-// ever flips to pointer-preempts-keyboard.
+// Abort an in-flight drag/resize by reverting to its origin synchronously (no
+// spring — the gesture is superseded, not settled; unlike pointercancel, which
+// routes through settle*(e, false)). Currently unreferenced — the keyboard path
+// bails while the pointer is active rather than cancelling it — but kept so the
+// arbitration contract holds if that policy ever flips.
 function cancel() {
 	if (drag) {
 		const d = drag;
@@ -74,7 +70,6 @@ export function init(ctx, arbitration) {
 	list.addEventListener("pointermove", onPointermove);
 	list.addEventListener("pointerup", onPointerup);
 	list.addEventListener("pointercancel", onPointercancel);
-	// The arbitration handle the entry stores as arb.pointer.
 	return { isActive, cancel };
 }
 
@@ -167,12 +162,10 @@ function teardownSibs(g) {
 	});
 }
 
-// Shared end-of-gesture teardown for both cancel and settle, drag and resize:
-// detach Motion's style hook, stop the sibling springs, clear the block's inline
-// style + active class, then write `layout` into the grid. The writeLayout is
-// guarded because a foreign morph during a settle await can detach the block, and
-// we must not re-assert stale sibling positions over the server's. `kind` is
-// "drag" (transform / .dragging) or "resize" (height / .resizing).
+// Shared end-of-gesture teardown (cancel + settle, drag + resize). The final
+// writeLayout is guarded because a foreign morph during a settle await can
+// detach the block — we must not re-assert stale positions over the server's.
+// `kind` is "drag" (transform / .dragging) or "resize" (height / .resizing).
 function tearDown(g, kind, layout) {
 	g.detach();
 	teardownSibs(g);

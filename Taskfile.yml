@@ -24,7 +24,11 @@ tasks:
       # without a rebuild.
       - |
         opener=open; command -v xdg-open >/dev/null && opener=xdg-open
-        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; "$opener" "http://127.0.0.1:7331/") &
+        detach=; command -v setsid >/dev/null && detach=setsid
+        # Detach the browser into its own session so Ctrl-C (SIGINT to our
+        # process group) stops templ + go run but never reaches the browser —
+        # otherwise its renderers die noisily ("Exiting due to channel error.").
+        (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; $detach "$opener" "http://127.0.0.1:7331/" >/dev/null 2>&1 </dev/null) &
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
 
   dev:tailscale:

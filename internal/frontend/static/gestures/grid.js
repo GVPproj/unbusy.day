@@ -1,9 +1,7 @@
-// DOM↔layout helpers for the #block-list day grid. Each takes `list` explicitly
-// (rather than closing over a module-level element) so the gesture modules stay
-// injectable in shape — the entry passes the real #block-list. State-free: they
-// read/write the DOM but keep no state of their own.
+// State-free DOM↔layout helpers for the #block-list day grid. Each takes `list`
+// explicitly so the gesture modules stay injectable in shape.
 
-// All current children that are real blocks (slots and the now-pill are filtered).
+// Real block children only (slots and the now-pill are filtered out).
 export const blocksIn = (list) =>
 	[...list.children].filter((c) => c.classList.contains("block-item"));
 
@@ -14,10 +12,8 @@ export const placementOf = (c) => ({
 	span: parseInt(c.dataset.span, 10) || 1,
 });
 
-// The full current layout read off the DOM.
 export const layoutIn = (list) => blocksIn(list).map(placementOf);
 
-// Day bounds from the list's data-* attributes.
 export const boundsNow = (list) => ({
 	start: parseInt(list.dataset.dayStart, 10),
 	end: parseInt(list.dataset.dayEnd, 10),
@@ -48,7 +44,7 @@ export function writeLayout(list, layout, dayStart) {
 	}
 }
 
-// Structural equality of two layouts (same ids in the same slots/spans).
+// Structural equality (same ids in the same slots/spans).
 export const sameLayout = (a, b) =>
 	a.every((p) => {
 		const q = b.find((x) => x.id === p.id);
