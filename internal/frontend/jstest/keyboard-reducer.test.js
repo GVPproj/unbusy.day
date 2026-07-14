@@ -1,8 +1,20 @@
-// Unit tests for the pure keyboard decision reducer.
-// Run: node --test internal/frontend/jstest
+// Unit tests for the pure keyboard-tier logic: the decision reducer and the
+// clock + announce formatting. Run: node --test internal/frontend/jstest
 import test from "node:test";
 import assert from "node:assert/strict";
-import { keyboardLayout } from "../static/keys.js";
+import {
+	keyboardLayout,
+	timeLabel,
+	timeRange,
+	grabbedMsg,
+	rangeMsg,
+	droppedMsg,
+	resizedMsg,
+	deletedMsg,
+	moveCancelledMsg,
+	resizeCancelledMsg,
+	blockedMsg,
+} from "../static/keyboard-reducer.js";
 import { pushLayout } from "../static/push.js";
 
 const bounds = { start: 18, end: 34 }; // 9:00–17:00, end-exclusive
@@ -269,4 +281,67 @@ test("the running-cursor threading works through the j/k aliases too", () => {
 		keyboardLayout(bounds, start, { id: "a", mode: "resize", span: 2 }, "j"),
 		keyboardLayout(bounds, start, { id: "a", mode: "resize", span: 2 }, "ArrowDown"),
 	);
+});
+
+// --- clock + announce formatting --------------------------------------
+// Spoken times must match the visible gutter the server renders (column.templ's
+// timeLabel/blockTimeRange), and every sr-announce string is built here.
+
+test("timeLabel formats a slot as HH:MM in 30-minute steps", () => {
+	assert.equal(timeLabel(0), "0:00");
+	assert.equal(timeLabel(18), "9:00"); // 9:00
+	assert.equal(timeLabel(19), "9:30"); // half
+	assert.equal(timeLabel(33), "16:30"); // 16:30
+	assert.equal(timeLabel(48), "24:00");
+});
+
+test("timeRange renders a slot+span clock span", () => {
+	assert.equal(timeRange(18, 1), "9:00 to 9:30");
+	assert.equal(timeRange(18, 2), "9:00 to 10:00");
+	assert.equal(timeRange(20, 3), "10:00 to 11:30");
+});
+
+test("rangeMsg reads the block's slot+span out of the layout", () => {
+	const layout = [
+		{ id: "a", slot: 18, span: 2 },
+		{ id: "b", slot: 20, span: 1 },
+	];
+	assert.equal(rangeMsg("a", layout), "9:00 to 10:00");
+	assert.equal(rangeMsg("b", layout), "10:00 to 10:30");
+});
+
+test("grabbedMsg names the block and its start, with move instructions", () => {
+	assert.equal(
+		grabbedMsg("Workout", 18),
+		"Workout grabbed, 9:00. Use up and down arrows to move.",
+	);
+});
+
+test("droppedMsg and resizedMsg prefix the clock range", () => {
+	const layout = [{ id: "a", slot: 20, span: 2 }];
+	assert.equal(droppedMsg("a", layout), "Dropped, 10:00 to 11:00.");
+	assert.equal(resizedMsg("a", layout), "Resized, 10:00 to 11:00.");
+});
+
+test("deletedMsg names the block", () => {
+	assert.equal(deletedMsg("Workout"), "Deleted Workout.");
+});
+
+test("the cancelled messages are stable literals", () => {
+	assert.equal(moveCancelledMsg(), "Move cancelled.");
+	assert.equal(resizeCancelledMsg(), "Resize cancelled.");
+});
+
+test("blockedMsg distinguishes move vs resize and up vs down", () => {
+	assert.equal(blockedMsg("move", "ArrowUp"), "Can't move earlier.");
+	assert.equal(blockedMsg("move", "ArrowDown"), "Can't move later.");
+	assert.equal(blockedMsg("resize", "ArrowUp"), "Minimum length.");
+	assert.equal(blockedMsg("resize", "ArrowDown"), "Maximum length.");
+});
+
+test("blockedMsg treats a non-arrow key as the down direction", () => {
+	// A blocked move is only ever reached on an arrow press, but the builder is
+	// total: any non-ArrowUp key reads as "later/maximum".
+	assert.equal(blockedMsg("move", "Tab"), "Can't move later.");
+	assert.equal(blockedMsg("resize", "Home"), "Maximum length.");
 });

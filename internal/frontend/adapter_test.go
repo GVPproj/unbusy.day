@@ -571,7 +571,7 @@ func TestColumnUsesVerifiedDatastarKeyedAttributeSyntax(t *testing.T) {
 	}
 }
 
-// drag.js reads slot/span from these attributes to seed each gesture.
+// block-gestures.js reads slot/span from these attributes to seed each gesture.
 func TestColumnRendersPersistedSpan(t *testing.T) {
 	cs := []block.Block{
 		{ID: "a", Label: "Alpha", Position: 0, Span: 2},

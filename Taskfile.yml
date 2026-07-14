@@ -1,8 +1,8 @@
 version: "3"
 
 # templ's version lives in go.mod (derived via `go list -m`); CDN bundles are
-# pinned as exact tags in the templ shells / drag.js. `task check:versions`
-# flags drift.
+# pinned as exact tags in the templ shells / gestures/pointer.js. `task
+# check:versions` flags drift.
 dotenv: [".env"]
 
 tasks:
@@ -70,7 +70,7 @@ tasks:
         if [ "$(printf '%s' "$ds_client" | grep -c .)" -gt 1 ]; then
           printf '  ✗ %-11s tags disagree across templ files: %s\n' ds-client "$(echo $ds_client)"; rc=1
         else report ds-client "$ds_client" "$(gh_latest starfederation/datastar)"; fi
-        report motion "$(grep -hoE 'motion@[0-9.]+' internal/frontend/static/drag.js | sed 's/.*@//')" "$(npm_latest motion)"
+        report motion "$(grep -hoE 'motion@[0-9.]+' internal/frontend/static/gestures/pointer.js | sed 's/.*@//')" "$(npm_latest motion)"
         exit $rc
 
   migrate:

@@ -76,7 +76,7 @@ function initDemo(col) {
   col.addEventListener("pointercancel", (e) => settle(e, false));
 
   // Keep the last valid layout when the cascade rejects, so invalid drops
-  // snap to legal positions — same contract as the real drag.js.
+  // snap to legal positions — same contract as gestures/pointer.js.
   function previewDrag(slot) {
     slot = Math.max(bounds.start, Math.min(bounds.end - g.orig.span, slot));
     if (slot === g.valid.slot) return;

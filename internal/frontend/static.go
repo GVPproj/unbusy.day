@@ -34,7 +34,7 @@ func StaticHandler() http.Handler {
 		fs = http.FileServerFS(staticFS)
 	}
 	// Unversioned URLs with no validators: force revalidation each deploy or an
-	// edge/CDN keeps serving a stale drag.js.
+	// edge/CDN keeps serving a stale block-gestures.js.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
 		fs.ServeHTTP(w, r)

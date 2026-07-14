@@ -1,6 +1,6 @@
 // Render tests pinning the server-rendered wiring for the keyboard accelerators
-// and the shortcuts reference (UNB-25). The keyboard glue itself (drag.js, the
-// global `?` handler) is DOM/native-dialog behaviour verified manually; these
+// and the shortcuts reference (UNB-25). The keyboard glue itself (block-gestures.js,
+// the global `?` handler) is DOM/native-dialog behaviour verified manually; these
 // assert the static attributes and accessible text a user or AT depends on.
 package frontend
 

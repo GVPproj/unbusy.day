@@ -1,6 +1,42 @@
-// Pure keyboard decision reducer: one keystroke against the current layout →
-// the next layout + an announcement `kind`. DOM-free; cascade delegated to push.js.
+// Pure keyboard-tier logic for the #block-list grid, DOM-free so it runs under
+// node --test. Two concerns live here:
+//   • the decision reducer — one keystroke against the current layout → the
+//     next layout + an announcement `kind` (cascade delegated to push.js);
+//   • the clock + announce formatting — mirrors the server's
+//     timeLabel/blockTimeRange (column.templ) so spoken times match the gutter,
+//     and centralises every sr-announce string so the gesture glue builds none.
 import { pushLayout } from "./push.js";
+
+// --- clock + announce formatting --------------------------------------
+
+// A slot index is a 30-min step from 00:00; timeLabel formats it as HH:MM.
+export const timeLabel = (s) => Math.floor(s / 2) + (s % 2 ? ":30" : ":00");
+export const timeRange = (slot, span) => timeLabel(slot) + " to " + timeLabel(slot + span);
+
+const at = (id, layout) => layout.find((q) => q.id === id);
+
+// sr-announce message builders — pure, take primitives; the DOM glue passes
+// them through unchanged.
+export const grabbedMsg = (label, slot) =>
+	label + " grabbed, " + timeLabel(slot) + ". Use up and down arrows to move.";
+export const rangeMsg = (id, layout) => {
+	const p = at(id, layout);
+	return timeRange(p.slot, p.span);
+};
+export const droppedMsg = (id, layout) => "Dropped, " + rangeMsg(id, layout) + ".";
+export const resizedMsg = (id, layout) => "Resized, " + rangeMsg(id, layout) + ".";
+export const deletedMsg = (label) => "Deleted " + label + ".";
+export const moveCancelledMsg = () => "Move cancelled.";
+export const resizeCancelledMsg = () => "Resize cancelled.";
+// `key` is the already-normalized key (see normalizeKey below).
+export const blockedMsg = (mode, key) => {
+	const up = key === "ArrowUp";
+	return mode === "move"
+		? up ? "Can't move earlier." : "Can't move later."
+		: up ? "Minimum length." : "Maximum length.";
+};
+
+// --- decision reducer -------------------------------------------------
 
 // Vim aliases: j/k are pure synonyms for ArrowDown/ArrowUp. Every surveyed app
 // (Gmail, GCal, Notion Calendar) means navigate down/up by j/k, never a

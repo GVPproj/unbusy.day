@@ -1,5 +1,5 @@
 // Render tests pinning the server-rendered accessibility semantics; the
-// keyboard glue itself (drag.js) is verified manually.
+// keyboard glue itself (block-gestures.js) is verified manually.
 package frontend
 
 import (

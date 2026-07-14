@@ -24,6 +24,10 @@ templ DateHeading() {
 
 // BlockColumn is the patch fragment: #block-list is the morph anchor every SSE
 // patch lands on. Page and patch render share it so they can't drift.
+//
+// The data-on:* handlers below consume the layout/rename/delete CustomEvents
+// that block-gestures.js dispatches onto #block-list (full contract documented
+// atop static/block-gestures.js).
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	<ul
 		id="block-list"

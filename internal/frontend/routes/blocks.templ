@@ -30,7 +30,19 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 				// leave it intact.
 				<div id="sr-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 				<div id="dnd-instructions" class="sr-only">Press Space or Enter to grab this block, then the Up and Down arrow keys (or j and k) to move it, and Space or Enter again to drop it. Press r or F2 to rename, or Delete to remove it. Tab to the resize handle to change its length. Press question mark for the full list of keyboard shortcuts.</div>
-				<script type="module" src="/static/drag.js"></script>
+				// Block gestures live behind one init seam (block-gestures.js): pass the
+				// list element and an announce *function* (the #sr-announce null-guard
+				// lives here, with the DOM it owns). See the event-contract doc atop
+				// block-gestures.js for the layout/rename/delete CustomEvents these
+				// gestures dispatch onto #block-list below.
+				<script type="module">
+					import { initBlockGestures } from "/static/block-gestures.js"
+					const list = document.getElementById("block-list")
+					const announcer = document.getElementById("sr-announce")
+					if (list) initBlockGestures(list, (msg) => {
+						if (announcer) announcer.textContent = msg
+					})
+				</script>
 				<script type="module" src="/static/now-pill.js"></script>
 				<script type="module" src="/static/countdown.js"></script>
 				<script type="module" src="/static/shortcuts.js"></script>
