@@ -1,25 +1,27 @@
 # Issue tracker: Linear
 
-Issues and PRDs for this repo live in Linear, team **Unbusy** (no sub-projects — everything is tracked directly on the team). Use the `claude_ai_Linear` MCP tools for all operations, never a raw API call.
+Issues and PRDs for this repo live in Linear, team **Unbusy** (no sub-projects — everything is tracked directly on the team). Use the `linear` skill (`.agents/skills/linear/linear.sh`) for all operations — it wraps Linear's GraphQL API over `curl`+`jq`. Never hand-roll raw Linear API calls outside the skill; if you need a new operation, add a subcommand to the script.
+
+In pi, load it with `/skill:linear` (or just run the script). The skill's `SKILL.md` has the full command reference; this doc holds the per-operation conventions.
 
 ## Conventions
 
-- **Create an issue**: `save_issue` with `team: "Unbusy"` and a `title`; add `description` as Markdown (literal newlines, not `\n` escapes).
-- **Read an issue**: `get_issue` by ID/identifier (e.g. `UNB-42`), plus `list_comments` with `issueId` for discussion.
-- **List issues**: `list_issues` with `team: "Unbusy"`, filtered by `state`, `label`, `assignee` as needed.
-- **Comment on an issue**: `save_comment` with `issueId` and `body`.
-- **Apply / remove labels**: `save_issue` with `id` and `labels` — this **replaces the full label set**, so pass the union of existing + new labels (read current labels off `get_issue` first, don't just append blind).
-- **Create a label** (if it doesn't exist yet): `create_issue_label` with `teamId` set to the Unbusy team, or omit `teamId` for a workspace-wide label.
-- **Close**: `save_issue` with `id` and `state` set to a Done/Cancelled state name — resolve valid names first via `list_issue_statuses` with `team: "Unbusy"`.
+- **Create an issue**: `linear.sh create --title "…" --desc "…" --labels A,B` (description is plain Markdown).
+- **Read an issue**: `linear.sh get UNB-42` (accepts an identifier or UUID), plus `linear.sh comments UNB-42` for the discussion thread.
+- **List issues**: `linear.sh list --state "…" --label … --assignee me` (team is Unbusy by default).
+- **Comment on an issue**: `linear.sh comment UNB-42 "body"`.
+- **Apply / remove labels**: `linear.sh set-labels UNB-42 A,B` **replaces the full label set**; `linear.sh add-labels UNB-42 C` unions with the current set — prefer `add-labels` unless you deliberately mean to replace (the old "don't append blind" warning).
+- **Create a label** (if it doesn't exist yet): `linear.sh create-label "name"` for the Unbusy team, or `--team <other>` elsewhere.
+- **Close**: `linear.sh update UNB-42 --state "Done"` — resolve valid names first via `linear.sh statuses`.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Linear issue on the Unbusy team via `save_issue`.
+Create a Linear issue on the Unbusy team via `linear.sh create`.
 
 ## When a skill says "fetch the relevant ticket"
 
-Run `get_issue` on the ticket's identifier, plus `list_comments` for its discussion thread.
+Run `linear.sh get` on the ticket's identifier, plus `linear.sh comments` for its discussion thread.
 
 ## Pull requests as a triage surface
 
-Not applicable — Linear issues aren't paired with a PR-based triage flow the way GitHub/GitLab are. If a skill needs to link a PR to an issue, attach it as a link via `save_issue`'s `links` field rather than treating the PR itself as a trackable item.
+Not applicable — Linear issues aren't paired with a PR-based triage flow the way GitHub/GitLab are. If a skill needs to link a PR to an issue, attach it as a link — there's no dedicated subcommand yet, so add a `link` subcommand to `linear.sh` (an `issueUpdate` with a `link` input) rather than treating the PR itself as a trackable item.
