@@ -9,6 +9,16 @@ import "fmt"
 templ LoginAmoeba(turnstileSiteKey string) {
 	<div class="login-amoeba">
 		<svg class="login-amoeba-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+			// Pixel feeling renders the same morph through this mosaic filter
+			// (sample on a 16px dot grid, dilate to squares); unused under cozy.
+			// Toggled via :root[data-feeling="pixel"] in app.css.
+			<filter id="amoeba-pixelate" filterUnits="userSpaceOnUse" x="0" y="0" width="600" height="600">
+				<feFlood x="6" y="6" width="4" height="4"></feFlood>
+				<feComposite width="16" height="16"></feComposite>
+				<feTile result="grid"></feTile>
+				<feComposite in="SourceGraphic" in2="grid" operator="in"></feComposite>
+				<feMorphology operator="dilate" radius="8"></feMorphology>
+			</filter>
 			<path fill="currentColor">
 				<animate
 					attributeName="d"

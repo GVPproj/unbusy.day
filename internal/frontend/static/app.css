@@ -569,6 +569,17 @@
     }
   }
 
+  /* Pixel feeling: the same amoeba morph rendered as a low-res
+	   rasterization via the #amoeba-pixelate filter (login.templ); spin off
+	   so the pixel grid stays axis-aligned. :root rules can't live inside
+	   the @scope above. */
+  :root[data-feeling="pixel"] .login-amoeba-svg {
+    animation: none;
+  }
+  :root[data-feeling="pixel"] .login-amoeba-svg path {
+    filter: url(#amoeba-pixelate);
+  }
+
   /* @keyframes are global by nature — they sit at layer level, outside
 	   any @scope. */
   @keyframes login-amoeba-spin {
@@ -698,6 +709,23 @@
 
       &.pixelated svg {
         image-rendering: pixelated;
+      }
+    }
+
+    /* theme.templ: palette attribution line under the picker (see
+	   THIRD_PARTY_LICENSES.md). <p> already inherits the dialog's muted ink. */
+    .theme-credits {
+      margin-top: 0.5rem;
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+
+      a {
+        color: var(--accent);
+        text-underline-offset: 2px;
+
+        &:hover {
+          text-decoration: underline;
+        }
       }
     }
 
