@@ -12,8 +12,8 @@ templ CreateModal() {
 		closedby="any"
 		data-signals:addslot="0"
 		data-signals:addlabel="''"
-		data-signals:addtype="'shallow'"
-		data-on:close="$addlabel = ''; $addtype = 'shallow'"
+		data-signals:addtype="'deep'"
+		data-on:close="$addlabel = ''; $addtype = 'deep'"
 		data-on:keydown="(evt.metaKey || evt.ctrlKey) && evt.key === 'Enter' && (evt.preventDefault(), document.getElementById('create-submit').click())"
 		aria-labelledby="create-modal-title"
 	>
@@ -31,10 +31,10 @@ templ CreateModal() {
 		<fieldset>
 			<legend>Type</legend>
 			<div class="type-options">
-				@createTypeOption("shallow", "Shallow")
-				@createTypeOption("deep", "Deep")
+				@createTypeOption("deep", "Focus")
+				@createTypeOption("shallow", "Admin")
 				@createTypeOption("break", "Break")
-				@createTypeOption("appointment", "Appt")
+				@createTypeOption("appointment", "Fixed")
 			</div>
 		</fieldset>
 		<footer>
