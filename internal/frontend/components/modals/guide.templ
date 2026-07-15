@@ -2,7 +2,6 @@ package modals
 
 import (
 	"strconv"
-	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 )
@@ -31,11 +30,11 @@ templ GuideModal() {
 			<div class="guide-pane" data-class:showing="$_guidestep === 1">
 				<p>Unbusy is a <strong>time-block planning</strong> app, inspired by Cal Newport's <a href="https://calnewport.com/deep-habits-the-importance-of-planning-every-minute-of-your-work-day/" target="_blank" rel="noopener">system</a>.</p>
 				<p>Time-blocking is giving every minute of your workday <strong>one job</strong>, avoiding the <a href="https://www.apa.org/topics/research/multitasking" target="_blank" rel="noopener"><em>costs</em></a> associated with <a href="https://calnewport.com/a-productivity-lesson-from-a-classic-arcade-game/" target="_blank" rel="noopener"><em>switching contexts</em></a> while you work. It's a less overwhelming, less frantic approach to having a brain.</p>
-				<p>Spend your limited work hours <strong>with care</strong>, like a { strconv.Itoa(time.Now().Year()) } grocery budget.</p>
-				<p>Plans change as the day goes by? Rearrange your blocks; stay in your plan.</p>
+				<p>Spend your limited work hours <strong>with care</strong>. Avoid bouncing between tasks at random by trusting your plan.</p>
+				<p>Things come up as the day goes by? Accomodate them by rearranging / shortenting other blocks.</p>
 			</div>
 			<div class="guide-pane" data-class:showing="$_guidestep === 2">
-				<p>It's always <em>today</em> in this app. Start your day with a clean slate, first adding any timed commitments. Then, build out your day, prioritizing <strong>Deep Work</strong>.</p>
+				<p>It's always <em>today</em> in this app. Start your day with a clean slate, first adding any timed commitments. Then, build out your day, prioritizing focussed <strong>deep work</strong>.</p>
 				<p>Tap <strong>+</strong> on a free slot to add a <strong>block</strong>.</p>
 				@guideColumn(false, 1) {
 					<span class="gc-add" style="grid-row:1">
