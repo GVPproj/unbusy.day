@@ -327,11 +327,11 @@
     border-radius: var(--radius-lg);
     overflow: hidden;
 
-    @media (width >= 40rem) {
+    @media (width >= 52rem) {
       max-height: calc(100svh - 6rem);
     }
 
-    @media (width < 40rem) {
+    @media (width < 52rem) {
       max-width: none;
       height: 100svh;
       margin: 0;
@@ -1128,7 +1128,7 @@
 
       /* Translate/transition live here only, so the rail never picks up
 			   a transform. */
-      @media (width < 40rem) {
+      @media (width < 52rem) {
         position: fixed;
         inset-block: 0;
         right: 0;
@@ -1154,7 +1154,7 @@
       text-align: center;
       color: var(--nav-icon);
 
-      @media (width < 40rem) {
+      @media (width < 52rem) {
         align-self: flex-start;
         margin-left: 1rem;
       }
@@ -1188,7 +1188,7 @@
         }
       }
 
-      @media (width < 40rem) {
+      @media (width < 52rem) {
         flex-direction: row;
         gap: 0.875rem;
         padding: 0.875rem 1rem;
@@ -1213,7 +1213,7 @@
     }
 
     :scope > button:last-child {
-      @media (width < 40rem) {
+      @media (width < 52rem) {
         margin-bottom: 1.5rem;
       }
     }
@@ -1224,7 +1224,7 @@
   .menu-toggle {
     display: none;
 
-    @media (width < 40rem) {
+    @media (width < 52rem) {
       display: grid;
       place-items: center;
       position: fixed;
@@ -1249,10 +1249,60 @@
     z-index: 20;
     background: var(--scrim);
 
-    @media (width < 40rem) {
+    @media (width < 52rem) {
       &.open {
         display: block;
       }
+    }
+  }
+
+  /* components/nav.templ ShortcutsFab: desktop-only fixed bottom-right
+     control mirroring the rail's Log Out button. bottom: 0.75rem matches
+     the rail's padding-block so the two share a baseline; nav-* tokens
+     echo the rail so it reads as its mirror. Hidden below sm. */
+  .shortcuts-fab {
+    display: none;
+
+    @media (width >= 52rem) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.125rem;
+      position: fixed;
+      right: 1rem;
+      bottom: 0.75rem;
+      z-index: 30;
+      padding: 0.5rem 0.75rem;
+      border: none;
+      border-radius: var(--radius);
+      color: var(--nav-ink);
+      font-size: 0.85rem;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--nav-hover);
+      }
+
+      .icon {
+        color: var(--nav-icon);
+      }
+    }
+  }
+
+  /* solarized-light has a light page bg, so the FAB's nav-ink label and gold
+     icon (tuned for the dark rail behind them) wash out. Recolor both to
+     base02 dark teal (canonical Solarized) and darken the hover tint. */
+  :root[data-colorscheme="solarized-light"] .shortcuts-fab {
+    color: var(--gutter-ink);
+
+    .icon {
+      color: var(--gutter-ink);
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--gutter-ink) 8%, transparent);
     }
   }
 
@@ -1503,7 +1553,7 @@
       background: var(--surface);
 
       /* Clear the fixed hamburger (right: 1rem) on mobile. */
-      @media (width < 40rem) {
+      @media (width < 52rem) {
         margin-right: 3.25rem;
       }
 
@@ -1525,11 +1575,11 @@
       }
     }
 
-    @media (width >= 40rem) {
+    @media (width >= 52rem) {
       min-height: 2rem;
     }
 
-    @media (width < 40rem) {
+    @media (width < 52rem) {
       z-index: 11;
       height: 3.5rem;
       margin-bottom: 0;
@@ -1558,7 +1608,7 @@
         --slot-h: calc(1lh + 2.5rem);
       }
 
-      @media (width < 40rem) {
+      @media (width < 52rem) {
         padding: 0.75rem 1rem 1rem;
       }
     }

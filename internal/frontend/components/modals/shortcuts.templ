@@ -15,15 +15,6 @@ templ ShortcutsModal() {
 		<h2 id="shortcuts-modal-title">Keyboard Shortcuts</h2>
 		<div class="shortcuts">
 			<section>
-				<h3>New block dialog</h3>
-				<dl>
-					@shortcut("Create the block") {
-						@key("⌘ / Ctrl")
-						@key("Enter")
-					}
-				</dl>
-			</section>
-			<section>
 				<h3>On a focused block</h3>
 				<dl>
 					@shortcut("Grab to move, then drop") {
@@ -61,6 +52,15 @@ templ ShortcutsModal() {
 					@shortcut("Shortest / longest") {
 						@key("Home")
 						@key("End")
+					}
+				</dl>
+			</section>
+			<section>
+				<h3>In Menus</h3>
+				<dl>
+					@shortcut("Submit Changes") {
+						@key("⌘ / Ctrl")
+						@key("Enter")
 					}
 				</dl>
 			</section>

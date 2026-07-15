@@ -48,15 +48,26 @@ templ SideNav() {
 				@IconGuide()
 			</span><span>Guide</span>
 		</button>
-		<button commandfor="shortcuts-modal" command="show-modal" data-on:click="$_navopen = false">
-			<span class="nav-icon">
-				@IconKeyboard()
-			</span><span>Shortcuts</span>
-		</button>
 		<button data-on:click="@post('/logout')">
 			<span class="nav-icon">
 				@IconLogout()
 			</span><span>Log Out</span>
 		</button>
 	</nav>
+}
+
+// ShortcutsFab mirrors the rail's Shortcuts action as a fixed bottom-right
+// control, opposite the Log Out button. Rendered at .shell level (like
+// MenuToggle) so it floats above content; CSS hides it below the sm
+// breakpoint, where the drawer carries the action instead.
+templ ShortcutsFab() {
+	<button
+		class="shortcuts-fab"
+		commandfor="shortcuts-modal"
+		command="show-modal"
+		aria-label="Keyboard shortcuts"
+	>
+		@IconKeyboard()
+		<span>Shortcuts</span>
+	</button>
 }
