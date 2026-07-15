@@ -52,6 +52,7 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 		class="app-dialog"
 		closedby="any"
 		data-signals={ signalsObject(b, env) }
+		data-on:keydown="(evt.metaKey || evt.ctrlKey) && evt.key === 'Enter' && (evt.preventDefault(), document.getElementById('bounds-submit').click())"
 		aria-labelledby="bounds-modal-title"
 	>
 		<h2 id="bounds-modal-title">Working Hours</h2>
@@ -76,6 +77,7 @@ templ HoursModal(b block.Bounds, env block.Envelope) {
 				command="close"
 			>Cancel</button>
 			<button
+				id="bounds-submit"
 				class="btn"
 				commandfor="bounds-modal"
 				command="close"
