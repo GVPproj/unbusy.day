@@ -1,5 +1,20 @@
 package modals
 
+// Picker ingredients (scheme swatch gradients, feeling fonts and preview
+// glyphs); shared with the guide's "Power User?" pane so its miniatures
+// can't drift from the picker.
+const (
+	swatchSolarizedLight = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)"
+	swatchSolarizedOsaka = "linear-gradient(135deg, hsl(192, 100%, 5%) 50%, hsl(192, 100%, 10%) 50%)"
+	swatchCatppuccin     = "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)"
+
+	feelingCozyFont  = "Zen Maru Gothic, system-ui, sans-serif"
+	feelingPixelFont = "Gohu, ui-monospace, monospace"
+
+	glyphCozy  = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`
+	glyphPixel = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`
+)
+
 // themeOption is one row in the picker; swatch shows the theme's bg/column split.
 templ themeOption(id string, label string, swatch string) {
 	<button
@@ -44,12 +59,12 @@ templ ThemeModal() {
 	>
 		<h2 id="theme-modal-title">Theme</h2>
 		<h3>Feeling</h3>
-		@feelingOption("cozy", "Cozy", "Zen Maru Gothic, system-ui, sans-serif", false, templ.Raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`))
-		@feelingOption("pixel", "Pixel", "Gohu, ui-monospace, monospace", true, templ.Raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`))
+		@feelingOption("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
+		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		<h3>Colours</h3>
-		@themeOption("solarized-light", "Solarized Light", "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)")
-		@themeOption("solarized-osaka", "Solarized Dark Osaka", "linear-gradient(135deg, hsl(192, 100%, 5%) 50%, hsl(192, 100%, 10%) 50%)")
-		@themeOption("catppuccin-mocha", "Catppuccin Mocha", "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)")
+		@themeOption("solarized-light", "Solarized Light", swatchSolarizedLight)
+		@themeOption("solarized-osaka", "Solarized Dark Osaka", swatchSolarizedOsaka)
+		@themeOption("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
 		<p class="theme-credits">
 			Colours from
 			<a href="https://ethanschoonover.com/solarized" target="_blank" rel="noopener">Solarized</a>,

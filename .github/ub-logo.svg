@@ -2,9 +2,9 @@
   <!-- Standalone "ub.d" wordmark for the README (kept in sync with frontend/components/logo.templ).
        Rendered via <img>, so colors are explicit (no currentColor) and the sway animates an inner
        group inside a padded viewBox to avoid clipping.
-       Stroke is solarized-light's wordmark gold (app.css - -nav-icon); it reads on both GitHub themes. -->
+       Stroke is catppuccin-mocha's Peach (app.css - -nav-icon); it reads on both GitHub themes. -->
   <style>
-    .mark { stroke: hsl(45, 100%, 40%); }
+    .mark { stroke: hsl(23, 92%, 75%); }
     .sway {
       animation: sway 5.9s ease-in-out infinite;
       transform-box: fill-box;

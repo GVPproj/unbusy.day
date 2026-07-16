@@ -6,7 +6,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 )
 
-// GuideModal is a three-step walkthrough of the why/how of time-blocking. It is
+// GuideModal is a four-step walkthrough of the why/how of time-blocking. It is
 // self-contained (renders on both the app and login pages), so it must not
 // reference app-only signals. $_guidestep is client-only (underscore = never
 // shipped to the server); data-on:close resets it so every open starts at 1.
@@ -24,7 +24,7 @@ templ GuideModal() {
 	>
 		<h2
 			id="guide-modal-title"
-			data-text="$_guidestep === 1 ? 'What is this thing?' : $_guidestep === 2 ? 'Use working hours well' : 'Shape the day'"
+			data-text="$_guidestep === 1 ? 'What is this thing?' : $_guidestep === 2 ? 'Use working hours well' : $_guidestep === 3 ? 'Shape the day' : 'Power User?'"
 		></h2>
 		<div class="guide-body">
 			<div class="guide-pane" data-class:showing="$_guidestep === 1">
@@ -64,17 +64,47 @@ templ GuideModal() {
 					</span>
 				}
 			</div>
+			// Pane 4 points at app-only chrome (the Theme dialog), so it shows
+			// miniatures built from theme.templ's shared consts, not live
+			// commandfor buttons — the guide also mounts on the login page,
+			// where that dialog doesn't exist.
+			<div class="guide-pane" data-class:showing="$_guidestep === 4">
+				<p>Make the app yours: <strong>Theme</strong> in the menu picks the colours…</p>
+				<div class="guide-figure guide-swatches" aria-hidden="true">
+					<span style={ "background: " + swatchSolarizedLight }></span>
+					<span style={ "background: " + swatchSolarizedOsaka }></span>
+					<span style={ "background: " + swatchCatppuccin }></span>
+				</div>
+				<p>…and the <strong>feeling</strong>: font and icon set swap together.</p>
+				<div class="guide-figure guide-feelings" aria-hidden="true">
+					<span style={ "font-family: " + feelingCozyFont }>
+						<span class="feeling-preview">
+							@templ.Raw(glyphCozy)
+						</span>
+						Cozy
+					</span>
+					<span style={ "font-family: " + feelingPixelFont }>
+						<span class="feeling-preview pixelated">
+							@templ.Raw(glyphPixel)
+						</span>
+						Pixel
+					</span>
+				</div>
+				<p>Every action has a key, too — press <kbd>?</kbd> to see the <strong>shortcuts</strong> reference.</p>
+				<p>Now go plan a good day.</p>
+			</div>
 		</div>
 		<footer class="guide-footer">
 			<div class="guide-dots" aria-hidden="true">
 				<span class="guide-dot" data-class:active="$_guidestep === 1"></span>
 				<span class="guide-dot" data-class:active="$_guidestep === 2"></span>
 				<span class="guide-dot" data-class:active="$_guidestep === 3"></span>
+				<span class="guide-dot" data-class:active="$_guidestep === 4"></span>
 			</div>
 			<div class="guide-controls">
 				<button class="btn btn-secondary" data-show="$_guidestep > 1" data-on:click="$_guidestep--">Back</button>
-				<button class="btn" data-show="$_guidestep < 3" data-on:click="$_guidestep++">Next</button>
-				<button class="btn" data-show="$_guidestep === 3" commandfor="guide-modal" command="close">Done</button>
+				<button class="btn" data-show="$_guidestep < 4" data-on:click="$_guidestep++">Next</button>
+				<button class="btn" data-show="$_guidestep === 4" commandfor="guide-modal" command="close">Done</button>
 			</div>
 		</footer>
 	</dialog>
