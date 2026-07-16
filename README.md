@@ -5,7 +5,6 @@
 # unbusy.day
 
 [![CI/CD](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml/badge.svg)](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/GVPproj/unbusy.day)](https://goreportcard.com/report/github.com/GVPproj/unbusy.day)
 [![Go](https://img.shields.io/github/go-mod/go-version/GVPproj/unbusy.day?logo=go&logoColor=white)](https://go.dev)
 
 Have a structured day with a time-blocked schedule.
@@ -26,7 +25,7 @@ any timed commitments, then build out the rest — prioritizing **Deep Work**.
 Every block gets one of four types:
 
 <p align="center">
-  <img src=".github/readme-types.png" width="560" alt="The four block types: Deep — distraction-free work; Shallow — meetings, checking things; Break — plan these!; Appointment — a fixed-time commitment.">
+  <img src=".github/readme-types.png" width="560" alt="The four block types: Focus — undistracted effort; Admin — chat, light tasks; Break — take regularly; Fixed — appointments, meetings.">
 </p>
 
 **Drag** blocks to rearrange them, **stretch** them by the grip line at the

@@ -2,10 +2,10 @@
 <!-- Source for .github/readme-hero.png (the README banner). The og-card.html
      layout minus the wordmark/domain — the README already opens with the logo.
      Regenerate at 2x then downscale:
-       chrome - -headless - -screenshot=hero-2x.png - -window-size=1200,630 \
+       chromium - -headless - -screenshot=hero-2x.png - -window-size=1200,630 \
          - -force-device-scale-factor=2 - -hide-scrollbars \
          - -allow-file-access-from-files docs/readme-hero.html
-       sips -z 630 1200 hero-2x.png - -out .github/readme-hero.png
+       convert hero-2x.png -resize 1200x630 .github/readme-hero.png
      (join the "- -" pairs into double-dash flags; HTML comments forbid them) -->
 <html>
 <head>
@@ -28,23 +28,23 @@
   }
 
   :root {
-    /* solarized-light tokens from app.css */
-    --bg: hsl(44, 86%, 94%);
-    --ink: hsl(195, 7%, 32%);
-    --ink-muted: hsl(194, 14%, 40%);
-    --column-bg: hsl(46, 42%, 88%);
-    --rail-border: hsl(44, 27%, 79%);
-    --nav-bg: hsl(192, 81%, 14%);
-    --nav-ink: hsl(46, 42%, 88%);
-    --nav-icon: hsl(45, 100%, 40%);
-    --gutter-ink: hsl(192, 81%, 14%);
-    --accent: hsl(205, 69%, 49%);
-    --type-deep: hsl(205, 70%, 87%);
-    --type-deep-ink: hsl(205, 75%, 27%);
-    --type-shallow: var(--bg);
+    /* catppuccin-mocha tokens from app.css */
+    --bg: hsl(240, 21%, 15%);
+    --ink: hsl(227, 63%, 92%);
+    --ink-muted: hsl(228, 24%, 72%);
+    --column-bg: hsl(240, 21%, 12%);
+    --rail-border: hsl(235, 13%, 31%);
+    --nav-bg: hsl(240, 23%, 9%);
+    --nav-ink: hsl(226, 64%, 88%);
+    --nav-icon: hsl(23, 92%, 75%);
+    --gutter-ink: var(--nav-icon);
+    --accent: hsl(267, 84%, 81%);
+    --type-deep: hsl(217, 50%, 30%);
+    --type-deep-ink: hsl(217, 90%, 82%);
+    --type-shallow: hsl(237, 16%, 23%);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(135, 42%, 82%);
-    --type-break-ink: hsl(135, 55%, 22%);
+    --type-break: hsl(189, 45%, 24%);
+    --type-break-ink: hsl(189, 71%, 73%);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -55,7 +55,7 @@
     overflow: hidden;
     font-family: "Zen Maru Gothic", sans-serif;
     background: var(--nav-bg);
-    background-image: radial-gradient(ellipse 900px 700px at 24% 38%, hsl(192, 70%, 19%), transparent 70%);
+    background-image: radial-gradient(ellipse 900px 700px at 24% 38%, hsl(240, 21%, 15%), transparent 70%);
     display: flex;
     align-items: center;
   }
@@ -80,7 +80,7 @@
     font-size: 29px;
     font-weight: 400;
     line-height: 1.45;
-    color: hsl(46, 42%, 78%);
+    color: var(--ink-muted);
     max-width: 22ch;
   }
 
@@ -95,8 +95,8 @@
     border-radius: 14px;
     padding: 30px 26px 30px 20px;
     box-shadow:
-      0 24px 60px rgba(0, 20, 26, 0.5),
-      0 4px 14px rgba(0, 20, 26, 0.35);
+      0 24px 60px rgba(17, 17, 27, 0.6),
+      0 4px 14px rgba(17, 17, 27, 0.45);
     display: grid;
     grid-template-columns: 78px 1fr;
     grid-auto-rows: 62px;
@@ -135,7 +135,7 @@
     padding: 12px 18px;
     font-size: 24px;
     font-weight: 700;
-    box-shadow: 0 1px 2px rgba(88, 110, 117, 0.35);
+    box-shadow: 0 1px 2px rgba(17, 17, 27, 0.5);
     margin: 4px 2px 4px 0;
     position: relative;
   }

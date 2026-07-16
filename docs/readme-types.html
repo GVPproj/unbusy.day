@@ -3,11 +3,11 @@
      figure), echoing the guide modal's .guide-types list. Transparent canvas
      so it sits on GitHub's light and dark themes alike.
      Regenerate at 2x then downscale:
-       chrome - -headless - -screenshot=types-2x.png - -window-size=760,320 \
+       chromium - -headless - -screenshot=types-2x.png - -window-size=760,320 \
          - -force-device-scale-factor=2 - -hide-scrollbars \
          - -default-background-color=00000000 \
          - -allow-file-access-from-files docs/readme-types.html
-       sips -z 320 760 types-2x.png - -out .github/readme-types.png
+       convert types-2x.png -resize 760x320 .github/readme-types.png
      (join the "- -" pairs into double-dash flags; HTML comments forbid them) -->
 <html>
 <head>
@@ -25,15 +25,15 @@
   }
 
   :root {
-    /* solarized-light tokens from app.css */
-    --bg: hsl(44, 86%, 94%);
-    --ink: hsl(195, 7%, 32%);
-    --column-bg: hsl(46, 42%, 88%);
-    --rail-border: hsl(44, 27%, 79%);
-    --type-deep: hsl(205, 70%, 87%);
-    --type-shallow: var(--bg);
-    --type-break: hsl(135, 42%, 82%);
-    --type-appointment: hsl(45, 90%, 80%);
+    /* catppuccin-mocha tokens from app.css */
+    --bg: hsl(240, 21%, 15%);
+    --ink: hsl(227, 63%, 92%);
+    --column-bg: hsl(240, 21%, 12%);
+    --rail-border: hsl(235, 13%, 31%);
+    --type-deep: hsl(217, 50%, 30%);
+    --type-shallow: hsl(237, 16%, 23%);
+    --type-break: hsl(189, 45%, 24%);
+    --type-appointment: hsl(350, 40%, 26%);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -54,8 +54,8 @@
     border-radius: 16px;
     padding: 34px 44px;
     box-shadow:
-      0 14px 36px rgba(0, 20, 26, 0.28),
-      0 3px 10px rgba(0, 20, 26, 0.18);
+      0 14px 36px rgba(17, 17, 27, 0.45),
+      0 3px 10px rgba(17, 17, 27, 0.3);
     display: grid;
     gap: 24px;
   }
@@ -73,7 +73,7 @@
     height: 36px;
     border-radius: 8px;
     border: 2px solid var(--rail-border);
-    box-shadow: 0 1px 2px rgba(88, 110, 117, 0.3);
+    box-shadow: 0 1px 2px rgba(17, 17, 27, 0.4);
   }
   .swatch.deep        { background: var(--type-deep); }
   .swatch.shallow     { background: var(--type-shallow); }
@@ -83,10 +83,10 @@
 </head>
 <body>
   <div class="panel">
-    <div class="row"><span class="swatch deep"></span><span><strong>Deep</strong> — distraction-free work</span></div>
-    <div class="row"><span class="swatch shallow"></span><span><strong>Shallow</strong> — meetings, &ldquo;checking things&rdquo;</span></div>
-    <div class="row"><span class="swatch break"></span><span><strong>Break</strong> — plan these! &ldquo;Guitar&rdquo;? &ldquo;Pizza&rdquo;?</span></div>
-    <div class="row"><span class="swatch appointment"></span><span><strong>Appointment</strong> — a fixed-time commitment</span></div>
+    <div class="row"><span class="swatch deep"></span><span><strong>Focus</strong> — undistracted effort</span></div>
+    <div class="row"><span class="swatch shallow"></span><span><strong>Admin</strong> — chat, light tasks</span></div>
+    <div class="row"><span class="swatch break"></span><span><strong>Break</strong> — take regularly</span></div>
+    <div class="row"><span class="swatch appointment"></span><span><strong>Fixed</strong> — appointments, meetings</span></div>
   </div>
 </body>
 </html>
