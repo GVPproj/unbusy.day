@@ -120,6 +120,32 @@
     src: url(/static/fonts/gohu-400-latin.woff2) format("woff2");
   }
 
+  /* JetBrains Mono (SIL OFL, latin subset) — one self-hosted variable file,
+	   pinned to three faces. Deliberately only 300/400/600: the components'
+	   heavier requests (500/700) then resolve one face lighter, which is the
+	   business feeling's look. */
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url(/static/fonts/jetbrains-mono-latin.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(/static/fonts/jetbrains-mono-latin.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url(/static/fonts/jetbrains-mono-latin.woff2) format("woff2");
+  }
+
   /* Font tokens — paired with the icon set under one "feeling", driven by $_feeling. */
   :root,
   :root[data-feeling="cozy"] {
@@ -131,6 +157,15 @@
   :root[data-feeling="pixel"] {
     --font-family: "Gohu", ui-monospace, monospace;
     --line-height: 1.7;
+  }
+  /* Business: JetBrains Mono + Octicons. Root weight 300 lightens body
+	   text; synthesis off so the missing bolds can't be faked (they fall
+	   to the 600 face instead — see the @font-face note above). */
+  :root[data-feeling="business"] {
+    --font-family: "JetBrains Mono", ui-monospace, monospace;
+    --line-height: 1.5;
+    font-weight: 300;
+    font-synthesis-weight: none;
   }
 
   /* Solarized Light (default) */
@@ -1379,7 +1414,8 @@
     image-rendering: pixelated;
   }
   /* Default (no/unknown data-feeling) shows solar; the rest are opt-in. */
-  .icon-pixel {
+  .icon-pixel,
+  .icon-business {
     display: none;
   }
   :root[data-feeling="pixel"] .icon-solar {
@@ -1388,12 +1424,26 @@
   :root[data-feeling="pixel"] .icon-pixel {
     display: block;
   }
+  :root[data-feeling="business"] .icon-solar {
+    display: none;
+  }
+  :root[data-feeling="business"] .icon-business {
+    display: block;
+  }
+  /* Octicons draw as fills; a hairline same-color stroke fattens every
+	   glyph to sit near the mono text's weight. */
+  .icon-business path {
+    stroke: currentColor;
+    stroke-width: 0.75;
+    stroke-linejoin: round;
+  }
 
-  /* Animated hamburger: cozy "Jelly Wobble" + pixel "Tetris Drop". Both
-	   ship; feeling toggles which shows. The X-morph is driven by .open on
-	   the toggle button (data-class:open="$_navopen"). */
+  /* Animated hamburger: cozy "Jelly Wobble", pixel "Tetris Drop", business
+	   "Prompt". All ship; feeling toggles which shows. The X-morph is driven
+	   by .open on the toggle button (data-class:open="$_navopen"). */
   .menu-cozy,
-  .menu-pixel {
+  .menu-pixel,
+  .menu-biz {
     position: relative;
     width: 24px;
     height: 24px;
@@ -1405,10 +1455,19 @@
     display: none;
     image-rendering: pixelated;
   }
+  .menu-biz {
+    display: none;
+  }
   :root[data-feeling="pixel"] .menu-cozy {
     display: none;
   }
   :root[data-feeling="pixel"] .menu-pixel {
+    display: block;
+  }
+  :root[data-feeling="business"] .menu-cozy {
+    display: none;
+  }
+  :root[data-feeling="business"] .menu-biz {
     display: block;
   }
 
@@ -1486,7 +1545,46 @@
     animation-delay: 0.7s;
   }
 
-  /* open -> X (both feelings); idle motion freezes so the X reads clean */
+  /* biz "Prompt": staggered code lines, square caps; a caret blinks at the
+	   end of the middle line and hover "types" it out to full width. */
+  .menu-biz .bar {
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    height: 3px;
+    margin-top: -1.5px;
+    background: currentColor;
+    transition:
+      transform 0.25s ease,
+      width 0.25s ease,
+      opacity 0.2s;
+  }
+  .menu-biz .bar:nth-child(1) {
+    width: 20px;
+    transform: translateY(-7px);
+  }
+  .menu-biz .bar:nth-child(2) {
+    width: 11px;
+  }
+  .menu-biz .bar:nth-child(3) {
+    width: 16px;
+    transform: translateY(7px);
+  }
+  .menu-biz .bar:nth-child(2)::after {
+    content: "";
+    position: absolute;
+    left: calc(100% + 2px);
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: currentColor;
+    animation: menu-caret 1.1s steps(1) infinite;
+  }
+  button:hover:not(.open) .menu-biz .bar:nth-child(2) {
+    width: 17px;
+  }
+
+  /* open -> X (all feelings); idle motion freezes so the X reads clean */
   .open .menu-cozy {
     animation: none;
   }
@@ -1513,11 +1611,29 @@
   .open .menu-pixel .trow:nth-child(3) {
     transform: translateY(0) rotate(-45deg);
   }
+  .open .menu-biz .bar {
+    width: 20px;
+  }
+  .open .menu-biz .bar:nth-child(1) {
+    transform: translateY(0) rotate(45deg);
+  }
+  .open .menu-biz .bar:nth-child(2) {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  .open .menu-biz .bar:nth-child(2)::after {
+    animation: none;
+    opacity: 0;
+  }
+  .open .menu-biz .bar:nth-child(3) {
+    transform: translateY(0) rotate(-45deg);
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .menu-cozy,
     .menu-cozy .bar,
-    .menu-pixel .trow i {
+    .menu-pixel .trow i,
+    .menu-biz .bar:nth-child(2)::after {
       animation: none !important;
     }
   }
@@ -1559,6 +1675,17 @@
     100% {
       transform: translateY(0);
       opacity: 1;
+    }
+  }
+
+  @keyframes menu-caret {
+    0%,
+    55% {
+      opacity: 1;
+    }
+    56%,
+    100% {
+      opacity: 0;
     }
   }
 

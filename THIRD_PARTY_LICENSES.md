@@ -11,6 +11,19 @@ requires it — see §2 of its terms).
 | --- | --- | --- | --- |
 | Zen Maru Gothic | The Zen Maru Gothic Project Authors | SIL OFL 1.1 | <https://github.com/googlefonts/zen-marugothic> |
 | GohuFont (uni14 Nerd Font) | Hicham Omadi; Nerd Fonts patch | WTFPL | <https://font.gohu.org/> |
+| JetBrains Mono | The JetBrains Mono Project Authors | SIL OFL 1.1 | <https://github.com/JetBrains/JetBrainsMono> |
+
+## Icon sets (embedded as inline SVG)
+
+Each feeling pairs its font with an icon set whose path data is embedded in
+`internal/frontend/components/icon.templ` (and served inside every page), so
+the sets are redistributed and attributed here.
+
+| Icon set | Feeling | Author | License | Upstream |
+| --- | --- | --- | --- | --- |
+| Solar | cozy | 480 Design | CC BY 4.0 | <https://www.figma.com/community/file/1166831539721848736> |
+| Pixelarticons | pixel | Gerrit Halfmann | MIT | <https://github.com/halfmage/pixelarticons> |
+| Octicons | business | GitHub Inc. | MIT | <https://github.com/primer/octicons> |
 
 ## Colorscheme palettes (re-expressed, not redistributed)
 
@@ -157,6 +170,84 @@ courtesy.
 Upstream: <https://font.gohu.org/> ·
 Nerd Fonts patch: <https://github.com/ryanoasis/nerd-fonts> ·
 License also travels with the font at `internal/frontend/static/fonts/GOHU-LICENSE.txt`.
+
+---
+
+## JetBrains Mono — SIL Open Font License, Version 1.1
+
+Copyright 2020 The JetBrains Mono Project Authors
+(<https://github.com/JetBrains/JetBrainsMono>)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1,
+whose full text is reproduced in the Zen Maru Gothic section above. Full
+license also travels with the font at
+`internal/frontend/static/fonts/JETBRAINS-MONO-OFL.txt`.
+
+---
+
+## Solar (icon set) — CC BY 4.0
+
+Solar Icon Set by 480 Design, licensed under the Creative Commons
+Attribution 4.0 International license
+(<https://creativecommons.org/licenses/by/4.0/>). CC BY 4.0 requires this
+attribution and license notice rather than reproduction of the full legal
+code, which is available at
+<https://creativecommons.org/licenses/by/4.0/legalcode>. The embedded glyphs
+are unmodified path data from the set.
+
+Upstream: <https://www.figma.com/community/file/1166831539721848736>
+
+---
+
+## Pixelarticons (icon set) — MIT License
+
+Copyright (c) 2019 Gerrit Halfmann
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Upstream: <https://github.com/halfmage/pixelarticons>
+
+---
+
+## Octicons (icon set) — MIT License
+
+Copyright (c) 2026 GitHub Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Upstream: <https://github.com/primer/octicons>
 
 ---
 
