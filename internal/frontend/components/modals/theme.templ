@@ -65,13 +65,13 @@ templ ThemeModal() {
 		<h2 id="theme-modal-title">Theme</h2>
 		<h3>Feeling</h3>
 		@feelingOption("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
-		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		@feelingOption("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
+		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		<h3>Colours</h3>
-		@themeOption("solarized-light", "Solarized Light", swatchSolarizedLight)
-		@themeOption("solarized-osaka", "Solarized Dark Osaka", swatchSolarizedOsaka)
-		@themeOption("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
 		@themeOption("rose-pine-dawn", "Rosé Pine Dawn", swatchRosePineDawn)
+		@themeOption("solarized-light", "Solarized Light", swatchSolarizedLight)
+		@themeOption("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
+		@themeOption("solarized-osaka", "Solarized Dark Osaka", swatchSolarizedOsaka)
 		<p class="theme-credits">
 			Colours from
 			<a href="https://ethanschoonover.com/solarized" target="_blank" rel="noopener">Solarized</a>,
