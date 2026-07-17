@@ -320,8 +320,8 @@
     --type-deep-ink: hsl(197, 55%, 30%); /* pine */
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(189, 38%, 82%);
-    --type-break-ink: hsl(189, 42%, 30%); /* foam #56949f */
+    --type-break: hsl(268, 42%, 87%);
+    --type-break-ink: hsl(268, 35%, 40%); /* iris #907aa9 — distinct from pine deep */
     --type-appointment: hsl(35, 80%, 82%);
     --type-appointment-ink: hsl(35, 80%, 29%); /* gold — 4.7:1 on tint */
   }
