@@ -7,6 +7,7 @@ const (
 	swatchSolarizedLight = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)"
 	swatchSolarizedOsaka = "linear-gradient(135deg, hsl(192, 100%, 5%) 50%, hsl(192, 100%, 10%) 50%)"
 	swatchCatppuccin     = "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)"
+	swatchRosePineDawn   = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(27, 37%, 92%) 50%)"
 
 	feelingCozyFont  = "Zen Maru Gothic, system-ui, sans-serif"
 	feelingPixelFont = "Gohu, ui-monospace, monospace"
@@ -70,11 +71,13 @@ templ ThemeModal() {
 		@themeOption("solarized-light", "Solarized Light", swatchSolarizedLight)
 		@themeOption("solarized-osaka", "Solarized Dark Osaka", swatchSolarizedOsaka)
 		@themeOption("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
+		@themeOption("rose-pine-dawn", "Rosé Pine Dawn", swatchRosePineDawn)
 		<p class="theme-credits">
 			Colours from
 			<a href="https://ethanschoonover.com/solarized" target="_blank" rel="noopener">Solarized</a>,
 			<a href="https://github.com/craftzdog/solarized-osaka.nvim" target="_blank" rel="noopener">Solarized Osaka</a>,
-			and <a href="https://catppuccin.com" target="_blank" rel="noopener">Catppuccin</a>.
+			<a href="https://catppuccin.com" target="_blank" rel="noopener">Catppuccin</a>,
+			and <a href="https://rosepinetheme.com" target="_blank" rel="noopener">Rosé Pine</a>.
 		</p>
 		<footer>
 			<button class="btn" commandfor="theme-modal" command="close">Done</button>

@@ -294,6 +294,38 @@
     --type-appointment-ink: hsl(350, 65%, 77%);
   }
 
+  /* Rosé Pine Dawn (light) — the project's light-page counterpart palette. */
+  :root[data-colorscheme="rose-pine-dawn"] {
+    --bg: hsl(32, 57%, 95%); /* base #faf4ed */
+    --ink: hsl(248, 19%, 40%); /* text #575279 — 6.5:1 on bg */
+    --ink-muted: hsl(248, 12%, 45%); /* subtle #797593 darkened — 5.1:1 on bg */
+    --ink-error: hsl(343, 45%, 45%); /* love darkened */
+    --surface: hsl(32, 57%, 95%);
+    --column-bg: hsl(27, 37%, 92%); /* overlay #f2e9e1 */
+    --rail-border: hsl(25, 28%, 82%);
+    --nav-bg: hsl(248, 25%, 28%);
+    --nav-ink: hsl(27, 37%, 92%);
+    --nav-hover: rgba(242, 233, 225, 0.16);
+    --nav-icon: hsl(35, 81%, 46%); /* gold #ea9d34 darkened */
+    --gutter-ink: hsl(248, 25%, 28%);
+    --accent: hsl(197, 53%, 34%); /* pine #286983 — 5.4:1 on bg */
+    --danger: hsl(343, 40%, 48%); /* love #b4637a */
+    --scrim: rgba(87, 82, 121, 0.3);
+    --shadow-rest: 0 1px 1px rgba(87, 82, 121, 0.2);
+    --shadow-lift: 0 4px 8px rgba(87, 82, 121, 0.2);
+
+    /* Light scheme: deep/break/appointment tints with darker same-hue ink,
+		   each ≥4.5:1; shallow keeps the surface/ink default. */
+    --type-deep: hsl(197, 45%, 84%);
+    --type-deep-ink: hsl(197, 55%, 30%); /* pine */
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(189, 38%, 82%);
+    --type-break-ink: hsl(189, 42%, 30%); /* foam #56949f */
+    --type-appointment: hsl(35, 80%, 82%);
+    --type-appointment-ink: hsl(35, 80%, 29%); /* gold — 4.7:1 on tint */
+  }
+
   /* Type scale (same metrics/var names as Tailwind's text-sm/base/lg/xl,
 	   kept through the plain-CSS migration so components didn't move). */
   :root {
@@ -1386,10 +1418,11 @@
     }
   }
 
-  /* solarized-light has a light page bg, so the FAB's nav-ink label and gold
-     icon (tuned for the dark rail behind them) wash out. Recolor both to
-     base02 dark teal (canonical Solarized) and darken the hover tint. */
-  :root[data-colorscheme="solarized-light"] .shortcuts-fab {
+  /* Light-page schemes: the FAB's nav-ink label and gold icon (tuned for the
+     dark rail behind them) wash out against the light page bg. Recolor both to
+     the scheme's dark gutter-ink and darken the hover tint. */
+  :root[data-colorscheme="solarized-light"] .shortcuts-fab,
+  :root[data-colorscheme="rose-pine-dawn"] .shortcuts-fab {
     color: var(--gutter-ink);
 
     .icon {
