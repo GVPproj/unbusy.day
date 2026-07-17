@@ -23,7 +23,7 @@ the sets are redistributed and attributed here.
 | --- | --- | --- | --- | --- |
 | Solar | cozy | 480 Design | CC BY 4.0 | <https://www.figma.com/community/file/1166831539721848736> |
 | Pixelarticons | pixel | Gerrit Halfmann | MIT | <https://github.com/halfmage/pixelarticons> |
-| Octicons | business | GitHub Inc. | MIT | <https://github.com/primer/octicons> |
+| Octicons | mono | GitHub Inc. | MIT | <https://github.com/primer/octicons> |
 
 ## Colorscheme palettes (re-expressed, not redistributed)
 
