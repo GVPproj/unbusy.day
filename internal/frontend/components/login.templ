@@ -98,10 +98,12 @@ templ LoginCodeForm(errMsg string) {
 
 // otpInput is six display boxes mirroring $code, with one invisible real input
 // on top so autofill and paste keep working. The handler strips non-digits and
-// auto-submits at six.
+// auto-submits at six. data-init (not autofocus) takes the caret: this form
+// arrives as an SSE morph, past the document's one-shot autofocus flush.
 templ otpInput() {
 	<div class="otp">
 		<input
+			data-init="el.focus()"
 			inputmode="numeric"
 			pattern="[0-9]*"
 			autocomplete="one-time-code"

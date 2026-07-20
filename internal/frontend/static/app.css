@@ -194,6 +194,8 @@
       52%
     ); /* canonical Solarized red #dc322f — destructive actions */
     --scrim: rgba(0, 43, 54, 0.35);
+    /* Direction a hovered surface moves: light schemes darken, dark lighten. */
+    --hover-shift: hsl(192, 81%, 4%);
     --shadow-rest: 0 1px 1px rgba(88, 110, 117, 0.25);
     --shadow-lift: 0 4px 8px rgba(88, 110, 117, 0.25);
     --gap: 0.5rem;
@@ -239,6 +241,7 @@
       52%
     ); /* canonical Solarized red #dc322f — destructive actions */
     --scrim: rgba(0, 0, 0, 0.55);
+    --hover-shift: hsl(184, 10%, 90%);
     --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
     --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
 
@@ -279,6 +282,7 @@
       75%
     ); /* canonical Catppuccin Mocha Red #f38ba8 — destructive actions */
     --scrim: rgba(17, 17, 27, 0.55);
+    --hover-shift: hsl(227, 63%, 95%);
     --shadow-rest: 0 1px 1px rgba(17, 17, 27, 0.5);
     --shadow-lift: 0 4px 8px rgba(17, 17, 27, 0.5);
 
@@ -311,6 +315,7 @@
     --accent: hsl(197, 53%, 34%); /* pine #286983 — 5.4:1 on bg */
     --danger: hsl(343, 40%, 48%); /* love #b4637a */
     --scrim: rgba(87, 82, 121, 0.3);
+    --hover-shift: hsl(248, 25%, 15%);
     --shadow-rest: 0 1px 1px rgba(87, 82, 121, 0.2);
     --shadow-lift: 0 4px 8px rgba(87, 82, 121, 0.2);
 
@@ -427,16 +432,29 @@
     font-size: var(--text-sm);
     line-height: var(--text-sm--line-height);
     cursor: pointer;
+    transition: background-color 120ms ease;
+
+    &:hover {
+      background: color-mix(in srgb, var(--hover-shift) 18%, var(--accent));
+    }
   }
 
   .btn-secondary {
     border: 1px solid var(--rail-border);
     background: transparent;
     color: inherit;
+
+    &:hover {
+      background: color-mix(in srgb, var(--hover-shift) 10%, transparent);
+    }
   }
 
   .btn-danger {
     background: var(--danger);
+
+    &:hover {
+      background: color-mix(in srgb, var(--hover-shift) 18%, var(--danger));
+    }
   }
 
   .field {
@@ -468,9 +486,11 @@
     line-height: var(--text-base--line-height);
     cursor: pointer;
     text-align: left;
+    transition: background-color 120ms ease;
 
     &:hover {
       box-shadow: var(--shadow-rest);
+      background: color-mix(in srgb, var(--hover-shift) 10%, transparent);
     }
 
     &.active {
@@ -517,6 +537,9 @@
       left: 50%;
       top: 50%;
       translate: -50% -50%;
+      /* Opt out of the reset's svg max-width so the blob can bleed off a
+			   narrow viewport instead of being clamped to the container. */
+      max-width: none;
       width: min(1000px, max(95vmin, 150vw));
       height: min(1000px, max(95vmin, 150vw));
       color: var(--column-bg);
@@ -588,6 +611,11 @@
       background: var(--accent);
       color: var(--bg);
       cursor: pointer;
+      transition: background-color 120ms ease;
+
+      &:hover {
+        background: color-mix(in srgb, var(--hover-shift) 18%, var(--accent));
+      }
     }
 
     /* "Why?" opens the Guide: same footprint as Send code but outlined and
@@ -602,6 +630,11 @@
       background: transparent;
       color: var(--ink-muted);
       cursor: pointer;
+      transition: background-color 120ms ease;
+
+      &:hover {
+        background: color-mix(in srgb, var(--hover-shift) 10%, transparent);
+      }
     }
 
     .otp {
