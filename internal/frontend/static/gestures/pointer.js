@@ -28,6 +28,11 @@ import {
 } from "./grid.js";
 
 const SPRING = { type: "spring", stiffness: 600, damping: 38 };
+// Reduced-motion viewers get an instant snap instead of the settle/push spring.
+// The held block still tracks the pointer 1:1 (applyDrag .set()s x/y directly,
+// unanimated), so direct manipulation survives — only the eased motion drops.
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const settle = () => (reduceMotion.matches ? { duration: 0 } : SPRING);
 // Past this many px the gesture is a drag, not a tap-to-edit.
 const TAP_SLOP = 4;
 const EDGE = 48; // px band at each edge that triggers auto-scroll
@@ -143,11 +148,11 @@ function springSibs(g, lay) {
 		const fromSlot = parseInt(c.dataset.slot, 10);
 		const fromSpan = parseInt(c.dataset.span, 10) || 1;
 		if (s.yAnim) s.yAnim.stop();
-		s.yAnim = animate(s.y, (p.slot - fromSlot) * g.pitch, SPRING);
+		s.yAnim = animate(s.y, (p.slot - fromSlot) * g.pitch, settle());
 		// keep the natural margin (fromSpan*pitch - h0) when springing to a new span
 		const toH = p.span === fromSpan ? s.h0 : p.span * g.pitch - (fromSpan * g.pitch - s.h0);
 		if (s.hAnim) s.hAnim.stop();
-		s.hAnim = animate(s.h, toH, SPRING);
+		s.hAnim = animate(s.h, toH, settle());
 	});
 }
 
@@ -300,8 +305,8 @@ async function settleDrag(e, commit) {
 	settling = true;
 	try {
 		await Promise.all([
-			animate(d.x, 0, SPRING),
-			animate(d.y, (d.valid.slot - d.orig.slot) * d.pitch, SPRING),
+			animate(d.x, 0, settle()),
+			animate(d.y, (d.valid.slot - d.orig.slot) * d.pitch, settle()),
 			...sibAnims(d),
 		]);
 	} finally {
@@ -359,7 +364,7 @@ function previewResize(span) {
 	if (!lay) return;
 	r.valid = { span, layout: lay };
 	if (r.hAnim) r.hAnim.stop();
-	r.hAnim = animate(r.h, span * r.pitch - r.margin, SPRING);
+	r.hAnim = animate(r.h, span * r.pitch - r.margin, settle());
 	springSibs(r, lay);
 }
 
@@ -369,7 +374,7 @@ async function settleResize(e, commit) {
 	if (!commit) {
 		r.valid = { span: r.orig.span, layout: r.current };
 		if (r.hAnim) r.hAnim.stop();
-		r.hAnim = animate(r.h, r.orig.span * r.pitch - r.margin, SPRING);
+		r.hAnim = animate(r.h, r.orig.span * r.pitch - r.margin, settle());
 		springSibs(r, r.current);
 	}
 	resize = null;
