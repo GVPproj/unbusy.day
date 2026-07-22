@@ -42,6 +42,9 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 					if (list) initBlockGestures(list, (msg) => {
 						if (announcer) announcer.textContent = msg
 					})
+					// Two frames so the initial column paints once before .hydrated lands;
+					// the block entry transition (app.css) then greets only SSE-inserted blocks.
+					if (list) requestAnimationFrame(() => requestAnimationFrame(() => list.classList.add("hydrated")))
 				</script>
 				<script type="module" src="/static/now.js"></script>
 				<script type="module" src="/static/shortcuts.js"></script>

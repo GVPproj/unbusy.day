@@ -29,9 +29,12 @@ templ DateHeading() {
 // that block-gestures.js dispatches onto #block-list (full contract documented
 // atop static/block-gestures.js).
 templ BlockColumn(cs []block.Block, b block.Bounds) {
+	// data-preserve-attr: morphs sync attributes, which would strip the
+	// client-added .hydrated gate (routes/blocks.templ) on the first SSE patch.
 	<ul
 		id="block-list"
 		class="blocks"
+		data-preserve-attr="class"
 		data-day-start={ strconv.Itoa(b.Start) }
 		data-day-end={ strconv.Itoa(b.End) }
 		data-signals:layout="[]"

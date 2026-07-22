@@ -432,10 +432,16 @@
     font-size: var(--text-sm);
     line-height: var(--text-sm--line-height);
     cursor: pointer;
-    transition: background-color 120ms ease;
+    transition:
+      background-color 120ms ease,
+      scale 120ms ease;
 
     &:hover {
       background: color-mix(in srgb, var(--hover-shift) 18%, var(--accent));
+    }
+
+    &:active {
+      scale: 0.98;
     }
   }
 
@@ -574,6 +580,25 @@
       gap: 1.5rem;
     }
 
+    /* Step swap (email → code) morphs #login-form's children; new nodes rise
+		   in. @starting-style also fires on first paint — fine for a rare page. */
+    form > * {
+      transition:
+        opacity 0.25s ease-out,
+        translate 0.25s ease-out;
+
+      @starting-style {
+        opacity: 0;
+        translate: 0 6px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      form > * {
+        transition-duration: 0.01s;
+      }
+    }
+
     p {
       color: var(--ink-muted);
       font-size: var(--text-sm);
@@ -611,10 +636,16 @@
       background: var(--accent);
       color: var(--bg);
       cursor: pointer;
-      transition: background-color 120ms ease;
+      transition:
+        background-color 120ms ease,
+        scale 120ms ease;
 
       &:hover {
         background: color-mix(in srgb, var(--hover-shift) 18%, var(--accent));
+      }
+
+      &:active {
+        scale: 0.98;
       }
     }
 
@@ -630,10 +661,16 @@
       background: transparent;
       color: var(--ink-muted);
       cursor: pointer;
-      transition: background-color 120ms ease;
+      transition:
+        background-color 120ms ease,
+        scale 120ms ease;
 
       &:hover {
         background: color-mix(in srgb, var(--hover-shift) 10%, transparent);
+      }
+
+      &:active {
+        scale: 0.98;
       }
     }
 
@@ -925,9 +962,22 @@
       justify-content: center;
       gap: 0.75rem;
       visibility: hidden;
+      opacity: 0;
+      /* visibility holds through the fade, so stepping cross-fades the
+			   stacked panes; the fading-out pane must not eat clicks. */
+      transition:
+        opacity 0.2s ease-out,
+        visibility 0.2s;
+      pointer-events: none;
+
+      @media (prefers-reduced-motion: reduce) {
+        transition-duration: 0.01s;
+      }
 
       &.showing {
         visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
       }
 
       a {
@@ -1401,17 +1451,32 @@
     }
   }
 
-  /* components/nav.templ: click-away scrim behind the open drawer. */
+  /* components/nav.templ: click-away scrim behind the open drawer. Fades in
+	   step with the drawer's slide; allow-discrete holds display through the
+	   exit fade. */
   .nav-scrim {
     display: none;
     position: fixed;
     inset: 0;
     z-index: 20;
     background: var(--scrim);
+    opacity: 0;
+    transition:
+      opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      display 0.2s allow-discrete;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition-duration: 0.01s;
+    }
 
     @media (width < 52rem) {
       &.open {
         display: block;
+        opacity: 1;
+
+        @starting-style {
+          opacity: 0;
+        }
       }
     }
   }
@@ -2030,6 +2095,31 @@
         .grip::after {
           opacity: 1;
         }
+      }
+    }
+
+    /* SSE-inserted blocks settle in. Gated on .hydrated (added two frames
+		   after boot in routes/blocks.templ) so the initial column renders
+		   static; idiomorph keeps surviving nodes, so only new blocks enter. */
+    :scope.hydrated .block-item {
+      transition:
+        opacity 0.2s ease-out,
+        scale 0.2s ease-out;
+
+      /* Motion owns the drag; don't ease the pickup dim. */
+      &.dragging {
+        transition: none;
+      }
+
+      @starting-style {
+        opacity: 0;
+        scale: 0.97;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      :scope.hydrated .block-item {
+        transition-duration: 0.01s;
       }
     }
 
