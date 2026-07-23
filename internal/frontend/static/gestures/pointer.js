@@ -204,11 +204,14 @@ function startDrag(e, el) {
 	const pitch = slotPitch(list);
 	const x = motionValue(0);
 	const y = motionValue(0);
+	// PROTOTYPE proto-drag: tilt for the "tether" variant; harmless 0 elsewhere.
+	const rot = motionValue(0);
 	drag = {
 		el,
 		orig,
 		x,
 		y,
+		rot,
 		bounds,
 		current: layoutIn(list),
 		pitch,
@@ -216,7 +219,7 @@ function startDrag(e, el) {
 		// without bound.
 		minY: (bounds.start - orig.slot) * pitch,
 		maxY: (bounds.end - orig.span - orig.slot) * pitch,
-		detach: styleEffect(el, { x, y }),
+		detach: styleEffect(el, { x, y, rotate: rot }),
 		sibs: sibsFor(el),
 		// last layout the cascade accepted — what an invalid pointer snaps to
 		valid: { slot: orig.slot, layout: layoutIn(list) },
@@ -241,7 +244,13 @@ function applyDrag() {
 	const dy = d.lastY - d.startY;
 	if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) d.moved = true;
 	const y = Math.max(d.minY, Math.min(d.maxY, dy));
-	d.x.set(dx);
+	// PROTOTYPE proto-drag: x is locked to the list. Variants a/c pin it to 0;
+	// b resists the lateral pull rubber-band style and tilts with it.
+	// (Pre-prototype behavior was d.x.set(dx).)
+	const variant = document.documentElement.dataset.protoDrag;
+	const px = variant === "b" ? 36 * Math.tanh(dx / 90) : 0;
+	d.x.set(px);
+	d.rot.set(variant === "b" ? px / 6 : 0);
 	d.y.set(y);
 	previewDrag(d.orig.slot + Math.round(y / d.pitch));
 }
@@ -306,6 +315,7 @@ async function settleDrag(e, commit) {
 	try {
 		await Promise.all([
 			animate(d.x, 0, settle()),
+			animate(d.rot, 0, settle()),
 			animate(d.y, (d.valid.slot - d.orig.slot) * d.pitch, settle()),
 			...sibAnims(d),
 		]);
