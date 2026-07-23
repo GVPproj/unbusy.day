@@ -1927,6 +1927,15 @@
       overflow-y: auto;
       overflow-x: hidden;
 
+      /* The scroll container must clip x, so a lifted block's overhang
+         (scale + rubber drift + tilt) needs slack INSIDE the clip box:
+         extend the box 1rem into .column's right padding, push content
+         back the same amount. Blocks don't move; the clip edge does. */
+      @media (width >= 52rem) {
+        padding-inline-end: 1rem;
+        margin-inline-end: -1rem;
+      }
+
       /* Taller touch slots. */
       @media (pointer: coarse) {
         --slot-h: calc(1lh + 2.5rem);
@@ -2063,11 +2072,24 @@
         outline-offset: -2px;
       }
 
+      /* Lifted state: scale + slight translucency, no shadow (shadows read
+			   wrong on the dark schemes). Motion owns the transform (y-track,
+			   rubber-band x, tilt); we ease only the pickup scale/dim. */
       &.dragging {
         z-index: 2;
         cursor: grabbing;
-        opacity: 0.85;
-        box-shadow: var(--shadow-lift);
+        scale: 1.015;
+        opacity: 0.92;
+        transition:
+          opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1),
+          scale 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+
+        /* Controls read wrong on a lifted block (and coarse pointers show
+           them always) — hide both while dragging. */
+        .block-delete,
+        .grip::after {
+          opacity: 0;
+        }
       }
 
       &.resizing {
@@ -2096,7 +2118,7 @@
         background: var(--accent);
       }
 
-      &:hover {
+      &:hover:not(.dragging) {
         .block-delete,
         .grip::after {
           opacity: 1;
@@ -2112,9 +2134,11 @@
         opacity 0.2s ease-out,
         scale 0.2s ease-out;
 
-      /* Motion owns the drag; don't ease the pickup dim. */
+      /* Keep the pickup ease, not the SSE-entry timing. */
       &.dragging {
-        transition: none;
+        transition:
+          opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1),
+          scale 0.15s cubic-bezier(0.23, 1, 0.32, 1);
       }
 
       @starting-style {
@@ -2261,89 +2285,5 @@
         );
       }
     }
-  }
-}
-
-/* ============================================================
-   PROTOTYPE proto-drag — throwaway. Lifted-state variants for the
-   x-locked block drag, keyed off data-proto-drag on <html> (set by
-   proto-drag.js from ?variant=). Delete this whole section, plus
-   proto-drag.js, its blocks.templ include, and the pointer.js hook,
-   once a variant wins.
-   ============================================================ */
-
-/* A — Rail: classic pick-up. The block lifts (scale + deep shadow)
-   and slides on a vertical rail; siblings untouched. */
-:root[data-proto-drag="a"] .blocks .block-item.dragging {
-  transition: scale 0.15s ease-out, box-shadow 0.15s ease-out,
-    opacity 0.15s ease-out;
-  scale: 1.02;
-  opacity: 1;
-  box-shadow:
-    0 10px 24px color-mix(in srgb, var(--ink) 22%, transparent),
-    0 2px 6px color-mix(in srgb, var(--ink) 14%, transparent);
-}
-
-/* B — Tether: the lateral rubber-band pull + tilt live in pointer.js;
-   shadowless (shadows read wrong on the dark schemes) — the scale-up,
-   slight translucency, and snap back to the rail carry the lift. */
-:root[data-proto-drag="b"] .blocks .block-item.dragging {
-  transition: scale 0.15s ease-out, opacity 0.15s ease-out;
-  scale: 1.04;
-  opacity: 0.92;
-  box-shadow: none; /* override the base .dragging shadow-lift */
-}
-
-/* C — Groove: no lift at all — the block presses IN (scale down, inset
-   shadow, accent ring) and the rest of the day recedes, like sliding a
-   tile along a track. */
-:root[data-proto-drag="c"] .blocks .block-item.dragging {
-  transition: scale 0.15s ease-out, box-shadow 0.15s ease-out,
-    opacity 0.15s ease-out;
-  scale: 0.975;
-  opacity: 1;
-  box-shadow: inset 0 2px 6px color-mix(in srgb, var(--ink) 25%, transparent);
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-:root[data-proto-drag="c"] .blocks:has(.block-item.dragging) {
-  .block-item:not(.dragging) {
-    opacity: 0.55;
-  }
-  .slot-add,
-  .gutter {
-    opacity: 0.35;
-  }
-}
-
-/* Floating variant switcher — deliberately NOT part of the design. */
-.proto-bar {
-  position: fixed;
-  bottom: 1rem;
-  left: 50%;
-  translate: -50% 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--bg);
-  font-size: 0.8rem;
-  font-weight: 600;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 35%, transparent);
-
-  button {
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    padding: 0.15rem 0.4rem;
-    border-radius: 999px;
-  }
-  button:hover {
-    background: color-mix(in srgb, var(--bg) 20%, transparent);
   }
 }

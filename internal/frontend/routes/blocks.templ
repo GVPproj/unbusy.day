@@ -46,9 +46,6 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 					// the block entry transition (app.css) then greets only SSE-inserted blocks.
 					if (list) requestAnimationFrame(() => requestAnimationFrame(() => list.classList.add("hydrated")))
 				</script>
-				// PROTOTYPE proto-drag: ?variant= switcher for the x-locked drag
-				// lifted-state exploration. Remove with proto-drag.js when done.
-				<script type="module" src="/static/proto-drag.js"></script>
 				<script type="module" src="/static/now.js"></script>
 				<script type="module" src="/static/shortcuts.js"></script>
 			</main>

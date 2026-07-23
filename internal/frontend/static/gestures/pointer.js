@@ -204,7 +204,7 @@ function startDrag(e, el) {
 	const pitch = slotPitch(list);
 	const x = motionValue(0);
 	const y = motionValue(0);
-	// PROTOTYPE proto-drag: tilt for the "tether" variant; harmless 0 elsewhere.
+	// Tilt driven by the resisted lateral pull (see applyDrag).
 	const rot = motionValue(0);
 	drag = {
 		el,
@@ -244,13 +244,15 @@ function applyDrag() {
 	const dy = d.lastY - d.startY;
 	if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) d.moved = true;
 	const y = Math.max(d.minY, Math.min(d.maxY, dy));
-	// PROTOTYPE proto-drag: x is locked to the list. Variants a/c pin it to 0;
-	// b resists the lateral pull rubber-band style and tilts with it.
-	// (Pre-prototype behavior was d.x.set(dx).)
-	const variant = document.documentElement.dataset.protoDrag;
-	const px = variant === "b" ? 36 * Math.tanh(dx / 90) : 0;
+	// X is locked to the column: lateral pull is rubber-band resisted and tilts
+	// the block, so the drag feels tethered to the list. Amplitude stays small
+	// (10px, ~2.5°) — the grid's clip box has ~1rem of slack (app.css), which
+	// must absorb the lift scale (~3px) plus this drift plus the tilt corners.
+	// Tilt is decorative rotation, so reduced-motion drops it; the drift
+	// itself is direct manipulation.
+	const px = 10 * Math.tanh(dx / 60);
 	d.x.set(px);
-	d.rot.set(variant === "b" ? px / 6 : 0);
+	d.rot.set(reduceMotion.matches ? 0 : px / 4);
 	d.y.set(y);
 	previewDrag(d.orig.slot + Math.round(y / d.pitch));
 }
