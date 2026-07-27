@@ -4,8 +4,13 @@ A second panel beside the Day Plan holding one persistent, free-text scratchpad
 per User. Written continuously with no save button; read back on every page
 load.
 
-Status: **spec, not built.** Scope below is v1 (steps 1–4, 6, 7). Cross-device
-live sync is deliberately deferred — see [Follow-up](#follow-up-live-sync-deferred).
+Status: **built.** All six [build-order](#build-order) steps shipped in
+`feat/jotpad`. Cross-device live sync is deliberately deferred — see
+[Follow-up](#follow-up-live-sync-deferred).
+
+The design below is unchanged by the build: nothing in it was contradicted.
+What the build added is marked **Built:** inline, so this file stays a record of
+the reasoning rather than turning into a changelog.
 
 ## Domain
 
@@ -47,6 +52,13 @@ in styling — are not peers in the document outline (see
 - The debounce is **flushed** on `blur`, `visibilitychange`, and `pagehide`.
   `pagehide` matters specifically because iOS PWAs (ADR 0010) get suspended
   without a clean unload — that is where a paragraph would otherwise be lost.
+
+  **Built:** not literally a flush. Datastar exposes no way to drain a pending
+  `__debounce`, and a `fetch` started during teardown is routinely cancelled —
+  precisely the case `pagehide` exists for. So `jot.js` sends an independent
+  `navigator.sendBeacon` on all three events instead. It tracks only its own
+  sends, so a beacon after a debounced `@post` repeats it: one duplicate write
+  beats a lost one, and the endpoint is a whole-text replace either way.
 - `POST /jot` responds **204, no patch.** The DOM is already correct; patching
   a textarea the user is typing into is exactly the thing to avoid.
 - No save button, no save indicator, no dirty marker.
@@ -74,6 +86,17 @@ data-loss trap.
 The only editing assistance. Pressing Enter on a line beginning with a list
 marker inserts the marker on the next line; pressing Enter on an otherwise
 empty marker line clears it.
+
+**Built:** the markers are `-`/`*`/`+`, ordered `N.`/`N)` (which continue with
+the next number), and — a judgement call worth flagging — `- [ ]`/`- [x]`,
+which continue as a fresh **unticked** box. That is plain text, not the
+*clickable* checkbox ruled out above, and it needs no rendering; but it is
+wider than "inserts the marker," and it is one regex group and two tests to
+remove if that reads as scope creep. A caret inside the marker, a selection, or
+a marker with no trailing space all get no assistance — the browser's own Enter
+stands. The edit is applied through `execCommand`, the only path that both
+preserves the browser's undo stack and fires the native `input` event
+`data-bind` needs.
 
 **Tab does not indent.** Intercepting Tab inside a textarea removes the only
 way a keyboard user can leave the control — WCAG 2.1.2 (No Keyboard Trap), a
@@ -188,6 +211,12 @@ component.
   opened every few minutes. At that frequency consistency with every other
   global action wins. If real use proves otherwise, promoting it to a segmented
   control in `DateHeading` is a contained change.
+
+  **Built:** the icon swaps with the label, because a note icon beside "View
+  Blocks" reads wrong. That needed one new icon, `IconJot`, in all three feeling
+  sets — drawn in each set's idiom rather than lifted from it, since none ships
+  a note glyph that reads at 24px beside the others. The Blocks state reuses
+  `IconBlocks`, which already existed unused.
 - **Resets to Blocks on every load.** A planner should open on the plan, and
   persisting the choice means adopting the theme's pre-paint-script pattern for
   a third thing to avoid a visible panel flip.
@@ -264,6 +293,12 @@ its child text content no longer updates its value, so an idiomorph element
 patch would silently fail to update exactly the devices most likely to be
 stale. Property assignment does not have that problem.
 
+**Built:** the initial value still arrives as the textarea's server-rendered
+child content, which `data-bind` adopts on init. That runs into a second parser
+rule: **a newline immediately after the `<textarea>` start tag is dropped**. So
+the render emits a sacrificial one, and a jot that begins with a blank line
+keeps it instead of losing that line on every reload. There is a test for it.
+
 ### Smoke canary — do this first
 
 Two non-obvious behaviours are load-bearing. Both are cheap to falsify now
@@ -277,9 +312,16 @@ rather than mid-build, and `/_smoke` exists for exactly this:
 If either fails, fall back to the non-underscore name plus six `exclude`
 clauses — same design, fail-open instead of fail-safe.
 
-**Leave the assertions in `/_smoke` permanently.** That route is already the
+**Result: both hold** on the pinned client bundle (v1.0.2), checked in a real
+browser before anything else was built. `/_smoke/events` patches `$_smokesig`,
+the page shows the stored value and posts it straight back through that exact
+`filterSignals` pair, and `/_smoke/echo` returns it verbatim. The fallback was
+never needed, and the underscore name is what shipped.
+
+**The assertions stay in `/_smoke` permanently.** That route is already the
 canary for the pinned Datastar version; keeping them turns a future bump from a
-silent Jotpad breakage into a visible canary failure.
+silent Jotpad breakage into a visible canary failure — Go tests pin the two
+wire halves, and the page itself shows the browser half.
 
 ## Build order
 
@@ -299,6 +341,8 @@ silent Jotpad breakage into a visible canary failure.
 
 Steps 1–4 are already a complete, useful single-device Jotpad.
 
+**All six shipped**, in that order, in one commit on `feat/jotpad`.
+
 ### Verification
 
 - `task test` — Go unit tests for `jot.Service`, a frontend handler test for
@@ -306,6 +350,21 @@ Steps 1–4 are already a complete, useful single-device Jotpad.
   `continueList`.
 - The `verify` skill for a headless visual pass at both regimes: side-by-side
   above 52rem (including the FAB clearance) and the mobile toggle below it.
+
+**Done, all green.** `jot.Service` covers the empty default, the round trip
+(untrimmed), clearing, the cap at/over the limit counted in *characters* not
+bytes, and cross-owner isolation. The handler tests pin 204-with-no-body, the
+empty write, and — the one that matters — that an over-cap rejection never
+patches the textarea. Render tests pin the single `<main>`, the named `<aside>`
+landmark, the write wiring, and the sacrificial newline. `continueList` has 15
+cases.
+
+The headless pass confirmed both regimes: two 460px panels sharing a baseline
+with the FAB cleared, the mobile toggle swapping panels and label with the
+drawer closing behind it, the textarea keeping its value across a switch, list
+continuation and the empty-marker clear working against real `execCommand`,
+persistence across a reload, and Clear leaving the Jotpad alone. No console
+errors at either width.
 
 ## Follow-up: live sync (deferred)
 
