@@ -4,6 +4,11 @@ package frontend
 // #smoke-target for Datastar's default outer-morph and opens an SSE stream to
 // /_smoke/events on load, proving the pinned Datastar runtime applies a wire
 // frame. Kept deliberately bare — the wiring is the thing under test.
+//
+// It also carries the Jotpad's underscore-signal canary (see smoke.go): the
+// stream patches $_smokesig, the page echoes it back through the same
+// filterSignals shape the Jotpad write path uses, and #smoke-echo shows the
+// round trip. A Datastar bump that breaks either half fails visibly here.
 templ SmokePage() {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -12,11 +17,27 @@ templ SmokePage() {
 			<title>ds smoke</title>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
 		</head>
-		<body data-init="@get('/_smoke/events')">
+		<body data-init="@get('/_smoke/events')" data-signals:_smokesig="''">
 			<main>
 				<h1>Datastar smoke</h1>
 				<p>The line below should change from "awaiting patch…" to "patched by datastar" within a tick of load.</p>
 				<div id="smoke-target">awaiting patch…</div>
+				<p>
+					Then both canary lines below should fill in: the signal the server
+					patched, and that same value echoed back off a POST that carried it.
+				</p>
+				<div id="smoke-signal" data-text="$_smokesig || 'awaiting signal…'"></div>
+				// The echo trigger, kept out of #smoke-echo so the patch can't morph
+				// its own handler away. `exclude: /^$/` replaces Datastar's default
+				// underscore-stripping pattern so this one request may carry an
+				// underscore signal; it matches only the empty string, and no signal
+				// is named "".
+				<div
+					hidden
+					data-on-signal-patch-filter="{include: /^_smokesig$/}"
+					data-on-signal-patch="$_smokesig && @post('/_smoke/echo', {filterSignals: {include: /^_smokesig$/, exclude: /^$/}})"
+				></div>
+				<div id="smoke-echo">awaiting echo…</div>
 			</main>
 		</body>
 	</html>
@@ -27,4 +48,10 @@ templ SmokePage() {
 // the page-side anchor and the patch-side replacement evolve together.
 templ SmokeFragment(message string) {
 	<div id="smoke-target">{ message }</div>
+}
+
+// SmokeEchoFragment reports what /_smoke/echo received, so a browser check is
+// a string compare against the value the stream patched.
+templ SmokeEchoFragment(received string) {
+	<div id="smoke-echo">{ "echoed: " + received }</div>
 }

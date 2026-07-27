@@ -100,6 +100,16 @@ templ IconKeyboard() {
 	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.045 18.894 9.94 12 3.045 5.106a.75.75 0 0 1 1.06-1.061l7.425 7.425a.75.75 0 0 1 0 1.06l-7.424 7.425a.75.75 0 0 1-1.061-1.06Zm8.205.606a.75.75 0 0 0 0 1.5h9.5a.75.75 0 0 0 0-1.5h-9.5Z"/></svg>`)
 }
 
+// IconJot is the nav's "View Jotpad" action: a written-on page. Drawn here in
+// each set's idiom rather than lifted from it (duotone fill + hairline rules
+// for solar, 2px steps for pixel, .75-offset paths for mono), since none of
+// the three ships a note icon that reads at 24px beside the others.
+templ IconJot() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 8c0-2.828 0-4.243.879-5.121C4.757 2 6.172 2 9 2h6c2.828 0 4.243 0 5.121.879C21 3.757 21 5.172 21 8v8c0 2.828 0 4.243-.879 5.121C19.243 22 17.828 22 15 22H9c-2.828 0-4.243 0-5.121-.879C3 20.243 3 18.828 3 16z" opacity=".5"/><path fill="currentColor" d="M7.25 8A.75.75 0 0 1 8 7.25h8a.75.75 0 0 1 0 1.5H8A.75.75 0 0 1 7.25 8m0 4a.75.75 0 0 1 .75-.75h8a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1-.75-.75m0 4a.75.75 0 0 1 .75-.75h5a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1-.75-.75"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 2h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zM4 20h16v2H4zM7 7h10v2H7zm0 4h10v2H7zm0 4h6v2H7z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3.75 3h16.5c.966 0 1.75.784 1.75 1.75v14.5A1.75 1.75 0 0 1 20.25 21H3.75A1.75 1.75 0 0 1 2 19.25V4.75C2 3.784 2.784 3 3.75 3Zm-.25 1.75v14.5c0 .138.112.25.25.25h16.5a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H3.75a.25.25 0 0 0-.25.25Z"/><path d="M6.75 8h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1 0-1.5Zm0 3.5h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1 0-1.5Zm0 3.5h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5Z"/></svg>`)
+}
+
 // IconClear is the trash bin for the nav's "remove all blocks" action.
 templ IconClear() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6.524c0-.395.327-.714.73-.714h4.788c.006-.842.098-1.995.932-2.793A3.68 3.68 0 0 1 12 2a3.68 3.68 0 0 1 2.55 1.017c.834.798.926 1.951.932 2.793h4.788c.403 0 .73.32.73.714a.72.72 0 0 1-.73.714H3.73A.72.72 0 0 1 3 6.524"/><path fill="currentColor" d="M11.596 22h.808c2.783 0 4.174 0 5.08-.886c.904-.886.996-2.339 1.181-5.245l.267-4.188c.1-1.577.15-2.366-.303-2.865c-.454-.5-1.22-.5-2.753-.5H8.124c-1.533 0-2.3 0-2.753.5s-.404 1.288-.303 2.865l.267 4.188c.185 2.906.277 4.36 1.182 5.245c.905.886 2.296.886 5.079.886" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M9.425 11.482c.413-.044.78.273.821.707l.5 5.263c.041.433-.26.82-.671.864c-.412.043-.78-.273-.821-.707l-.5-5.263c-.041-.434.26-.821.671-.864m5.15 0c.412.043.713.43.671.864l-.5 5.263c-.04.434-.408.75-.82.707c-.413-.044-.713-.43-.672-.864l.5-5.264c.041-.433.409-.75.82-.707" clip-rule="evenodd"/></svg>`)

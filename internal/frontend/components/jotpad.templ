@@ -1,0 +1,32 @@
+package components
+
+import (
+	"strconv"
+
+	"github.com/GVPproj/unbusy.day/internal/jot"
+)
+
+// Styling lives in app.css: @scope (.jotpad), plus .panels in the layout layer.
+
+// Jotpad is the second panel, an <aside> because two <main>s are invalid HTML —
+// which also gives screen readers two named landmarks to move between.
+// data-bind sets the value *property*, sidestepping the textarea dirty value
+// flag that would make an element patch silently miss a typed-in field.
+// exclude: /^$/ replaces Datastar's default underscore-stripping so this one
+// request may carry $_jot; it matches only the empty string, and no signal is
+// named "".
+templ Jotpad(text string) {
+	<aside class="column jotpad" aria-labelledby="jot-heading">
+		<h2 id="jot-heading">Jotpad</h2>
+		// The leading newline is sacrificial: an HTML parser drops one right
+		// after the start tag, so without it a jot starting blank loses that line.
+		<textarea
+			id="jot"
+			aria-labelledby="jot-heading"
+			maxlength={ strconv.Itoa(jot.MaxLen) }
+			placeholder="Anything that isn't a block. Nothing here ever resets."
+			data-bind:_jot
+			data-on:input__debounce.1s="@post('/jot', {filterSignals: {include: /^_jot$/, exclude: /^$/}})"
+		>{ "\n" + text }</textarea>
+	</aside>
+}

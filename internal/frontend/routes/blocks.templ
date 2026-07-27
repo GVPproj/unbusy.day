@@ -10,9 +10,12 @@ import (
 // BlocksPage is the full document. retry 'always' matches EventSource
 // semantics: Datastar's default 'auto' never reconnects after a *clean* stream
 // end, leaving the tab silently deaf.
-templ BlocksPage(cs []block.Block, b block.Bounds) {
+// $_jotopen is client-only (underscore = never sent to the server) and starts
+// false on every load: a planner should open on the plan. Above 52rem both
+// panels are visible and the signal is inert.
+templ BlocksPage(cs []block.Block, b block.Bounds, jotText string) {
 	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
-		<div class="shell" data-signals:_navopen="false">
+		<div class="shell" data-signals:_navopen="false" data-signals:_jotopen="false">
 			@components.SideNav()
 			@components.MenuToggle()
 			@modals.ThemeModal()
@@ -22,8 +25,12 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 			@modals.GuideModal()
 			@modals.ShortcutsModal()
 			@modals.DialogInit()
-			// .shell/.column geometry lives in app.css's layout layer.
-			<main class="column">
+			// .shell/.panels/.column geometry lives in app.css's layout layer.
+			// Both panels stay in the DOM at every width — below 52rem CSS hides
+			// one, so switching is instant and the textarea keeps its value,
+			// caret, and scroll position.
+			<div class="panels" data-class:jot-open="$_jotopen">
+				<main class="column">
 				@components.DateHeading()
 				@components.BlockColumn(cs, b)
 				// Keyboard-a11y scaffolding, kept OUTSIDE #block-list so SSE morphs
@@ -46,9 +53,18 @@ templ BlocksPage(cs []block.Block, b block.Bounds) {
 					// the block entry transition (app.css) then greets only SSE-inserted blocks.
 					if (list) requestAnimationFrame(() => requestAnimationFrame(() => list.classList.add("hydrated")))
 				</script>
-				<script type="module" src="/static/now.js"></script>
-				<script type="module" src="/static/shortcuts.js"></script>
-			</main>
+					<script type="module" src="/static/now.js"></script>
+					<script type="module" src="/static/shortcuts.js"></script>
+				</main>
+				@components.Jotpad(jotText)
+				// Enter list continuation, plus the flushes of the 1s debounce that
+				// Datastar attributes can't make reliable during page teardown.
+				<script type="module">
+					import { initJotpad } from "/static/jot.js"
+					const jot = document.getElementById("jot")
+					if (jot) initJotpad(jot, "/jot")
+				</script>
+			</div>
 			@components.ShortcutsFab()
 		</div>
 	}

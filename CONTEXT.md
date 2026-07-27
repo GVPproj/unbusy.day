@@ -35,6 +35,15 @@ later than 18:00 (for now). The day can only shrink into empty Slots: a
 bounds change that would leave any Block outside the Day Plan is rejected.
 The User's current time of day is indicated live on the plan.
 
+## Jotpad
+A User's private, perpetual scratchpad: one free-text document, owned by
+exactly one User, sitting beside their Day Plan. It has no lifecycle of its
+own — it does not reset, roll over, or expire, and the User is the only thing
+that empties it. Where the Day Plan has no history because a day ends, the
+Jotpad has no history because it never does. It is markdown-*flavoured* by
+convention only: nothing renders it, and its value is exactly the characters
+the User typed. Clearing the Day Plan does not touch it.
+
 ## Template (future)
 A reusable Day Plan layout a User can stamp onto their Day Plan. Not built
 yet; named here so "one rolling Day Plan" isn't read as "one layout forever."

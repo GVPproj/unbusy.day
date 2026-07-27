@@ -138,7 +138,7 @@ func TestPageHostsHoursModalWithOpener(t *testing.T) {
 
 	req := authedRequest(http.MethodGet, "/", "")
 	rec := httptest.NewRecorder()
-	PageHandler(svc).ServeHTTP(rec, req)
+	PageHandler(svc, newFakeJot()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)

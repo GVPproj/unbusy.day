@@ -386,6 +386,39 @@
     min-height: 100vh;
   }
 
+  /* The Day Plan and the Jotpad, side by side above 52rem. Both panels
+	   flex from a zero basis so they share and shrink together rather than
+	   demanding the ~74rem two full-width columns would need. Below 52rem
+	   they stack in the same cell and .jot-open picks which one shows —
+	   a class, not data-show, so the toggle is inert at desktop widths. */
+  .panels {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+
+    @media (width >= 52rem) {
+      gap: 1.5rem;
+      padding-inline: 1rem;
+    }
+
+    @media (width < 52rem) {
+      /* Both panels stay in the DOM so switching keeps each one's value,
+			   caret, and scroll position; only one is displayed. */
+      > .jotpad {
+        display: none;
+      }
+
+      &.jot-open > .column:not(.jotpad) {
+        display: none;
+      }
+
+      &.jot-open > .jotpad {
+        display: flex;
+      }
+    }
+  }
+
   /* A flex column at every size so DateHeading is a fixed header and
 	   the .blocks grid is the only scroll region. */
   .column {
@@ -401,6 +434,12 @@
 
     @media (width >= 52rem) {
       max-height: calc(100svh - 6rem);
+      /* Narrower than the 520px a lone column used to take: two panels at
+			   that width don't fit a 13" laptop at default scaling. */
+      flex: 1 1 0;
+      max-width: 460px;
+      margin-inline: 0;
+      min-width: 0;
     }
 
     @media (width < 52rem) {
@@ -1412,6 +1451,14 @@
       min-width: max-content;
     }
 
+    /* Panel switch: only meaningful below 52rem, where one panel shows at a
+		   time. Above it both are visible and $_jotopen is inert. */
+    .jot-toggle {
+      @media (width >= 52rem) {
+        display: none;
+      }
+    }
+
     .nav-icon {
       line-height: 0;
       color: var(--nav-icon);
@@ -2283,6 +2330,69 @@
           var(--nav-icon) 0 6px,
           transparent 6px 10px
         );
+      }
+    }
+  }
+
+  /* --- components/jotpad.templ → @scope (.jotpad): the second panel.
+	       Same .column chrome as the Day Plan; the textarea fills what's
+	       left and is the panel's only scroll region. --- */
+  @scope (.jotpad) {
+    /* Mirrors .date-heading's metrics so the two panel headers share a
+		   baseline above 52rem, and the toggle doesn't shift the header bar
+		   below it. */
+    h2 {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      flex-shrink: 0;
+      font-weight: 700;
+      color: var(--ink);
+
+      @media (width >= 52rem) {
+        min-height: 2rem;
+      }
+
+      @media (width < 52rem) {
+        z-index: 11;
+        height: 3.5rem;
+        margin-bottom: 0;
+        padding-top: 0.75rem;
+        padding-inline: 1rem;
+        /* Clear the fixed hamburger (right: 1rem). */
+        padding-right: 4.25rem;
+        background: var(--column-bg);
+      }
+    }
+
+    /* Fills the panel and scrolls internally — no auto-grow, which would
+		   either fight .column's height cap or bring back document scroll.
+		   resize: none because a user-resizable box inside a fixed-height flex
+		   panel just breaks the layout. */
+    textarea {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      resize: none;
+      border: none;
+      background: transparent;
+      color: var(--ink);
+      font-family: inherit;
+      font-size: var(--text-base);
+      line-height: 1.6;
+      /* The .shortcuts-fab is fixed over this panel's bottom-right corner
+			   above 52rem; clear its height rather than move the FAB, which
+			   deliberately shares the rail's baseline. */
+      @media (width >= 52rem) {
+        padding-bottom: 3.5rem;
+      }
+
+      @media (width < 52rem) {
+        padding: 0.75rem 1rem 1rem;
+      }
+
+      &::placeholder {
+        color: var(--ink-muted);
       }
     }
   }

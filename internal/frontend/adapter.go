@@ -43,17 +43,26 @@ func snapshot(ctx context.Context, svc BlockService, owner string) ([]block.Bloc
 }
 
 // PageHandler serves the column page, server-rendered on every hit (no-cache).
-func PageHandler(svc BlockService) http.Handler {
+// The page load is the Jotpad's only read: SSE carries blocks, and nothing
+// re-renders a textarea the user may be typing into.
+func PageHandler(svc BlockService, jots JotService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bs, b, err := snapshot(r.Context(), svc, ownerFrom(r.Context()))
+		owner := ownerFrom(r.Context())
+		bs, b, err := snapshot(r.Context(), svc, owner)
 		if err != nil {
 			log.Printf("ds page list: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		jotText, err := jots.Get(r.Context(), owner)
+		if err != nil {
+			log.Printf("ds page jot: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := routes.BlocksPage(bs, b).Render(r.Context(), w); err != nil {
+		if err := routes.BlocksPage(bs, b, jotText).Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
 		}
 	})
