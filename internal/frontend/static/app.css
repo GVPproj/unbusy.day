@@ -440,6 +440,7 @@
       max-width: 460px;
       margin-inline: 0;
       min-width: 0;
+      border: 1px solid var(--rail-border);
     }
 
     @media (width < 52rem) {
@@ -1374,6 +1375,7 @@
       padding: 0.75rem 0.5rem;
       background: var(--nav-bg);
       color: var(--nav-ink);
+      border-right: 1px solid var(--rail-border);
 
       /* Translate/transition live here only, so the rail never picks up
 			   a transform. */
@@ -1459,6 +1461,13 @@
       }
     }
 
+    /* The shortcuts reference is useless without a physical keyboard. */
+    .shortcuts-nav {
+      @media (width < 52rem) {
+        display: none;
+      }
+    }
+
     .nav-icon {
       line-height: 0;
       color: var(--nav-icon);
@@ -1525,57 +1534,6 @@
           opacity: 0;
         }
       }
-    }
-  }
-
-  /* components/nav.templ ShortcutsFab: desktop-only fixed bottom-right
-     control mirroring the rail's Log Out button. bottom: 0.75rem matches
-     the rail's padding-block so the two share a baseline; nav-* tokens
-     echo the rail so it reads as its mirror. Hidden below sm. */
-  .shortcuts-fab {
-    display: none;
-
-    @media (width >= 52rem) {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.125rem;
-      position: fixed;
-      right: 1rem;
-      bottom: 0.75rem;
-      z-index: 30;
-      padding: 0.5rem 0.75rem;
-      border: none;
-      border-radius: var(--radius);
-      color: var(--nav-ink);
-      font-size: 0.85rem;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-
-      &:hover {
-        background: var(--nav-hover);
-      }
-
-      .icon {
-        color: var(--nav-icon);
-      }
-    }
-  }
-
-  /* Light-page schemes: the FAB's nav-ink label and gold icon (tuned for the
-     dark rail behind them) wash out against the light page bg. Recolor both to
-     the scheme's dark gutter-ink and darken the hover tint. */
-  :root[data-colorscheme="solarized-light"] .shortcuts-fab,
-  :root[data-colorscheme="rose-pine-dawn"] .shortcuts-fab {
-    color: var(--gutter-ink);
-
-    .icon {
-      color: var(--gutter-ink);
-    }
-
-    &:hover {
-      background: color-mix(in srgb, var(--gutter-ink) 8%, transparent);
     }
   }
 
@@ -2374,18 +2332,17 @@
       min-height: 0;
       width: 100%;
       resize: none;
-      border: none;
-      background: transparent;
+      /* Same rule as the .blocks hour lines, so both panels read as one grid. */
+      border: 1px solid var(--rail-border);
+      background: var(--bg);
+      border-radius: var(--radius-lg);
       color: var(--ink);
       font-family: inherit;
       font-size: var(--text-base);
       line-height: 1.6;
-      /* The .shortcuts-fab is fixed over this panel's bottom-right corner
-			   above 52rem; clear its height rather than move the FAB, which
-			   deliberately shares the rail's baseline. */
-      @media (width >= 52rem) {
-        padding-bottom: 3.5rem;
-      }
+      /* Same interior inset as .block-item, so prose sits off the box edge
+			   by what a block's label does. */
+      padding: 0.65rem 0.75rem 0.75rem;
 
       @media (width < 52rem) {
         padding: 0.75rem 1rem 1rem;
