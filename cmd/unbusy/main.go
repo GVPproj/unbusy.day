@@ -26,11 +26,13 @@ func newMailer() auth.Mailer {
 		return auth.LogMailer{}
 	}
 	log.Printf("auth: SMTP mailer via %s", host)
+
 	// Missing logo asset falls back to the text wordmark, not a boot failure.
 	logo, err := frontend.Asset("static/icon-192.png")
 	if err != nil {
 		log.Printf("auth: email logo unavailable, using text wordmark: %v", err)
 	}
+
 	return auth.NewSMTPMailer(
 		host,
 		envOr("SMTP_PORT", "587"),
@@ -150,6 +152,7 @@ func main() {
 	loginRL := frontend.NewLoginRateLimiter(secureCookies)
 	// Turnstile presence gate; no secret set → dev no-op.
 	presence := frontend.NewPresenceVerifier(os.Getenv("TURNSTILE_SECRET"))
+
 	mux.Handle("POST /login/code", loginRL.Limit(frontend.RequestCodeHandler(authSvc, presence)))
 	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, blockSvc, secureCookies))
 	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, secureCookies))
