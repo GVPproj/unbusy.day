@@ -400,6 +400,12 @@
     @media (width >= 52rem) {
       gap: 1.5rem;
       padding-inline: 1rem;
+      /* The pair carries the width cap, not each panel: they fill the space
+			   the rail leaves and only stop growing on very wide displays, where
+			   the auto margins split the leftover instead of piling it on the
+			   right. */
+      max-width: 90rem;
+      margin-inline: auto;
     }
 
     @media (width < 52rem) {
@@ -434,10 +440,10 @@
 
     @media (width >= 52rem) {
       max-height: calc(100svh - 6rem);
-      /* Narrower than the 520px a lone column used to take: two panels at
-			   that width don't fit a 13" laptop at default scaling. */
+      /* Uncapped: both panels share whatever .panels is given, so they shrink
+			   together on a 13" laptop and widen together on a large display. */
       flex: 1 1 0;
-      max-width: 460px;
+      max-width: none;
       margin-inline: 0;
       min-width: 0;
       border: 1px solid var(--rail-border);
