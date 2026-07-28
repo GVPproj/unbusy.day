@@ -442,7 +442,8 @@
 
     @media (width >= 52rem) {
       gap: 1.5rem;
-      padding-inline: 1rem;
+      /* Match the gap between the panels, so the pair sits in even gutters. */
+      padding-inline: 1.5rem;
       /* The pair carries the width cap, not each panel: they fill the space
 			   the rail leaves and only stop growing on very wide displays, where
 			   the auto margins split the leftover instead of piling it on the
@@ -482,7 +483,10 @@
     overflow: hidden;
 
     @media (width >= 52rem) {
-      max-height: calc(100svh - 6rem);
+      /* Block margin matches the rail's 0.75rem padding, so the panels'
+			   edges line up with the logo top and the Log Out bottom. */
+      margin-block: 0.75rem;
+      max-height: calc(100svh - 1.5rem);
       /* Uncapped: both panels share whatever .panels is given, so they shrink
 			   together on a 13" laptop and widen together on a large display. */
       flex: 1 1 0;
@@ -2346,6 +2350,14 @@
 
       &::placeholder {
         color: var(--ink-muted);
+      }
+
+      /* Textareas match :focus-visible even on mouse focus, so the default
+			   ring would sit there the whole time you type. Indicate focus on the
+			   box's own border instead. */
+      &:focus-visible {
+        outline: none;
+        border-color: var(--accent);
       }
     }
   }

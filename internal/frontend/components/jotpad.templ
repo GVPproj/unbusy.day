@@ -8,6 +8,22 @@ import (
 
 // Styling lives in app.css: @scope (.jotpad), plus .panels in the layout layer.
 
+// Newlines are legal in a textarea placeholder and render as line breaks,
+// letting the empty pad sketch a weekly outline.
+const jotPlaceholder = `e.g.
+
+## Monday
+
+- call Mom
+
+## Tuesday
+
+## Wednesday
+
+## Thursday
+
+## Friday`
+
 // Jotpad is the second panel, an <aside> because two <main>s are invalid HTML —
 // which also gives screen readers two named landmarks to move between.
 // data-bind sets the value *property*, sidestepping the textarea dirty value
@@ -24,7 +40,7 @@ templ Jotpad(text string) {
 			id="jot"
 			aria-labelledby="jot-heading"
 			maxlength={ strconv.Itoa(jot.MaxLen) }
-			placeholder="Anything that isn't a block. Nothing here ever resets."
+			placeholder={ jotPlaceholder }
 			data-bind:_jot
 			data-on:input__debounce.1s="@post('/jot', {filterSignals: {include: /^_jot$/, exclude: /^$/}})"
 		>{ "\n" + text }</textarea>

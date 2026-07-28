@@ -27,6 +27,14 @@ templ SideNav() {
 		<div title="unbusy.day" class="nav-logo">
 			@UBLogo("51", "22")
 		</div>
+		<button class="jot-toggle" data-on:click="$_jotopen = !$_jotopen; $_navopen = false">
+			<span class="nav-icon" data-show="!$_jotopen">
+				@IconJot()
+			</span>
+			<span class="nav-icon" data-show="$_jotopen">
+				@IconBlocks()
+			</span><span data-text="$_jotopen ? 'View Plan' : 'View Jotpad'">View Jotpad</span>
+		</button>
 		<button commandfor="bounds-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="nav-icon">
 				@IconHours()
@@ -40,14 +48,6 @@ templ SideNav() {
 		</button>
 		// Below 52rem only one panel shows at a time; above it both are visible
 		// and this button is hidden (app.css), because $_jotopen is inert there.
-		<button class="jot-toggle" data-on:click="$_jotopen = !$_jotopen; $_navopen = false">
-			<span class="nav-icon" data-show="!$_jotopen">
-				@IconJot()
-			</span>
-			<span class="nav-icon" data-show="$_jotopen">
-				@IconBlocks()
-			</span><span data-text="$_jotopen ? 'View Blocks' : 'View Jotpad'">View Jotpad</span>
-		</button>
 		<button class="nav-tail" commandfor="theme-modal" command="show-modal" data-on:click="$_navopen = false">
 			<span class="nav-icon">
 				@IconTheme()
