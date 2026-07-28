@@ -2,7 +2,6 @@ package frontend
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -86,49 +85,52 @@ func patchEnvelope(sse *datastar.ServerSentEventGenerator, bs []block.Block) {
 	}
 }
 
-type layoutSignals struct {
-	Layout []block.Placement `json:"layout"`
-}
-
-// LayoutHandler submits the whole client-computed layout (ADR 0005) and
-// responds with an element-patch of the committed column.
-func LayoutHandler(svc BlockService) http.Handler {
+// mutate is the one mutation handler: read signals, pull the owner, call
+// apply, classify the error with block.IsRejection, and patch the committed
+// column. A rejection re-reads the authoritative state and still responds 200,
+// so the rejected optimistic change visibly snaps back (house convention);
+// anything else is a 500. The success path needs no re-read — apply's
+// Snapshot already carries the committed blocks and bounds.
+func mutate[S any](
+	svc BlockService,
+	apply func(ctx context.Context, owner string, sig S) (*block.Snapshot, error),
+) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig layoutSignals
+		var sig S
 		if err := datastar.ReadSignals(r, &sig); err != nil {
 			http.Error(w, "invalid signals body", http.StatusBadRequest)
 			return
 		}
 
 		owner := ownerFrom(r.Context())
-		res, err := svc.SetLayout(r.Context(), owner, sig.Layout)
-		var bs []block.Block
+		snap, err := apply(r.Context(), owner, sig)
 		switch {
-		case errors.Is(err, block.ErrNotSameBlocks), errors.Is(err, block.ErrOutOfBounds),
-			errors.Is(err, block.ErrOverlap), errors.Is(err, block.ErrInvalidSpan):
-			// Domain rejection: 200 + re-render of the authoritative column, so
-			// the rejected optimistic gesture visibly snaps back (house convention).
-			bs, err = svc.List(r.Context(), owner)
-			if err != nil {
-				log.Printf("ds layout rollback list: %v", err)
+		case block.IsRejection(err):
+			log.Printf("200 rejection %s: %v", r.URL.Path, err)
+			bs, b, rerr := snapshot(r.Context(), svc, owner)
+			if rerr != nil {
+				log.Printf("ds rejection re-read %s: %v", r.URL.Path, rerr)
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
+			snap = &block.Snapshot{Blocks: bs, Bounds: b}
 		case err != nil:
-			log.Printf("ds layout: %v", err)
+			log.Printf("ds mutate %s: %v", r.URL.Path, err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
-		default:
-			bs = res.Blocks
 		}
+		patchColumn(w, r, snap.Blocks, snap.Bounds)
+	})
+}
 
-		b, err := svc.Bounds(r.Context(), owner)
-		if err != nil {
-			log.Printf("ds layout bounds: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		patchColumn(w, r, bs, b)
+type layoutSignals struct {
+	Layout []block.Placement `json:"layout"`
+}
+
+// LayoutHandler submits the whole client-computed layout (ADR 0005).
+func LayoutHandler(svc BlockService) http.Handler {
+	return mutate(svc, func(ctx context.Context, owner string, sig layoutSignals) (*block.Snapshot, error) {
+		return svc.SetLayout(ctx, owner, sig.Layout)
 	})
 }
 
@@ -137,34 +139,10 @@ type boundsSignals struct {
 	End   block.Slot `json:"end"`
 }
 
-// BoundsHandler edits the owner's day extent and patches the column at the
-// committed bounds.
+// BoundsHandler edits the owner's day extent.
 func BoundsHandler(svc BlockService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig boundsSignals
-		if err := datastar.ReadSignals(r, &sig); err != nil {
-			http.Error(w, "invalid signals body", http.StatusBadRequest)
-			return
-		}
-
-		owner := ownerFrom(r.Context())
-		_, err := svc.SetBounds(r.Context(), owner, sig.Start, sig.End)
-		switch {
-		case errors.Is(err, block.ErrInvalidBounds), errors.Is(err, block.ErrBoundsOccupied):
-			log.Printf("200 rejection bounds: %v", err)
-		case err != nil:
-			log.Printf("ds bounds: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		bs, b, err := snapshot(r.Context(), svc, owner)
-		if err != nil {
-			log.Printf("ds bounds snapshot: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		patchColumn(w, r, bs, b)
+	return mutate(svc, func(ctx context.Context, owner string, sig boundsSignals) (*block.Snapshot, error) {
+		return svc.SetBounds(ctx, owner, sig.Start, sig.End)
 	})
 }
 
@@ -174,35 +152,10 @@ type createSignals struct {
 	Type  string     `json:"addtype"`
 }
 
-// CreateHandler inserts a new block at the modal's slot and patches the
-// committed column.
+// CreateHandler inserts a new block at the modal's slot.
 func CreateHandler(svc BlockService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig createSignals
-		if err := datastar.ReadSignals(r, &sig); err != nil {
-			http.Error(w, "invalid signals body", http.StatusBadRequest)
-			return
-		}
-
-		owner := ownerFrom(r.Context())
-		_, err := svc.Create(r.Context(), owner, sig.Label, sig.Slot, block.BlockType(sig.Type))
-		switch {
-		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrOutOfBounds),
-			errors.Is(err, block.ErrOverlap), errors.Is(err, block.ErrInvalidBlockType):
-			log.Printf("200 rejection create: %v", err)
-		case err != nil:
-			log.Printf("ds create: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		bs, b, err := snapshot(r.Context(), svc, owner)
-		if err != nil {
-			log.Printf("ds create snapshot: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		patchColumn(w, r, bs, b)
+	return mutate(svc, func(ctx context.Context, owner string, sig createSignals) (*block.Snapshot, error) {
+		return svc.Create(ctx, owner, sig.Label, sig.Slot, block.BlockType(sig.Type))
 	})
 }
 
@@ -210,53 +163,18 @@ type deleteSignals struct {
 	ID string `json:"deleteid"`
 }
 
-// DeleteHandler removes the clicked block and patches the committed column.
+// DeleteHandler removes the clicked block.
 func DeleteHandler(svc BlockService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig deleteSignals
-		if err := datastar.ReadSignals(r, &sig); err != nil {
-			http.Error(w, "invalid signals body", http.StatusBadRequest)
-			return
-		}
-
-		owner := ownerFrom(r.Context())
-		_, err := svc.Delete(r.Context(), owner, sig.ID)
-		switch {
-		case errors.Is(err, block.ErrBlockNotFound):
-			log.Printf("200 rejection delete: %v", err)
-		case err != nil:
-			log.Printf("ds delete: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		bs, b, err := snapshot(r.Context(), svc, owner)
-		if err != nil {
-			log.Printf("ds delete snapshot: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		patchColumn(w, r, bs, b)
+	return mutate(svc, func(ctx context.Context, owner string, sig deleteSignals) (*block.Snapshot, error) {
+		return svc.Delete(ctx, owner, sig.ID)
 	})
 }
 
-// ClearHandler removes all the owner's blocks; bounds are untouched.
+// ClearHandler removes all the owner's blocks; bounds are untouched. struct{}
+// signals: Datastar always posts a signals body, so the decode succeeds.
 func ClearHandler(svc BlockService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		owner := ownerFrom(r.Context())
-		if _, err := svc.Clear(r.Context(), owner); err != nil {
-			log.Printf("ds clear: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		bs, b, err := snapshot(r.Context(), svc, owner)
-		if err != nil {
-			log.Printf("ds clear snapshot: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		patchColumn(w, r, bs, b)
+	return mutate(svc, func(ctx context.Context, owner string, _ struct{}) (*block.Snapshot, error) {
+		return svc.Clear(ctx, owner)
 	})
 }
 
@@ -265,33 +183,10 @@ type renameSignals struct {
 	Label string `json:"renamelabel"`
 }
 
-// RenameHandler updates the edited block's label and patches the committed column.
+// RenameHandler updates the edited block's label.
 func RenameHandler(svc BlockService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var sig renameSignals
-		if err := datastar.ReadSignals(r, &sig); err != nil {
-			http.Error(w, "invalid signals body", http.StatusBadRequest)
-			return
-		}
-
-		owner := ownerFrom(r.Context())
-		_, err := svc.Rename(r.Context(), owner, sig.ID, sig.Label)
-		switch {
-		case errors.Is(err, block.ErrEmptyLabel), errors.Is(err, block.ErrBlockNotFound):
-			log.Printf("200 rejection rename: %v", err)
-		case err != nil:
-			log.Printf("ds rename: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		bs, b, err := snapshot(r.Context(), svc, owner)
-		if err != nil {
-			log.Printf("ds rename snapshot: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		patchColumn(w, r, bs, b)
+	return mutate(svc, func(ctx context.Context, owner string, sig renameSignals) (*block.Snapshot, error) {
+		return svc.Rename(ctx, owner, sig.ID, sig.Label)
 	})
 }
 

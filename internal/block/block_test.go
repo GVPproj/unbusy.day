@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -789,6 +790,29 @@ func TestMutatorsReturnAndPublishPostCommitSnapshot(t *testing.T) {
 				t.Fatalf("event = %+v, want committed {%q %+v %+v}", e, owner, blocks, bounds)
 			}
 		})
+	}
+}
+
+// Names every error in the package — the guard against adding an error and
+// forgetting to classify it in IsRejection.
+func TestIsRejection(t *testing.T) {
+	rejections := []error{
+		block.ErrNotSameBlocks, block.ErrOutOfBounds, block.ErrOverlap,
+		block.ErrInvalidSpan, block.ErrInvalidBounds, block.ErrBoundsOccupied,
+		block.ErrEmptyLabel, block.ErrBlockNotFound, block.ErrInvalidBlockType,
+	}
+	for _, err := range rejections {
+		if !block.IsRejection(err) {
+			t.Errorf("IsRejection(%v) = false, want true", err)
+		}
+		if !block.IsRejection(fmt.Errorf("wrapped: %w", err)) {
+			t.Errorf("IsRejection(wrapped %v) = false, want true", err)
+		}
+	}
+	for _, err := range []error{nil, errors.New("boom"), sql.ErrNoRows, context.Canceled} {
+		if block.IsRejection(err) {
+			t.Errorf("IsRejection(%v) = true, want false", err)
+		}
 	}
 }
 

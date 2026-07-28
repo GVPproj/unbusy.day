@@ -524,6 +524,84 @@ func TestCreateRejectionPatchesCurrentColumn(t *testing.T) {
 	}
 }
 
+func TestDeleteDelegatesToCoreAndPatchesColumn(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+
+	req := authedRequest(http.MethodPost, "/blocks/delete", `{"deleteid":"b"}`)
+	rec := httptest.NewRecorder()
+	DeleteHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner || svc.gotID != "b" {
+		t.Errorf("core Delete called with {%q,%q}, want {%q,b}", svc.gotOwner, svc.gotID, testOwner)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="block-list"`) {
+		t.Errorf("patch missing #block-list morph anchor; body:\n%s", body)
+	}
+	if strings.Contains(body, `data-id="b"`) {
+		t.Errorf("deleted block still in patch; body:\n%s", body)
+	}
+	assertOrder(t, body, "a", "c")
+}
+
+func TestRenameDelegatesToCoreAndPatchesColumn(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+
+	req := authedRequest(http.MethodPost, "/blocks/rename", `{"renameid":"a","renamelabel":"Renamed"}`)
+	rec := httptest.NewRecorder()
+	RenameHandler(svc).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if svc.gotOwner != testOwner || svc.gotID != "a" {
+		t.Errorf("core Rename called with {%q,%q}, want {%q,a}", svc.gotOwner, svc.gotID, testOwner)
+	}
+	if !strings.Contains(rec.Body.String(), "Renamed") {
+		t.Errorf("patch missing the new label; body:\n%s", rec.Body.String())
+	}
+}
+
+// The mutate seam's contract: any block.IsRejection error is 200 + the
+// authoritative column; anything else is a 500. Exercised through one handler
+// — every mutation handler is the same path.
+func TestMutateSplitsRejectionFromFault(t *testing.T) {
+	t.Run("rejection is 200 with the authoritative column", func(t *testing.T) {
+		svc := &fakeService{blocks: threeBlocks(), deleteErr: block.ErrBlockNotFound}
+		req := authedRequest(http.MethodPost, "/blocks/delete", `{"deleteid":"nope"}`)
+		rec := httptest.NewRecorder()
+		DeleteHandler(svc).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: want 200, got %d; body:\n%s", rec.Code, rec.Body.String())
+		}
+		assertOrder(t, rec.Body.String(), "a", "b", "c")
+	})
+	t.Run("fault is 500", func(t *testing.T) {
+		svc := &fakeService{blocks: threeBlocks(), deleteErr: errors.New("boom")}
+		req := authedRequest(http.MethodPost, "/blocks/delete", `{"deleteid":"a"}`)
+		rec := httptest.NewRecorder()
+		DeleteHandler(svc).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status: want 500, got %d; body:\n%s", rec.Code, rec.Body.String())
+		}
+	})
+	t.Run("garbage signals body is 400", func(t *testing.T) {
+		svc := &fakeService{blocks: threeBlocks()}
+		req := authedRequest(http.MethodPost, "/blocks/delete", `{"deleteid":`)
+		rec := httptest.NewRecorder()
+		DeleteHandler(svc).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status: want 400, got %d; body:\n%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
 func TestClearDelegatesToCoreAndPatchesEmptyColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 

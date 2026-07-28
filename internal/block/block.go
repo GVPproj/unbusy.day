@@ -56,6 +56,24 @@ var ErrEmptyLabel = errors.New("block label is required")
 var ErrBlockNotFound = errors.New("block not found")
 var ErrInvalidBlockType = errors.New("invalid block type")
 
+// IsRejection reports whether err is the User's doing (a rejected placement,
+// a blank label, an unknown id) rather than a fault. Rejections surface as
+// 200 + a re-render of the authoritative column, so the rejected optimistic
+// change visibly snaps back; faults are 500s. Every Err* in this package
+// belongs here — TestIsRejection names them all.
+func IsRejection(err error) bool {
+	for _, r := range []error{
+		ErrNotSameBlocks, ErrOutOfBounds, ErrOverlap, ErrInvalidSpan,
+		ErrInvalidBounds, ErrBoundsOccupied,
+		ErrEmptyLabel, ErrBlockNotFound, ErrInvalidBlockType,
+	} {
+		if errors.Is(err, r) {
+			return true
+		}
+	}
+	return false
+}
+
 type Service struct {
 	db  *sql.DB
 	pub Publisher
