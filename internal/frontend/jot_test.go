@@ -232,7 +232,7 @@ func openTag(t *testing.T, body, marker string) string {
 func TestSideNavCarriesTheJotpadToggle(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
-	for _, want := range []string{"View Jotpad", "View Blocks", `$_jotopen = !$_jotopen`} {
+	for _, want := range []string{"View Jotpad", "View Plan", `$_jotopen = !$_jotopen`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
 		}
