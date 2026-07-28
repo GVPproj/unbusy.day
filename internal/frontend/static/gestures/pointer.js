@@ -16,7 +16,9 @@ import {
 	styleEffect,
 } from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
 import { pushLayout } from "../push.js";
+import { droppedMsg, resizedMsg } from "../keyboard-reducer.js";
 import { enterEdit } from "./rename.js";
+import { commitGesture } from "./commit.js";
 import {
 	blocksIn,
 	placementOf,
@@ -24,7 +26,6 @@ import {
 	boundsNow,
 	slotPitch,
 	writeLayout,
-	sameLayout,
 } from "./grid.js";
 
 const SPRING = { type: "spring", stiffness: 600, damping: 38 };
@@ -39,6 +40,7 @@ const EDGE = 48; // px band at each edge that triggers auto-scroll
 const MAX_SPEED = 16; // px per frame at the very edge
 
 let list; // #block-list, injected via init
+let announce; // ctx.announce (msg) => void
 let arb; // cross-gesture arbitration handle ({ keyboard, pointer })
 let drag = null;
 let resize = null;
@@ -70,6 +72,7 @@ function cancel() {
 
 export function init(ctx, arbitration) {
 	list = ctx.list;
+	announce = ctx.announce;
 	arb = arbitration;
 	list.addEventListener("pointerdown", onPointerdown);
 	list.addEventListener("pointermove", onPointermove);
@@ -145,6 +148,7 @@ function springSibs(g, lay) {
 	const by = new Map(lay.map((p) => [p.id, p]));
 	g.sibs.forEach((s, c) => {
 		const p = by.get(c.dataset.id);
+		if (!p) return; // an SSE patch swapped the block set mid-gesture
 		const fromSlot = parseInt(c.dataset.slot, 10);
 		const fromSpan = parseInt(c.dataset.span, 10) || 1;
 		if (s.yAnim) s.yAnim.stop();
@@ -185,16 +189,6 @@ function tearDown(g, kind, layout) {
 }
 
 const sibAnims = (g) => [...g.sibs.values()].flatMap((s) => [s.yAnim, s.hAnim]);
-
-// Tell the server the gesture's result — unless nothing changed, or a foreign
-// patch replaced the block mid-gesture (the server's layout already won).
-function dispatchLayout(g) {
-	if (sameLayout(g.valid.layout, g.current)) return;
-	if (g.el.parentElement !== list) return;
-	list.dispatchEvent(
-		new CustomEvent("layout", { detail: { layout: g.valid.layout } }),
-	);
-}
 
 // ---- drag to a slot --------------------------------------------------
 
@@ -331,7 +325,16 @@ async function settleDrag(e, commit) {
 		enterEdit(list, editLabel, d.startX, d.startY);
 		return;
 	}
-	dispatchLayout(d);
+	commitGesture(list, {
+		el: d.el,
+		id: d.orig.id,
+		from: d.current,
+		to: d.valid.layout,
+		bounds: d.bounds,
+		announce,
+		say: droppedMsg(d.orig.id, d.valid.layout),
+		refocus: null,
+	});
 }
 
 // ---- stretch / compress ----------------------------------------------
@@ -400,5 +403,14 @@ async function settleResize(e, commit) {
 		tearDown(r, "resize", r.valid.layout);
 		settling = false;
 	}
-	dispatchLayout(r);
+	commitGesture(list, {
+		el: r.el,
+		id: r.orig.id,
+		from: r.current,
+		to: r.valid.layout,
+		bounds: r.bounds,
+		announce,
+		say: resizedMsg(r.orig.id, r.valid.layout),
+		refocus: null,
+	});
 }

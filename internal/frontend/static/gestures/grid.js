@@ -44,8 +44,10 @@ export function writeLayout(list, layout, dayStart) {
 	}
 }
 
-// Structural equality (same ids in the same slots/spans).
+// Structural equality (same ids in the same slots/spans). The length check
+// makes the one-directional scan bidirectional — ids are unique per layout.
 export const sameLayout = (a, b) =>
+	a.length === b.length &&
 	a.every((p) => {
 		const q = b.find((x) => x.id === p.id);
 		return q && q.slot === p.slot && q.span === p.span;

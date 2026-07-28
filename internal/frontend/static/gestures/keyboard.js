@@ -9,7 +9,8 @@
 // via cancel().
 
 import { enterEdit, restoreFocusAfterMorph } from "./rename.js";
-import { blocksIn, boundsNow, layoutIn, writeLayout, sameLayout } from "./grid.js";
+import { blocksIn, boundsNow, layoutIn, writeLayout } from "./grid.js";
+import { commitGesture } from "./commit.js";
 import {
 	keyboardLayout,
 	normalizeKey,
@@ -50,9 +51,11 @@ export function init(ctx, arbitration) {
 	return { isActive, cancel };
 }
 
-// valuenow is the span in slots, valuetext the spoken clock range.
+// valuenow is the span in slots, valuetext the spoken clock range. Guarded —
+// an SSE patch landing mid-gesture can hand us a layout without this block.
 function updateGripValue(grip, id, layout) {
 	const p = layout.find((q) => q.id === id);
+	if (!p) return;
 	grip.setAttribute("aria-valuenow", p.span);
 	grip.setAttribute("aria-valuetext", timeRange(p.slot, p.span));
 }
@@ -138,15 +141,22 @@ function moveGrab(key) {
 	announce(rangeMsg(grab.id, grab.layout));
 }
 
-// Drop dispatches the same `layout` event a drag does (if anything moved).
+// Drop commits through the shared path — the same `layout` event a drag
+// dispatches; a no-op drop announces nothing.
 function dropGrab() {
 	const g = grab;
 	grab = null;
 	g.el.classList.remove("dragging");
-	announce(droppedMsg(g.id, g.layout));
-	if (sameLayout(g.layout, g.start) || g.el.parentElement !== list) return;
-	restoreFocusAfterMorph(list, () => document.getElementById(g.id));
-	list.dispatchEvent(new CustomEvent("layout", { detail: { layout: g.layout } }));
+	commitGesture(list, {
+		el: g.el,
+		id: g.id,
+		from: g.start,
+		to: g.layout,
+		bounds: g.bounds,
+		announce,
+		say: droppedMsg(g.id, g.layout),
+		refocus: () => document.getElementById(g.id),
+	});
 }
 
 function cancelGrab() {
@@ -219,11 +229,16 @@ function commitKbResize(refocus) {
 	const r = kresize;
 	kresize = null;
 	r.el.classList.remove("resizing");
-	if (sameLayout(r.layout, r.start) || r.el.parentElement !== list) return;
-	announce(resizedMsg(r.id, r.layout));
-	if (refocus)
-		restoreFocusAfterMorph(list, () => document.getElementById(r.id)?.querySelector(".grip"));
-	list.dispatchEvent(new CustomEvent("layout", { detail: { layout: r.layout } }));
+	commitGesture(list, {
+		el: r.el,
+		id: r.id,
+		from: r.start,
+		to: r.layout,
+		bounds: r.bounds,
+		announce,
+		say: resizedMsg(r.id, r.layout),
+		refocus: refocus ? () => document.getElementById(r.id)?.querySelector(".grip") : null,
+	});
 }
 
 function cancelKbResize() {
