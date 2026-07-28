@@ -1,13 +1,34 @@
 /* app.css — the single hand-authored stylesheet (ADR 0011). Cascade layers
    own ordering; the `components` layer holds a small shared class tier plus
-   one @scope block per leaf component, each section comment naming the templ
-   file it styles. */
+   one @scope block per leaf component.
+
+   NAVIGATION: every section opens with a `SECTION:` banner naming the templ
+   file it styles and the selector it owns, so `grep -n 'SECTION:' app.css`
+   prints this contents list with current line numbers. The list below is
+   the reading order; it carries no line numbers, so it can't go stale.
+
+     layer reset      preflight baseline the markup assumes
+     layer tokens     fonts, colorscheme palettes, block-type fills, type scale
+     layer base       body shell, focus ring, a11y helpers
+     layer layout     page shell: rail + the two panels
+     layer components
+       (shared tier)  .btn / .field / .option-row / kbd
+       login.templ            @scope (.login-main)
+       modals/*               @scope (.app-dialog)
+       modals/guide.templ     @scope (.guide-dialog)
+       modals/shortcuts.templ @scope (.shortcuts-dialog)
+       nav.templ              @scope (.sidenav), .menu-toggle, .nav-scrim
+       icon.templ             .icon-*, then the .menu-* hamburger
+       column.templ           .date-heading, then @scope (.blocks)
+       jotpad.templ           @scope (.jotpad)
+
+   Adding a leaf component: new SECTION banner + @scope block at the end of
+   `components`, styles built from the tokens, never a hardcoded color. */
 
 @layer reset, tokens, base, layout, components;
 
-/* ============================================================
-   reset — deliberate preflight-style baseline the markup assumes.
-   ============================================================ */
+/* SECTION: layer reset — preflight
+   A deliberate preflight-style baseline the markup assumes. */
 @layer reset {
   *,
   ::before,
@@ -80,12 +101,11 @@
   }
 }
 
-/* ============================================================
-   tokens — design tokens: @font-face, the feeling font pairs,
-   the colorscheme palettes, and the type scale. Themes override
-   the color tokens via :root[data-colorscheme]; swapping the
-   attribute hot-swaps every color.
-   ============================================================ */
+/* SECTION: layer tokens — fonts, palettes, block-type fills, type scale
+   @font-face and the feeling font pairs, the colorscheme palettes, the
+   [data-type] → --type-bg/--type-ink mapping, and the type scale. Themes
+   override the color tokens via :root[data-colorscheme]; swapping the
+   attribute hot-swaps every color. */
 @layer tokens {
   /* Zen Maru Gothic (SIL OFL, latin subset) — self-hosted from /static/fonts */
   @font-face {
@@ -331,6 +351,31 @@
     --type-appointment-ink: hsl(35, 80%, 29%); /* gold — 4.7:1 on tint */
   }
 
+  /* Block-type fill, resolved once from whichever palette is active. Any
+	   element tagged data-type picks up the pair, so the five surfaces that
+	   paint a block type (block item, countdown pill, create + guide
+	   swatches, the guide's miniature blocks) read --type-bg/--type-ink
+	   instead of each restating the four-way mapping. A fifth block type is
+	   an entry here and nothing else. --type-edge carries shallow's hairline,
+	   which it needs because its fill IS the surface colour. */
+  [data-type="deep"] {
+    --type-bg: var(--type-deep);
+    --type-ink: var(--type-deep-ink);
+  }
+  [data-type="shallow"] {
+    --type-bg: var(--type-shallow);
+    --type-ink: var(--type-shallow-ink);
+    --type-edge: inset 0 0 0 1px var(--rail-border);
+  }
+  [data-type="break"] {
+    --type-bg: var(--type-break);
+    --type-ink: var(--type-break-ink);
+  }
+  [data-type="appointment"] {
+    --type-bg: var(--type-appointment);
+    --type-ink: var(--type-appointment-ink);
+  }
+
   /* Type scale (same metrics/var names as Tailwind's text-sm/base/lg/xl,
 	   kept through the plain-CSS migration so components didn't move). */
   :root {
@@ -345,9 +390,8 @@
   }
 }
 
-/* ============================================================
-   base — app-wide defaults: body shell, focus ring, a11y helpers.
-   ============================================================ */
+/* SECTION: layer base — app-wide defaults
+   Body shell, default focus ring, a11y helpers. */
 @layer base {
   body {
     font-family: var(--font-family);
@@ -376,10 +420,9 @@
   }
 }
 
-/* ============================================================
-   layout — the page shell (routes/blocks.templ): nav rail beside
-   a centered column; on mobile the column is the full viewport.
-   ============================================================ */
+/* SECTION: layer layout — the page shell (routes/blocks.templ)
+   Nav rail beside a centered column; on mobile the column is the full
+   viewport. */
 @layer layout {
   .shell {
     display: flex;
@@ -459,17 +502,16 @@
   }
 }
 
-/* ============================================================
-   components — two tiers:
-   1. a small shared class set (.btn, .btn-secondary, .btn-danger,
-      .field, .option-row) replacing the Go class-string constants;
-   2. one @scope block per leaf component. Every section comment
-      names the templ file it styles — greppable from either side.
-   ============================================================ */
+/* SECTION: layer components — two tiers
+   1. a small shared class set (.btn, .btn-secondary, .btn-danger, .field,
+      .option-row) replacing the Go class-string constants;
+   2. one @scope block per leaf component. Every SECTION banner below names
+      the templ file it styles — greppable from either side. */
 @layer components {
-  /* --- shared tier: cross-component chrome (buttons, form fields,
-	       picker rows). A deliberately small closed set — the ADR 0006
-	       countermeasure. --- */
+  /* SECTION: (shared tier) → .btn, .field, .option-row, kbd
+     Cross-component chrome: buttons, form fields, picker rows, key caps. A
+     deliberately small closed set — the ADR 0006 countermeasure. Growing it
+     is a deliberate act, not a default. */
   .btn {
     padding: 0.35rem 0.75rem;
     border-radius: var(--radius);
@@ -567,7 +609,8 @@
     border-radius: var(--radius);
   }
 
-  /* --- components/login.templ → @scope (.login-main) --- */
+  /* SECTION: components/login.templ → @scope (.login-main)
+     The signed-out page: spinning amoeba backdrop, email step, OTP boxes. */
   @scope (.login-main) {
     :scope {
       text-align: center;
@@ -787,8 +830,9 @@
     }
   }
 
-  /* --- components/modals/* → @scope (.app-dialog): shared dialog chrome
-	       (dialog.templ) plus the theme/hours/clear/create modal bodies --- */
+  /* SECTION: components/modals/* → @scope (.app-dialog)
+     Shared native-<dialog> chrome (dialog.templ) plus the theme, hours,
+     clear, and create modal bodies. guide.templ has its own section below. */
   @scope (.app-dialog) {
     :scope {
       width: min(320px, calc(100vw - 2rem));
@@ -955,25 +999,15 @@
       font-size: var(--text-sm);
       line-height: var(--text-sm--line-height);
 
+      /* Hairline unconditional here, so shallow reads as a swatch rather
+			   than a hole in the dialog. */
       .swatch {
         width: 100%;
         height: 2rem;
         border-radius: var(--radius);
         border: 2px solid transparent;
         box-shadow: inset 0 0 0 1px var(--rail-border);
-
-        &[data-type="deep"] {
-          background: var(--type-deep);
-        }
-        &[data-type="shallow"] {
-          background: var(--type-shallow);
-        }
-        &[data-type="break"] {
-          background: var(--type-break);
-        }
-        &[data-type="appointment"] {
-          background: var(--type-appointment);
-        }
+        background: var(--type-bg);
       }
 
       input:checked + .swatch {
@@ -985,11 +1019,19 @@
         outline-offset: 1px;
       }
     }
+  }
 
-    /* guide.templ: wider dialog, left-aligned copy, a fixed-height body so
+  /* SECTION: components/modals/guide.templ → @scope (.guide-dialog)
+     The first-run walkthrough. It wears `app-dialog guide-dialog`, so the
+     scope above still supplies the shared chrome (backdrop, headings,
+     footer, field rows) and this one adds only what the guide needs. Must
+     stay AFTER .app-dialog: the :scope width below ties it on both
+     specificity and scoping proximity, so source order breaks the tie. */
+  @scope (.guide-dialog) {
+    /* Wider than a stock dialog, left-aligned copy, a fixed-height body so
 		   the dialog never resizes between steps, two token-driven figures,
 		   progress dots + Back/Next controls. */
-    :scope.guide-dialog {
+    :scope {
       width: min(440px, calc(100vw - 2rem));
       text-align: left; /* override .login-main's centered text on the login mount */
     }
@@ -1057,19 +1099,7 @@
       margin-top: 0.1rem;
       border-radius: var(--radius);
       box-shadow: inset 0 0 0 1px var(--rail-border);
-
-      &[data-type="deep"] {
-        background: var(--type-deep);
-      }
-      &[data-type="shallow"] {
-        background: var(--type-shallow);
-      }
-      &[data-type="break"] {
-        background: var(--type-break);
-      }
-      &[data-type="appointment"] {
-        background: var(--type-appointment);
-      }
+      background: var(--type-bg);
     }
 
     /* panes 2 & 3 figure: a faithful miniature of the app day grid
@@ -1111,24 +1141,9 @@
       font-size: 0.8rem;
       font-weight: 600;
       overflow: hidden;
-
-      &[data-type="deep"] {
-        background: var(--type-deep);
-        color: var(--type-deep-ink);
-      }
-      &[data-type="shallow"] {
-        background: var(--type-shallow);
-        color: var(--type-shallow-ink);
-        box-shadow: inset 0 0 0 1px var(--rail-border);
-      }
-      &[data-type="break"] {
-        background: var(--type-break);
-        color: var(--type-break-ink);
-      }
-      &[data-type="appointment"] {
-        background: var(--type-appointment);
-        color: var(--type-appointment-ink);
-      }
+      background: var(--type-bg);
+      color: var(--type-ink);
+      box-shadow: var(--type-edge, none);
     }
 
     /* pane 2: a free slot frozen in its hovered state — same values as the
@@ -1309,9 +1324,9 @@
     }
   }
 
-  /* --- components/modals/shortcuts.templ → @scope (.shortcuts-dialog): the
-	       keyboard reference list. Wider than the default dialog to fit the
-	       description + key-cluster rows. --- */
+  /* SECTION: components/modals/shortcuts.templ → @scope (.shortcuts-dialog)
+     The keyboard reference list. Wider than the default dialog to fit the
+     description + key-cluster rows. */
   @scope (.shortcuts-dialog) {
     :scope[open] {
       width: min(30rem, calc(100vw - 2rem));
@@ -1365,9 +1380,9 @@
     }
   }
 
-  /* --- components/nav.templ → @scope (.sidenav): a sticky desktop rail
-	       that below sm becomes a right-side off-canvas drawer slid in by
-	       the `.open` hook (data-class:open="$_navopen"). --- */
+  /* SECTION: components/nav.templ → @scope (.sidenav)
+     A sticky desktop rail that below 52rem becomes a right-side off-canvas
+     drawer, slid in by the `.open` hook (data-class:open="$_navopen"). */
   @scope (.sidenav) {
     :scope {
       position: sticky;
@@ -1491,8 +1506,9 @@
     }
   }
 
-  /* components/nav.templ MenuToggle: the mobile hamburger, fixed at .shell
-	   level so it floats above the open drawer. */
+  /* SECTION: components/nav.templ MenuToggle → .menu-toggle
+     The mobile hamburger button, fixed at .shell level so it floats above
+     the open drawer. */
   .menu-toggle {
     display: none;
 
@@ -1513,9 +1529,9 @@
     }
   }
 
-  /* components/nav.templ: click-away scrim behind the open drawer. Fades in
-	   step with the drawer's slide; allow-discrete holds display through the
-	   exit fade. */
+  /* SECTION: components/nav.templ → .nav-scrim
+     Click-away scrim behind the open drawer. Fades in step with the
+     drawer's slide; allow-discrete holds display through the exit fade. */
   .nav-scrim {
     display: none;
     position: fixed;
@@ -1543,10 +1559,10 @@
     }
   }
 
-  /* --- components/icon.templ (global, not @scope-d — icons render in the
-	       nav, modals, and column). Both feeling sets ship; the
-	       :root[data-feeling] toggle shows one, so the swap is live with no
-	       round-trip. --- */
+  /* SECTION: components/icon.templ → .icon-*
+     Global, not @scope-d — icons render in the nav, modals, and column.
+     Every feeling's set ships; the :root[data-feeling] toggle shows one, so
+     the swap is live with no round-trip. */
   .icon {
     width: 24px;
     height: 24px;
@@ -1555,20 +1571,15 @@
   .icon-pixel {
     image-rendering: pixelated;
   }
-  /* Default (no/unknown data-feeling) shows solar; the rest are opt-in. */
+  /* Default (absent/unknown data-feeling) shows solar; the rest are opt-in. */
   .icon-pixel,
   .icon-mono {
     display: none;
   }
-  :root[data-feeling="pixel"] .icon-solar {
+  :root:is([data-feeling="pixel"], [data-feeling="mono"]) .icon-solar {
     display: none;
   }
-  :root[data-feeling="pixel"] .icon-pixel {
-    display: block;
-  }
-  :root[data-feeling="mono"] .icon-solar {
-    display: none;
-  }
+  :root[data-feeling="pixel"] .icon-pixel,
   :root[data-feeling="mono"] .icon-mono {
     display: block;
   }
@@ -1580,9 +1591,10 @@
     stroke-linejoin: round;
   }
 
-  /* Animated hamburger: cozy "Jelly Wobble", pixel "Tetris Drop", mono
-	   "Prompt". All ship; feeling toggles which shows. The X-morph is driven
-	   by .open on the toggle button (data-class:open="$_navopen"). */
+  /* SECTION: components/icon.templ IconMenu → .menu-cozy / -pixel / -mono
+     The animated hamburger: cozy "Jelly Wobble", pixel "Tetris Drop", mono
+     "Prompt". All ship; feeling picks which shows. The X-morph is driven by
+     .open on the toggle button (data-class:open="$_navopen"). */
   .menu-cozy,
   .menu-pixel,
   .menu-mono {
@@ -1590,25 +1602,21 @@
     width: 24px;
     height: 24px;
   }
+  .menu-pixel {
+    image-rendering: pixelated;
+  }
+  /* Same default-plus-opt-in toggle as .icon-* above, with cozy as default. */
   .menu-cozy {
     display: block;
   }
-  .menu-pixel {
-    display: none;
-    image-rendering: pixelated;
-  }
+  .menu-pixel,
   .menu-mono {
     display: none;
   }
-  :root[data-feeling="pixel"] .menu-cozy {
+  :root:is([data-feeling="pixel"], [data-feeling="mono"]) .menu-cozy {
     display: none;
   }
-  :root[data-feeling="pixel"] .menu-pixel {
-    display: block;
-  }
-  :root[data-feeling="mono"] .menu-cozy {
-    display: none;
-  }
+  :root[data-feeling="pixel"] .menu-pixel,
   :root[data-feeling="mono"] .menu-mono {
     display: block;
   }
@@ -1732,49 +1740,35 @@
     }
   }
 
-  /* open -> X (all feelings); idle motion freezes so the X reads clean */
-  .open .menu-cozy {
-    animation: none;
+  /* open -> X, identical across the three feelings: the outer strokes
+	   rotate into the cross and the middle one collapses. Only the stroke
+	   element's name differs (cozy/mono draw .bar, pixel draws .trow). */
+  .open :is(.menu-cozy .bar, .menu-pixel .trow, .menu-mono .bar) {
+    &:nth-child(1) {
+      transform: translateY(0) rotate(45deg);
+    }
+    &:nth-child(2) {
+      transform: scaleX(0);
+      opacity: 0;
+    }
+    &:nth-child(3) {
+      transform: translateY(0) rotate(-45deg);
+    }
   }
-  .open .menu-cozy .bar:nth-child(1) {
-    transform: translateY(0) rotate(45deg);
-  }
-  .open .menu-cozy .bar:nth-child(2) {
-    transform: scaleX(0);
-    opacity: 0;
-  }
-  .open .menu-cozy .bar:nth-child(3) {
-    transform: translateY(0) rotate(-45deg);
-  }
+
+  /* Idle motion freezes so the X reads clean. */
+  .open .menu-cozy,
   .open .menu-pixel .trow i {
     animation: none;
   }
-  .open .menu-pixel .trow:nth-child(1) {
-    transform: translateY(0) rotate(45deg);
-  }
-  .open .menu-pixel .trow:nth-child(2) {
-    transform: scaleX(0);
-    opacity: 0;
-  }
-  .open .menu-pixel .trow:nth-child(3) {
-    transform: translateY(0) rotate(-45deg);
-  }
+
+  /* mono: strokes go full width, and the prompt caret leaves with them. */
   .open .menu-mono .bar {
     width: 20px;
-  }
-  .open .menu-mono .bar:nth-child(1) {
-    transform: translateY(0) rotate(45deg);
-  }
-  .open .menu-mono .bar:nth-child(2) {
-    transform: scaleX(0);
-    opacity: 0;
   }
   .open .menu-mono .bar:nth-child(2)::after {
     animation: none;
     opacity: 0;
-  }
-  .open .menu-mono .bar:nth-child(3) {
-    transform: translateY(0) rotate(-45deg);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1837,29 +1831,9 @@
     }
   }
 
-  /* cozy-3 "Sleepy Cat" — kept for future A/B testing. To use: uncomment
-	   this block and swap the .menu-cat markup in IconMenu in for .menu-cozy.
-	.menu-cat { display: block; position: relative; width: 24px; height: 24px; }
-	:root[data-feeling="pixel"] .menu-cat { display: none; }
-	.menu-cat svg { width: 24px; height: 24px; display: block; overflow: visible; animation: menu-catbreathe 3.6s ease-in-out 1 forwards; transform-origin: center; }
-	@keyframes menu-catbreathe { 0%, 100% { transform: scale(.95); } 50% { transform: scale(1.06); } }
-	.menu-cat .eye-open { opacity: 0; transition: opacity .2s; }
-	.menu-cat .eye-closed { opacity: 1; transition: opacity .2s; }
-	button:hover .menu-cat .eye-open { opacity: 1; }
-	button:hover .menu-cat .eye-closed { opacity: 0; }
-	.menu-cat .ear { transition: transform .3s; transform-origin: center bottom; }
-	button:hover .menu-cat .ear { transform: translateY(-2px) scaleY(1.15); }
-	.menu-cat .grp { transition: opacity .25s; }
-	.menu-cat .xg { opacity: 0; }
-	.menu-cat .xg line { stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .35s ease .08s; }
-	.open .menu-cat .grp { opacity: 0; }
-	.open .menu-cat .xg { opacity: 1; }
-	.open .menu-cat .xg line { stroke-dashoffset: 0; }
-	.open .menu-cat svg { animation: none; }
-	*/
-
-  /* --- components/column.templ DateHeading: non-scrolling header above
-	       the block list; on mobile it becomes a fixed-height opaque bar. --- */
+  /* SECTION: components/column.templ DateHeading → .date-heading
+     Non-scrolling header above the block list; on mobile it becomes a
+     fixed-height opaque bar. */
   .date-heading {
     display: flex;
     align-items: center;
@@ -1884,29 +1858,14 @@
       line-height: 1;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
-      color: var(--type-shallow-ink);
-      background: var(--surface);
+      /* Fallbacks cover the pre-JS state, before now.js tags the pill with
+			   the active block's type. */
+      background: var(--type-bg, var(--surface));
+      color: var(--type-ink, var(--type-shallow-ink));
 
       /* Clear the fixed hamburger (right: 1rem) on mobile. */
       @media (width < 52rem) {
         margin-right: 3.25rem;
-      }
-
-      &[data-type="deep"] {
-        background: var(--type-deep);
-        color: var(--type-deep-ink);
-      }
-      &[data-type="shallow"] {
-        background: var(--type-shallow);
-        color: var(--type-shallow-ink);
-      }
-      &[data-type="break"] {
-        background: var(--type-break);
-        color: var(--type-break-ink);
-      }
-      &[data-type="appointment"] {
-        background: var(--type-appointment);
-        color: var(--type-appointment-ink);
       }
     }
 
@@ -1924,10 +1883,10 @@
     }
   }
 
-  /* --- components/column.templ + column_block.templ → @scope (.blocks):
-	       the day grid. Column 1 is the time gutter, column 2 the blocks;
-	       rows are 30-min slots sized by --slot-h. z-order: block 1,
-	       dragging/resizing 2, now-pill 3. --- */
+  /* SECTION: components/column.templ + column_block.templ → @scope (.blocks)
+     The day grid. Column 1 is the time gutter, column 2 the blocks; rows are
+     30-min slots sized by --slot-h. z-order: block 1, dragging/resizing 2,
+     now-pill 3. */
   @scope (.blocks) {
     :scope {
       display: grid;
@@ -2054,29 +2013,15 @@
       margin-top: 0.125rem;
       margin-bottom: 1px;
       border-radius: var(--radius);
-      background: var(--surface);
+      /* Fallbacks are belt-and-braces: Create defaults a blank type to
+			   shallow, so a rendered block always carries one. */
+      background: var(--type-bg, var(--surface));
+      color: var(--type-ink, var(--ink));
       font-weight: 600;
       cursor: grab;
       user-select: none;
       touch-action: none;
       overflow: hidden;
-
-      &[data-type="deep"] {
-        background: var(--type-deep);
-        color: var(--type-deep-ink);
-      }
-      &[data-type="shallow"] {
-        background: var(--type-shallow);
-        color: var(--type-shallow-ink);
-      }
-      &[data-type="break"] {
-        background: var(--type-break);
-        color: var(--type-break-ink);
-      }
-      &[data-type="appointment"] {
-        background: var(--type-appointment);
-        color: var(--type-appointment-ink);
-      }
 
       &:focus-visible {
         outline: 2px solid var(--accent);
@@ -2298,9 +2243,9 @@
     }
   }
 
-  /* --- components/jotpad.templ → @scope (.jotpad): the second panel.
-	       Same .column chrome as the Day Plan; the textarea fills what's
-	       left and is the panel's only scroll region. --- */
+  /* SECTION: components/jotpad.templ → @scope (.jotpad)
+     The second panel. Same .column chrome as the Day Plan; the textarea
+     fills what's left and is the panel's only scroll region. */
   @scope (.jotpad) {
     /* Mirrors .date-heading's metrics so the two panel headers share a
 		   baseline above 52rem, and the toggle doesn't shift the header bar
