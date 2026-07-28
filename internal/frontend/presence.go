@@ -3,6 +3,7 @@ package frontend
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,10 +55,14 @@ func (v *turnstileVerifier) Verify(ctx context.Context, token, remoteIP string) 
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var out struct {
-		Success bool `json:"success"`
+		Success    bool     `json:"success"`
+		ErrorCodes []string `json:"error-codes"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return false, err
+	}
+	if !out.Success {
+		log.Printf("turnstile: verify failed: %v", out.ErrorCodes)
 	}
 	return out.Success, nil
 }

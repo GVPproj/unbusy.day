@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -105,6 +106,7 @@ func (l *LoginRateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := clientIP(r, l.cfg.trustProxy)
 		if !l.limiterFor(ip).Allow() || !l.global.Allow() {
+			log.Printf("login rate limit: rejected %s", ip)
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}

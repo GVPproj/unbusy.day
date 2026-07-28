@@ -321,7 +321,7 @@
   /* Rosé Pine Dawn (light) — the project's light-page counterpart palette. */
   :root[data-colorscheme="rose-pine-dawn"] {
     --bg: hsl(32, 57%, 95%); /* base #faf4ed */
-    --ink: hsl(248, 19%, 40%); /* text #575279 — 6.5:1 on bg */
+    --ink: hsl(248, 19%, 44%); /* text #575279 lightened — 5.7:1 on bg, 5.3:1 on column */
     --ink-muted: hsl(248, 12%, 45%); /* subtle #797593 darkened — 5.1:1 on bg */
     --ink-error: hsl(343, 45%, 45%); /* love darkened */
     --surface: hsl(32, 57%, 95%);

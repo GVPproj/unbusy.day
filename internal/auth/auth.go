@@ -134,7 +134,8 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 	if n, err := res.RowsAffected(); err != nil {
 		return err
 	} else if n == 0 {
-		return nil // throttled
+		log.Printf("auth: request throttled for %s", email)
+		return nil
 	}
 
 	// Checked post-throttle so only real sends count toward the ceiling.
