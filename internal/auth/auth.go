@@ -143,7 +143,11 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		log.Printf("auth: send ceiling tripped — OTP to %s skipped (circuit breaker)", email)
 		return nil
 	}
-	return s.mailer.SendCode(ctx, email, code)
+	if err := s.mailer.SendCode(ctx, email, code); err != nil {
+		return err
+	}
+	log.Printf("auth: OTP sent to %s", email)
+	return nil
 }
 
 // VerifyCode redeems a code for a new session. Any failure is ErrInvalidCode.
