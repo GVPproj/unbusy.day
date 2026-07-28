@@ -57,10 +57,8 @@ var ErrBlockNotFound = errors.New("block not found")
 var ErrInvalidBlockType = errors.New("invalid block type")
 
 // IsRejection reports whether err is the User's doing (a rejected placement,
-// a blank label, an unknown id) rather than a fault. Rejections surface as
-// 200 + a re-render of the authoritative column, so the rejected optimistic
-// change visibly snaps back; faults are 500s. Every Err* in this package
-// belongs here — TestIsRejection names them all.
+// a blank label, an unknown id) rather than a fault. Rejections surface as 200
+// + a re-render of the authoritative column; every Err* in the package belongs here.
 func IsRejection(err error) bool {
 	for _, r := range []error{
 		ErrNotSameBlocks, ErrOutOfBounds, ErrOverlap, ErrInvalidSpan,

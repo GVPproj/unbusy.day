@@ -117,27 +117,32 @@ func TestSpanOr1(t *testing.T) {
 	}
 }
 
-// Emit the label for every legal slot to a golden file. The JS mirror
-// (keyboard-reducer.js timeLabel — kept separate by ADR 0005) is asserted
-// against the same file by jstest/keyboard-reducer.test.js, so the two
-// formatters can't drift silently.
+// Pin Slot.Label for every legal slot to the committed golden file. The JS
+// mirror (keyboard-reducer.js timeLabel — kept separate by ADR 0005) asserts
+// against the same file in jstest/keyboard-reducer.test.js, so neither
+// formatter can drift silently. On mismatch the file is regenerated and the
+// test fails — re-run and commit the new file.
 func TestSlotLabelGoldenFile(t *testing.T) {
 	labels := make(map[string]string)
 	for s := block.Slot(block.MinDayStart); s <= block.MaxDayEnd; s++ {
 		labels[strconv.Itoa(int(s))] = s.Label()
 	}
-	data, err := json.MarshalIndent(labels, "", "  ")
+	want, err := json.MarshalIndent(labels, "", "  ")
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	data = append(data, '\n')
+	want = append(want, '\n')
 	path := filepath.Join("testdata", "slot_labels.json")
+	if got, err := os.ReadFile(path); err == nil && string(got) == string(want) {
+		return
+	}
 	if err := os.MkdirAll("testdata", 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, want, 0o644); err != nil {
 		t.Fatalf("write golden: %v", err)
 	}
+	t.Fatalf("%s drifted from Slot.Label; regenerated — verify and commit it", path)
 }
 
 func TestValidateLayout_IdenticalLayoutIsValid(t *testing.T) {

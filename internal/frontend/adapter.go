@@ -85,12 +85,9 @@ func patchEnvelope(sse *datastar.ServerSentEventGenerator, bs []block.Block) {
 	}
 }
 
-// mutate is the one mutation handler: read signals, pull the owner, call
-// apply, classify the error with block.IsRejection, and patch the committed
-// column. A rejection re-reads the authoritative state and still responds 200,
-// so the rejected optimistic change visibly snaps back (house convention);
-// anything else is a 500. The success path needs no re-read — apply's
-// Snapshot already carries the committed blocks and bounds.
+// mutate is the one mutation handler: read signals, apply, patch the column.
+// A block.IsRejection error re-reads and still responds 200 (house convention:
+// the rejected optimistic change visibly snaps back); anything else is a 500.
 func mutate[S any](
 	svc BlockService,
 	apply func(ctx context.Context, owner string, sig S) (*block.Snapshot, error),
