@@ -21,11 +21,6 @@ type AuthService interface {
 	Logout(ctx context.Context, token string) error
 }
 
-// Seeder gives a fresh user their starter blocks; *block.Service satisfies it.
-type Seeder interface {
-	Seed(ctx context.Context, owner string) error
-}
-
 // LoginPageHandler renders the email step of the OTP flow; an empty
 // turnstileSiteKey (dev) renders no presence widget.
 func LoginPageHandler(turnstileSiteKey string) http.Handler {
@@ -82,9 +77,9 @@ func patchLoginCodeForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// VerifyCodeHandler redeems the code: on success it seeds starter blocks, sets
-// the session cookie, and redirects to the board.
-func VerifyCodeHandler(a AuthService, seeder Seeder, secureCookies bool) http.Handler {
+// VerifyCodeHandler redeems the code: on success it sets the session cookie and
+// redirects to the board.
+func VerifyCodeHandler(a AuthService, secureCookies bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig loginSignals
 		if err := datastar.ReadSignals(r, &sig); err != nil {
@@ -102,12 +97,6 @@ func VerifyCodeHandler(a AuthService, seeder Seeder, secureCookies bool) http.Ha
 		}
 		if err != nil {
 			log.Printf("ds verify code: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := seeder.Seed(r.Context(), sess.UserID); err != nil {
-			log.Printf("ds seed blocks: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

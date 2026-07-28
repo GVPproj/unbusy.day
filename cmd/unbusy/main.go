@@ -156,7 +156,7 @@ func main() {
 	presence := frontend.NewPresenceVerifier(os.Getenv("TURNSTILE_SECRET"))
 
 	mux.Handle("POST /login/code", loginRL.Limit(frontend.RequestCodeHandler(authSvc, presence)))
-	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, blockSvc, secureCookies))
+	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, secureCookies))
 	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, secureCookies))
 	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(blockSvc, broker)))
 	mux.Handle("POST /blocks/layout", frontend.RequireSession(authSvc, frontend.LayoutHandler(blockSvc)))

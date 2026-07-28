@@ -1075,6 +1075,43 @@
       }
     }
 
+    /* Touch: lay the same panes out in a row and let the browser step them —
+		   a scroll-snap carousel, so a swipe pages the guide. guide-swipe.js keeps
+		   the scroll offset and $_guidestep in sync both ways. The row bleeds out
+		   to the dialog's edges (negative margin + matching gap) so a pane clips
+		   at the border with no neighbour peeking through. */
+    @media (pointer: coarse) {
+      .guide-body {
+        --bleed: 2rem; /* .app-dialog's inline padding */
+        grid-auto-flow: column;
+        grid-auto-columns: 100%;
+        column-gap: calc(2 * var(--bleed));
+        margin-inline: calc(-1 * var(--bleed));
+        padding-inline: var(--bleed);
+        overflow-x: auto;
+        overscroll-behavior-x: contain; /* don't hand a swipe to browser back */
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+
+      .guide-body::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Every pane is on screen now, so the cross-fade must not hide them —
+			   the swipe itself is the transition. Off-screen panes are `inert`
+			   (guide.templ) rather than invisible, so they stay out of the tab
+			   order and the a11y tree. */
+      .guide-pane {
+        grid-area: auto;
+        scroll-snap-align: center;
+        visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
+        transition: none;
+      }
+    }
+
     /* pane 2 figure: four type swatches beside their descriptions. */
     .guide-types {
       list-style: none;

@@ -115,11 +115,10 @@ it, the nav drawer carries it.
 
 ### Empty state
 
-A `placeholder`, and nothing seeded. New Users get starter blocks because
-blocks demonstrate the drag mechanic and are trivially deleted; putting words
-into someone's notes document is presumptuous and they would have to delete
-them. The placeholder is not load-bearing for accessibility — the accessible
-name comes from `aria-labelledby`.
+A `placeholder`, and nothing seeded — same as the block column, which now also
+starts empty. Putting words into someone's notes document is presumptuous and
+they would have to delete them. The placeholder is not load-bearing for
+accessibility — the accessible name comes from `aria-labelledby`.
 
 ### Discoverability
 

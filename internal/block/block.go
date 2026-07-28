@@ -69,30 +69,6 @@ func (s *Service) List(ctx context.Context, owner string) ([]Block, error) {
 	return queryBlocks(ctx, s.db, owner)
 }
 
-// Seed inserts starter blocks on first login; no-op if the owner has blocks.
-func (s *Service) Seed(ctx context.Context, owner string) error {
-	labels := []string{"Alpha", "Bravo", "Charlie"}
-	var b strings.Builder
-	// SQLite has no column-alias on a VALUES subquery, so the row set is a CTE.
-	b.WriteString(`WITH v(id, label, pos) AS (VALUES `)
-	args := make([]any, 0, len(labels)*3+3)
-	for i, label := range labels {
-		id, err := newID()
-		if err != nil {
-			return err
-		}
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString("(?, ?, ?)")
-		args = append(args, id, label, i)
-	}
-	b.WriteString(`) INSERT INTO block (id, label, position, owner_id) SELECT v.id, v.label, u.day_start + v.pos, ? FROM v, "user" u WHERE u.id = ? AND NOT EXISTS (SELECT 1 FROM block WHERE owner_id = ?)`)
-	args = append(args, owner, owner, owner)
-	_, err := s.db.ExecContext(ctx, b.String(), args...)
-	return err
-}
-
 type LayoutResult struct {
 	Blocks []Block `json:"blocks"`
 }

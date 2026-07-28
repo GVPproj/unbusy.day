@@ -2,7 +2,6 @@ package components
 
 import (
 	"strconv"
-	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
@@ -10,11 +9,21 @@ import (
 // Styling lives in app.css: .date-heading, and @scope (.blocks) for the day
 // grid (slots, gutter, slot-add, now-pill, block items).
 
-// DateHeading renders today's date; on mobile it's a non-scrolling header bar
+// DateHeading holds today's date; on mobile it's a non-scrolling header bar
 // above the scrolling block list.
+//
+// The date is the VIEWER's, not the server's — the server runs UTC, so a Go
+// time.Now() here reads a day ahead all evening in western timezones. The
+// inline classic script below fills the <h1> during parse (before first paint,
+// so no flash of an empty bar); now.js's tick keeps it right across midnight.
 templ DateHeading() {
 	<div class="date-heading">
-		<h1>{ time.Now().Format("Monday, January 2") }</h1>
+		<h1 id="date-heading"></h1>
+		<script>
+			// Format kept in sync with formatDate() in /static/now.js.
+			document.getElementById("date-heading").textContent =
+				new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+		</script>
 		// Live countdown of time left in the block active at the viewer's clock;
 		// now.js reveals and ticks it (the server can't know that clock).
 		// Hidden when no block is active; data-type drives the pill color.

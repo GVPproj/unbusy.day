@@ -5,6 +5,7 @@ package frontend
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -82,6 +83,28 @@ func TestGuideModalDemoColumnWiring(t *testing.T) {
 	}
 	if n := strings.Count(body, `class="gc-cue"`); n != 3 {
 		t.Errorf("want a resize cue on each of the 3 demo blocks, got %d; body:\n%s", n, body)
+	}
+}
+
+// The touch carousel (app.css lays .guide-body out as a scroll-snap row) needs
+// three things in the markup: guide-swipe.js mounted, the body listening for the
+// `guidestep` event the script dispatches on settle, and every pane carrying an
+// inert binding — off-screen panes are on screen in the carousel, so inert is
+// what keeps them out of the tab order and the a11y tree.
+func TestGuideModalSwipeWiring(t *testing.T) {
+	body := renderPage(t, threeBlocks(), testBounds)
+
+	if !strings.Contains(body, "guide-swipe.js") {
+		t.Errorf("page missing the guide-swipe.js module; body:\n%s", body)
+	}
+	if !strings.Contains(body, `data-on:guidestep="$_guidestep = evt.detail.step"`) {
+		t.Errorf("guide body does not consume the guidestep event; body:\n%s", body)
+	}
+	for i := 1; i <= 4; i++ {
+		want := `data-attr:inert="$_guidestep !== ` + strconv.Itoa(i) + `"`
+		if !strings.Contains(body, want) {
+			t.Errorf("pane %d missing its inert binding %q; body:\n%s", i, want, body)
+		}
 	}
 }
 

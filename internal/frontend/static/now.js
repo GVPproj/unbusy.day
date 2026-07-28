@@ -35,6 +35,12 @@ export const formatCountdown = (secs) =>
 // 12-hour h:MM (no leading zero on the hour) for the now-pill label.
 export const formatClock = (hours24, mins) => `${((hours24 + 11) % 12) + 1}:${pad(mins)}`;
 
+// The #date-heading text, in the viewer's locale and timezone. Duplicated
+// inline in column.templ so the heading is filled before first paint; keep the
+// two in sync.
+export const formatDate = (d) =>
+	d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
 // --- DOM glue ---------------------------------------------------------
 
 let observer;
@@ -50,6 +56,7 @@ function tick() {
 	const nowSecs = secsSinceMidnight(now);
 	const slot = nowSlot(nowSecs);
 
+	updateDateHeading(now);
 	placeNowPill(list, now, nowSecs, slot);
 	const active = markBlocks(list, slot); // one scan, feeds the countdown
 	updateCountdown(active, nowSecs);
@@ -71,6 +78,15 @@ function markBlocks(list, slot) {
 		if (on && !active) active = { end: start + span, type: item.dataset.type || "" };
 	}
 	return active;
+}
+
+// Roll the heading over at local midnight; column.templ's inline script already
+// wrote today's, so only touch the DOM when the text actually changes.
+function updateDateHeading(now) {
+	const h = document.getElementById("date-heading");
+	if (!h) return;
+	const text = formatDate(now);
+	if (h.textContent !== text) h.textContent = text;
 }
 
 // Position #now-pill at the current time inside the day's bounds, or hide it when

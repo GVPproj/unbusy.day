@@ -11,7 +11,7 @@ description: Build, run, and visually drive unbusy.day headlessly — mint an OT
 task build                       # templ + go build → tmp/unbusy
 DATABASE_URL="file:$SCRATCH/verify.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate" \
   PORT=8199 ./tmp/unbusy > $SCRATCH/server.log 2>&1 &
-curl -s http://localhost:8199/healthz   # 200 = up; DB migrates on boot, starter blocks seed on first login
+curl -s http://localhost:8199/healthz   # 200 = up; DB migrates on boot. A fresh login starts with an empty day — add blocks via the slot "+" buttons
 ```
 
 Never run `task templ` while `task dev` is up (check `pgrep -f templ` first).
@@ -35,7 +35,7 @@ Endpoints read Datastar signals as a JSON body, not form fields.
 
 ## Gotchas
 
-- Clearing the day via the Clear modal disables the nav Clear button (`$firstOccupiedSlot >= $lastOccupiedEnd`) — handy for probing disabled state, but it mutates the scratch DB; re-login with a fresh email to reseed starter blocks.
+- Clearing the day via the Clear modal disables the nav Clear button (`$firstOccupiedSlot >= $lastOccupiedEnd`) — handy for probing disabled state, but it mutates the scratch DB; add blocks back via the slot "+" buttons.
 - For a pre-change baseline: `git stash && task build && cp tmp/unbusy <scratch>/baseline && git stash pop && task build` (templ output is generated from markup, so a plain `go build` without `task build` can embed stale renders).
 - Pixel parity: run baseline + current on separate ports with FRESH DBs and separate sessions, freeze the client clock in both (`page.clock.install({time})` — otherwise the now-pill/past/active states drift between shots), then diff with `pixelmatch` + `pngjs` (npm-install in scratch; no imagemagick on this box).
 - Locator identity is unstable across SSE morphs: `.block-item.first()` can resolve to a *different* block after a move/rename swap. Assert on `data-id`, or read the final screenshot, not a re-queried locator.

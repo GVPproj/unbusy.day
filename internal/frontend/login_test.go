@@ -43,13 +43,6 @@ func (f *fakeAuth) UserForSession(_ context.Context, token string) (string, erro
 	return testOwner, nil
 }
 
-type fakeSeeder struct{ gotOwner string }
-
-func (f *fakeSeeder) Seed(_ context.Context, owner string) error {
-	f.gotOwner = owner
-	return nil
-}
-
 // The patched code form is identical for known and unknown emails, so
 // responses can't enumerate.
 func TestRequestCodePatchesCodeForm(t *testing.T) {
@@ -72,20 +65,16 @@ func TestRequestCodePatchesCodeForm(t *testing.T) {
 	}
 }
 
-func TestVerifyCodeSetsCookieSeedsAndRedirects(t *testing.T) {
+func TestVerifyCodeSetsCookieAndRedirects(t *testing.T) {
 	a := &fakeAuth{}
-	seeder := &fakeSeeder{}
 	req := httptest.NewRequest(http.MethodPost, "/login/verify",
 		strings.NewReader(`{"email":"x@example.test","code":"123456"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	VerifyCodeHandler(a, seeder, false).ServeHTTP(rec, req)
+	VerifyCodeHandler(a, false).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
-	}
-	if seeder.gotOwner != testOwner {
-		t.Errorf("Seed called with %q, want %q", seeder.gotOwner, testOwner)
 	}
 
 	var cookie *http.Cookie
@@ -112,7 +101,7 @@ func TestVerifyCodeRejectionRepatchesForm(t *testing.T) {
 		strings.NewReader(`{"email":"x@example.test","code":"000000"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	VerifyCodeHandler(a, &fakeSeeder{}, false).ServeHTTP(rec, req)
+	VerifyCodeHandler(a, false).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)

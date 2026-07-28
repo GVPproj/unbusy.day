@@ -31,8 +31,8 @@ func newDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// newOwner creates a throwaway user with starter blocks; cleanup deletes the
-// user and the blocks cascade.
+// newOwner creates a throwaway user with three span-1 fixture blocks at
+// DefaultDayStart, +1, +2; cleanup deletes the user and the blocks cascade.
 func newOwner(t *testing.T, db *sql.DB, svc *block.Service) string {
 	t.Helper()
 	ctx := context.Background()
@@ -47,51 +47,16 @@ func newOwner(t *testing.T, db *sql.DB, svc *block.Service) string {
 	t.Cleanup(func() {
 		_, _ = db.ExecContext(context.Background(), `DELETE FROM "user" WHERE id = ?`, id)
 	})
-	if err := svc.Seed(ctx, id); err != nil {
-		t.Fatalf("seed: %v", err)
+	// Inserted directly, not via Create, so the fixture doesn't fan out events
+	// that publish-count assertions would see.
+	for i, label := range []string{"Alpha", "Bravo", "Charlie"} {
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO block (id, label, position, owner_id) VALUES (?, ?, ?, ?)`,
+			id+"-"+label, label, block.DefaultDayStart+i, id); err != nil {
+			t.Fatalf("insert fixture block %q: %v", label, err)
+		}
 	}
 	return id
-}
-
-func TestSeed_Idempotent(t *testing.T) {
-	db := newDB(t)
-	svc := block.NewService(db, nil)
-	ctx := context.Background()
-	owner := newOwner(t, db, svc)
-
-	if err := svc.Seed(ctx, owner); err != nil {
-		t.Fatalf("re-seed: %v", err)
-	}
-	cs, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(cs) != 3 {
-		t.Fatalf("want 3 starter blocks after re-seed, got %d", len(cs))
-	}
-}
-
-func TestSeed_PlacesStarterBlocksAtDayStart(t *testing.T) {
-	db := newDB(t)
-	svc := block.NewService(db, nil)
-	ctx := context.Background()
-	owner := newOwner(t, db, svc)
-
-	cs, err := svc.List(ctx, owner)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(cs) != 3 {
-		t.Fatalf("want 3 starter blocks, got %d", len(cs))
-	}
-	for i, c := range cs {
-		if want := block.DefaultDayStart + i; c.Position != want {
-			t.Fatalf("starter block %d at slot %d, want %d", i, c.Position, want)
-		}
-		if c.Span != 1 {
-			t.Fatalf("starter block %d span %d, want 1", i, c.Span)
-		}
-	}
 }
 
 func TestOwnersAreIsolated(t *testing.T) {

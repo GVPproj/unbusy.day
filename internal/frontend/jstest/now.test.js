@@ -13,6 +13,7 @@ import {
 	isPast,
 	formatCountdown,
 	formatClock,
+	formatDate,
 } from "../static/now.js";
 
 // A Date stand-in: only the local getters the helpers read.
@@ -71,4 +72,13 @@ test("formatClock renders 12-hour h:MM with no leading zero on the hour", () => 
 	assert.equal(formatClock(12, 30), "12:30"); // noon
 	assert.equal(formatClock(13, 7), "1:07");
 	assert.equal(formatClock(23, 59), "11:59");
+});
+
+// The heading reads the viewer's LOCAL date — a UTC-evening Date must still say
+// the previous day west of Greenwich (the bug this replaced: a server-rendered
+// time.Now() showed tomorrow from 5pm PDT on).
+test("formatDate renders the local weekday, month and day", () => {
+	const d = new Date(2026, 6, 27, 17, 30); // Monday, July 27 2026, local
+	assert.equal(d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), "Monday, July 27");
+	assert.equal(formatDate(d), d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }));
 });
