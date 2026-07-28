@@ -124,8 +124,9 @@ func TestSetLayout_CommitsAndListReflects(t *testing.T) {
 		t.Fatalf("setlayout: %v", err)
 	}
 	want := []struct {
-		id         string
-		slot, span int
+		id   string
+		slot block.Slot
+		span int
 	}{{b.ID, 19, 1}, {c.ID, 20, 1}, {a.ID, 25, 2}}
 	check := func(cs []block.Block, label string) {
 		if len(cs) != len(want) {
@@ -362,7 +363,7 @@ func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
 	ctx := context.Background()
 	owner := newOwner(t, db, svc) // starter blocks at DefaultDayStart, +1, +2
 
-	cases := map[string][2]int{
+	cases := map[string][2]block.Slot{
 		"start side": {19, 34},
 		"end side":   {18, 20},
 	}
@@ -389,7 +390,7 @@ func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
 	ctx := context.Background()
 	owner := newOwner(t, db, svc)
 
-	cases := map[string][2]int{
+	cases := map[string][2]block.Slot{
 		"before 4:00":    {7, 34},
 		"after 18:00":    {18, 37},
 		"end not beyond": {18, 18},
@@ -589,7 +590,7 @@ func mustList(t *testing.T, svc *block.Service, ctx context.Context, owner strin
 func TestCreate_Rejections(t *testing.T) {
 	cases := map[string]struct {
 		label string
-		slot  int
+		slot  block.Slot
 		want  error
 	}{
 		"empty label":   {"   ", 30, block.ErrEmptyLabel},

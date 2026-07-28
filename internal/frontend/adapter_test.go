@@ -36,12 +36,12 @@ type fakeService struct {
 	gotLayout []block.Placement
 	gotBounds block.Bounds
 	gotLabel  string
-	gotSlot   int
+	gotSlot   block.Slot
 	gotType   block.BlockType
 	gotID     string
 }
 
-func (f *fakeService) Create(ctx context.Context, owner, label string, slot int, typ block.BlockType) (*block.CreateResult, error) {
+func (f *fakeService) Create(ctx context.Context, owner, label string, slot block.Slot, typ block.BlockType) (*block.CreateResult, error) {
 	f.gotOwner, f.gotLabel, f.gotSlot, f.gotType = owner, label, slot, typ
 	if f.createErr != nil {
 		return nil, f.createErr
@@ -89,7 +89,7 @@ func (f *fakeService) Rename(ctx context.Context, owner, id, label string) (*blo
 	return &block.RenameResult{Blocks: f.blocks}, nil
 }
 
-func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end int) error {
+func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end block.Slot) error {
 	f.gotOwner, f.gotBounds = owner, block.Bounds{Start: start, End: end}
 	if f.boundsErr != nil {
 		return f.boundsErr
@@ -620,7 +620,7 @@ func TestColumnRendersEverySlotInDay(t *testing.T) {
 	body := b.String()
 	// `class="slot` followed by a quote or space (`slot` alone or `slot half`)
 	// excludes slot-add/block-label.
-	if got, want := strings.Count(body, `class="slot"`)+strings.Count(body, `class="slot `), testBounds.End-testBounds.Start; got != want {
+	if got, want := strings.Count(body, `class="slot"`)+strings.Count(body, `class="slot `), testBounds.Len(); got != want {
 		t.Errorf("want %d slot elements, got %d; body:\n%s", want, got, body)
 	}
 	for _, want := range []string{`data-slot="18"`, `data-slot="33"`} {
@@ -648,7 +648,7 @@ func TestSlotAccessibilityTracksOccupancy(t *testing.T) {
 	body := b.String()
 	occupied := block.OccupiedSlots(threeBlocks()) // a@18, b@19, c@20 (span 1)
 	for s := testBounds.Start; s < testBounds.End; s++ {
-		el := slotElement(t, body, s)
+		el := slotElement(t, body, int(s))
 		// The gutter <span> is always aria-hidden, so test only the <li> open tag.
 		open, _, _ := strings.Cut(el, ">")
 		hidden := strings.Contains(open, `aria-hidden="true"`)
@@ -701,7 +701,7 @@ func TestColumnRendersTimeGutter(t *testing.T) {
 			t.Errorf("gutter missing hour label %q; body:\n%s", want, body)
 		}
 	}
-	if got, want := strings.Count(body, ":30<"), (testBounds.End-testBounds.Start)/2; got != want {
+	if got, want := strings.Count(body, ":30<"), testBounds.Len()/2; got != want {
 		t.Errorf("want %d half-hour marks, got %d; body:\n%s", want, got, body)
 	}
 }

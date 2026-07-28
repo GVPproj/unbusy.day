@@ -3,6 +3,7 @@ package modals
 import (
 	"strconv"
 
+	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 )
 
@@ -135,19 +136,12 @@ templ guideColumn(demo bool, rows int) {
 	<div class={ "guide-figure", "guide-column", templ.KV("gc-demo", demo) } aria-hidden="true">
 		for i := 0; i < rows; i++ {
 			<div class={ "gc-slot", templ.KV("gc-half", i%2 == 1) } style={ "grid-row:" + strconv.Itoa(i+1) }>
-				<span class="gc-gutter">{ gcTime(i) }</span>
+				// The demo grid counts half-hours from the default day start (9:00).
+				<span class="gc-gutter">{ block.Slot(block.DefaultDayStart + i).Label() }</span>
 			</div>
 		}
 		{ children... }
 	</div>
-}
-
-// gcTime labels slot i counting half-hours from 9:00.
-func gcTime(i int) string {
-	if i%2 == 1 {
-		return strconv.Itoa(9+i/2) + ":30"
-	}
-	return strconv.Itoa(9+i/2) + ":00"
 }
 
 // gcHandle is a demo block's resize grip plus the arrows-and-spine cue shown

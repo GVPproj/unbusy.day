@@ -1,11 +1,144 @@
 package block_test
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
 )
+
+func TestSlotLabel(t *testing.T) {
+	cases := []struct {
+		slot block.Slot
+		want string
+	}{
+		{0, "0:00"},
+		{1, "0:30"},
+		{block.MinDayStart, "4:00"},
+		{block.DefaultDayStart, "9:00"},
+		{19, "9:30"},
+		{block.MaxDayEnd, "18:00"},
+	}
+	for _, tc := range cases {
+		if got := tc.slot.Label(); got != tc.want {
+			t.Errorf("Slot(%d).Label() = %q, want %q", tc.slot, got, tc.want)
+		}
+	}
+}
+
+func TestSlotRange(t *testing.T) {
+	if got := block.Slot(18).Range(3); got != "9:00 to 10:30" {
+		t.Errorf("Range = %q, want %q", got, "9:00 to 10:30")
+	}
+}
+
+func TestSlotAdd(t *testing.T) {
+	if got := block.Slot(18).Add(3); got != 21 {
+		t.Errorf("Add = %d, want 21", got)
+	}
+}
+
+// Contains must be span-aware: the span-1 form and the span-N form agree at
+// every edge (the check Create's old start-only variant got wrong).
+func TestBoundsContains(t *testing.T) {
+	b := block.Bounds{Start: 18, End: 34}
+	cases := []struct {
+		name string
+		slot block.Slot
+		span int
+		want bool
+	}{
+		{"span-1 at start", 18, 1, true},
+		{"span-1 at last slot", 33, 1, true},
+		{"span-1 at end", 34, 1, false},
+		{"span-1 before start", 17, 1, false},
+		{"span-N exact fit at end", 32, 2, true},
+		{"span-N leaks past end", 33, 2, false},
+		{"span-N fills day", 18, 16, true},
+		{"span-N overfills day", 18, 17, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := b.Contains(tc.slot, tc.span); got != tc.want {
+				t.Errorf("Contains(%d, %d) = %v, want %v", tc.slot, tc.span, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBoundsValid(t *testing.T) {
+	cases := []struct {
+		name string
+		b    block.Bounds
+		want bool
+	}{
+		{"default day", block.Bounds{Start: block.DefaultDayStart, End: block.DefaultDayEnd}, true},
+		{"hard limits", block.Bounds{Start: block.MinDayStart, End: block.MaxDayEnd}, true},
+		{"before 4:00", block.Bounds{Start: block.MinDayStart - 1, End: 34}, false},
+		{"after 18:00", block.Bounds{Start: 18, End: block.MaxDayEnd + 1}, false},
+		{"end not beyond start", block.Bounds{Start: 18, End: 18}, false},
+		{"inverted", block.Bounds{Start: 20, End: 18}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.b.Valid(); got != tc.want {
+				t.Errorf("%+v.Valid() = %v, want %v", tc.b, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBoundsSlotsRowLen(t *testing.T) {
+	b := block.Bounds{Start: 18, End: 21}
+	slots := b.Slots()
+	if len(slots) != 3 || slots[0] != 18 || slots[2] != 20 {
+		t.Fatalf("Slots() = %v, want [18 19 20]", slots)
+	}
+	if got := b.Len(); got != 3 {
+		t.Errorf("Len() = %d, want 3", got)
+	}
+	if got := b.Row(18); got != 1 {
+		t.Errorf("Row(18) = %d, want 1 (grid rows are 1-based)", got)
+	}
+	if got := b.Row(20); got != 3 {
+		t.Errorf("Row(20) = %d, want 3", got)
+	}
+}
+
+func TestSpanOr1(t *testing.T) {
+	for span, want := range map[int]int{-1: 1, 0: 1, 1: 1, 3: 3} {
+		if got := block.SpanOr1(span); got != want {
+			t.Errorf("SpanOr1(%d) = %d, want %d", span, got, want)
+		}
+	}
+}
+
+// Emit the label for every legal slot to a golden file. The JS mirror
+// (keyboard-reducer.js timeLabel — kept separate by ADR 0005) is asserted
+// against the same file by jstest/keyboard-reducer.test.js, so the two
+// formatters can't drift silently.
+func TestSlotLabelGoldenFile(t *testing.T) {
+	labels := make(map[string]string)
+	for s := block.Slot(block.MinDayStart); s <= block.MaxDayEnd; s++ {
+		labels[strconv.Itoa(int(s))] = s.Label()
+	}
+	data, err := json.MarshalIndent(labels, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	data = append(data, '\n')
+	path := filepath.Join("testdata", "slot_labels.json")
+	if err := os.MkdirAll("testdata", 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write golden: %v", err)
+	}
+}
 
 func TestValidateLayout_IdenticalLayoutIsValid(t *testing.T) {
 	bounds := block.Bounds{Start: 18, End: 34} // 9:00–17:00
@@ -145,7 +278,7 @@ func TestValidateLayout_RejectsBlockSetMismatch(t *testing.T) {
 
 func TestOccupiedSlots_SingleBlock(t *testing.T) {
 	got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: 1}})
-	want := map[int]bool{20: true}
+	want := map[block.Slot]bool{20: true}
 	if len(got) != len(want) || !got[20] {
 		t.Fatalf("want %v, got %v", want, got)
 	}
@@ -153,7 +286,7 @@ func TestOccupiedSlots_SingleBlock(t *testing.T) {
 
 func TestOccupiedSlots_MultiSpanBlock(t *testing.T) {
 	got := block.OccupiedSlots([]block.Block{{ID: "a", Position: 20, Span: 3}})
-	for _, s := range []int{20, 21, 22} {
+	for _, s := range []block.Slot{20, 21, 22} {
 		if !got[s] {
 			t.Fatalf("slot %d: want occupied, got %v", s, got)
 		}
@@ -178,7 +311,7 @@ func TestOccupiedSlots_UnionsBlocks(t *testing.T) {
 		{ID: "a", Position: 18, Span: 2}, // 18,19
 		{ID: "b", Position: 22, Span: 1}, // 22
 	})
-	for _, s := range []int{18, 19, 22} {
+	for _, s := range []block.Slot{18, 19, 22} {
 		if !got[s] {
 			t.Fatalf("slot %d: want occupied, got %v", s, got)
 		}
@@ -200,7 +333,7 @@ func TestOccupiedEnvelope(t *testing.T) {
 	cases := []struct {
 		name               string
 		blocks             []block.Block
-		wantFirst, wantEnd int
+		wantFirst, wantEnd block.Slot
 	}{
 		// No blocks: sentinels that leave the whole legal range pickable
 		// (start ≤ MaxDayEnd and end ≥ MinDayStart are always true).

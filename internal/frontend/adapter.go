@@ -25,8 +25,8 @@ type BlockService interface {
 	List(ctx context.Context, owner string) ([]block.Block, error)
 	Bounds(ctx context.Context, owner string) (block.Bounds, error)
 	SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.LayoutResult, error)
-	SetBounds(ctx context.Context, owner string, start, end int) error
-	Create(ctx context.Context, owner, label string, slot int, typ block.BlockType) (*block.CreateResult, error)
+	SetBounds(ctx context.Context, owner string, start, end block.Slot) error
+	Create(ctx context.Context, owner, label string, slot block.Slot, typ block.BlockType) (*block.CreateResult, error)
 	Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error)
 	Clear(ctx context.Context, owner string) (*block.ClearResult, error)
 	Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error)
@@ -133,8 +133,8 @@ func LayoutHandler(svc BlockService) http.Handler {
 }
 
 type boundsSignals struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
+	Start block.Slot `json:"start"`
+	End   block.Slot `json:"end"`
 }
 
 // BoundsHandler edits the owner's day extent and patches the column at the
@@ -169,9 +169,9 @@ func BoundsHandler(svc BlockService) http.Handler {
 }
 
 type createSignals struct {
-	Slot  int    `json:"addslot"`
-	Label string `json:"addlabel"`
-	Type  string `json:"addtype"`
+	Slot  block.Slot `json:"addslot"`
+	Label string     `json:"addlabel"`
+	Type  string     `json:"addtype"`
 }
 
 // CreateHandler inserts a new block at the modal's slot and patches the

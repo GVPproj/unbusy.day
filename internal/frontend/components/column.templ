@@ -44,8 +44,8 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 		id="block-list"
 		class="blocks"
 		data-preserve-attr="class"
-		data-day-start={ strconv.Itoa(b.Start) }
-		data-day-end={ strconv.Itoa(b.End) }
+		data-day-start={ strconv.Itoa(int(b.Start)) }
+		data-day-end={ strconv.Itoa(int(b.End)) }
 		data-signals:layout="[]"
 		data-signals:deleteid="''"
 		data-signals:renameid="''"
@@ -56,16 +56,18 @@ templ BlockColumn(cs []block.Block, b block.Bounds) {
 	>
 		{{ occupied := block.OccupiedSlots(cs) }}
 		{{ startsAt := byStartSlot(cs) }}
-		for s := b.Start; s < b.End; s++ {
-			@slot(s, b.Start, occupied[s])
+		for _, s := range b.Slots() {
+			@slot(s, b, occupied[s])
 			if c, ok := startsAt[s]; ok {
-				@blockItem(c, b.Start, b.End)
+				@blockItem(c, b)
 			}
 		}
-		// Render out-of-bounds blocks anyway so a stray one is never silently dropped.
+		// Render out-of-bounds blocks anyway so a stray one is never silently
+		// dropped. Span-1 containment of the start slot exactly complements the
+		// loop above — a block whose span merely leaks past End already rendered.
 		for _, c := range cs {
-			if c.Position < b.Start || c.Position >= b.End {
-				@blockItem(c, b.Start, b.End)
+			if !b.Contains(c.Position, 1) {
+				@blockItem(c, b)
 			}
 		}
 		@nowPill()
@@ -88,12 +90,12 @@ templ nowPill() {
 // slot is one 30-minute row of the day grid. Explicit grid-row keeps
 // auto-placement from skipping rows blocks occupy; the "add" button renders
 // only for free slots so it never sits behind a block in the tab order.
-templ slot(s, dayStart int, occupied bool) {
+templ slot(s block.Slot, b block.Bounds, occupied bool) {
 	// Half-hour rows (.half) get a dashed top rule; hour rows stay solid.
 	<li
 		class={ "slot", templ.KV("half", s%2 == 1) }
-		data-slot={ strconv.Itoa(s) }
-		style={ "grid-row:" + strconv.Itoa(s-dayStart+1) }
+		data-slot={ strconv.Itoa(int(s)) }
+		style={ "grid-row:" + strconv.Itoa(b.Row(s)) }
 		if occupied {
 			aria-hidden="true"
 		}
@@ -101,15 +103,15 @@ templ slot(s, dayStart int, occupied bool) {
 		<span
 			class="gutter"
 			aria-hidden="true"
-		>{ timeLabel(s) }</span>
+		>{ s.Label() }</span>
 		if !occupied {
 			<button
 				type="button"
 				class="slot-add"
 				commandfor="create-modal"
 				command="show-modal"
-				data-on:click={ "$addslot = " + strconv.Itoa(s) }
-				aria-label={ "Add block at " + timeLabel(s) }
+				data-on:click={ "$addslot = " + strconv.Itoa(int(s)) }
+				aria-label={ "Add block at " + s.Label() }
 			>
 				@IconPlus()
 			</button>
@@ -118,18 +120,10 @@ templ slot(s, dayStart int, occupied bool) {
 }
 
 // byStartSlot indexes blocks by start slot; no-overlap guarantees one per slot.
-func byStartSlot(cs []block.Block) map[int]block.Block {
-	m := make(map[int]block.Block, len(cs))
+func byStartSlot(cs []block.Block) map[block.Slot]block.Block {
+	m := make(map[block.Slot]block.Block, len(cs))
 	for _, c := range cs {
 		m[c.Position] = c
 	}
 	return m
-}
-
-// timeLabel renders a slot index (30-min steps from 00:00) as gutter text.
-func timeLabel(s int) string {
-	if s%2 == 1 {
-		return strconv.Itoa(s/2) + ":30"
-	}
-	return strconv.Itoa(s/2) + ":00"
 }

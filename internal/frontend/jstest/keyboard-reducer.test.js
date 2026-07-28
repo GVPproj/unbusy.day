@@ -301,6 +301,20 @@ test("timeRange renders a slot+span clock span", () => {
 	assert.equal(timeRange(20, 3), "10:00 to 11:30");
 });
 
+// Drift check against the server's Slot.Label (ADR 0005 keeps the JS copy).
+// The golden file is emitted by TestSlotLabelGoldenFile in
+// internal/block/layout_test.go for every slot in [MinDayStart, MaxDayEnd].
+test("timeLabel agrees with the Go Slot.Label golden file on every legal slot", async () => {
+	const { readFile } = await import("node:fs/promises");
+	const path = new URL("../../block/testdata/slot_labels.json", import.meta.url);
+	const golden = JSON.parse(await readFile(path, "utf8"));
+	const slots = Object.keys(golden);
+	assert.ok(slots.length > 0, "golden file is empty");
+	for (const s of slots) {
+		assert.equal(timeLabel(Number(s)), golden[s], `slot ${s}`);
+	}
+});
+
 test("rangeMsg reads the block's slot+span out of the layout", () => {
 	const layout = [
 		{ id: "a", slot: 18, span: 2 },

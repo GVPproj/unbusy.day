@@ -10,7 +10,7 @@ import (
 // data-span persist the clock placement, grid-row paints it relative to day start.
 // Styling lives in app.css's @scope (.blocks); `block-item`/`dragging`/`resizing`
 // are block-gestures.js hooks, `active`/`past` are now.js hooks.
-templ blockItem(c block.Block, dayStart, dayEnd int) {
+templ blockItem(c block.Block, b block.Bounds) {
 	<li
 		class="block-item"
 		tabindex="0"
@@ -18,10 +18,10 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 		aria-describedby="dnd-instructions"
 		id={ c.ID }
 		data-id={ c.ID }
-		data-span={ strconv.Itoa(spanOr1(c.Span)) }
-		data-slot={ strconv.Itoa(c.Position) }
+		data-span={ strconv.Itoa(block.SpanOr1(c.Span)) }
+		data-slot={ strconv.Itoa(int(c.Position)) }
 		data-type={ string(c.Type) }
-		style={ "grid-row:" + strconv.Itoa(c.Position-dayStart+1) + " / span " + strconv.Itoa(spanOr1(c.Span)) + ";--span:" + strconv.Itoa(spanOr1(c.Span)) }
+		style={ "grid-row:" + strconv.Itoa(b.Row(c.Position)) + " / span " + strconv.Itoa(block.SpanOr1(c.Span)) + ";--span:" + strconv.Itoa(block.SpanOr1(c.Span)) }
 	>
 		// Clock span read first by AT — otherwise it lives only in the CSS grid-row.
 		<span class="sr-only">{ blockTimeRange(c) + ", " }</span>
@@ -44,8 +44,8 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 			aria-controls={ c.ID }
 			aria-label={ "Resize " + c.Label }
 			aria-valuemin="1"
-			aria-valuemax={ strconv.Itoa(dayEnd - c.Position) }
-			aria-valuenow={ strconv.Itoa(spanOr1(c.Span)) }
+			aria-valuemax={ strconv.Itoa(int(b.End - c.Position)) }
+			aria-valuenow={ strconv.Itoa(block.SpanOr1(c.Span)) }
 			aria-valuetext={ blockTimeRange(c) }
 		></span>
 		// Resize cue, shown only while resizing; decorative.
@@ -61,15 +61,8 @@ templ blockItem(c block.Block, dayStart, dayEnd int) {
 	</li>
 }
 
-func spanOr1(span int) int {
-	if span < 1 {
-		return 1
-	}
-	return span
-}
-
 // blockTimeRange renders a block's clock span ("9:00 to 10:30") for its
 // accessible name.
 func blockTimeRange(c block.Block) string {
-	return timeLabel(c.Position) + " to " + timeLabel(c.Position+spanOr1(c.Span))
+	return c.Position.Range(block.SpanOr1(c.Span))
 }

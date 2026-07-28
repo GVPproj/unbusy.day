@@ -18,28 +18,19 @@ func signalsObject(b block.Bounds, env block.Envelope) string {
 // startOptions renders the start select's half-hour options (current pre-selected).
 // Each disables past the first occupied slot — raising start there would strand
 // the earliest block.
-templ startOptions(from, to, current int) {
+templ startOptions(from, to, current block.Slot) {
 	for s := from; s <= to; s++ {
-		<option value={ strconv.Itoa(s) } selected?={ s == current } data-attr:disabled={ strconv.Itoa(s) + " > $firstOccupiedSlot" }>{ clockLabel(s) }</option>
+		<option value={ strconv.Itoa(int(s)) } selected?={ s == current } data-attr:disabled={ strconv.Itoa(int(s)) + " > $firstOccupiedSlot" }>{ s.Label() }</option>
 	}
 }
 
 // endOptions renders the end select's half-hour options (current pre-selected).
 // Each disables below the last occupied end — dropping end there would strand
 // the latest block.
-templ endOptions(from, to, current int) {
+templ endOptions(from, to, current block.Slot) {
 	for s := from; s <= to; s++ {
-		<option value={ strconv.Itoa(s) } selected?={ s == current } data-attr:disabled={ strconv.Itoa(s) + " < $lastOccupiedEnd" }>{ clockLabel(s) }</option>
+		<option value={ strconv.Itoa(int(s)) } selected?={ s == current } data-attr:disabled={ strconv.Itoa(int(s)) + " < $lastOccupiedEnd" }>{ s.Label() }</option>
 	}
-}
-
-// clockLabel renders a slot index (30-min steps from 00:00) as a clock time
-// ("9:00", "9:30").
-func clockLabel(s int) string {
-	if s%2 == 1 {
-		return strconv.Itoa(s/2) + ":30"
-	}
-	return strconv.Itoa(s/2) + ":00"
 }
 
 // HoursModal is the day-bounds editor. Selects cover the hard 4:00–18:00

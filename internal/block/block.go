@@ -33,7 +33,7 @@ func (t BlockType) Valid() bool {
 type Block struct {
 	ID       string    `json:"id"`
 	Label    string    `json:"label"`
-	Position int       `json:"position"`
+	Position Slot      `json:"position"`
 	Span     int       `json:"span"` // height in slots (≥1)
 	Type     BlockType `json:"type"`
 }
@@ -79,7 +79,7 @@ type CreateResult struct {
 
 // Create inserts a new span-1 block at slot; rejects a blank label, a slot
 // outside bounds, or an occupied slot.
-func (s *Service) Create(ctx context.Context, owner, label string, slot int, typ BlockType) (*CreateResult, error) {
+func (s *Service) Create(ctx context.Context, owner, label string, slot Slot, typ BlockType) (*CreateResult, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
 		return nil, ErrEmptyLabel
@@ -102,7 +102,7 @@ func (s *Service) Create(ctx context.Context, owner, label string, slot int, typ
 	if err != nil {
 		return nil, err
 	}
-	if slot < bounds.Start || slot >= bounds.End {
+	if !bounds.Contains(slot, 1) {
 		return nil, ErrOutOfBounds
 	}
 	current, err := queryBlocks(ctx, tx, owner)
@@ -319,8 +319,9 @@ func (s *Service) Bounds(ctx context.Context, owner string) (Bounds, error) {
 
 // SetBounds edits the owner's day extent; a shrink onto an occupied slot
 // rejects whole.
-func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) error {
-	if start < MinDayStart || end > MaxDayEnd || end <= start {
+func (s *Service) SetBounds(ctx context.Context, owner string, start, end Slot) error {
+	next := Bounds{Start: start, End: end}
+	if !next.Valid() {
 		return ErrInvalidBounds
 	}
 
@@ -335,7 +336,7 @@ func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) e
 		return err
 	}
 	for _, c := range bs {
-		if c.Position < start || c.Position+c.Span > end {
+		if !next.Contains(c.Position, c.Span) {
 			return ErrBoundsOccupied
 		}
 	}
@@ -349,7 +350,7 @@ func (s *Service) SetBounds(ctx context.Context, owner string, start, end int) e
 	}
 
 	if s.pub != nil {
-		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: Bounds{Start: start, End: end}})
+		s.pub.Publish(Event{Owner: owner, Blocks: bs, Bounds: next})
 	}
 	return nil
 }
