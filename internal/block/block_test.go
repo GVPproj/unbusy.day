@@ -339,7 +339,8 @@ func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
 	ctx := context.Background()
 	owner := newOwner(t, db, svc) // starter blocks at DefaultDayStart, +1, +2
 
-	if err := svc.SetBounds(ctx, owner, 17, 21); err != nil {
+	res, err := svc.SetBounds(ctx, owner, 17, 21)
+	if err != nil {
 		t.Fatalf("setbounds: %v", err)
 	}
 	got, err := svc.Bounds(ctx, owner)
@@ -349,11 +350,15 @@ func TestSetBounds_ShrinkIntoEmptySlots(t *testing.T) {
 	if got != (block.Bounds{Start: 17, End: 21}) {
 		t.Fatalf("bounds = %+v, want {17 21}", got)
 	}
+	if res.Bounds != got {
+		t.Fatalf("result bounds = %+v, want committed %+v", res.Bounds, got)
+	}
 	if len(pub.events) != 1 {
 		t.Fatalf("want 1 published event, got %d", len(pub.events))
 	}
-	if pub.events[0].Bounds != got {
-		t.Fatalf("published bounds = %+v, want %+v", pub.events[0].Bounds, got)
+	// The Event is a post-commit snapshot: committed bounds AND the blocks.
+	if e := pub.events[0]; e.Bounds != got || len(e.Blocks) != 3 {
+		t.Fatalf("published event = {bounds %+v, %d blocks}, want {%+v, 3}", e.Bounds, len(e.Blocks), got)
 	}
 }
 
@@ -369,7 +374,7 @@ func TestSetBounds_RejectsShrinkIntoOccupied(t *testing.T) {
 	}
 	for name, b := range cases {
 		t.Run(name, func(t *testing.T) {
-			if err := svc.SetBounds(ctx, owner, b[0], b[1]); !errors.Is(err, block.ErrBoundsOccupied) {
+			if _, err := svc.SetBounds(ctx, owner, b[0], b[1]); !errors.Is(err, block.ErrBoundsOccupied) {
 				t.Fatalf("want ErrBoundsOccupied, got %v", err)
 			}
 		})
@@ -398,7 +403,7 @@ func TestSetBounds_RejectsOutsideHardLimits(t *testing.T) {
 	}
 	for name, b := range cases {
 		t.Run(name, func(t *testing.T) {
-			if err := svc.SetBounds(ctx, owner, b[0], b[1]); !errors.Is(err, block.ErrInvalidBounds) {
+			if _, err := svc.SetBounds(ctx, owner, b[0], b[1]); !errors.Is(err, block.ErrInvalidBounds) {
 				t.Fatalf("want ErrInvalidBounds, got %v", err)
 			}
 		})
@@ -675,6 +680,115 @@ func TestRename_Rejections(t *testing.T) {
 	}
 	if len(pub.events) != 0 {
 		t.Fatalf("rejected rename must not fan out: got %d events", len(pub.events))
+	}
+}
+
+func TestDelete_RemovesOwnBlockAndPublishes(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+
+	before := mustList(t, svc, ctx, owner)
+	id := before[0].ID
+
+	res, err := svc.Delete(ctx, owner, id)
+	if err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if len(res.Blocks) != 2 {
+		t.Fatalf("want 2 blocks after delete, got %d", len(res.Blocks))
+	}
+	after := mustList(t, svc, ctx, owner)
+	if len(after) != 2 || labelOf(after, id) != "" {
+		t.Fatalf("block %s must be gone; got %+v", id, after)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("want 1 published event, got %d", len(pub.events))
+	}
+}
+
+func TestDelete_Rejections(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{}
+	svc := block.NewService(db, pub)
+	ctx := context.Background()
+	owner := newOwner(t, db, svc)
+	other := newOwner(t, db, svc)
+
+	if _, err := svc.Delete(ctx, owner, "no-such-id"); !errors.Is(err, block.ErrBlockNotFound) {
+		t.Fatalf("unknown id: want ErrBlockNotFound, got %v", err)
+	}
+	// Another owner's id is not yours to delete — and must not leak that it exists.
+	victim := mustList(t, svc, ctx, other)[0].ID
+	if _, err := svc.Delete(ctx, owner, victim); !errors.Is(err, block.ErrBlockNotFound) {
+		t.Fatalf("cross-owner id: want ErrBlockNotFound, got %v", err)
+	}
+	if got := mustList(t, svc, ctx, other); len(got) != 3 {
+		t.Fatalf("cross-owner delete leaked: other has %d blocks, want 3", len(got))
+	}
+	if len(pub.events) != 0 {
+		t.Fatalf("rejected deletes must not fan out: got %d events", len(pub.events))
+	}
+}
+
+// The commit seam's guarantee, once for all six mutators: the returned
+// Snapshot and the published Event both carry the committed post-mutation
+// state (blocks AND bounds), and they agree with a fresh read.
+func TestMutatorsReturnAndPublishPostCommitSnapshot(t *testing.T) {
+	cases := map[string]func(ctx context.Context, svc *block.Service, owner string, cs []block.Block) (*block.Snapshot, error){
+		"create": func(ctx context.Context, svc *block.Service, owner string, _ []block.Block) (*block.Snapshot, error) {
+			return svc.Create(ctx, owner, "New", 30, block.BlockDeep)
+		},
+		"delete": func(ctx context.Context, svc *block.Service, owner string, cs []block.Block) (*block.Snapshot, error) {
+			return svc.Delete(ctx, owner, cs[0].ID)
+		},
+		"clear": func(ctx context.Context, svc *block.Service, owner string, _ []block.Block) (*block.Snapshot, error) {
+			return svc.Clear(ctx, owner)
+		},
+		"rename": func(ctx context.Context, svc *block.Service, owner string, cs []block.Block) (*block.Snapshot, error) {
+			return svc.Rename(ctx, owner, cs[0].ID, "Renamed")
+		},
+		"setlayout": func(ctx context.Context, svc *block.Service, owner string, cs []block.Block) (*block.Snapshot, error) {
+			return svc.SetLayout(ctx, owner, []block.Placement{
+				{ID: cs[0].ID, Slot: 30, Span: 1},
+				{ID: cs[1].ID, Slot: 19, Span: 1},
+				{ID: cs[2].ID, Slot: 20, Span: 1},
+			})
+		},
+		"setbounds": func(ctx context.Context, svc *block.Service, owner string, _ []block.Block) (*block.Snapshot, error) {
+			return svc.SetBounds(ctx, owner, 17, 21)
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			db := newDB(t)
+			pub := &capturePub{}
+			svc := block.NewService(db, pub)
+			ctx := context.Background()
+			owner := newOwner(t, db, svc)
+
+			res, err := mutate(ctx, svc, owner, mustList(t, svc, ctx, owner))
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			blocks := mustList(t, svc, ctx, owner)
+			bounds, err := svc.Bounds(ctx, owner)
+			if err != nil {
+				t.Fatalf("bounds: %v", err)
+			}
+			if !slices.Equal(res.Blocks, blocks) || res.Bounds != bounds {
+				t.Fatalf("snapshot = %+v, want committed {%+v %+v}", res, blocks, bounds)
+			}
+			if len(pub.events) != 1 {
+				t.Fatalf("want 1 published event, got %d", len(pub.events))
+			}
+			e := pub.events[0]
+			if e.Owner != owner || !slices.Equal(e.Blocks, blocks) || e.Bounds != bounds {
+				t.Fatalf("event = %+v, want committed {%q %+v %+v}", e, owner, blocks, bounds)
+			}
+		})
 	}
 }
 

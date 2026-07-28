@@ -41,7 +41,16 @@ type fakeService struct {
 	gotID     string
 }
 
-func (f *fakeService) Create(ctx context.Context, owner, label string, slot block.Slot, typ block.BlockType) (*block.CreateResult, error) {
+// snap mirrors the real service's Snapshot: committed blocks + bounds.
+func (f *fakeService) snap() *block.Snapshot {
+	b := f.bounds
+	if b == (block.Bounds{}) {
+		b = testBounds
+	}
+	return &block.Snapshot{Blocks: f.blocks, Bounds: b}
+}
+
+func (f *fakeService) Create(ctx context.Context, owner, label string, slot block.Slot, typ block.BlockType) (*block.Snapshot, error) {
 	f.gotOwner, f.gotLabel, f.gotSlot, f.gotType = owner, label, slot, typ
 	if f.createErr != nil {
 		return nil, f.createErr
@@ -49,10 +58,10 @@ func (f *fakeService) Create(ctx context.Context, owner, label string, slot bloc
 	c := block.Block{ID: "new", Label: label, Position: slot, Span: 1, Type: typ}
 	f.blocks = append(f.blocks, c)
 	sort.Slice(f.blocks, func(i, j int) bool { return f.blocks[i].Position < f.blocks[j].Position })
-	return &block.CreateResult{Blocks: f.blocks}, nil
+	return f.snap(), nil
 }
 
-func (f *fakeService) Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error) {
+func (f *fakeService) Delete(ctx context.Context, owner, id string) (*block.Snapshot, error) {
 	f.gotOwner, f.gotID = owner, id
 	if f.deleteErr != nil {
 		return nil, f.deleteErr
@@ -64,19 +73,19 @@ func (f *fakeService) Delete(ctx context.Context, owner, id string) (*block.Dele
 		}
 	}
 	f.blocks = out
-	return &block.DeleteResult{Blocks: f.blocks}, nil
+	return f.snap(), nil
 }
 
-func (f *fakeService) Clear(ctx context.Context, owner string) (*block.ClearResult, error) {
+func (f *fakeService) Clear(ctx context.Context, owner string) (*block.Snapshot, error) {
 	f.gotOwner = owner
 	if f.clearErr != nil {
 		return nil, f.clearErr
 	}
 	f.blocks = nil
-	return &block.ClearResult{Blocks: f.blocks}, nil
+	return f.snap(), nil
 }
 
-func (f *fakeService) Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error) {
+func (f *fakeService) Rename(ctx context.Context, owner, id, label string) (*block.Snapshot, error) {
 	f.gotOwner, f.gotID = owner, id
 	if f.renameErr != nil {
 		return nil, f.renameErr
@@ -86,19 +95,19 @@ func (f *fakeService) Rename(ctx context.Context, owner, id, label string) (*blo
 			f.blocks[i].Label = label
 		}
 	}
-	return &block.RenameResult{Blocks: f.blocks}, nil
+	return f.snap(), nil
 }
 
-func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end block.Slot) error {
+func (f *fakeService) SetBounds(ctx context.Context, owner string, start, end block.Slot) (*block.Snapshot, error) {
 	f.gotOwner, f.gotBounds = owner, block.Bounds{Start: start, End: end}
 	if f.boundsErr != nil {
-		return f.boundsErr
+		return nil, f.boundsErr
 	}
 	f.bounds = f.gotBounds
-	return nil
+	return f.snap(), nil
 }
 
-func (f *fakeService) SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.LayoutResult, error) {
+func (f *fakeService) SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.Snapshot, error) {
 	f.gotOwner, f.gotLayout = owner, layout
 	if f.layoutErr != nil {
 		return nil, f.layoutErr
@@ -116,7 +125,7 @@ func (f *fakeService) SetLayout(ctx context.Context, owner string, layout []bloc
 	// The real service returns the committed column in slot order.
 	sort.Slice(out, func(i, j int) bool { return out[i].Position < out[j].Position })
 	f.blocks = out
-	return &block.LayoutResult{Blocks: out}, nil
+	return f.snap(), nil
 }
 
 func (f *fakeService) List(ctx context.Context, owner string) ([]block.Block, error) {

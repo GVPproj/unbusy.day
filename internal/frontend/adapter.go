@@ -24,12 +24,12 @@ var keepaliveInterval = 25 * time.Second
 type BlockService interface {
 	List(ctx context.Context, owner string) ([]block.Block, error)
 	Bounds(ctx context.Context, owner string) (block.Bounds, error)
-	SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.LayoutResult, error)
-	SetBounds(ctx context.Context, owner string, start, end block.Slot) error
-	Create(ctx context.Context, owner, label string, slot block.Slot, typ block.BlockType) (*block.CreateResult, error)
-	Delete(ctx context.Context, owner, id string) (*block.DeleteResult, error)
-	Clear(ctx context.Context, owner string) (*block.ClearResult, error)
-	Rename(ctx context.Context, owner, id, label string) (*block.RenameResult, error)
+	SetLayout(ctx context.Context, owner string, layout []block.Placement) (*block.Snapshot, error)
+	SetBounds(ctx context.Context, owner string, start, end block.Slot) (*block.Snapshot, error)
+	Create(ctx context.Context, owner, label string, slot block.Slot, typ block.BlockType) (*block.Snapshot, error)
+	Delete(ctx context.Context, owner, id string) (*block.Snapshot, error)
+	Clear(ctx context.Context, owner string) (*block.Snapshot, error)
+	Rename(ctx context.Context, owner, id, label string) (*block.Snapshot, error)
 }
 
 // snapshot reads the owner's authoritative column and day bounds.
@@ -148,7 +148,7 @@ func BoundsHandler(svc BlockService) http.Handler {
 		}
 
 		owner := ownerFrom(r.Context())
-		err := svc.SetBounds(r.Context(), owner, sig.Start, sig.End)
+		_, err := svc.SetBounds(r.Context(), owner, sig.Start, sig.End)
 		switch {
 		case errors.Is(err, block.ErrInvalidBounds), errors.Is(err, block.ErrBoundsOccupied):
 			log.Printf("200 rejection bounds: %v", err)
