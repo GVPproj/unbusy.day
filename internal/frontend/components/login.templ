@@ -50,7 +50,8 @@ templ LoginEmailForm(turnstileSiteKey string) {
 		data-signals:code="''"
 		data-signals:turnstileToken="''"
 		data-on:turnstile-ok__window="$turnstileToken = evt.detail"
-		data-on:submit="@post('/login/code')"
+		data-on:turnstile-expired__window="$turnstileToken = ''"
+		data-on:submit={ requestCodeSubmitExpr(turnstileSiteKey) }
 	>
 		<p>We'll email you a one-time code.</p>
 		<input
@@ -61,7 +62,17 @@ templ LoginEmailForm(turnstileSiteKey string) {
 			aria-label="Email address"
 			data-bind:email
 		/>
-		<button type="submit">Send code</button>
+		if turnstileSiteKey != "" {
+			// Gated until Turnstile hands over a token, so a submit can never
+			// race the challenge and silently fail presence verification.
+			<button
+				type="submit"
+				data-attr:disabled="$turnstileToken === ''"
+				data-text="$turnstileToken === '' ? 'Verifying…' : 'Send code'"
+			>Verifying…</button>
+		} else {
+			<button type="submit">Send code</button>
+		}
 		<button type="button" class="outline-btn" commandfor="guide-modal" command="show-modal">🤔 What is it?</button>
 		if turnstileSiteKey != "" {
 			@turnstileWidget(turnstileSiteKey)
@@ -69,18 +80,34 @@ templ LoginEmailForm(turnstileSiteKey string) {
 	</form>
 }
 
-// turnstileWidget renders the Cloudflare Turnstile widget; its callback hands
-// the token to Datastar via a window CustomEvent. interaction-only keeps it
-// invisible unless a request looks suspicious, so it flows inline in the form.
+// requestCodeSubmitExpr guards the code request behind a present Turnstile
+// token (Enter bypasses a disabled submit button in some flows); dev has no
+// widget, so no gate.
+func requestCodeSubmitExpr(siteKey string) string {
+	if siteKey == "" {
+		return "@post('/login/code')"
+	}
+	return "$turnstileToken !== '' && @post('/login/code')"
+}
+
+// turnstileWidget renders the Cloudflare Turnstile widget; its callbacks hand
+// token lifecycle to Datastar via window CustomEvents. interaction-only keeps
+// it invisible unless a request looks suspicious, so it flows inline in the
+// form.
 templ turnstileWidget(siteKey string) {
 	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 	<script>
-		// Bridge Turnstile's callback to a Datastar signal via a window event.
+		// Bridge Turnstile's callbacks to Datastar signals via window events.
 		function onTurnstileSuccess(token) {
 			window.dispatchEvent(new CustomEvent("turnstile-ok", { detail: token }));
 		}
+		// Tokens expire after ~5min; clear ours so the submit gate re-engages
+		// until Turnstile's auto-refresh mints a fresh one.
+		function onTurnstileExpired() {
+			window.dispatchEvent(new CustomEvent("turnstile-expired"));
+		}
 	</script>
-	<div class="cf-turnstile" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-theme="auto" data-size="flexible" data-appearance="interaction-only"></div>
+	<div class="cf-turnstile" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-theme="auto" data-size="flexible" data-appearance="interaction-only"></div>
 }
 
 // LoginCodeForm is step 2, patched over #login-form. A complete 6-digit code
