@@ -68,41 +68,26 @@ templ GuideModal() {
 					</span>
 				}
 			</div>
-			// Pane 4 points at app-only chrome (the Theme dialog), so it shows
-			// miniatures built from theme.templ's shared consts, not live
-			// commandfor buttons — the guide also mounts on the login page,
-			// where that dialog doesn't exist.
+			// Pane 4 can't open the Theme dialog (app-only chrome; the guide
+			// also mounts on the login page), but the layout's $_colorscheme
+			// and $_feeling signals exist on both pages, so these miniatures —
+			// built from theme.templ's shared consts — are live pickers.
 			<div class="guide-pane" data-class:showing="$_guidestep === 4" data-attr:inert="$_guidestep !== 4">
 				<p>Make the app yours: <strong>Theme</strong> in the menu picks the colours…</p>
-				<div class="guide-figure guide-swatches" aria-hidden="true">
-					<span style={ "background: " + swatchSolarizedLight }></span>
-					<span style={ "background: " + swatchSolarizedOsaka }></span>
-					<span style={ "background: " + swatchCatppuccin }></span>
+				<div class="guide-figure guide-swatches">
+					@guideSwatch("rose-pine-dawn", "Rosé Pine Dawn", swatchRosePineDawn)
+					@guideSwatch("solarized-light", "Solarized Light", swatchSolarizedLight)
+					@guideSwatch("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
+					@guideSwatch("solarized-osaka", "Solarized Dark Osaka", swatchSolarizedOsaka)
 				</div>
 				<p>…and the <strong>feeling</strong>: font and icon set swap together.</p>
-				<div class="guide-figure guide-feelings" aria-hidden="true">
-					<span style={ "font-family: " + feelingCozyFont }>
-						<span class="feeling-preview">
-							@templ.Raw(glyphCozy)
-						</span>
-						Cozy
-					</span>
-					<span style={ "font-family: " + feelingPixelFont }>
-						<span class="feeling-preview pixelated">
-							@templ.Raw(glyphPixel)
-						</span>
-						Pixel
-					</span>
-					<span style={ "font-family: " + feelingMonoFont }>
-						<span class="feeling-preview">
-							@templ.Raw(glyphMono)
-						</span>
-						Mono
-					</span>
+				<div class="guide-figure guide-feelings">
+					@guideFeeling("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
+					@guideFeeling("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
+					@guideFeeling("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
 				</div>
 				<p>Every action has a key, too — press <kbd>?</kbd> to see the <strong>shortcuts</strong> reference.</p>
 				<p>Beside the plan sits the <strong>Jotpad</strong>: a scratchpad for everything that isn't a block. It keeps what you type and never resets — on a narrow screen, reach it from the menu.</p>
-				<p>Now go plan a good day.</p>
 			</div>
 		</div>
 		<footer class="guide-footer">
@@ -157,4 +142,32 @@ templ gcHandle() {
 			<path d="M5 2 L11 8 L17 2"></path>
 		</svg>
 	</span>
+}
+
+// guideSwatch is a live miniature of themeOption: a bare swatch button that
+// writes $_colorscheme. The gradient carries no name, so label becomes the
+// accessible name.
+templ guideSwatch(id string, label string, swatch string) {
+	<button
+		style={ "background: " + swatch }
+		aria-label={ label }
+		data-class:active={ "$_colorscheme === '" + id + "'" }
+		data-on:click={ "$_colorscheme = '" + id + "'" }
+	></button>
+}
+
+// guideFeeling is a live miniature of feelingOption, previewing the feeling's
+// glyph and font while writing $_feeling. family must be UNQUOTED (see
+// feelingOption).
+templ guideFeeling(id string, label string, family string, pixel bool, preview templ.Component) {
+	<button
+		style={ "font-family: " + family }
+		data-class:active={ "$_feeling === '" + id + "'" }
+		data-on:click={ "$_feeling = '" + id + "'" }
+	>
+		<span class={ "feeling-preview", templ.KV("pixelated", pixel) }>
+			@preview
+		</span>
+		{ label }
+	</button>
 }
