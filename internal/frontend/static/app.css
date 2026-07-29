@@ -448,7 +448,7 @@
 			   the rail leaves and only stop growing on very wide displays, where
 			   the auto margins split the leftover instead of piling it on the
 			   right. */
-      max-width: 90rem;
+      max-width: 93rem;
       margin-inline: auto;
     }
 
@@ -483,10 +483,8 @@
     overflow: hidden;
 
     @media (width >= 52rem) {
-      /* Block margin matches the rail's 0.75rem padding, so the panels'
-			   edges line up with the logo top and the Log Out bottom. */
-      margin-block: 0.75rem;
-      max-height: calc(100svh - 1.5rem);
+      margin-block: 1.5rem;
+      max-height: calc(100svh - 3rem);
       /* Uncapped: both panels share whatever .panels is given, so they shrink
 			   together on a 13" laptop and widen together on a large display. */
       flex: 1 1 0;
@@ -1449,7 +1447,7 @@
       width: 6rem;
       height: 100vh;
       flex-shrink: 0;
-      padding: 0.75rem 0.5rem;
+      padding: 1.5rem 0.5rem;
       background: var(--nav-bg);
       color: var(--nav-ink);
       border-right: 1px solid var(--rail-border);
