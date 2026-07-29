@@ -1445,8 +1445,14 @@
       flex-direction: column;
       gap: 0.25rem;
       width: 6rem;
-      height: 100vh;
+      /* dvh, not vh: the mobile drawer's inset-block would otherwise disagree
+			   with this height while the URL bar animates. */
+      height: 100dvh;
       flex-shrink: 0;
+      /* Short viewports (small screens, browser chrome, zoom >= 125%) can make
+			   the items taller than the rail — scroll rather than spill unreachably. */
+      overflow-y: auto;
+      overscroll-behavior: contain;
       padding: 1.5rem 0.5rem;
       background: var(--nav-bg);
       color: var(--nav-ink);
@@ -1556,6 +1562,29 @@
     :scope > button:last-child {
       @media (width < 52rem) {
         margin-bottom: 1.5rem;
+      }
+    }
+
+    /* Short viewport: the desktop rail drops to icons so it keeps fitting,
+		   rather than falling back on the scrollbar above. Spacing and the logo
+		   stay put — the labels are the only thing that gives. The drawer
+		   (< 52rem) is laid out by width and opts out. */
+    @media (height < 38rem) and (width >= 52rem) {
+      :scope {
+        width: 3.5rem;
+      }
+
+      /* The label is the button's accessible name, so hide it the sr-only way
+			   rather than with display: none. */
+      button span:last-child {
+        position: absolute;
+        /* Beats the min-width: max-content the drawer-slide rule sets. */
+        min-width: 0;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
       }
     }
   }
