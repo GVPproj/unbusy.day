@@ -738,6 +738,22 @@
       &:active {
         scale: 0.98;
       }
+
+      /* Verifying… while Turnstile has no token yet: tokens keep it
+			   theme-aware, muted enough to read as inert. */
+      &:disabled {
+        background: color-mix(in srgb, var(--accent) 40%, var(--surface));
+        color: color-mix(in srgb, var(--ink-muted) 60%, var(--bg));
+        cursor: not-allowed;
+
+        &:hover {
+          background: color-mix(in srgb, var(--accent) 40%, var(--surface));
+        }
+
+        &:active {
+          scale: none;
+        }
+      }
     }
 
     /* "Why?" opens the Guide: same footprint as Send code but outlined and
