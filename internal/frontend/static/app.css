@@ -1213,8 +1213,8 @@
       background: color-mix(in srgb, var(--accent) 8%, transparent);
 
       .icon {
-        width: 18px;
-        height: 18px;
+        width: 24px;
+        height: 24px;
         color: var(--accent);
       }
     }
@@ -2051,8 +2051,8 @@
       cursor: pointer;
 
       .icon {
-        width: 18px;
-        height: 18px;
+        width: 24px;
+        height: 24px;
         color: var(--accent);
         opacity: 0;
         transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
