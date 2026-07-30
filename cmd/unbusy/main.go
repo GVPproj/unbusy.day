@@ -188,14 +188,18 @@ func main() {
 		port = "8080"
 	}
 
+	// HOST narrows the bind (e.g. 127.0.0.1 in dev so tailscale serve can
+	// hold the same port on the tailnet IP); empty means all interfaces.
+	addr := os.Getenv("HOST") + ":" + port
+
 	// WriteTimeout stays 0: SSE streams are long-lived and keep their own
 	// 25s keepalive. ReadHeaderTimeout guards against slow-loris.
 	srv := &http.Server{
-		Addr:              ":" + port,
+		Addr:              addr,
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	log.Printf("unbusy listening on :%s", port)
+	log.Printf("unbusy listening on %s", addr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
