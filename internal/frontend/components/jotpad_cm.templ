@@ -12,10 +12,17 @@ import (
 
 // JotpadCM mounts an empty div that jot-cm.js turns into a CodeMirror editor;
 // the stored text travels as a JSON script so no escaping can mangle it.
-templ JotpadCM(text string) {
+templ JotpadCM(pad jot.Pad) {
 	<aside class="column jotpad jotpad-cm" aria-labelledby="jot-heading">
-		<h2 id="jot-heading">Jotpad <span class="proto-badge">CM</span></h2>
-		@templ.JSONScript("jot-cm-text", text)
-		<div id="jot-cm" data-maxlen={ strconv.Itoa(jot.MaxLen) }></div>
+		<div class="jot-head">
+			<h2 id="jot-heading">Jotpad <span class="proto-badge">CM</span></h2>
+			@jotStatus()
+		</div>
+		@templ.JSONScript("jot-cm-text", pad.Text)
+		<div
+			id="jot-cm"
+			data-maxlen={ strconv.Itoa(jot.MaxLen) }
+			data-jot-version={ strconv.FormatInt(pad.Version, 10) }
+		></div>
 	</aside>
 }

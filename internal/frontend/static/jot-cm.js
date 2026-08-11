@@ -35,6 +35,8 @@ import { classHighlighter } from "https://esm.sh/@lezer/highlight@1.2.3";
 import { markdown } from "https://esm.sh/@codemirror/lang-markdown@6.5.2";
 import { languages } from "https://esm.sh/@codemirror/language-data@6.5.2";
 
+import { createJotSync, minimalEdit, wireTeardown } from "./jot-sync.js";
+
 // Mirrors jotPlaceholder in components/jotpad.templ.
 const PLACEHOLDER = `e.g.
 
@@ -102,22 +104,16 @@ const codeFontPlugin = ViewPlugin.fromClass(
 );
 
 /**
- * Mounts a CodeMirror Jotpad into `mount`. Save contract matches jot.js: a 1s
- * debounced POST of {_jot} to postURL, flushed via sendBeacon whenever the
- * page might not get another tick.
+ * Mounts a CodeMirror Jotpad into `mount`. Saving, remote application, and the
+ * save-state indicator all run through the shared jot-sync driver; opts is
+ * {version, status} from the server render. Remote text lands as one minimal
+ * CM transaction, so the selection maps through it and the cursor stays put
+ * unless the remote edit deleted the text under it.
  */
-export function initJotpadCM(mount, initialText, postURL, maxLen) {
-	let debounce = 0;
-	let sent = initialText;
-
-	const post = (text) => {
-		sent = text;
-		fetch(postURL, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ _jot: text }),
-		}).catch(() => {});
-	};
+export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
+	// Set while the sync driver rewrites the doc, so its own transaction isn't
+	// mistaken for typing and re-posted as a local edit.
+	let applying = false;
 
 	const view = new EditorView({
 		parent: mount,
@@ -156,29 +152,39 @@ export function initJotpadCM(mount, initialText, postURL, maxLen) {
 					tr.newDoc.length > maxLen ? [] : tr,
 				),
 				EditorView.updateListener.of((u) => {
-					if (!u.docChanged) return;
-					clearTimeout(debounce);
-					debounce = setTimeout(() => post(view.state.doc.toString()), 1000);
+					if (!u.docChanged || applying) return;
+					sync.edited();
 				}),
 			],
 		}),
 	});
 
-	const flush = () => {
-		const text = view.state.doc.toString();
-		if (text === sent) return;
-		clearTimeout(debounce);
-		sent = text;
-		const body = new Blob([JSON.stringify({ _jot: text })], {
-			type: "application/json",
-		});
-		navigator.sendBeacon(postURL, body);
-	};
-	view.contentDOM.addEventListener("blur", flush);
-	window.addEventListener("pagehide", flush);
-	document.addEventListener("visibilitychange", () => {
-		if (document.hidden) flush();
+	const sync = createJotSync({
+		getText: () => view.state.doc.toString(),
+		applyText: (text) => {
+			const edit = minimalEdit(view.state.doc.toString(), text);
+			if (!edit) return;
+			applying = true;
+			try {
+				view.dispatch({
+					changes: edit,
+					// A doc-length cap transaction filter is active; remote
+					// authoritative text must land regardless.
+					filter: false,
+				});
+			} finally {
+				applying = false;
+			}
+		},
+		postURL,
+		version: opts.version ?? 0,
+		status: opts.status,
 	});
+
+	// The SSE stream hands (version, text) here via data-on-signal-patch.
+	window.__jotRemote = (v, text) => sync.remote(v, text);
+
+	wireTeardown(sync, view.contentDOM);
 
 	return view;
 }

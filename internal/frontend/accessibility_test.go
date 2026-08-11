@@ -10,12 +10,13 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/routes"
+	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
 func renderPage(t *testing.T, cs []block.Block, b block.Bounds) string {
 	t.Helper()
 	var sb strings.Builder
-	if err := routes.BlocksPage(cs, b, "", false).Render(context.Background(), &sb); err != nil {
+	if err := routes.BlocksPage(cs, b, jot.Pad{}, false).Render(context.Background(), &sb); err != nil {
 		t.Fatalf("render page: %v", err)
 	}
 	return sb.String()

@@ -5,6 +5,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
 	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
+	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
 // BlocksPage is the full document. retry 'always' matches EventSource
@@ -16,9 +17,22 @@ import (
 // PROTOTYPE (branch prototype/jotpad-codemirror): jotCM swaps the textarea
 // Jotpad for a CodeMirror 6 one, chosen by ?jot=cm; the fixed pill at the
 // bottom flips between them.
-templ BlocksPage(cs []block.Block, b block.Bounds, jotText string, jotCM bool) {
+templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, jotCM bool) {
 	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
-		<div class="shell" data-signals:_navopen="false" data-signals:_jotopen="false">
+		// $_jotv/$_jott carry live jot state from /events as signal patches
+		// (never element patches — nothing may re-render an editor being typed
+		// into). data-on-signal-patch hands them to the sync driver, which
+		// version-guards and applies them itself; underscore names keep the pad
+		// off every other endpoint's POST.
+		<div
+			class="shell"
+			data-signals:_navopen="false"
+			data-signals:_jotopen="false"
+			data-signals:_jotv="0"
+			data-signals:_jott="''"
+			data-on-signal-patch="window.__jotRemote && window.__jotRemote($_jotv, $_jott)"
+			data-on-signal-patch-filter="{include: /^_jotv$/}"
+		>
 			@components.SideNav()
 			@components.MenuToggle()
 			@modals.ThemeModal()
@@ -60,21 +74,27 @@ templ BlocksPage(cs []block.Block, b block.Bounds, jotText string, jotCM bool) {
 					<script type="module" src="/static/shortcuts.js"></script>
 				</main>
 				if jotCM {
-					@components.JotpadCM(jotText)
+					@components.JotpadCM(pad)
 					<script type="module">
 						import { initJotpadCM } from "/static/jot-cm.js"
 						const mount = document.getElementById("jot-cm")
 						const text = JSON.parse(document.getElementById("jot-cm-text").textContent)
-						if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen))
+						if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen), {
+							version: Number(mount.dataset.jotVersion),
+							status: document.getElementById("jot-status"),
+						})
 					</script>
 				} else {
-					@components.Jotpad(jotText)
-					// Enter list continuation, plus the flushes of the 1s debounce that
-					// Datastar attributes can't make reliable during page teardown.
+					@components.Jotpad(pad)
+					// The whole save path (debounce, CAS version, retry, teardown
+					// beacon) plus Enter list continuation live in jot.js.
 					<script type="module">
 						import { initJotpad } from "/static/jot.js"
 						const jot = document.getElementById("jot")
-						if (jot) initJotpad(jot, "/jot")
+						if (jot) initJotpad(jot, "/jot", {
+							version: Number(jot.dataset.jotVersion),
+							status: document.getElementById("jot-status"),
+						})
 					</script>
 				}
 			</div>

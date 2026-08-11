@@ -16,6 +16,7 @@ import (
 
 	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 )
 
@@ -251,7 +252,7 @@ func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	resp, br := openEvents(t, EventsHandler(svc, broker))
+	resp, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
 
 	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Errorf("content-type: want text/event-stream prefix, got %q", ct)
@@ -279,9 +280,10 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
 	readFrame(t, br) // connect snapshot
 	readFrame(t, br) // connect envelope signals
+	readFrame(t, br) // connect jot snapshot signals
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "b", Label: "Bravo", Position: 0},
@@ -300,9 +302,10 @@ func TestEventsStreamsPublishedBounds(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
 	readFrame(t, br) // connect snapshot
 	readFrame(t, br) // connect envelope signals
+	readFrame(t, br) // connect jot snapshot signals
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: threeBlocks(),
 		Bounds: block.Bounds{Start: 17, End: 21}})
@@ -324,7 +327,7 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
-	_, br := openEvents(t, EventsHandler(svc, broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
 
 	deadline := time.After(2 * time.Second)
 	lines := make(chan string)
@@ -864,7 +867,7 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
 	readFrame(t, br) // connect: column element patch
 	// Connect also re-seeds the envelope so a reconnect after a change is current.
 	sig := readFrame(t, br)
@@ -876,6 +879,7 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 			t.Errorf("connect envelope missing %q; frame:\n%s", want, sig)
 		}
 	}
+	readFrame(t, br) // connect jot snapshot signals
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "a", Position: 12, Span: 2}, // occupies 12,13 → end 14
@@ -906,6 +910,56 @@ func TestBoundsResponsePatchesEnvelopeSignals(t *testing.T) {
 	for _, want := range []string{`"firstOccupiedSlot":18`, `"lastOccupiedEnd":21`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("bounds response envelope missing %q; body:\n%s", want, body)
+		}
+	}
+}
+
+// The connect frame set includes the jot snapshot as signal patches, so a
+// reconnecting editor is made whole without an element ever touching it.
+func TestEventsConnectShipsTheJotSnapshotAsSignals(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+	jots := newFakeJot()
+	jots.pads[testOwner] = jot.Pad{Text: "notes from the phone", Version: 7}
+	broker := pubsub.New()
+
+	_, br := openEvents(t, EventsHandler(svc, jots, broker))
+	readFrame(t, br) // column element patch
+	readFrame(t, br) // envelope signals
+
+	frame := readFrame(t, br)
+	if !strings.Contains(frame, "datastar-patch-signals") {
+		t.Fatalf("jot snapshot must be a signal patch; frame:\n%s", frame)
+	}
+	for _, want := range []string{`"_jotv":7`, `"_jott":"notes from the phone"`} {
+		if !strings.Contains(frame, want) {
+			t.Errorf("jot snapshot missing %q; frame:\n%s", want, frame)
+		}
+	}
+	if strings.Contains(frame, "datastar-patch-elements") {
+		t.Errorf("jot state must never ride an element patch; frame:\n%s", frame)
+	}
+}
+
+// A published jot event reaches the owner's other open devices live, again as
+// a signal patch only.
+func TestEventsStreamsPublishedJotEventsAsSignals(t *testing.T) {
+	svc := &fakeService{blocks: threeBlocks()}
+	broker := pubsub.New()
+
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	readFrame(t, br) // connect snapshot
+	readFrame(t, br) // connect envelope signals
+	readFrame(t, br) // connect jot snapshot signals
+
+	broker.PublishJot(jot.Event{Owner: testOwner, Version: 8, Text: "typed on device A"})
+
+	frame := readFrame(t, br)
+	if !strings.Contains(frame, "datastar-patch-signals") {
+		t.Fatalf("jot event must be a signal patch; frame:\n%s", frame)
+	}
+	for _, want := range []string{`"_jotv":8`, `"_jott":"typed on device A"`} {
+		if !strings.Contains(frame, want) {
+			t.Errorf("jot event missing %q; frame:\n%s", want, frame)
 		}
 	}
 }

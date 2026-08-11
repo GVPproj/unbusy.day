@@ -2344,14 +2344,13 @@
   @scope (.jotpad) {
     /* Mirrors .date-heading's metrics so the two panel headers share a
 		   baseline above 52rem, and the toggle doesn't shift the header bar
-		   below it. */
-    h2 {
+		   below it. The row also carries the save-state indicator. */
+    .jot-head {
       display: flex;
       align-items: center;
+      gap: 0.75rem;
       margin-bottom: 0.5rem;
       flex-shrink: 0;
-      font-weight: 700;
-      color: var(--ink);
 
       @media (width >= 52rem) {
         min-height: 2rem;
@@ -2366,6 +2365,26 @@
         /* Clear the fixed hamburger (right: 1rem). */
         padding-right: 4.25rem;
         background: var(--column-bg);
+      }
+    }
+
+    h2 {
+      display: flex;
+      align-items: center;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* Save-state honesty (updated by jot-sync.js): Saved is the resting state
+		   and must not attract attention; Offline is allowed to be noticeable. */
+    .jot-status {
+      margin-left: auto;
+      font-size: var(--text-sm);
+      color: var(--ink-muted);
+
+      &[data-state="offline"] {
+        color: var(--ink-error);
+        font-weight: 600;
       }
     }
 

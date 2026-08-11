@@ -10,6 +10,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/routes"
+	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -42,8 +43,6 @@ func snapshot(ctx context.Context, svc BlockService, owner string) ([]block.Bloc
 }
 
 // PageHandler serves the column page, server-rendered on every hit (no-cache).
-// The page load is the Jotpad's only read: SSE carries blocks, and nothing
-// re-renders a textarea the user may be typing into.
 func PageHandler(svc BlockService, jots JotService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		owner := ownerFrom(r.Context())
@@ -53,7 +52,7 @@ func PageHandler(svc BlockService, jots JotService) http.Handler {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		jotText, err := jots.Get(r.Context(), owner)
+		pad, err := jots.Get(r.Context(), owner)
 		if err != nil {
 			log.Printf("ds page jot: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -63,7 +62,7 @@ func PageHandler(svc BlockService, jots JotService) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		// PROTOTYPE (branch prototype/jotpad-codemirror): ?jot=cm picks the
 		// CodeMirror Jotpad variant.
-		if err := routes.BlocksPage(bs, b, jotText, r.URL.Query().Get("jot") == "cm").Render(r.Context(), w); err != nil {
+		if err := routes.BlocksPage(bs, b, pad, r.URL.Query().Get("jot") == "cm").Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
 		}
 	})
@@ -190,8 +189,11 @@ func RenameHandler(svc BlockService) http.Handler {
 }
 
 // EventsHandler is the live SSE read path. The first frame is the full current
-// column, so a (re)connecting client is made whole by one render.
-func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
+// column plus the jot snapshot, so a (re)connecting client is made whole by one
+// render. Jot state rides as signal patches, never element patches — the client
+// applies them to the editor itself (re-rendering under the typist is the thing
+// to avoid).
+func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Accel-Buffering", "no")
 
@@ -218,6 +220,14 @@ func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
 			return
 		}
 		patchEnvelope(sse, bs)
+		pad, err := jots.Get(r.Context(), owner)
+		if err != nil {
+			log.Printf("ds events jot: %v", err)
+			return
+		}
+		if err := sse.MarshalAndPatchSignals(jotSignalPatch(pad)); err != nil {
+			return
+		}
 
 		ticker := time.NewTicker(keepaliveInterval)
 		defer ticker.Stop()
@@ -230,6 +240,10 @@ func EventsHandler(svc BlockService, broker *pubsub.Broker) http.Handler {
 					return
 				}
 				patchEnvelope(sse, e.Blocks)
+			case je := <-sub.Jots:
+				if err := sse.MarshalAndPatchSignals(jotSignalPatch(jot.Pad{Text: je.Text, Version: je.Version})); err != nil {
+					return
+				}
 			case <-ticker.C:
 				if _, err := io.WriteString(w, ":keepalive\n\n"); err != nil {
 					return

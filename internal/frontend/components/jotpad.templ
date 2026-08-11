@@ -24,16 +24,25 @@ const jotPlaceholder = `e.g.
 
 ## Friday`
 
+// jotStatus is the save-state indicator, updated by the client sync driver
+// only (client-only state — no Datastar signal, the server doesn't care).
+// <output> is an implicit role=status live region, so state changes are
+// announced without stealing focus.
+templ jotStatus() {
+	<output id="jot-status" class="jot-status" data-state="saved">Saved</output>
+}
+
 // Jotpad is the second panel, an <aside> because two <main>s are invalid HTML —
 // which also gives screen readers two named landmarks to move between.
-// data-bind sets the value *property*, sidestepping the textarea dirty value
-// flag that would make an element patch silently miss a typed-in field.
-// exclude: /^$/ replaces Datastar's default underscore-stripping so this one
-// request may carry $_jot; it matches only the empty string, and no signal is
-// named "".
-templ Jotpad(text string) {
+// Saving is owned entirely by jot.js (debounce, compare-and-swap version,
+// retry, teardown beacon): /jot answers JSON now, which Datastar's @post
+// cannot read, so there is no data-bind/@post wiring to drift against it.
+templ Jotpad(pad jot.Pad) {
 	<aside class="column jotpad" aria-labelledby="jot-heading">
-		<h2 id="jot-heading">Jotpad</h2>
+		<div class="jot-head">
+			<h2 id="jot-heading">Jotpad</h2>
+			@jotStatus()
+		</div>
 		// The leading newline is sacrificial: an HTML parser drops one right
 		// after the start tag, so without it a jot starting blank loses that line.
 		<textarea
@@ -41,8 +50,7 @@ templ Jotpad(text string) {
 			aria-labelledby="jot-heading"
 			maxlength={ strconv.Itoa(jot.MaxLen) }
 			placeholder={ jotPlaceholder }
-			data-bind:_jot
-			data-on:input__debounce.1s="@post('/jot', {filterSignals: {include: /^_jot$/, exclude: /^$/}})"
-		>{ "\n" + text }</textarea>
+			data-jot-version={ strconv.FormatInt(pad.Version, 10) }
+		>{ "\n" + pad.Text }</textarea>
 	</aside>
 }

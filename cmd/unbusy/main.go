@@ -130,7 +130,7 @@ func main() {
 
 	broker := pubsub.New()
 	blockSvc := block.NewService(db, broker)
-	jotSvc := jot.NewService(db)
+	jotSvc := jot.NewService(db, broker)
 	authSvc := auth.NewService(db, newMailer(), authOptions()...)
 
 	guardOpenSignup()
@@ -158,7 +158,7 @@ func main() {
 	mux.Handle("POST /login/code", loginRL.Limit(frontend.RequestCodeHandler(authSvc, presence)))
 	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, secureCookies))
 	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, secureCookies))
-	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(blockSvc, broker)))
+	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(blockSvc, jotSvc, broker)))
 	mux.Handle("POST /blocks/layout", frontend.RequireSession(authSvc, frontend.LayoutHandler(blockSvc)))
 	mux.Handle("POST /blocks/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(blockSvc)))
 	mux.Handle("POST /blocks", frontend.RequireSession(authSvc, frontend.CreateHandler(blockSvc)))

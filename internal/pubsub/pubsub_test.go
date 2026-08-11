@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
+	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 )
 
@@ -100,6 +101,30 @@ func TestPublishIsScopedToOwner(t *testing.T) {
 	}
 	select {
 	case e := <-other.Events:
+		t.Fatalf("foreign subscriber received %+v", e)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestPublishJotFansOutScopedToOwner(t *testing.T) {
+	b := pubsub.New()
+	mine := b.Subscribe("u1")
+	defer mine.Close()
+	other := b.Subscribe("u2")
+	defer other.Close()
+
+	b.PublishJot(jot.Event{Owner: "u1", Version: 3, Text: "notes"})
+
+	select {
+	case e := <-mine.Jots:
+		if e.Version != 3 || e.Text != "notes" {
+			t.Fatalf("jot event = %+v", e)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for jot event")
+	}
+	select {
+	case e := <-other.Jots:
 		t.Fatalf("foreign subscriber received %+v", e)
 	case <-time.After(50 * time.Millisecond):
 	}

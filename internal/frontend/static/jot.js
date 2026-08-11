@@ -1,7 +1,12 @@
-// Jotpad editing assistance and save flushes. The normal save path is pure
-// Datastar (data-bind:_jot + a debounced @post, see components/jotpad.templ);
-// this adds the two things it can't express — Enter list continuation, and
-// flushing the pending debounce when the page is about to go away.
+// Jotpad textarea wiring: Enter list continuation, plus the whole save loop —
+// debounced compare-and-swap POSTs, retry with backoff, the save-state
+// indicator, and teardown beacons — via the shared jot-sync driver (/jot
+// answers JSON now, which Datastar's @post cannot read). Remote edits arrive
+// through the driver too: a clean textarea is replaced wholesale; a dirty one
+// waits for the merge response. Cursor preservation under remote edits is a
+// CodeMirror-only feature by design (jot-cm.js).
+
+import { createJotSync, wireTeardown } from "./jot-sync.js";
 
 // A list marker at the start of a line: an indent, then either a bullet
 // (optionally carrying a [ ] checkbox) or a number with . or ). One separating
@@ -57,8 +62,8 @@ function commonPrefix(a, b) {
 
 // Applies the continuation as the minimal edit, through execCommand: it is the
 // only path that keeps the browser's own undo stack (the Jotpad has none of its
-// own) and the only one that fires a native `input` event, which is what tells
-// data-bind:_jot the text changed at all.
+// own) and the only one that fires a native `input` event, which is what marks
+// the pad dirty for the sync driver.
 function applyEdit(el, next) {
 	const before = el.value;
 	const p = commonPrefix(before, next.value);
@@ -80,9 +85,26 @@ function applyEdit(el, next) {
 }
 
 /**
- * Wires one Jotpad textarea. postURL receives the current text on every flush.
+ * Wires one Jotpad textarea. opts is {version, status} from the server render.
  */
-export function initJotpad(el, postURL) {
+export function initJotpad(el, postURL, opts = {}) {
+	const sync = createJotSync({
+		getText: () => el.value,
+		// Wholesale replacement, only ever reached when the textarea is clean
+		// (the driver buffers remote events while local typing is unsaved).
+		applyText: (text) => {
+			el.value = text;
+		},
+		postURL,
+		version: opts.version ?? 0,
+		status: opts.status,
+	});
+
+	// The SSE stream hands (version, text) here via data-on-signal-patch.
+	window.__jotRemote = (v, text) => sync.remote(v, text);
+
+	el.addEventListener("input", sync.edited);
+
 	el.addEventListener("keydown", (e) => {
 		if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.isComposing) return;
@@ -92,27 +114,5 @@ export function initJotpad(el, postURL) {
 		applyEdit(el, next);
 	});
 
-	// Flush the pending 1s debounce whenever the page might not get another
-	// tick. sendBeacon rather than fetch: a request started during teardown is
-	// routinely cancelled, and an iOS PWA (ADR 0010) is suspended without a
-	// clean unload — exactly where a paragraph would otherwise be lost.
-	// Deliberately fail-safe: `sent` tracks only our own beacons, so a flush
-	// after a debounced @post repeats it. One duplicate write beats a lost one;
-	// the guard just stops blur → hidden → pagehide firing three times over.
-	let sent = el.value;
-	const flush = () => {
-		if (el.value === sent) return;
-		sent = el.value;
-		// The Blob's type sets the Content-Type; /jot reads the body as JSON.
-		const body = new Blob([JSON.stringify({ _jot: sent })], {
-			type: "application/json",
-		});
-		navigator.sendBeacon(postURL, body);
-	};
-
-	el.addEventListener("blur", flush);
-	window.addEventListener("pagehide", flush);
-	document.addEventListener("visibilitychange", () => {
-		if (document.hidden) flush();
-	});
+	wireTeardown(sync, el);
 }

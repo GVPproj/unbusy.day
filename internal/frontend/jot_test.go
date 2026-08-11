@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,54 +12,79 @@ import (
 )
 
 // fakeJotService implements JotService in memory, keyed by owner so the
-// scoping assertions are real rather than recorded.
+// scoping assertions are real rather than recorded. Set mimics the real
+// service's contract: CAS is invisible here (no merge), but over-cap and
+// storage failures return the authoritative pad alongside the error.
 type fakeJotService struct {
-	texts  map[string]string
+	pads   map[string]jot.Pad
 	getErr error
 	setErr error
 
 	gotOwner string
+	gotBase  int64
 }
 
 func newFakeJot() *fakeJotService {
-	return &fakeJotService{texts: map[string]string{}}
+	return &fakeJotService{pads: map[string]jot.Pad{}}
 }
 
-func (f *fakeJotService) Get(ctx context.Context, owner string) (string, error) {
+func (f *fakeJotService) Get(ctx context.Context, owner string) (jot.Pad, error) {
 	f.gotOwner = owner
 	if f.getErr != nil {
-		return "", f.getErr
+		return jot.Pad{}, f.getErr
 	}
-	return f.texts[owner], nil
+	return f.pads[owner], nil
 }
 
-func (f *fakeJotService) Set(ctx context.Context, owner, text string) error {
+func (f *fakeJotService) Set(ctx context.Context, owner, text string, base int64) (jot.Pad, error) {
 	f.gotOwner = owner
+	f.gotBase = base
 	if f.setErr != nil {
-		return f.setErr
+		return f.pads[owner], f.setErr
 	}
-	f.texts[owner] = text
-	return nil
+	p := jot.Pad{Text: text, Version: f.pads[owner].Version + 1}
+	f.pads[owner] = p
+	return p, nil
 }
 
-// 204, no patch: the DOM is already correct, and patching a textarea the user
-// is typing into is exactly the thing to avoid.
-func TestJotHandlerWritesTheSignalAndAnswers204WithNoBody(t *testing.T) {
+func decodeJotResponse(t *testing.T, rec *httptest.ResponseRecorder) (int64, *string) {
+	t.Helper()
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Fatalf("content-type: want application/json, got %q", ct)
+	}
+	var resp struct {
+		Version int64   `json:"version"`
+		Text    *string `json:"text"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response %q: %v", rec.Body.String(), err)
+	}
+	return resp.Version, resp.Text
+}
+
+// The write path answers plain JSON, never an element patch: the committed
+// version, and no text when the store took exactly what the client sent.
+func TestJotHandlerStoresAndAnswersTheCommittedVersion(t *testing.T) {
 	svc := newFakeJot()
 	rec := httptest.NewRecorder()
 
-	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":"buy milk\nsee a friend"}`))
+	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot",
+		`{"_jot":"buy milk\nsee a friend","_jotVersion":0}`))
 
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("status: want 204, got %d", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	if body := rec.Body.String(); body != "" {
-		t.Errorf("204 must carry no patch; got body:\n%s", body)
+	version, text := decodeJotResponse(t, rec)
+	if version != 1 {
+		t.Errorf("version: want 1, got %d", version)
 	}
-	if svc.gotOwner != testOwner {
-		t.Errorf("owner: want %q, got %q", testOwner, svc.gotOwner)
+	if text != nil {
+		t.Errorf("text must be omitted when the write was taken verbatim; got %q", *text)
 	}
-	if got := svc.texts[testOwner]; got != "buy milk\nsee a friend" {
+	if svc.gotOwner != testOwner || svc.gotBase != 0 {
+		t.Errorf("owner/base: want %q/0, got %q/%d", testOwner, svc.gotOwner, svc.gotBase)
+	}
+	if got := svc.pads[testOwner].Text; got != "buy milk\nsee a friend" {
 		t.Errorf("stored text: got %q", got)
 	}
 }
@@ -66,35 +92,68 @@ func TestJotHandlerWritesTheSignalAndAnswers204WithNoBody(t *testing.T) {
 // Clearing the Jotpad is a normal write, not an empty-body no-op.
 func TestJotHandlerStoresAnEmptyJot(t *testing.T) {
 	svc := newFakeJot()
-	svc.texts[testOwner] = "old notes"
+	svc.pads[testOwner] = jot.Pad{Text: "old notes", Version: 1}
 	rec := httptest.NewRecorder()
 
-	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":""}`))
+	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":"","_jotVersion":1}`))
 
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("status: want 204, got %d", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	if got := svc.texts[testOwner]; got != "" {
+	if got := svc.pads[testOwner].Text; got != "" {
 		t.Errorf("stored text: want empty, got %q", got)
 	}
 }
 
-// The one place the house "domain rejection → 200 + re-render" convention is
-// deliberately not followed: re-rendering would destroy prose the user typed.
-// Over-cap is rejected and logged, with no UI.
-func TestJotHandlerRejectsAnOverCapWriteWithoutPatchingTheTextarea(t *testing.T) {
+// When the service stores something other than what the client sent (a merge),
+// the response carries the authoritative text so the client snaps to it.
+func TestJotHandlerReturnsTheMergedTextWhenTheStoreDiffers(t *testing.T) {
+	svc := &mergingJot{merged: jot.Pad{Text: "merged result", Version: 5}}
+	rec := httptest.NewRecorder()
+
+	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot",
+		`{"_jot":"stale text","_jotVersion":2}`))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	version, text := decodeJotResponse(t, rec)
+	if version != 5 {
+		t.Errorf("version: want 5, got %d", version)
+	}
+	if text == nil || *text != "merged result" {
+		t.Errorf("merged response must carry the authoritative text; got %v", text)
+	}
+}
+
+type mergingJot struct{ merged jot.Pad }
+
+func (m *mergingJot) Get(ctx context.Context, owner string) (jot.Pad, error) { return m.merged, nil }
+func (m *mergingJot) Set(ctx context.Context, owner, text string, base int64) (jot.Pad, error) {
+	return m.merged, nil
+}
+
+// Over-cap keeps its log-and-drop behavior, but the response now carries the
+// authoritative state — the client must stop believing its over-cap doc is
+// saved (the indicator would otherwise lie). Still 200, still no element patch.
+func TestJotHandlerAnswersTheAuthoritativeStateForAnOverCapWrite(t *testing.T) {
 	svc := newFakeJot()
-	svc.texts[testOwner] = "keep me"
+	svc.pads[testOwner] = jot.Pad{Text: "keep me", Version: 3}
 	svc.setErr = jot.ErrTooLong
 	rec := httptest.NewRecorder()
 
-	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":"way too long"}`))
+	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot",
+		`{"_jot":"way too long","_jotVersion":3}`))
 
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("status: want 204 (no snap-back render), got %d", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	if body := rec.Body.String(); strings.Contains(body, "textarea") {
-		t.Errorf("a rejected jot write must never patch the textarea; got body:\n%s", body)
+	version, text := decodeJotResponse(t, rec)
+	if version != 3 {
+		t.Errorf("version: want the untouched 3, got %d", version)
+	}
+	if text == nil || *text != "keep me" {
+		t.Errorf("rejection must return the authoritative text; got %v", text)
 	}
 }
 
@@ -109,10 +168,10 @@ func TestJotHandlerRejectsAMalformedSignalsBody(t *testing.T) {
 	}
 }
 
-// The Jotpad is read back on every page load; nothing else re-renders it.
+// The page load renders the stored jot; live updates ride SSE signal patches.
 func TestPageRendersTheStoredJotInsideTheTextarea(t *testing.T) {
 	jots := newFakeJot()
-	jots.texts[testOwner] = "- milk\n- eggs"
+	jots.pads[testOwner] = jot.Pad{Text: "- milk\n- eggs", Version: 4}
 	rec := httptest.NewRecorder()
 
 	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
@@ -127,6 +186,10 @@ func TestPageRendersTheStoredJotInsideTheTextarea(t *testing.T) {
 	if got := parsedTextareaValue(t, rec.Body.String()); got != "- milk\n- eggs" {
 		t.Errorf("textarea value: got %q", got)
 	}
+	// The version the client's first CAS write must carry.
+	if !strings.Contains(rec.Body.String(), `data-jot-version="4"`) {
+		t.Errorf("body missing data-jot-version; body:\n%s", rec.Body.String())
+	}
 }
 
 // An HTML parser drops a newline immediately after the <textarea> start tag,
@@ -134,7 +197,7 @@ func TestPageRendersTheStoredJotInsideTheTextarea(t *testing.T) {
 // blank line loses it on every reload.
 func TestPageKeepsALeadingNewlineInTheStoredJot(t *testing.T) {
 	jots := newFakeJot()
-	jots.texts[testOwner] = "\n\nafter two blank lines"
+	jots.pads[testOwner] = jot.Pad{Text: "\n\nafter two blank lines"}
 	rec := httptest.NewRecorder()
 
 	PageHandler(&fakeService{}, jots).ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
@@ -171,19 +234,40 @@ func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
 	}
 }
 
-// The write path, pinned as markup: the bind, the 1s debounce, the cap, and
-// the filterSignals pair that lets one endpoint carry an underscore signal.
+// The write path, pinned as markup: jot.js owns saving (Datastar's @post can't
+// read /jot's JSON response), the version rides a data attribute, and the
+// save-state indicator is a live region next to the heading.
 func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
 	for _, want := range []string{
-		`data-bind:_jot`,
-		`data-on:input__debounce.1s`,
-		`@post('/jot'`,
-		`include: /^_jot$/`,
-		`exclude: /^$/`,
+		`data-jot-version="0"`,
 		`maxlength="100000"`,
 		`/static/jot.js`,
+		`id="jot-status"`,
+		`data-state="saved"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q; body:\n%s", want, body)
+		}
+	}
+	// The old Datastar save path must be gone: it can't read the JSON reply.
+	for _, gone := range []string{`data-bind:_jot`, `@post('/jot'`} {
+		if strings.Contains(body, gone) {
+			t.Errorf("body still carries the retired Datastar save wiring %q", gone)
+		}
+	}
+}
+
+// Remote jot state arrives as _jotv/_jott signal patches on /events; the shell
+// hands them to the sync driver via data-on-signal-patch. Never element patches.
+func TestPageRendersTheJotRemoteListener(t *testing.T) {
+	body := renderPageWithJot(t, "")
+
+	for _, want := range []string{
+		`data-signals:_jotv="0"`,
+		`data-on-signal-patch="window.__jotRemote && window.__jotRemote($_jotv, $_jott)"`,
+		`data-on-signal-patch-filter="{include: /^_jotv$/}"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
@@ -251,7 +335,7 @@ func TestGuideModalIntroducesTheJotpad(t *testing.T) {
 func renderPageWithJot(t *testing.T, text string) string {
 	t.Helper()
 	jots := newFakeJot()
-	jots.texts[testOwner] = text
+	jots.pads[testOwner] = jot.Pad{Text: text}
 	rec := httptest.NewRecorder()
 	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
 		ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
@@ -286,7 +370,7 @@ func TestJotHandler500sOnAStorageFailure(t *testing.T) {
 	svc.setErr = context.DeadlineExceeded
 	rec := httptest.NewRecorder()
 
-	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":"x"}`))
+	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":"x","_jotVersion":0}`))
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("status: want 500, got %d", rec.Code)
