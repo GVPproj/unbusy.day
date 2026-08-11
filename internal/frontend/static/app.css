@@ -2486,6 +2486,14 @@
       background: color-mix(in srgb, var(--accent) 25%, transparent) !important;
     }
 
+    /* Code is always monospace, whatever the feeling font: jot-cm.js
+       decorates fenced-code lines and inline code with these classes.
+       Direct rules beat the scroller's inherited feeling font; Gohu keeps
+       the pixel feeling's own (already monospace) look. */
+    .cm-line.jot-codeline,
+    .jot-codespan {
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
     /* classHighlighter token classes — markdown structure first, then the
        handful that light up fenced code blocks. */
     .tok-heading {
@@ -2525,6 +2533,12 @@
     .tok-className {
       color: color-mix(in srgb, var(--accent) 35%, var(--ink));
     }
+  }
+
+  /* Outside the @scope block: scoped selectors are implicitly relative to
+     the scope root, so a :root-anchored selector can't match in there. */
+  :root[data-feeling="pixel"] .jotpad-cm :is(.cm-line.jot-codeline, .jot-codespan) {
+    font-family: "Gohu", ui-monospace, monospace;
   }
 
   /* PROTOTYPE variant switcher (routes/blocks.templ). Deliberately not part

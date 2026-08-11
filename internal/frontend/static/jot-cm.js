@@ -15,14 +15,22 @@ import {
 	placeholder,
 	drawSelection,
 	highlightSpecialChars,
+	Decoration,
+	ViewPlugin,
 } from "https://esm.sh/@codemirror/view@6.43.8";
-import { EditorState } from "https://esm.sh/@codemirror/state@6.7.1";
+import {
+	EditorState,
+	RangeSetBuilder,
+} from "https://esm.sh/@codemirror/state@6.7.1";
 import {
 	history,
 	defaultKeymap,
 	historyKeymap,
 } from "https://esm.sh/@codemirror/commands@6.10.4";
-import { syntaxHighlighting } from "https://esm.sh/@codemirror/language@6.12.4";
+import {
+	syntaxHighlighting,
+	syntaxTree,
+} from "https://esm.sh/@codemirror/language@6.12.4";
 import { classHighlighter } from "https://esm.sh/@lezer/highlight@1.2.3";
 import { markdown } from "https://esm.sh/@codemirror/lang-markdown@6.5.2";
 import { languages } from "https://esm.sh/@codemirror/language-data@6.5.2";
@@ -41,6 +49,57 @@ const PLACEHOLDER = `e.g.
 ## Thursday
 
 ## Friday`;
+
+// Code stays monospace even under a proportional feeling font: line
+// decorations on fenced-code lines (fences included) and mark decorations
+// on inline code, styled from app.css. classHighlighter has no monospace
+// class, and nested-language tokens wouldn't carry one anyway.
+const codeLine = Decoration.line({ class: "jot-codeline" });
+const codeSpan = Decoration.mark({ class: "jot-codespan" });
+
+function codeDecorations(view) {
+	const builder = new RangeSetBuilder();
+	for (const { from, to } of view.visibleRanges) {
+		syntaxTree(view.state).iterate({
+			from,
+			to,
+			enter: (node) => {
+				if (node.name === "FencedCode" || node.name === "CodeBlock") {
+					for (let pos = node.from; pos <= node.to; ) {
+						const line = view.state.doc.lineAt(pos);
+						builder.add(line.from, line.from, codeLine);
+						pos = line.to + 1;
+					}
+					return false;
+				}
+				if (node.name === "InlineCode") {
+					builder.add(node.from, node.to, codeSpan);
+					return false;
+				}
+			},
+		});
+	}
+	return builder.finish();
+}
+
+const codeFontPlugin = ViewPlugin.fromClass(
+	class {
+		constructor(view) {
+			this.decorations = codeDecorations(view);
+		}
+		update(u) {
+			// The markdown parse can finish after the doc update, so also
+			// recompute when the syntax tree itself changes.
+			if (
+				u.docChanged ||
+				u.viewportChanged ||
+				syntaxTree(u.state) !== syntaxTree(u.startState)
+			)
+				this.decorations = codeDecorations(u.view);
+		}
+	},
+	{ decorations: (v) => v.decorations },
+);
 
 /**
  * Mounts a CodeMirror Jotpad into `mount`. Save contract matches jot.js: a 1s
@@ -83,6 +142,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen) {
 				// classHighlighter emits plain .tok-* classes, styled from
 				// app.css with the theme tokens — no CSS-in-JS theme.
 				syntaxHighlighting(classHighlighter),
+				codeFontPlugin,
 				keymap.of([...defaultKeymap, ...historyKeymap]),
 				// The jot.MaxLen cap; approximate (UTF-16 units vs server
 				// runes) but the server logs-and-drops over-cap writes anyway.
