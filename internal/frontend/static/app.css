@@ -2458,6 +2458,10 @@
     .jot-codespan {
       font-family: "JetBrains Mono", ui-monospace, monospace;
     }
+    /* Task-list "[ ]" markers are click-to-toggle (jot-cm.js). */
+    .jot-taskmarker {
+      cursor: pointer;
+    }
     /* classHighlighter token classes — markdown structure first, then the
        handful that light up fenced code blocks. */
     .tok-heading {

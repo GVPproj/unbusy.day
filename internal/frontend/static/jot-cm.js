@@ -31,7 +31,10 @@ import {
 	syntaxTree,
 } from "https://esm.sh/@codemirror/language@6.12.4";
 import { classHighlighter } from "https://esm.sh/@lezer/highlight@1.2.3";
-import { markdown } from "https://esm.sh/@codemirror/lang-markdown@6.5.2";
+import {
+	markdown,
+	markdownLanguage,
+} from "https://esm.sh/@codemirror/lang-markdown@6.5.2";
 import { languages } from "https://esm.sh/@codemirror/language-data@6.5.2";
 
 import { createJotSync, minimalEdit, wireTeardown } from "./jot-sync.js";
@@ -57,8 +60,11 @@ const PLACEHOLDER = `e.g.
 // class, and nested-language tokens wouldn't carry one anyway.
 const codeLine = Decoration.line({ class: "jot-codeline" });
 const codeSpan = Decoration.mark({ class: "jot-codespan" });
+// GFM task-list markers ("[ ]"/"[x]") get a class for pointer styling;
+// taskToggle below does the actual click-to-toggle.
+const taskSpan = Decoration.mark({ class: "jot-taskmarker" });
 
-function codeDecorations(view) {
+function jotDecorations(view) {
 	const builder = new RangeSetBuilder();
 	for (const { from, to } of view.visibleRanges) {
 		syntaxTree(view.state).iterate({
@@ -77,16 +83,20 @@ function codeDecorations(view) {
 					builder.add(node.from, node.to, codeSpan);
 					return false;
 				}
+				if (node.name === "TaskMarker") {
+					builder.add(node.from, node.to, taskSpan);
+					return false;
+				}
 			},
 		});
 	}
 	return builder.finish();
 }
 
-const codeFontPlugin = ViewPlugin.fromClass(
+const jotDecorationsPlugin = ViewPlugin.fromClass(
 	class {
 		constructor(view) {
-			this.decorations = codeDecorations(view);
+			this.decorations = jotDecorations(view);
 		}
 		update(u) {
 			// The markdown parse can finish after the doc update, so also
@@ -96,11 +106,30 @@ const codeFontPlugin = ViewPlugin.fromClass(
 				u.viewportChanged ||
 				syntaxTree(u.state) !== syntaxTree(u.startState)
 			)
-				this.decorations = codeDecorations(u.view);
+				this.decorations = jotDecorations(u.view);
 		}
 	},
 	{ decorations: (v) => v.decorations },
 );
+
+// Click/tap on a task-list "[ ]" toggles it in place. The dispatch is an
+// ordinary doc change, so it rides the same sync path as typing.
+const taskToggle = EditorView.domEventHandlers({
+	mousedown(event, view) {
+		const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+		if (pos == null) return false;
+		const tree = syntaxTree(view.state);
+		let node = tree.resolveInner(pos, 1);
+		if (node.name !== "TaskMarker") node = tree.resolveInner(pos, -1);
+		if (node.name !== "TaskMarker") return false;
+		const checked = /x/i.test(view.state.sliceDoc(node.from, node.to));
+		view.dispatch({
+			changes: { from: node.from, to: node.to, insert: checked ? "[ ]" : "[x]" },
+		});
+		event.preventDefault();
+		return true;
+	},
+});
 
 /**
  * Mounts a CodeMirror Jotpad into `mount`. Saving, remote application, and the
@@ -139,11 +168,14 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				// markdown() adds its own Enter/Backspace keymap (list
 				// continuation, marker cleanup) at high precedence; language-data
 				// gives fenced code blocks their inner language's highlighting.
-				markdown({ codeLanguages: languages }),
+				// The default base is commonmark — markdownLanguage is the GFM
+				// dialect, needed for TaskMarker (and tables/strikethrough).
+				markdown({ base: markdownLanguage, codeLanguages: languages }),
 				// classHighlighter emits plain .tok-* classes, styled from
 				// app.css with the theme tokens — no CSS-in-JS theme.
 				syntaxHighlighting(classHighlighter),
-				codeFontPlugin,
+				jotDecorationsPlugin,
+				taskToggle,
 				keymap.of([...defaultKeymap, ...historyKeymap]),
 				// The jot.MaxLen cap; approximate (UTF-16 units vs server
 				// runes) but the server logs-and-drops over-cap writes anyway.
