@@ -15,7 +15,7 @@ import (
 func renderPage(t *testing.T, cs []block.Block, b block.Bounds) string {
 	t.Helper()
 	var sb strings.Builder
-	if err := routes.BlocksPage(cs, b, "").Render(context.Background(), &sb); err != nil {
+	if err := routes.BlocksPage(cs, b, "", false).Render(context.Background(), &sb); err != nil {
 		t.Fatalf("render page: %v", err)
 	}
 	return sb.String()

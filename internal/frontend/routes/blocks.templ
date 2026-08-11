@@ -13,7 +13,10 @@ import (
 // $_jotopen is client-only (underscore = never sent to the server) and starts
 // false on every load: a planner should open on the plan. Above 52rem both
 // panels are visible and the signal is inert.
-templ BlocksPage(cs []block.Block, b block.Bounds, jotText string) {
+// PROTOTYPE (branch prototype/jotpad-codemirror): jotCM swaps the textarea
+// Jotpad for a CodeMirror 6 one, chosen by ?jot=cm; the fixed pill at the
+// bottom flips between them.
+templ BlocksPage(cs []block.Block, b block.Bounds, jotText string, jotCM bool) {
 	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
 		<div class="shell" data-signals:_navopen="false" data-signals:_jotopen="false">
 			@components.SideNav()
@@ -56,15 +59,30 @@ templ BlocksPage(cs []block.Block, b block.Bounds, jotText string) {
 					<script type="module" src="/static/now.js"></script>
 					<script type="module" src="/static/shortcuts.js"></script>
 				</main>
-				@components.Jotpad(jotText)
-				// Enter list continuation, plus the flushes of the 1s debounce that
-				// Datastar attributes can't make reliable during page teardown.
-				<script type="module">
-					import { initJotpad } from "/static/jot.js"
-					const jot = document.getElementById("jot")
-					if (jot) initJotpad(jot, "/jot")
-				</script>
+				if jotCM {
+					@components.JotpadCM(jotText)
+					<script type="module">
+						import { initJotpadCM } from "/static/jot-cm.js"
+						const mount = document.getElementById("jot-cm")
+						const text = JSON.parse(document.getElementById("jot-cm-text").textContent)
+						if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen))
+					</script>
+				} else {
+					@components.Jotpad(jotText)
+					// Enter list continuation, plus the flushes of the 1s debounce that
+					// Datastar attributes can't make reliable during page teardown.
+					<script type="module">
+						import { initJotpad } from "/static/jot.js"
+						const jot = document.getElementById("jot")
+						if (jot) initJotpad(jot, "/jot")
+					</script>
+				}
 			</div>
+			// PROTOTYPE variant switcher — throwaway with the branch.
+			<nav class="proto-switcher" aria-label="Jotpad prototype variant">
+				<a href="/?jot=textarea" class={ templ.KV("current", !jotCM) }>textarea</a>
+				<a href="/?jot=cm" class={ templ.KV("current", jotCM) }>codemirror</a>
+			</nav>
 		</div>
 	}
 }

@@ -61,7 +61,9 @@ func PageHandler(svc BlockService, jots JotService) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := routes.BlocksPage(bs, b, jotText).Render(r.Context(), w); err != nil {
+		// PROTOTYPE (branch prototype/jotpad-codemirror): ?jot=cm picks the
+		// CodeMirror Jotpad variant.
+		if err := routes.BlocksPage(bs, b, jotText, r.URL.Query().Get("jot") == "cm").Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
 		}
 	})
