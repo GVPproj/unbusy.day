@@ -65,6 +65,12 @@ export function initJotpadCM(mount, initialText, postURL, maxLen) {
 		state: EditorState.create({
 			doc: initialText,
 			extensions: [
+				// CM's injected base styles are UNLAYERED, so they beat anything
+				// in app.css's @layer components regardless of specificity; the
+				// feeling font must be set from CM's own theme seam.
+				EditorView.theme({
+					".cm-scroller": { fontFamily: "var(--font-family)" },
+				}),
 				highlightSpecialChars(),
 				history(),
 				drawSelection(),
