@@ -14,10 +14,7 @@ import (
 // $_jotopen is client-only (underscore = never sent to the server) and starts
 // false on every load: a planner should open on the plan. Above 52rem both
 // panels are visible and the signal is inert.
-// PROTOTYPE (branch prototype/jotpad-codemirror): jotCM swaps the textarea
-// Jotpad for a CodeMirror 6 one, chosen by ?jot=cm; the fixed pill at the
-// bottom flips between them.
-templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, jotCM bool) {
+templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
 		// $_jotv/$_jott carry live jot state from /events as signal patches
 		// (never element patches — nothing may re-render an editor being typed
@@ -44,7 +41,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, jotCM bool) {
 			@modals.DialogInit()
 			// .shell/.panels/.column geometry lives in app.css's layout layer.
 			// Both panels stay in the DOM at every width — below 52rem CSS hides
-			// one, so switching is instant and the textarea keeps its value,
+			// one, so switching is instant and the Jotpad keeps its text,
 			// caret, and scroll position.
 			<div class="panels" data-class:jot-open="$_jotopen">
 				<main class="column">
@@ -73,36 +70,19 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, jotCM bool) {
 					<script type="module" src="/static/now.js"></script>
 					<script type="module" src="/static/shortcuts.js"></script>
 				</main>
-				if jotCM {
-					@components.JotpadCM(pad)
-					<script type="module">
-						import { initJotpadCM } from "/static/jot-cm.js"
-						const mount = document.getElementById("jot-cm")
-						const text = JSON.parse(document.getElementById("jot-cm-text").textContent)
-						if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen), {
-							version: Number(mount.dataset.jotVersion),
-							status: document.getElementById("jot-status"),
-						})
-					</script>
-				} else {
-					@components.Jotpad(pad)
-					// The whole save path (debounce, CAS version, retry, teardown
-					// beacon) plus Enter list continuation live in jot.js.
-					<script type="module">
-						import { initJotpad } from "/static/jot.js"
-						const jot = document.getElementById("jot")
-						if (jot) initJotpad(jot, "/jot", {
-							version: Number(jot.dataset.jotVersion),
-							status: document.getElementById("jot-status"),
-						})
-					</script>
-				}
+				@components.Jotpad(pad)
+				// The whole save path (debounce, CAS version, retry, teardown
+				// beacon) lives in the jot-sync driver behind initJotpadCM.
+				<script type="module">
+					import { initJotpadCM } from "/static/jot-cm.js"
+					const mount = document.getElementById("jot-cm")
+					const text = JSON.parse(document.getElementById("jot-cm-text").textContent)
+					if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen), {
+						version: Number(mount.dataset.jotVersion),
+						status: document.getElementById("jot-status"),
+					})
+				</script>
 			</div>
-			// PROTOTYPE variant switcher — throwaway with the branch.
-			<nav class="proto-switcher" aria-label="Jotpad prototype variant">
-				<a href="/?jot=textarea" class={ templ.KV("current", !jotCM) }>textarea</a>
-				<a href="/?jot=cm" class={ templ.KV("current", jotCM) }>codemirror</a>
-			</nav>
 		</div>
 	}
 }

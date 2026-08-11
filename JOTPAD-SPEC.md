@@ -4,9 +4,14 @@ A second panel beside the Day Plan holding one persistent, free-text scratchpad
 per User. Written continuously with no save button; read back on every page
 load.
 
-Status: **built.** All six [build-order](#build-order) steps shipped in
-`feat/jotpad`. Cross-device live sync is deliberately deferred — see
-[Follow-up](#follow-up-live-sync-deferred).
+Status: **built, then superseded in part.** All six [build-order](#build-order)
+steps shipped in `feat/jotpad` as specced. Since then the editing surface moved
+from the plain textarea to CodeMirror 6 (`jot-cm.js`; `jot.js` and its Enter
+list continuation are gone — CM's markdown keymap owns that), and the deferred
+cross-device live sync shipped (versioned CAS writes with server-side three-way
+merge, jot events over the existing SSE stream, and a save-state indicator).
+References to `jot.js`/textarea mechanics below are kept as the record of that
+first build.
 
 The design below is unchanged by the build: nothing in it was contradicted.
 What the build added is marked **Built:** inline, so this file stays a record of

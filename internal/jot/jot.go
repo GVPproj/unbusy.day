@@ -16,8 +16,8 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-// MaxLen caps a Jotpad at 100,000 characters. Enforced here and by maxlength
-// on the textarea; a browser cannot exceed it, only a crafted client can.
+// MaxLen caps a Jotpad at 100,000 characters. Enforced here and by the
+// editor's transaction filter; only a crafted client can exceed it.
 const MaxLen = 100_000
 
 var ErrTooLong = errors.New("jot exceeds the length cap")

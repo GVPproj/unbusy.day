@@ -1,6 +1,6 @@
-// Jotpad sync: the one save/convergence path shared by both editors (jot.js
-// textarea, jot-cm.js CodeMirror). The decision logic is pure functions (node
-// --test covered); createJotSync wires them to fetch/timers. The server is the
+// Jotpad sync: the save/convergence path behind the CodeMirror editor
+// (jot-cm.js). The decision logic is pure functions (node --test covered);
+// createJotSync wires them to fetch/timers. The server is the
 // authority: writes are compare-and-swap on a version, stale writes come back
 // merged, and remote edits arrive as (version, text) events that the editor
 // applies itself — nothing here ever touches the DOM.
@@ -75,8 +75,8 @@ const DEBOUNCE = 1000;
 /**
  * Wires the sync loop for one editor.
  *  - getText():        the editor's current document
- *  - applyText(text):  make the editor show exactly text (CM transaction or
- *                      el.value — the editor's business, never a DOM morph)
+ *  - applyText(text):  make the editor show exactly text (a CM transaction —
+ *                      the editor's business, never a DOM morph)
  *  - postURL, version: the save endpoint and the version the page rendered
  *  - status:           the indicator element (optional)
  * Returns {edited, flush, beacon, remote} — call edited() on every local

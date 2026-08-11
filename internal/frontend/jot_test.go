@@ -169,9 +169,11 @@ func TestJotHandlerRejectsAMalformedSignalsBody(t *testing.T) {
 }
 
 // The page load renders the stored jot; live updates ride SSE signal patches.
-func TestPageRendersTheStoredJotInsideTheTextarea(t *testing.T) {
+// The text travels as a JSON script (never element text), so whitespace-hostile
+// content — leading blank lines, HTML-ish fragments — survives every reload.
+func TestPageRendersTheStoredJotInTheEditorPayload(t *testing.T) {
 	jots := newFakeJot()
-	jots.pads[testOwner] = jot.Pad{Text: "- milk\n- eggs", Version: 4}
+	jots.pads[testOwner] = jot.Pad{Text: "\n\n- milk & eggs <b>", Version: 4}
 	rec := httptest.NewRecorder()
 
 	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
@@ -183,30 +185,12 @@ func TestPageRendersTheStoredJotInsideTheTextarea(t *testing.T) {
 	if jots.gotOwner != testOwner {
 		t.Errorf("owner: want %q, got %q", testOwner, jots.gotOwner)
 	}
-	if got := parsedTextareaValue(t, rec.Body.String()); got != "- milk\n- eggs" {
-		t.Errorf("textarea value: got %q", got)
+	if got := jotPayload(t, rec.Body.String()); got != "\n\n- milk & eggs <b>" {
+		t.Errorf("jot payload: got %q", got)
 	}
 	// The version the client's first CAS write must carry.
 	if !strings.Contains(rec.Body.String(), `data-jot-version="4"`) {
 		t.Errorf("body missing data-jot-version; body:\n%s", rec.Body.String())
-	}
-}
-
-// An HTML parser drops a newline immediately after the <textarea> start tag,
-// so the render emits a sacrificial one; without it a jot beginning with a
-// blank line loses it on every reload.
-func TestPageKeepsALeadingNewlineInTheStoredJot(t *testing.T) {
-	jots := newFakeJot()
-	jots.pads[testOwner] = jot.Pad{Text: "\n\nafter two blank lines"}
-	rec := httptest.NewRecorder()
-
-	PageHandler(&fakeService{}, jots).ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
-
-	if raw := textareaContent(t, rec.Body.String()); !strings.HasPrefix(raw, "\n") {
-		t.Fatalf("render must emit a sacrificial leading newline; got %q", raw)
-	}
-	if got := parsedTextareaValue(t, rec.Body.String()); got != "\n\nafter two blank lines" {
-		t.Errorf("parsed textarea value: got %q", got)
 	}
 }
 
@@ -234,16 +218,16 @@ func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
 	}
 }
 
-// The write path, pinned as markup: jot.js owns saving (Datastar's @post can't
-// read /jot's JSON response), the version rides a data attribute, and the
-// save-state indicator is a live region next to the heading.
+// The write path, pinned as markup: jot-cm.js owns saving (Datastar's @post
+// can't read /jot's JSON response), the version and length cap ride data
+// attributes, and the save-state indicator is a live region next to the heading.
 func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
 	for _, want := range []string{
 		`data-jot-version="0"`,
-		`maxlength="100000"`,
-		`/static/jot.js`,
+		`data-maxlen="100000"`,
+		`/static/jot-cm.js`,
 		`id="jot-status"`,
 		`data-state="saved"`,
 	} {
@@ -342,27 +326,24 @@ func renderPageWithJot(t *testing.T, text string) string {
 	return rec.Body.String()
 }
 
-// textareaContent returns the raw (still-escaped-decoded) body of #jot.
-func textareaContent(t *testing.T, body string) string {
+// jotPayload decodes the #jot-cm-text JSON script — the text exactly as
+// jot-cm.js will hand it to the editor.
+func jotPayload(t *testing.T, body string) string {
 	t.Helper()
-	i := strings.Index(body, `id="jot"`)
+	i := strings.Index(body, `id="jot-cm-text"`)
 	if i < 0 {
-		t.Fatalf("body has no #jot textarea; body:\n%s", body)
+		t.Fatalf("body has no #jot-cm-text script; body:\n%s", body)
 	}
 	open := strings.Index(body[i:], ">")
-	end := strings.Index(body[i:], "</textarea>")
+	end := strings.Index(body[i:], "</script>")
 	if open < 0 || end < 0 {
-		t.Fatalf("could not bound the #jot textarea; body:\n%s", body)
+		t.Fatalf("could not bound the #jot-cm-text script; body:\n%s", body)
 	}
-	raw := body[i+open+1 : i+end]
-	return strings.NewReplacer("&amp;", "&", "&lt;", "<", "&gt;", ">", "&#34;", `"`, "&#39;", "'").Replace(raw)
-}
-
-// parsedTextareaValue is what a browser would take as #jot's value: the raw
-// content minus the newline an HTML parser drops after the start tag.
-func parsedTextareaValue(t *testing.T, body string) string {
-	t.Helper()
-	return strings.TrimPrefix(textareaContent(t, body), "\n")
+	var text string
+	if err := json.Unmarshal([]byte(body[i+open+1:i+end]), &text); err != nil {
+		t.Fatalf("decode jot payload: %v", err)
+	}
+	return text
 }
 
 func TestJotHandler500sOnAStorageFailure(t *testing.T) {

@@ -75,6 +75,10 @@ tasks:
           printf '  ✗ %-11s tags disagree across templ files: %s\n' ds-client "$(echo $ds_client)"; rc=1
         else report ds-client "$ds_client" "$(gh_latest starfederation/datastar)"; fi
         report motion "$(grep -hoE 'motion@[0-9.]+' internal/frontend/static/gestures/pointer.js | sed 's/.*@//')" "$(npm_latest motion)"
+        # CodeMirror graph: exact esm.sh pins in jot-cm.js (name@version each).
+        for pin in $(grep -hoE 'esm\.sh/[^"]+@[0-9][0-9.]*' internal/frontend/static/jot-cm.js | sed 's|.*esm\.sh/||' | sort -u); do
+          report "${pin%@*}" "${pin##*@}" "$(npm_latest "${pin%@*}")"
+        done
         exit $rc
 
   migrate:

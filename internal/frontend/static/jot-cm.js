@@ -1,6 +1,5 @@
-// PROTOTYPE — branch prototype/jotpad-codemirror. CodeMirror 6 variant of the
-// Jotpad, answering "does a CM markdown editor feel right here?". Loaded only
-// when the page is opened with ?jot=cm. Throwaway: not for main.
+// The Jotpad editor: CodeMirror 6 with the markdown keymap, wired to the
+// shared jot-sync save/convergence driver.
 //
 // Plain pinned esm.sh imports — no ?deps: default builds are pre-cached
 // (?deps combos build on demand and routinely 408), and their shared deps
@@ -37,7 +36,7 @@ import { languages } from "https://esm.sh/@codemirror/language-data@6.5.2";
 
 import { createJotSync, minimalEdit, wireTeardown } from "./jot-sync.js";
 
-// Mirrors jotPlaceholder in components/jotpad.templ.
+// Newlines render as line breaks, letting the empty pad sketch a weekly outline.
 const PLACEHOLDER = `e.g.
 
 ## Monday

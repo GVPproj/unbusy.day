@@ -2339,8 +2339,9 @@
   }
 
   /* SECTION: components/jotpad.templ → @scope (.jotpad)
-     The second panel. Same .column chrome as the Day Plan; the textarea
-     fills what's left and is the panel's only scroll region. */
+     The second panel. Same .column chrome as the Day Plan; the CodeMirror
+     editor (mounted by jot-cm.js) fills what's left and is the panel's only
+     scroll region. The .cm-editor rules mirror the block grid's chrome. */
   @scope (.jotpad) {
     /* Mirrors .date-heading's metrics so the two panel headers share a
 		   baseline above 52rem, and the toggle doesn't shift the header bar
@@ -2388,69 +2389,9 @@
       }
     }
 
-    /* Fills the panel and scrolls internally — no auto-grow, which would
-		   either fight .column's height cap or bring back document scroll.
-		   resize: none because a user-resizable box inside a fixed-height flex
-		   panel just breaks the layout. */
-    textarea {
-      flex: 1;
-      min-height: 0;
-      width: 100%;
-      resize: none;
-      /* Same rule as the .blocks hour lines, so both panels read as one grid. */
-      border: 1px solid var(--rail-border);
-      background: var(--bg);
-      border-radius: var(--radius-lg);
-      color: var(--ink);
-      font-family: inherit;
-      font-size: var(--text-base);
-      line-height: 1.6;
-      /* Same interior inset as .block-item, so prose sits off the box edge
-			   by what a block's label does. */
-      padding: 0.65rem 0.75rem 0.75rem;
-
-      /* Full-bleed below 52rem, like the block grid: no box edge against the
-			   screen edge, just one rule under the header at the same offset the
-			   grid's first hour line sits at. */
-      @media (width < 52rem) {
-        margin-top: 0.75rem;
-        padding: 0.75rem 1rem 1rem;
-        border-inline: 0;
-        border-bottom: 0;
-        border-radius: 0;
-        background: transparent;
-      }
-
-      &::placeholder {
-        color: var(--ink-muted);
-      }
-
-      /* Textareas match :focus-visible even on mouse focus, so the default
-			   ring would sit there the whole time you type. Indicate focus on the
-			   box's own border instead. */
-      &:focus-visible {
-        outline: none;
-        border-color: var(--accent);
-      }
-    }
-  }
-
-  /* SECTION: PROTOTYPE (branch prototype/jotpad-codemirror)
-     components/jotpad_cm.templ → @scope (.jotpad-cm), plus the fixed
-     variant-switcher pill. Throwaway with the branch. The .cm-editor rules
-     mirror the textarea's chrome above so the two variants differ only in
-     the editing surface. */
-  @scope (.jotpad-cm) {
-    h2 .proto-badge {
-      margin-left: 0.5rem;
-      padding: 0.1rem 0.45rem;
-      border-radius: 999px;
-      background: var(--accent);
-      color: var(--bg);
-      font-size: 0.7rem;
-      font-weight: 700;
-    }
-
+    /* Fills the panel; the editor scrolls internally — no auto-grow, which
+			   would either fight .column's height cap or bring back document
+			   scroll. */
     #jot-cm {
       flex: 1;
       min-height: 0;
@@ -2461,12 +2402,16 @@
     .cm-editor {
       flex: 1;
       min-height: 0;
+      /* Same rule as the .blocks hour lines, so both panels read as one grid. */
       border: 1px solid var(--rail-border);
       background: var(--bg);
       border-radius: var(--radius-lg);
       color: var(--ink);
       font-size: var(--text-base);
 
+      /* Full-bleed below 52rem, like the block grid: no box edge against the
+				   screen edge, just one rule under the header at the same offset the
+				   grid's first hour line sits at. */
       @media (width < 52rem) {
         margin-top: 0.75rem;
         border-inline: 0;
@@ -2556,37 +2501,7 @@
 
   /* Outside the @scope block: scoped selectors are implicitly relative to
      the scope root, so a :root-anchored selector can't match in there. */
-  :root[data-feeling="pixel"] .jotpad-cm :is(.cm-line.jot-codeline, .jot-codespan) {
+  :root[data-feeling="pixel"] .jotpad :is(.cm-line.jot-codeline, .jot-codespan) {
     font-family: "Gohu", ui-monospace, monospace;
-  }
-
-  /* PROTOTYPE variant switcher (routes/blocks.templ). Deliberately not part
-     of the design under evaluation. */
-  .proto-switcher {
-    position: fixed;
-    bottom: 1rem;
-    left: 50%;
-    translate: -50% 0;
-    z-index: 50;
-    display: flex;
-    gap: 0.25rem;
-    padding: 0.25rem;
-    background: var(--surface);
-    border: 1px solid var(--rail-border);
-    border-radius: 999px;
-    box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
-
-    a {
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-      color: var(--ink-muted);
-      text-decoration: none;
-      font-size: 0.85rem;
-    }
-
-    a.current {
-      background: var(--accent);
-      color: var(--bg);
-    }
   }
 }
