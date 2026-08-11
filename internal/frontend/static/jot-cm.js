@@ -129,6 +129,12 @@ export function initJotpadCM(mount, initialText, postURL, maxLen) {
 				// feeling font must be set from CM's own theme seam.
 				EditorView.theme({
 					".cm-scroller": { fontFamily: "var(--font-family)" },
+					// drawSelection replaces the native caret with a drawn
+					// .cm-cursor whose base color is black — invisible on
+					// dark colorschemes.
+					".cm-cursor, .cm-dropCursor": {
+						borderLeftColor: "var(--ink)",
+					},
 				}),
 				highlightSpecialChars(),
 				history(),
