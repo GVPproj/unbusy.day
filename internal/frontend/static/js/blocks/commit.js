@@ -4,7 +4,7 @@
 
 import { writeLayout, sameLayout } from "./grid.js";
 import { restoreFocusAfterMorph } from "./rename.js";
-import { timeRange } from "../keyboard-reducer.js";
+import { timeRange } from "./keyboard-reducer.js";
 
 // Finish a gesture: persist the layout, refresh the accessible mirrors,
 // announce, steer focus across the morph, and tell the server. Returns

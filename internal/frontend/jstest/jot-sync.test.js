@@ -1,4 +1,4 @@
-// The Jotpad sync decision logic, as pure functions (see jot-sync.js). The
+// The Jotpad sync decision logic, as pure functions (see jot/sync.js). The
 // fetch/timer driver around them is exercised in the browser; what node pins
 // is convergence: which remote events apply, which buffer, which are echoes.
 
@@ -11,7 +11,7 @@ import {
 	minimalEdit,
 	retryDelay,
 	statusOf,
-} from "../static/jot-sync.js";
+} from "../static/js/jot/sync.js";
 
 const clean = (over = {}) => ({
 	version: 5,

@@ -23,7 +23,7 @@ import {
 	moveCancelledMsg,
 	resizeCancelledMsg,
 	blockedMsg,
-} from "../keyboard-reducer.js";
+} from "./keyboard-reducer.js";
 
 let list; // #block-list, injected via init
 let announce; // ctx.announce (msg) => void

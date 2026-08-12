@@ -1,5 +1,5 @@
 // Jotpad sync: the save/convergence path behind the CodeMirror editor
-// (jot-cm.js). The decision logic is pure functions (node --test covered);
+// (jot/cm.js). The decision logic is pure functions (node --test covered);
 // createJotSync wires them to fetch/timers. The server is the
 // authority: writes are compare-and-swap on a version, stale writes come back
 // merged, and remote edits arrive as (version, text) events that the editor

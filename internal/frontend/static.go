@@ -16,7 +16,7 @@ func init() {
 //go:embed static
 var staticFS embed.FS
 
-// Asset returns an embedded static file's bytes (e.g. "static/icon-192.png").
+// Asset returns an embedded static file's bytes (e.g. "static/icons/icon-192.png").
 func Asset(name string) ([]byte, error) {
 	return staticFS.ReadFile(name)
 }
@@ -34,7 +34,7 @@ func StaticHandler() http.Handler {
 		fs = http.FileServerFS(staticFS)
 	}
 	// Unversioned URLs with no validators: force revalidation each deploy or an
-	// edge/CDN keeps serving a stale block-gestures.js.
+	// edge/CDN keeps serving a stale js/blocks/gestures.js.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
 		fs.ServeHTTP(w, r)

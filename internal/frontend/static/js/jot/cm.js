@@ -37,7 +37,7 @@ import {
 } from "https://esm.sh/@codemirror/lang-markdown@6.5.2";
 import { languages } from "https://esm.sh/@codemirror/language-data@6.5.2";
 
-import { createJotSync, minimalEdit, wireTeardown } from "./jot-sync.js";
+import { createJotSync, minimalEdit, wireTeardown } from "./sync.js";
 
 // Newlines render as line breaks, letting the empty pad sketch a weekly outline.
 const PLACEHOLDER = `e.g.

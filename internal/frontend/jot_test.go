@@ -218,7 +218,7 @@ func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
 	}
 }
 
-// The write path, pinned as markup: jot-cm.js owns saving (Datastar's @post
+// The write path, pinned as markup: jot/cm.js owns saving (Datastar's @post
 // can't read /jot's JSON response), the version and length cap ride data
 // attributes, and the save-state indicator is a live region next to the heading.
 func TestPageRendersTheJotWriteWiring(t *testing.T) {
@@ -227,7 +227,7 @@ func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	for _, want := range []string{
 		`data-jot-version="0"`,
 		`data-maxlen="100000"`,
-		`/static/jot-cm.js`,
+		`/static/js/jot/cm.js`,
 		`id="jot-status"`,
 		`data-state="saved"`,
 	} {
@@ -327,7 +327,7 @@ func renderPageWithJot(t *testing.T, text string) string {
 }
 
 // jotPayload decodes the #jot-cm-text JSON script — the text exactly as
-// jot-cm.js will hand it to the editor.
+// jot/cm.js will hand it to the editor.
 func jotPayload(t *testing.T, body string) string {
 	t.Helper()
 	i := strings.Index(body, `id="jot-cm-text"`)

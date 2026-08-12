@@ -14,7 +14,7 @@ import (
 // All panes stack in one .guide-body grid cell and stay laid out (visibility,
 // not display, toggles them), so the body auto-sizes to the tallest pane in the
 // active font and the dialog never resizes as steps change. On touch that same
-// cell becomes a scroll-snap carousel (app.css) so the steps swipe; guide-swipe.js
+// cell becomes a scroll-snap carousel (app.css) so the steps swipe; guide/swipe.js
 // syncs the scroll offset with $_guidestep, which is why the panes are held out
 // of reach with inert rather than only being invisible.
 templ GuideModal() {
@@ -105,16 +105,16 @@ templ GuideModal() {
 		</footer>
 	</dialog>
 	// FE-only drag/stretch for the pane-3 demo column (.gc-demo); commits nothing.
-	<script type="module" src="/static/guide-demo.js"></script>
+	<script type="module" src="/static/js/guide/demo.js"></script>
 	// Two-way sync between the touch carousel's scroll offset and $_guidestep.
-	<script type="module" src="/static/guide-swipe.js"></script>
+	<script type="module" src="/static/js/guide/swipe.js"></script>
 }
 
 // guideColumn is a miniature of the app's day grid (column.templ): rows
 // half-hour slots from 9:00, a time gutter beside token-coloured blocks on
 // slot rules. It mirrors the real column's look without a colliding
 // #block-list. Children are the .gc-block spans placed by grid-row. With
-// demo, guide-demo.js makes the blocks draggable/stretchable (pointer-only,
+// demo, guide/demo.js makes the blocks draggable/stretchable (pointer-only,
 // client-side); demo children must carry data-id/data-slot/data-span, a
 // .gc-label, and @gcHandle().
 templ guideColumn(demo bool, rows int) {

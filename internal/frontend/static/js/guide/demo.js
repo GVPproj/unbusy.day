@@ -2,7 +2,7 @@
 // cascade (push.js) driven pointer-only and committed nowhere — neighbours
 // animate via the CSS translate/height transition on .gc-block, and a gesture
 // settles by rewriting grid-row in place of the transforms (FLIP).
-import { pushLayout } from "./push.js";
+import { pushLayout } from "../blocks/push.js";
 
 // Must match the .gc-demo .gc-block transition duration in app.css.
 const SETTLE_MS = 180;

@@ -5,7 +5,7 @@
 // contract stays covered by /verify. Run: node --test internal/frontend/jstest
 import test from "node:test";
 import assert from "node:assert/strict";
-import { init } from "../static/gestures/keyboard.js";
+import { init } from "../static/js/blocks/keyboard.js";
 
 // init only wires listeners on `list` and stores ctx refs, so a stub element is
 // enough to exercise the contract without a DOM.

@@ -18,9 +18,9 @@ templ Layout(title string, streamInit string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
-			<link rel="icon" type="image/svg+xml" href="/static/favicon.svg"/>
+			<link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg"/>
 				// Apple ignores the SVG favicon and manifest icons; iOS needs its own PNG link.
-				<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
+				<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png"/>
 				<link rel="manifest" href="/static/manifest.webmanifest"/>
 				<meta name="apple-mobile-web-app-title" content="unbusy"/>
 				<meta name="theme-color" content="hsl(192, 81%, 14%)"/>
@@ -32,7 +32,7 @@ templ Layout(title string, streamInit string) {
 			<meta property="og:title" content="unbusy.day — time-block your day"/>
 			<meta property="og:description" content="Give every minute of your workday one job. A calm, Cal Newport-style time-block planner for today."/>
 			<meta property="og:url" content="https://unbusy.day/"/>
-			<meta property="og:image" content="https://unbusy.day/static/og.png"/>
+			<meta property="og:image" content="https://unbusy.day/static/icons/og.png"/>
 			<meta property="og:image:width" content="1200"/>
 			<meta property="og:image:height" content="630"/>
 			<meta property="og:image:alt" content="A day column with time blocks — Deep Work, Email, Coffee — beside the tagline: give every minute one job."/>
@@ -63,7 +63,7 @@ templ Layout(title string, streamInit string) {
 			</script>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
 			// The single hand-authored stylesheet (ADR 0011).
-			<link rel="stylesheet" href="/static/app.css"/>
+			<link rel="stylesheet" href="/static/css/app.css"/>
 		</head>
 		<body
 			if streamInit != "" {

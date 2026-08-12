@@ -5,8 +5,8 @@
 	"background_color": "#fdf6e3",
 	"theme_color": "#04313a",
 	"icons": [
-		{ "src": "/static/icon-192.png", "type": "image/png", "sizes": "192x192" },
-		{ "src": "/static/icon-512.png", "type": "image/png", "sizes": "512x512" },
-		{ "src": "/static/icon.svg", "type": "image/svg+xml", "sizes": "any" }
+		{ "src": "/static/icons/icon-192.png", "type": "image/png", "sizes": "192x192" },
+		{ "src": "/static/icons/icon-512.png", "type": "image/png", "sizes": "512x512" },
+		{ "src": "/static/icons/icon.svg", "type": "image/svg+xml", "sizes": "any" }
 	]
 }

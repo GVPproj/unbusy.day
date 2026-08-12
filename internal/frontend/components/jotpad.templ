@@ -18,7 +18,7 @@ templ jotStatus() {
 
 // Jotpad is the second panel, an <aside> because two <main>s are invalid HTML —
 // which also gives screen readers two named landmarks to move between.
-// The editing surface is CodeMirror 6: jot-cm.js mounts it into #jot-cm and
+// The editing surface is CodeMirror 6: jot/cm.js mounts it into #jot-cm and
 // owns everything client-side (markdown keymap, placeholder, saving via the
 // jot-sync driver). The stored text travels as a JSON script so no escaping
 // can mangle it.

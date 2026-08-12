@@ -57,14 +57,14 @@ func TestBlocksPageRendersGuideModalAndNavInvoker(t *testing.T) {
 	}
 }
 
-// Pane 3's column is a live demo: guide-demo.js is mounted, exactly one column
+// Pane 3's column is a live demo: guide/demo.js is mounted, exactly one column
 // carries the gc-demo hook, and its blocks carry the placement data the script
 // reads (data-id/data-slot/data-span) plus a grip handle.
 func TestGuideModalDemoColumnWiring(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
-	if !strings.Contains(body, "guide-demo.js") {
-		t.Errorf("page missing the guide-demo.js module; body:\n%s", body)
+	if !strings.Contains(body, "/static/js/guide/demo.js") {
+		t.Errorf("page missing the guide/demo.js module; body:\n%s", body)
 	}
 	if n := strings.Count(body, "gc-demo"); n != 1 {
 		t.Errorf("want exactly one gc-demo column, got %d; body:\n%s", n, body)
@@ -87,15 +87,15 @@ func TestGuideModalDemoColumnWiring(t *testing.T) {
 }
 
 // The touch carousel (app.css lays .guide-body out as a scroll-snap row) needs
-// three things in the markup: guide-swipe.js mounted, the body listening for the
+// three things in the markup: guide/swipe.js mounted, the body listening for the
 // `guidestep` event the script dispatches on settle, and every pane carrying an
 // inert binding — off-screen panes are on screen in the carousel, so inert is
 // what keeps them out of the tab order and the a11y tree.
 func TestGuideModalSwipeWiring(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
-	if !strings.Contains(body, "guide-swipe.js") {
-		t.Errorf("page missing the guide-swipe.js module; body:\n%s", body)
+	if !strings.Contains(body, "/static/js/guide/swipe.js") {
+		t.Errorf("page missing the guide/swipe.js module; body:\n%s", body)
 	}
 	if !strings.Contains(body, `data-on:guidestep="$_guidestep = evt.detail.step"`) {
 		t.Errorf("guide body does not consume the guidestep event; body:\n%s", body)
@@ -123,7 +123,7 @@ func TestLoginPageRendersGuideModalAndWhyButton(t *testing.T) {
 		t.Errorf("login page missing the outlined type=button guide invoker; body:\n%s", body)
 	}
 	// DialogInit's fallback loader must be present on login too.
-	if !strings.Contains(body, "invoker-fallback.js") {
+	if !strings.Contains(body, "/static/js/invoker-fallback.js") {
 		t.Errorf("login page missing DialogInit (invoker-fallback.js); body:\n%s", body)
 	}
 	// The dialog must sit OUTSIDE #login-form so the email→code SSE morph never

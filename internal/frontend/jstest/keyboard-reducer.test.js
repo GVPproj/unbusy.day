@@ -14,8 +14,8 @@ import {
 	moveCancelledMsg,
 	resizeCancelledMsg,
 	blockedMsg,
-} from "../static/keyboard-reducer.js";
-import { pushLayout } from "../static/push.js";
+} from "../static/js/blocks/keyboard-reducer.js";
+import { pushLayout } from "../static/js/blocks/push.js";
 
 const bounds = { start: 18, end: 34 }; // 9:00–17:00, end-exclusive
 

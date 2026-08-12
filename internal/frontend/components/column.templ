@@ -20,7 +20,7 @@ templ DateHeading() {
 	<div class="date-heading">
 		<h1 id="date-heading"></h1>
 		<script>
-			// Format kept in sync with formatDate() in /static/now.js.
+			// Format kept in sync with formatDate() in /static/js/now.js.
 			document.getElementById("date-heading").textContent =
 				new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 		</script>
@@ -35,8 +35,8 @@ templ DateHeading() {
 // patch lands on. Page and patch render share it so they can't drift.
 //
 // The data-on:* handlers below consume the layout/rename/delete CustomEvents
-// that block-gestures.js dispatches onto #block-list (full contract documented
-// atop static/block-gestures.js).
+// that blocks/gestures.js dispatches onto #block-list (full contract documented
+// atop static/js/blocks/gestures.js).
 templ BlockColumn(cs []block.Block, b block.Bounds) {
 	// data-preserve-attr: morphs sync attributes, which would strip the
 	// client-added .hydrated gate (routes/blocks.templ) on the first SSE patch.

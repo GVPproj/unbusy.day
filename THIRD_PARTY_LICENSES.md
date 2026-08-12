@@ -29,7 +29,7 @@ the sets are redistributed and attributed here.
 
 unbusy.day also ships three colorscheme palettes derived from the open-source
 projects below. Their color values are re-expressed as hand-written CSS custom
-properties in `internal/frontend/static/app.css`; **no upstream source files
+properties in `internal/frontend/static/css/app.css`; **no upstream source files
 are redistributed.** Each license is permissive and explicitly permits
 commercial use; this file records the attribution (copyright + license
 notice) as a courtesy.

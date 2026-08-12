@@ -1,11 +1,11 @@
 package modals
 
-// Shared native-<dialog> chrome lives in static/app.css under
+// Shared native-<dialog> chrome lives in static/css/app.css under
 // @scope (.app-dialog); `app-dialog` is the sole styling hook.
 
 // DialogInit loads the invoker-command fallback so commandfor/command buttons
 // work without the Invoker Commands API (stable Safari only from 26.2). No-op
 // where supported.
 templ DialogInit() {
-	<script type="module" src="/static/invoker-fallback.js"></script>
+	<script type="module" src="/static/js/invoker-fallback.js"></script>
 }

@@ -29,7 +29,7 @@ func newMailer() auth.Mailer {
 	log.Printf("auth: SMTP mailer via %s", host)
 
 	// Missing logo asset falls back to the text wordmark, not a boot failure.
-	logo, err := frontend.Asset("static/icon-192.png")
+	logo, err := frontend.Asset("static/icons/icon-192.png")
 	if err != nil {
 		log.Printf("auth: email logo unavailable, using text wordmark: %v", err)
 	}

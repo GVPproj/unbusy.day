@@ -1094,7 +1094,7 @@
     }
 
     /* Touch: lay the same panes out in a row and let the browser step them —
-		   a scroll-snap carousel, so a swipe pages the guide. guide-swipe.js keeps
+		   a scroll-snap carousel, so a swipe pages the guide. guide/swipe.js keeps
 		   the scroll offset and $_guidestep in sync both ways. The row bleeds out
 		   to the dialog's edges (negative margin + matching gap) so a pane clips
 		   at the border with no neighbour peeking through. */
@@ -1219,7 +1219,7 @@
       }
     }
 
-    /* pane 3's demo is live (guide-demo.js): grab / stretch affordances and
+    /* pane 3's demo is live (guide/demo.js): grab / stretch affordances and
 		   the transition that animates pushed neighbours. .gc-dragging suspends
 		   it so the held block tracks the pointer 1:1. */
     .gc-demo {
@@ -2340,7 +2340,7 @@
 
   /* SECTION: components/jotpad.templ → @scope (.jotpad)
      The second panel. Same .column chrome as the Day Plan; the CodeMirror
-     editor (mounted by jot-cm.js) fills what's left and is the panel's only
+     editor (mounted by jot/cm.js) fills what's left and is the panel's only
      scroll region. The .cm-editor rules mirror the block grid's chrome. */
   @scope (.jotpad) {
     /* Mirrors .date-heading's metrics so the two panel headers share a
@@ -2376,7 +2376,7 @@
       color: var(--ink);
     }
 
-    /* Save-state honesty (updated by jot-sync.js): Saved is the resting state
+    /* Save-state honesty (updated by jot/sync.js): Saved is the resting state
 		   and must not attract attention; Offline is allowed to be noticeable. */
     .jot-status {
       margin-left: auto;
@@ -2426,7 +2426,7 @@
       border-color: var(--accent);
     }
 
-    /* font-family lives in jot-cm.js's EditorView.theme: CM's injected
+    /* font-family lives in jot/cm.js's EditorView.theme: CM's injected
        styles are unlayered, so they'd beat any rule in this layer. */
     .cm-scroller {
       line-height: 1.6;
@@ -2450,7 +2450,7 @@
       background: color-mix(in srgb, var(--accent) 25%, transparent) !important;
     }
 
-    /* Code is always monospace, whatever the feeling font: jot-cm.js
+    /* Code is always monospace, whatever the feeling font: jot/cm.js
        decorates fenced-code lines and inline code with these classes.
        Direct rules beat the scroller's inherited feeling font; Gohu keeps
        the pixel feeling's own (already monospace) look. */
@@ -2458,7 +2458,7 @@
     .jot-codespan {
       font-family: "JetBrains Mono", ui-monospace, monospace;
     }
-    /* Task-list "[ ]" markers are click-to-toggle (jot-cm.js). */
+    /* Task-list "[ ]" markers are click-to-toggle (jot/cm.js). */
     .jot-taskmarker {
       cursor: pointer;
     }

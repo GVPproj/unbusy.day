@@ -5,9 +5,9 @@
 // keyboard grab; keydown bails while the pointer path is active/settling).
 //
 // Exports only initBlockGestures (never self-executes), so it's safe to import
-// under node --test. The gestures/ modules are private to this entry; the one
+// under node --test. The sibling modules are private to this entry; the one
 // exception is the contract test (jstest/block-gestures.test.js), which imports
-// gestures/keyboard.js directly since pointer.js pulls Motion from a CDN.
+// keyboard.js directly since pointer.js pulls Motion from a CDN.
 //
 // Event contract — CustomEvents to Datastar's data-on:* on #block-list:
 //   • layout { detail: { layout: [{id, slot, span}, …] } } — committed move/resize
@@ -15,7 +15,7 @@
 //   • delete { detail: { id } }                            — keyboard delete
 // The per-block delete button posts directly via data-on:click (UNB-26).
 
-import { init as initKeyboard } from "./gestures/keyboard.js";
+import { init as initKeyboard } from "./keyboard.js";
 
 // A path that returns no { isActive, cancel } handle would silently no-op every
 // arbitration guard (the UNB-26 regression), so fail loudly at boot instead.
@@ -33,7 +33,7 @@ export function initBlockGestures(list, announce) {
 	// has loaded (imported lazily since node --test can't resolve its CDN URL).
 	const arb = {};
 	arb.keyboard = bindArb("keyboard", initKeyboard(ctx, arb));
-	import("./gestures/pointer.js").then(({ init }) => {
+	import("./pointer.js").then(({ init }) => {
 		arb.pointer = bindArb("pointer", init(ctx, arb));
 	});
 }
