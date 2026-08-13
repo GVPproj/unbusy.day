@@ -1,10 +1,8 @@
 // Pure keyboard-tier logic for the #block-list grid, DOM-free so it runs under
-// node --test. Two concerns live here:
-//   • the decision reducer — one keystroke against the current layout → the
-//     next layout + an announcement `kind` (cascade delegated to push.js);
-//   • the clock + announce formatting — mirrors the server's
-//     timeLabel/blockTimeRange (column.templ) so spoken times match the gutter,
-//     and centralises every sr-announce string so the gesture glue builds none.
+// node --test: the decision reducer (one keystroke + the current layout → the
+// next layout), and the clock/announce formatting. The formatting mirrors the
+// server's timeLabel/blockTimeRange (column.templ) so spoken times match the
+// gutter, and owns every sr-announce string so the gesture glue builds none.
 import { pushLayout } from "./push.js";
 
 // --- clock + announce formatting --------------------------------------

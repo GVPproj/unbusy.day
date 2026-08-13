@@ -1,12 +1,8 @@
 // The Day Plan's live "now" indicator — an overlay the server can't render
-// because it runs on the VIEWER'S local clock (CONTEXT.md). Merges the former
-// countdown.js + now-pill.js so the now-slot math and the .block-item scan exist
-// once. Each tick positions #now-pill, marks blocks .past/.active, and fills
-// #block-countdown with the time left in the active block.
-//
-// One MutationObserver snaps the overlay to an SSE morph without waiting out the
-// tick. The time-math helpers are pure/DOM-free for node --test (now.test.js);
-// tick() is the only DOM glue.
+// because it runs on the VIEWER'S local clock (CONTEXT.md). Each tick positions
+// #now-pill, marks blocks .past/.active, and fills #block-countdown with the
+// time left in the active block; a MutationObserver snaps it to an SSE morph
+// without waiting out the tick.
 
 // Slots are 30-min steps from local midnight; SLOT_SECS is one slot in seconds.
 const SLOT_SECS = 1800;

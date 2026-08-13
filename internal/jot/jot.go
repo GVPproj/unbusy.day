@@ -147,7 +147,7 @@ func (s *Service) merge(ctx context.Context, tx *sql.Tx, owner string, stored Pa
 		return "", err
 	}
 	if base != baseVersion {
-		// Instrumented per PRD: does one shadow revision suffice in practice?
+		// Instrumented to answer whether one shadow revision suffices in practice.
 		log.Printf("jot merge fallback: client base v%d, shadow v%d (owner %s)", base, baseVersion, owner)
 	}
 

@@ -1,14 +1,8 @@
 // Pointer gestures for the #block-list day grid: drag to move and grip-stretch
 // to resize. Motion springs the displaced siblings live (the real <li> is
 // transformed, no ghost), the push cascade (push.js, ADR 0005) is previewed as
-// you drag, and the gesture commits as a FLIP — one synchronous frame swaps the
-// spring styles for the committed grid placement, then a single `layout` event
-// carries the result to Datastar. Listeners are delegated to #block-list so
-// they survive SSE morphs.
-//
-// Arbitration: a pointerdown cancels any active keyboard gesture
-// (arb.keyboard.cancel()); this path's own handlers bail while a drag/resize is
-// already in flight or the FLIP settle is animating (isActive()).
+// you drag, and the gesture commits as a FLIP. Listeners are delegated to
+// #block-list so they survive SSE morphs.
 
 import {
 	animate,
@@ -50,11 +44,9 @@ function isActive() {
 	return drag !== null || resize !== null || settling;
 }
 
-// Abort an in-flight drag/resize by reverting to its origin synchronously (no
-// spring — the gesture is superseded, not settled; unlike pointercancel, which
-// routes through settle*(e, false)). Currently unreferenced — the keyboard path
-// bails while the pointer is active rather than cancelling it — but kept so the
-// arbitration contract holds if that policy ever flips.
+// Abort an in-flight drag/resize by reverting to its origin synchronously — no
+// spring, since the gesture is superseded rather than settled. Required by the
+// arbitration contract (gestures.js) even though no caller invokes it today.
 function cancel() {
 	if (drag) {
 		const d = drag;

@@ -3,10 +3,9 @@ package components
 // UBLogo is the "ub.d" wordmark — hand-drawn cursive "ub", a baseline dot, and a
 // standalone "d". Two renderings of one drawing, like FullLogo: the plain stroked
 // cursive, and a true pixel rasterization in the pixelarticons idiom (integer
-// grid, 1-cell weight, filled rect runs) swapped in by the pixel feeling. Pixel
-// path generated from the same rasterizer as .github/logo-prototypes.html
-// (cell 1.25; 41 cells ≈ the plain mark's 51-unit viewBox, so both variants
-// share width/height). Strokes/fill inherit currentColor.
+// grid, 1-cell weight, filled rect runs) swapped in by the pixel feeling.
+// Pixel cell is 1.25; 41 cells ≈ the plain mark's 51-unit viewBox, so both
+// variants share width/height. Strokes/fill inherit currentColor.
 templ UBLogo(width, height string) {
 	<style>
 		/* Intentionally CSS (ADR 0006 non-goal): animation + feeling swap,

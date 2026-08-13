@@ -4,23 +4,7 @@
 
    NAVIGATION: every section opens with a `SECTION:` banner naming the templ
    file it styles and the selector it owns, so `grep -n 'SECTION:' app.css`
-   prints this contents list with current line numbers. The list below is
-   the reading order; it carries no line numbers, so it can't go stale.
-
-     layer reset      preflight baseline the markup assumes
-     layer tokens     fonts, colorscheme palettes, block-type fills, type scale
-     layer base       body shell, focus ring, a11y helpers
-     layer layout     page shell: rail + the two panels
-     layer components
-       (shared tier)  .btn / .field / .option-row / kbd
-       login.templ            @scope (.login-main)
-       modals/*               @scope (.app-dialog)
-       modals/guide.templ     @scope (.guide-dialog)
-       modals/shortcuts.templ @scope (.shortcuts-dialog)
-       nav.templ              @scope (.sidenav), .menu-toggle, .nav-scrim
-       icon.templ             .icon-*, then the .menu-* hamburger
-       column.templ           .date-heading, then @scope (.blocks)
-       jotpad.templ           @scope (.jotpad)
+   prints the contents list with current line numbers.
 
    Adding a leaf component: new SECTION banner + @scope block at the end of
    `components`, styles built from the tokens, never a hardcoded color. */

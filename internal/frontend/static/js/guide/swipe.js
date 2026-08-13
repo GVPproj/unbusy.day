@@ -1,10 +1,8 @@
 // Swipe stepping for the guide's panes. On touch, app.css lays .guide-body out
 // as a scroll-snap carousel; this keeps the scroll offset and $_guidestep in
-// sync both ways — a settled swipe dispatches `guidestep` (the body's
-// data-on:guidestep writes the signal), and a step change from anywhere else
-// (Back/Next, the on-close reset) is seen through the .showing class Datastar
-// toggles and scrolled to. On pointer:fine the body never scrolls, so stride()
-// is 0 and both directions no-op.
+// sync both ways — a settled swipe dispatches `guidestep`, and a step change
+// from anywhere else is seen through the .showing class Datastar toggles.
+// On pointer:fine the body never scrolls, so stride() is 0 and both no-op.
 const behavior = matchMedia("(prefers-reduced-motion: reduce)").matches
   ? "instant"
   : "smooth";

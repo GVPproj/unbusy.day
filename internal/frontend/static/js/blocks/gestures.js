@@ -1,24 +1,16 @@
 // Block-gestures entry — the sole public seam for the pointer + keyboard
 // gestures on #block-list. Boots both path modules and wires the shared
-// arbitration registry (`arb`): each path gets a live { isActive, cancel }
-// handle to the other and enforces the policy itself (pointerdown cancels a
-// keyboard grab; keydown bails while the pointer path is active/settling).
+// arbitration registry (`arb`): each path holds a live { isActive, cancel }
+// handle to the other and enforces the policy itself.
 //
-// Exports only initBlockGestures (never self-executes), so it's safe to import
-// under node --test. The sibling modules are private to this entry; the one
-// exception is the contract test (jstest/block-gestures.test.js), which imports
-// keyboard.js directly since pointer.js pulls Motion from a CDN.
-//
-// Event contract — CustomEvents to Datastar's data-on:* on #block-list:
-//   • layout { detail: { layout: [{id, slot, span}, …] } } — committed move/resize
-//   • rename { detail: { id, label } }                     — inline label edit
-//   • delete { detail: { id } }                            — keyboard delete
-// The per-block delete button posts directly via data-on:click (UNB-26).
+// Committed gestures leave as CustomEvents on #block-list, read by Datastar's
+// data-on:* — `layout` { layout: [{id, slot, span}] }, `rename` { id, label },
+// `delete` { id }.
 
 import { init as initKeyboard } from "./keyboard.js";
 
-// A path that returns no { isActive, cancel } handle would silently no-op every
-// arbitration guard (the UNB-26 regression), so fail loudly at boot instead.
+// A path missing its handle would silently no-op every arbitration guard, so
+// fail loudly at boot instead.
 function bindArb(name, handle) {
 	if (!handle || typeof handle.isActive !== "function" || typeof handle.cancel !== "function")
 		throw new Error(`block-gestures: ${name} path returned no arbitration handle`);
@@ -29,8 +21,7 @@ function bindArb(name, handle) {
 export function initBlockGestures(list, announce) {
 	const ctx = { list, announce };
 
-	// Populated as the modules init — keyboard synchronously, pointer once Motion
-	// has loaded (imported lazily since node --test can't resolve its CDN URL).
+	// Pointer is imported lazily: node --test can't resolve Motion's CDN URL.
 	const arb = {};
 	arb.keyboard = bindArb("keyboard", initKeyboard(ctx, arb));
 	import("./pointer.js").then(({ init }) => {

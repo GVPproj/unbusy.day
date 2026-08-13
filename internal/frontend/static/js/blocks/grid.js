@@ -1,11 +1,9 @@
 // State-free DOM↔layout helpers for the #block-list day grid. Each takes `list`
 // explicitly so the gesture modules stay injectable in shape.
 
-// Real block children only (slots and the now-pill are filtered out).
 export const blocksIn = (list) =>
 	[...list.children].filter((c) => c.classList.contains("block-item"));
 
-// The committed placement persisted in a block element's data-* attributes.
 export const placementOf = (c) => ({
 	id: c.dataset.id,
 	slot: parseInt(c.dataset.slot, 10),
@@ -19,7 +17,6 @@ export const boundsNow = (list) => ({
 	end: parseInt(list.dataset.dayEnd, 10),
 });
 
-// Row pitch measured from consecutive slot rows.
 export function slotPitch(list) {
 	const slots = [...list.querySelectorAll(":scope > .slot")];
 	if (slots.length > 1)

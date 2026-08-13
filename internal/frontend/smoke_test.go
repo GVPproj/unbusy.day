@@ -8,7 +8,7 @@ import (
 )
 
 // The Jotpad rides an underscore-prefixed signal so it can never ride along on
-// another endpoint's POST (see JOTPAD-SPEC). Two behaviours are load-bearing
+// another endpoint's POST. Two behaviours are load-bearing
 // and unverifiable from the Go side alone; the canary asserts the wire halves
 // here and the browser half at /_smoke. Keep them: a Datastar bump that breaks
 // either turns a silent Jotpad breakage into a visible canary failure.

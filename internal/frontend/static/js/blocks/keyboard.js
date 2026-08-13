@@ -2,11 +2,8 @@
 // resize, delete, and F2 rename. Each step is optimistic + DOM-only and
 // recomputes the cascade from the grab-START layout; a drop/commit dispatches
 // one `layout` (or `delete`) event. Perceivability rides #sr-announce via
-// ctx.announce — the wording itself lives in keyboard-reducer.js.
-//
-// Arbitration: keydown bails while the pointer path is mid-gesture or settling
-// (arb.pointer.isActive()); a pointerdown cancels any active keyboard gesture
-// via cancel().
+// ctx.announce — the wording itself lives in keyboard-reducer.js. Keydown bails
+// while the pointer path is mid-gesture or settling (arb.pointer.isActive()).
 
 import { enterEdit, restoreFocusAfterMorph } from "./rename.js";
 import { blocksIn, boundsNow, layoutIn, writeLayout } from "./grid.js";
