@@ -135,53 +135,13 @@ func main() {
 
 	guardOpenSignup()
 
-	// Set SECURE_COOKIES=1 wherever the app sits behind HTTPS (ADR 0002).
-	secureCookies := os.Getenv("SECURE_COOKIES") == "1"
-
-	mux := http.NewServeMux()
-
-	// In-process 200 only — a liveness probe, not a DB readiness check.
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok\n"))
+	mux := newRouter(authSvc, blockSvc, jotSvc, broker, routerConfig{
+		// Set SECURE_COOKIES=1 wherever the app sits behind HTTPS (ADR 0002).
+		secureCookies:    os.Getenv("SECURE_COOKIES") == "1",
+		turnstileSiteKey: os.Getenv("TURNSTILE_SITEKEY"),
+		turnstileSecret:  os.Getenv("TURNSTILE_SECRET"),
+		sesTopicARN:      os.Getenv("SES_SNS_TOPIC_ARN"),
 	})
-
-	mux.Handle("GET /{$}", frontend.RequireSession(authSvc, frontend.PageHandler(blockSvc, jotSvc)))
-	turnstileSiteKey := os.Getenv("TURNSTILE_SITEKEY")
-	mux.Handle("GET /login", frontend.LoginPageHandler(turnstileSiteKey))
-	// Per-IP + global rate limit on the pre-auth send path. Fly-Client-IP is
-	// trusted only behind Fly's proxy.
-	loginRL := frontend.NewLoginRateLimiter(secureCookies)
-	// Turnstile presence gate; no secret set → dev no-op.
-	presence := frontend.NewPresenceVerifier(os.Getenv("TURNSTILE_SECRET"))
-
-	mux.Handle("POST /login/code", loginRL.Limit(frontend.RequestCodeHandler(authSvc, presence)))
-	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, secureCookies))
-	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, secureCookies))
-	mux.Handle("GET /events", frontend.RequireSession(authSvc, frontend.EventsHandler(blockSvc, jotSvc, broker)))
-	mux.Handle("POST /blocks/layout", frontend.RequireSession(authSvc, frontend.LayoutHandler(blockSvc)))
-	mux.Handle("POST /blocks/bounds", frontend.RequireSession(authSvc, frontend.BoundsHandler(blockSvc)))
-	mux.Handle("POST /blocks", frontend.RequireSession(authSvc, frontend.CreateHandler(blockSvc)))
-	mux.Handle("POST /blocks/delete", frontend.RequireSession(authSvc, frontend.DeleteHandler(blockSvc)))
-	mux.Handle("POST /blocks/clear", frontend.RequireSession(authSvc, frontend.ClearHandler(blockSvc)))
-	mux.Handle("POST /blocks/rename", frontend.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
-	mux.Handle("POST /jot", frontend.RequireSession(authSvc, frontend.JotHandler(jotSvc)))
-
-	// SES bounce/complaint feedback. Unauthenticated (SNS calls it) but locked
-	// to our topic ARN + SNS signature verification.
-	if arn := os.Getenv("SES_SNS_TOPIC_ARN"); arn != "" {
-		log.Printf("auth: SES feedback webhook mounted for %s", arn)
-		mux.Handle("POST /webhooks/ses", frontend.SESWebhookHandler(authSvc, arn))
-	}
-
-	mux.Handle("GET /static/", frontend.StaticHandler())
-	// Served from root so its control scope is the whole app (iOS PWA); see sw.js.
-	mux.Handle("GET /sw.js", frontend.ServiceWorkerHandler())
-
-	// Wiring canary for the pinned Datastar SDK + templ versions.
-	mux.Handle("GET /_smoke", frontend.SmokeHandler())
-	mux.Handle("GET /_smoke/events", frontend.SmokeEventsHandler())
-	mux.Handle("POST /_smoke/echo", frontend.SmokeEchoHandler())
 
 	port := os.Getenv("PORT")
 	if port == "" {

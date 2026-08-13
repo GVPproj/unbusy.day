@@ -2,9 +2,11 @@ package frontend
 
 import (
 	"embed"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
+	"strings"
 )
 
 // Go's mime table lacks .webmanifest; without this the file server sniffs the
@@ -16,6 +18,17 @@ func init() {
 //go:embed static
 var staticFS embed.FS
 
+// noTestFS hides *.test.js: JS tests live beside their modules under static/js
+// but must never be served.
+type noTestFS struct{ fs.FS }
+
+func (f noTestFS) Open(name string) (fs.File, error) {
+	if strings.HasSuffix(name, ".test.js") {
+		return nil, fs.ErrNotExist
+	}
+	return f.FS.Open(name)
+}
+
 // Asset returns an embedded static file's bytes (e.g. "static/icons/icon-192.png").
 func Asset(name string) ([]byte, error) {
 	return staticFS.ReadFile(name)
@@ -25,19 +38,19 @@ func Asset(name string) ([]byte, error) {
 // session (TEMPL_DEV_MODE) it serves from disk instead, so app.css/JS edits
 // land live without a Go rebuild.
 func StaticHandler() http.Handler {
-	var fs http.Handler
+	var srv http.Handler
 	if os.Getenv("TEMPL_DEV_MODE") != "" {
 		// Rooted at internal/frontend so the "static/" prefix matches the
 		// embedded layout; go run's CWD is the repo root.
-		fs = http.FileServerFS(os.DirFS("internal/frontend"))
+		srv = http.FileServerFS(noTestFS{os.DirFS("internal/frontend")})
 	} else {
-		fs = http.FileServerFS(staticFS)
+		srv = http.FileServerFS(noTestFS{staticFS})
 	}
 	// Unversioned URLs with no validators: force revalidation each deploy or an
 	// edge/CDN keeps serving a stale js/blocks/gestures.js.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
-		fs.ServeHTTP(w, r)
+		srv.ServeHTTP(w, r)
 	})
 }
 

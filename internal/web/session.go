@@ -1,4 +1,4 @@
-package frontend
+package web
 
 import (
 	"context"
@@ -21,13 +21,15 @@ type ctxKey int
 
 const ownerKey ctxKey = 0
 
-// ownerFrom returns the authenticated user id RequireSession stashed.
-func ownerFrom(ctx context.Context) string {
+// OwnerFrom returns the authenticated user id RequireSession stashed.
+func OwnerFrom(ctx context.Context) string {
 	owner, _ := ctx.Value(ownerKey).(string)
 	return owner
 }
 
-func withOwner(ctx context.Context, owner string) context.Context {
+// WithOwner stashes the owner id; exported so handler tests can stand in for
+// RequireSession.
+func WithOwner(ctx context.Context, owner string) context.Context {
 	return context.WithValue(ctx, ownerKey, owner)
 }
 
@@ -40,7 +42,7 @@ func RequireSession(resolver SessionResolver, next http.Handler) http.Handler {
 		if err == nil {
 			owner, rerr := resolver.UserForSession(r.Context(), c.Value)
 			if rerr == nil {
-				next.ServeHTTP(w, r.WithContext(withOwner(r.Context(), owner)))
+				next.ServeHTTP(w, r.WithContext(WithOwner(r.Context(), owner)))
 				return
 			}
 			if !errors.Is(rerr, auth.ErrNoSession) {
@@ -56,9 +58,9 @@ func RequireSession(resolver SessionResolver, next http.Handler) http.Handler {
 	})
 }
 
-// sessionCookie builds the auth cookie (ADR 0002); SameSite=Lax is the
+// NewSessionCookie builds the auth cookie (ADR 0002); SameSite=Lax is the
 // baseline CSRF defense for the POSTs.
-func sessionCookie(token string, expires time.Time, secure bool) *http.Cookie {
+func NewSessionCookie(token string, expires time.Time, secure bool) *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookie,
 		Value:    token,

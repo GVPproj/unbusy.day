@@ -14,8 +14,8 @@ import {
 	moveCancelledMsg,
 	resizeCancelledMsg,
 	blockedMsg,
-} from "../static/js/blocks/keyboard-reducer.js";
-import { pushLayout } from "../static/js/blocks/push.js";
+} from "./keyboard-reducer.js";
+import { pushLayout } from "./push.js";
 
 const bounds = { start: 18, end: 34 }; // 9:00–17:00, end-exclusive
 
@@ -306,7 +306,7 @@ test("timeRange renders a slot+span clock span", () => {
 // internal/block/layout_test.go for every slot in [MinDayStart, MaxDayEnd].
 test("timeLabel agrees with the Go Slot.Label golden file on every legal slot", async () => {
 	const { readFile } = await import("node:fs/promises");
-	const path = new URL("../../block/testdata/slot_labels.json", import.meta.url);
+	const path = new URL("../../../../block/testdata/slot_labels.json", import.meta.url);
 	const golden = JSON.parse(await readFile(path, "utf8"));
 	const slots = Object.keys(golden);
 	assert.ok(slots.length > 0, "golden file is empty");

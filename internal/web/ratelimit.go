@@ -1,4 +1,4 @@
-package frontend
+package web
 
 import (
 	"log"
@@ -104,7 +104,7 @@ func (l *LoginRateLimiter) expireAll() {
 // bare 429.
 func (l *LoginRateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r, l.cfg.trustProxy)
+		ip := ClientIP(r, l.cfg.trustProxy)
 		if !l.limiterFor(ip).Allow() || !l.global.Allow() {
 			log.Printf("login rate limit: rejected %s", ip)
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
@@ -114,9 +114,9 @@ func (l *LoginRateLimiter) Limit(next http.Handler) http.Handler {
 	})
 }
 
-// clientIP trusts Fly-Client-IP only behind Fly's proxy — otherwise an
+// ClientIP trusts Fly-Client-IP only behind Fly's proxy — otherwise an
 // attacker could spoof the header to dodge the limit.
-func clientIP(r *http.Request, trustProxy bool) string {
+func ClientIP(r *http.Request, trustProxy bool) string {
 	if trustProxy {
 		if ip := r.Header.Get("Fly-Client-IP"); ip != "" {
 			return ip

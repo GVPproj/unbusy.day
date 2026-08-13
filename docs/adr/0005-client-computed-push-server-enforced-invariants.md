@@ -1,5 +1,7 @@
 # Client-computed Push, server-enforced invariants
 
+Status: accepted
+
 Moving from list reorder to Slot placement on the Day Plan, the Push cascade
 (displaced blocks slide toward the slot the moved block vacated — down-drag
 pushes others up, up-drag pushes them down — consuming gaps) could live

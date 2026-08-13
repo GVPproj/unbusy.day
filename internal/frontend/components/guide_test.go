@@ -1,7 +1,7 @@
 // Render tests pinning the Guide modal's server-rendered structure and its two
 // invoker mount points. The step-through interaction is Datastar's own behavior
 // and is verified manually (see SPEC-guide-modal.md).
-package frontend
+package components_test
 
 import (
 	"context"

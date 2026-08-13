@@ -1,6 +1,6 @@
 // Render tests pinning the server-rendered accessibility semantics; the
 // keyboard glue itself (blocks/gestures.js) is verified manually.
-package frontend
+package components_test
 
 import (
 	"context"
@@ -12,6 +12,17 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/routes"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
+
+// testBounds is the default 9:00–17:00 day the render tests use.
+var testBounds = block.Bounds{Start: 18, End: 34}
+
+func threeBlocks() []block.Block {
+	return []block.Block{
+		{ID: "a", Label: "Alpha", Position: 18, Span: 1},
+		{ID: "b", Label: "Bravo", Position: 19, Span: 1},
+		{ID: "c", Label: "Charlie", Position: 20, Span: 1},
+	}
+}
 
 func renderPage(t *testing.T, cs []block.Block, b block.Bounds) string {
 	t.Helper()

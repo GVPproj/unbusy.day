@@ -4,8 +4,8 @@
 // contract. Run: node --test internal/frontend/jstest
 import test from "node:test";
 import assert from "node:assert/strict";
-import { commitGesture } from "../static/js/blocks/commit.js";
-import { sameLayout } from "../static/js/blocks/grid.js";
+import { commitGesture } from "./commit.js";
+import { sameLayout } from "./grid.js";
 
 // Minimal stand-ins for the few DOM surfaces commitGesture touches.
 const blockEl = (id, slot, span) => ({

@@ -1,5 +1,7 @@
 # Component CSS scoped per leaf via native @scope
 
+Status: superseded by 0008 (revived in amended form by 0011)
+
 > **Superseded by ADR 0008, then revived in amended form by ADR 0011.** The
 > "want reusable cross-component class names" revisit-trigger came true and
 > styling migrated to Tailwind v4 (ADR 0008); ADR 0011 later brought the

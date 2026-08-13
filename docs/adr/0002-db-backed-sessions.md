@@ -1,5 +1,7 @@
 # Server-side sessions in the database, not stateless cookies
 
+Status: accepted
+
 A login is represented by a row in a `session` table keyed by an opaque,
 high-entropy `crypto/rand` token carried in an HttpOnly cookie. We did **not**
 use a stateless signed/encrypted cookie (JWT-style) that carries identity on the

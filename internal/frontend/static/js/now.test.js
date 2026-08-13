@@ -14,7 +14,7 @@ import {
 	formatCountdown,
 	formatClock,
 	formatDate,
-} from "../static/js/now.js";
+} from "./now.js";
 
 // A Date stand-in: only the local getters the helpers read.
 const at = (h, m, s = 0) => ({ getHours: () => h, getMinutes: () => m, getSeconds: () => s });

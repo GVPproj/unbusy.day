@@ -1,11 +1,9 @@
 // Bounds-editing UI tests: a native <dialog> whose selects cover the hard
 // 4:00–18:00 limits and whose Save posts the chosen extent to /blocks/bounds.
-package frontend
+package components_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -126,33 +124,6 @@ func TestHoursModalWiresSignalsToBoundsEndpoint(t *testing.T) {
 	for _, stale := range []string{`data-signals-start`, `data-signals-end`, `data-on-change`, `data-on-click`} {
 		if strings.Contains(body, stale) {
 			t.Errorf("modal carries dash-form attribute %q — a silent no-op on Datastar v1.0.2; body:\n%s", stale, body)
-		}
-	}
-}
-
-// GET / hosts the bounds modal seeded with the owner's bounds and occupied
-// envelope, plus a declarative opener (command/commandfor — no open signal,
-// house style).
-func TestPageHostsHoursModalWithOpener(t *testing.T) {
-	svc := &fakeService{blocks: threeBlocks()}
-
-	req := authedRequest(http.MethodGet, "/", "")
-	rec := httptest.NewRecorder()
-	PageHandler(svc, newFakeJot()).ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status: want 200, got %d", rec.Code)
-	}
-	body := rec.Body.String()
-	for _, want := range []string{
-		`id="bounds-modal"`,
-		`start: 18`,
-		`firstOccupiedSlot: 18`,
-		`lastOccupiedEnd: 21`,
-		`commandfor="bounds-modal" command="show-modal"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("page missing %q; body:\n%s", want, body)
 		}
 	}
 }

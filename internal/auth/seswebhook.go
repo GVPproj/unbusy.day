@@ -1,4 +1,4 @@
-package frontend
+package auth
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Suppressor is the webhook's view of the auth service; *auth.Service satisfies it.
+// Suppressor is the webhook's view of the auth service; *Service satisfies it.
 type Suppressor interface {
 	Suppress(ctx context.Context, email, reason, detail string) error
 }

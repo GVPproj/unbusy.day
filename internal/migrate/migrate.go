@@ -7,6 +7,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
 
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
@@ -37,8 +38,9 @@ func Run(ctx context.Context, dbURL string) error {
 
 	results, err := gooseProvider.Up(ctx)
 	// Report applied files even on failure so a bad migration is diagnosable.
+	// Stderr, like the rest of our logging — keeps dumpschema's stdout clean.
 	for _, r := range results {
-		fmt.Printf("migrate: applied %s\n", r.Source.Path)
+		fmt.Fprintf(os.Stderr, "migrate: applied %s\n", r.Source.Path)
 	}
 	if err != nil {
 		return fmt.Errorf("goose up: %w", err)

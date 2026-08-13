@@ -1,5 +1,7 @@
 # SES bounce/complaint suppression via an SNS feedback webhook
 
+Status: accepted
+
 Production sends OTP mail through Amazon SES (over SMTP — the generic
 `SMTPMailer`, ADR 0001). SES delivers bounce and complaint feedback over SNS; we
 consume it at `POST /webhooks/ses`, record each permanently-bounced or

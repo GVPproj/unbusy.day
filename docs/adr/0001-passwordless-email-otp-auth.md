@@ -1,5 +1,7 @@
 # Passwordless authentication via email one-time codes
 
+Status: accepted
+
 We authenticate Users with a short-lived numeric code emailed to their address
 (OTP) rather than with passwords. Email is the sole identity; there is no
 password to hash, reset, or leak. This was the stated long-term destination, and

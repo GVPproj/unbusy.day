@@ -1,4 +1,6 @@
 -- +goose Up
+-- Historical record: later migrations alter what this creates — read
+-- internal/migrate/schema.sql (regenerated via `task schema`) for the current shape.
 -- Fresh SQLite baseline (Postgres → SQLite migration). The historical
 -- 0001–rename_card_to_block Postgres files are collapsed here: a new SQLite
 -- database starts clean, so there is no idempotency scaffolding to carry over.

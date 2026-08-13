@@ -11,7 +11,7 @@ import {
 	minimalEdit,
 	retryDelay,
 	statusOf,
-} from "../static/js/jot/sync.js";
+} from "./sync.js";
 
 const clean = (over = {}) => ({
 	version: 5,

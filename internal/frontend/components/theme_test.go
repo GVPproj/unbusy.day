@@ -1,6 +1,6 @@
 // Render tests pinning the theme picker's feeling options. The live font/icon
 // swap is Datastar mirroring $_feeling into data-feeling and is verified manually.
-package frontend
+package components_test
 
 import (
 	"strings"

@@ -1,5 +1,7 @@
 # Run-once Migrations via goose
 
+Status: accepted
+
 Migrations switch from "re-apply every file on every deploy, each file
 idempotent forever" to run-once version tracking with
 [goose](https://github.com/pressly/goose) embedded in the binary. Each

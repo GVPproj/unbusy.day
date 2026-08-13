@@ -10,6 +10,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/auth"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/routes"
+	"github.com/GVPproj/unbusy.day/internal/web"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
@@ -41,7 +42,7 @@ type loginSignals struct {
 
 // RequestCodeHandler issues a login code. The response is identical whether
 // the email exists, was throttled, or got a code — no account enumeration.
-func RequestCodeHandler(a AuthService, pv PresenceVerifier) http.Handler {
+func RequestCodeHandler(a AuthService, pv auth.PresenceVerifier) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig loginSignals
 		if err := datastar.ReadSignals(r, &sig); err != nil {
@@ -51,7 +52,7 @@ func RequestCodeHandler(a AuthService, pv PresenceVerifier) http.Handler {
 
 		// A failed or errored presence check returns the same non-committal
 		// patched form and never issues a code.
-		if ok, err := pv.Verify(r.Context(), sig.TurnstileToken, clientIP(r, true)); err != nil || !ok {
+		if ok, err := pv.Verify(r.Context(), sig.TurnstileToken, web.ClientIP(r, true)); err != nil || !ok {
 			if err != nil {
 				log.Printf("ds presence verify: %v", err)
 			}
@@ -102,7 +103,7 @@ func VerifyCodeHandler(a AuthService, secureCookies bool) http.Handler {
 		}
 
 		// The cookie must land before NewSSE writes the response headers.
-		http.SetCookie(w, sessionCookie(sess.Token, sess.ExpiresAt, secureCookies))
+		http.SetCookie(w, web.NewSessionCookie(sess.Token, sess.ExpiresAt, secureCookies))
 		sse := datastar.NewSSE(w, r)
 		if err := sse.Redirect("/"); err != nil {
 			log.Printf("ds login redirect: %v", err)
@@ -114,14 +115,14 @@ func VerifyCodeHandler(a AuthService, secureCookies bool) http.Handler {
 // the login page.
 func LogoutHandler(a AuthService, secureCookies bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if c, err := r.Cookie(SessionCookie); err == nil {
+		if c, err := r.Cookie(web.SessionCookie); err == nil {
 			if err := a.Logout(r.Context(), c.Value); err != nil {
 				log.Printf("ds logout: %v", err)
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
 		}
-		http.SetCookie(w, sessionCookie("", time.Unix(0, 0), secureCookies))
+		http.SetCookie(w, web.NewSessionCookie("", time.Unix(0, 0), secureCookies))
 		sse := datastar.NewSSE(w, r)
 		if err := sse.Redirect("/login"); err != nil {
 			log.Printf("ds logout redirect: %v", err)

@@ -1,5 +1,7 @@
 # Per-user Day Plans: owner-scoped blocks and a user-keyed broker
 
+Status: accepted
+
 Each User privately owns their Blocks. `block` (then named `card`) gains an
 `owner_id`, the uniqueness constraint becomes `UNIQUE(owner_id, position)` (so
 two Users can both hold position 0), every `block.Service` query is scoped by

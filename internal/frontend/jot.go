@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/GVPproj/unbusy.day/internal/jot"
+	"github.com/GVPproj/unbusy.day/internal/web"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
@@ -48,7 +49,7 @@ func JotHandler(svc JotService) http.Handler {
 			return
 		}
 
-		pad, err := svc.Set(r.Context(), ownerFrom(r.Context()), sig.Text, sig.Version)
+		pad, err := svc.Set(r.Context(), web.OwnerFrom(r.Context()), sig.Text, sig.Version)
 		switch {
 		case errors.Is(err, jot.ErrTooLong):
 			log.Printf("200 rejection jot: %v (%d chars)", err, len(sig.Text))

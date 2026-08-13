@@ -2,7 +2,7 @@
 // and the shortcuts reference (UNB-25). The keyboard glue itself (blocks/gestures.js,
 // the global `?` handler) is DOM/native-dialog behaviour verified manually; these
 // assert the static attributes and accessible text a user or AT depends on.
-package frontend
+package components_test
 
 import (
 	"context"

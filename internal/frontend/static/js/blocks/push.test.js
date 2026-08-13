@@ -1,7 +1,7 @@
 // Unit tests for the pure push cascade. Run: node --test internal/frontend/jstest
 import test from "node:test";
 import assert from "node:assert/strict";
-import { pushLayout } from "../static/js/blocks/push.js";
+import { pushLayout } from "./push.js";
 
 const bounds = { start: 18, end: 34 }; // 9:00–17:00, end-exclusive
 

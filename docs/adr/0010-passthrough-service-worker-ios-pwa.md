@@ -1,5 +1,7 @@
 # Passthrough service worker for iOS PWA storage durability
 
+Status: accepted
+
 ## Context
 
 The app installs to the iOS home screen as a PWA (`manifest.webmanifest`,

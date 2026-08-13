@@ -1,5 +1,7 @@
 # Plain CSS via cascade layers and @scope in one hand-authored stylesheet
 
+Status: accepted
+
 Component styling moves from Tailwind v4 utilities in the markup (ADR 0008)
 back to plain CSS: a single committed `internal/frontend/static/app.css`,
 `go:embed`-served as the one render-blocking `<link>`. This supersedes ADR

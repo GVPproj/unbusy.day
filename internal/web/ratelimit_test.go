@@ -1,6 +1,6 @@
 // Rate-limit middleware tests. Small bursts so limits trip deterministically
 // without sleeping.
-package frontend
+package web
 
 import (
 	"net/http"

@@ -1,5 +1,7 @@
 # Utility-first CSS via the Tailwind v4 standalone binary
 
+Status: superseded by 0011
+
 > **Superseded by ADR 0011.** Component styling migrated back to plain CSS —
 > one hand-authored `app.css` on cascade layers and `@scope` with a shared
 > class tier — and Tailwind (binary, input/output CSS, build wiring) was

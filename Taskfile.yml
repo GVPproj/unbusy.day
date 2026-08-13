@@ -86,6 +86,11 @@ tasks:
     cmds:
       - go run ./cmd/unbusy migrate
 
+  schema:
+    desc: "Regenerate internal/migrate/schema.sql (reference dump, never applied)"
+    cmds:
+      - go run ./internal/migrate/dumpschema > internal/migrate/schema.sql
+
   templ:
     desc: "Generate templ Go files"
     # Don't run while `task dev` is up: non-watch generation deletes the watch
@@ -104,7 +109,7 @@ tasks:
     desc: "Run Go tests and JS unit tests"
     cmds:
       - go test ./...
-      - node --test internal/frontend/jstest/*.test.js
+      - node --test "internal/frontend/static/js/**/*.test.js"
 
   fmt:
     desc: "Format Go code"

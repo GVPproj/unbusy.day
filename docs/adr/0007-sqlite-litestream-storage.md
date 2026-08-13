@@ -1,5 +1,7 @@
 # Colocated SQLite replaces Neon Postgres
 
+Status: accepted (streaming backup deferred — docs/backlog/002)
+
 The external managed Postgres (Neon) is replaced by a SQLite database file
 colocated with the app on a Fly volume. The driver is `modernc.org/sqlite`
 (pure Go, no cgo). Reads become in-process library calls. Durability is Fly's

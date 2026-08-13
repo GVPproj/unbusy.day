@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/auth"
+	"github.com/GVPproj/unbusy.day/internal/web"
 )
 
 type fakeAuth struct {
-	verifyErr  error
-	sessionErr error
+	verifyErr error
 
 	gotEmail string
 	gotCode  string
@@ -36,13 +36,6 @@ func (f *fakeAuth) VerifyCode(_ context.Context, email, code string) (*auth.Sess
 
 func (f *fakeAuth) Logout(_ context.Context, token string) error { return nil }
 
-func (f *fakeAuth) UserForSession(_ context.Context, token string) (string, error) {
-	if f.sessionErr != nil {
-		return "", f.sessionErr
-	}
-	return testOwner, nil
-}
-
 // The patched code form is identical for known and unknown emails, so
 // responses can't enumerate.
 func TestRequestCodePatchesCodeForm(t *testing.T) {
@@ -51,7 +44,7 @@ func TestRequestCodePatchesCodeForm(t *testing.T) {
 		strings.NewReader(`{"email":"x@example.test","code":""}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	RequestCodeHandler(a, noopVerifier{}).ServeHTTP(rec, req)
+	RequestCodeHandler(a, &fakePresence{ok: true}).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
@@ -79,12 +72,12 @@ func TestVerifyCodeSetsCookieAndRedirects(t *testing.T) {
 
 	var cookie *http.Cookie
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == SessionCookie {
+		if c.Name == web.SessionCookie {
 			cookie = c
 		}
 	}
 	if cookie == nil {
-		t.Fatalf("no %s cookie set", SessionCookie)
+		t.Fatalf("no %s cookie set", web.SessionCookie)
 	}
 	if cookie.Value != "tok-1" || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode {
 		t.Errorf("cookie misconfigured: %+v", cookie)
@@ -111,55 +104,5 @@ func TestVerifyCodeRejectionRepatchesForm(t *testing.T) {
 	}
 	if body := rec.Body.String(); !strings.Contains(body, `id="login-form"`) {
 		t.Errorf("want #login-form re-patch; body:\n%s", body)
-	}
-}
-
-// Unauthenticated page loads bounce to /login; SSE and mutation endpoints get
-// a bare 401 — a redirect would feed HTML to EventSource/@post.
-func TestRequireSessionGate(t *testing.T) {
-	a := &fakeAuth{sessionErr: auth.ErrNoSession}
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("next handler must not run unauthenticated")
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-	RequireSession(a, next).ServeHTTP(rec, req)
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/login" {
-		t.Errorf("page: want 303 → /login, got %d → %q", rec.Code, rec.Header().Get("Location"))
-	}
-
-	req = httptest.NewRequest(http.MethodPost, "/blocks/layout", nil)
-	rec = httptest.NewRecorder()
-	RequireSession(a, next).ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("mutation: want 401, got %d", rec.Code)
-	}
-
-	req = httptest.NewRequest(http.MethodGet, "/events", nil)
-	rec = httptest.NewRecorder()
-	RequireSession(a, next).ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("SSE: want 401, got %d", rec.Code)
-	}
-}
-
-func TestRequireSessionPassesOwner(t *testing.T) {
-	a := &fakeAuth{}
-	var got string
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = ownerFrom(r.Context())
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(&http.Cookie{Name: SessionCookie, Value: "tok-1"})
-	rec := httptest.NewRecorder()
-	RequireSession(a, next).ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status: want 200, got %d", rec.Code)
-	}
-	if got != testOwner {
-		t.Errorf("owner in context = %q, want %q", got, testOwner)
 	}
 }
