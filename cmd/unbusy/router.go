@@ -60,10 +60,11 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	}
 
 	mux.Handle("GET /static/", frontend.StaticHandler())
+
 	// Served from root so its control scope is the whole app (iOS PWA); see sw.js.
 	mux.Handle("GET /sw.js", frontend.ServiceWorkerHandler())
 
-	// Wiring canary for the pinned Datastar SDK + templ versions.
+	// Wiring canary for upgrading pinned Datastar SDK + templ versions.
 	mux.Handle("GET /_smoke", frontend.SmokeHandler())
 	mux.Handle("GET /_smoke/events", frontend.SmokeEventsHandler())
 	mux.Handle("POST /_smoke/echo", frontend.SmokeEchoHandler())
