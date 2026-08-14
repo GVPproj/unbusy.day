@@ -19,12 +19,10 @@ type routerConfig struct {
 	sesTopicARN      string
 }
 
-// newRouter builds the route table over already-constructed services — the
-// env/flag surface stays in main, so tests can exercise the real gating.
 func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Service, broker *pubsub.Broker, cfg routerConfig) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// In-process 200 only — a liveness probe, not a DB readiness check.
+	// Health Check: In-process 200 only — a liveness probe, not a DB readiness check.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok\n"))
@@ -32,13 +30,15 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 
 	mux.Handle("GET /{$}", web.RequireSession(authSvc, frontend.PageHandler(blockSvc, jotSvc)))
 	mux.Handle("GET /login", frontend.LoginPageHandler(cfg.turnstileSiteKey))
-	// Per-IP + global rate limit on the pre-auth send path. Fly-Client-IP is
-	// trusted only behind Fly's proxy.
-	loginRL := web.NewLoginRateLimiter(cfg.secureCookies)
-	// Turnstile presence gate; no secret set → dev no-op.
-	presence := auth.NewPresenceVerifier(cfg.turnstileSecret)
 
-	mux.Handle("POST /login/code", loginRL.Limit(frontend.RequestCodeHandler(authSvc, presence)))
+	// Identify the caller (Fly-Client-IP only behind Fly's proxy, else RemoteAddr)
+	// and reject POST /login/code once a per-IP or global send rate is exceeded.
+	loginRateLimiter := web.NewLoginRateLimiter(cfg.secureCookies)
+
+	// Turnstile presence gate; no secret set → dev no-op.
+	turnstilePresence := auth.NewPresenceVerifier(cfg.turnstileSecret)
+
+	mux.Handle("POST /login/code", loginRateLimiter.Limit(frontend.RequestCodeHandler(authSvc, turnstilePresence)))
 	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, cfg.secureCookies))
 	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, cfg.secureCookies))
 	mux.Handle("GET /events", web.RequireSession(authSvc, frontend.EventsHandler(blockSvc, jotSvc, broker)))
@@ -50,8 +50,10 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("POST /blocks/rename", web.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 	mux.Handle("POST /jot", web.RequireSession(authSvc, frontend.JotHandler(jotSvc)))
 
-	// SES bounce/complaint feedback. Unauthenticated (SNS calls it) but locked
-	// to our topic ARN + SNS signature verification.
+	// Feedback from SES if our emails bounce/get a complaint.
+	// Unauthenticated (SNS calls it) but checked against
+	// a topic ARN + SNS signature verification (ensure its legit).
+	// TODO: configure in FLY / AWS
 	if cfg.sesTopicARN != "" {
 		log.Printf("auth: SES feedback webhook mounted for %s", cfg.sesTopicARN)
 		mux.Handle("POST /webhooks/ses", auth.SESWebhookHandler(authSvc, cfg.sesTopicARN))
