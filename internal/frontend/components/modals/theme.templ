@@ -8,9 +8,9 @@ const (
 	// modeOption toggle, so a family swatch splits its light variant's page bg
 	// against its dark variant's block surface — the most chromatic pair, so the
 	// families stay tellable apart at swatch size.
-	swatchSolarized  = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(192, 100%, 10%) 50%)"
-	swatchCatppuccin = "linear-gradient(135deg, hsl(220, 23%, 95%) 50%, hsl(237, 16%, 23%) 50%)"
-	swatchRosePine   = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(248, 25%, 18%) 50%)"
+	swatchSolarized = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(192, 100%, 10%) 50%)"
+	swatchNord      = "linear-gradient(135deg, hsl(220, 23%, 97%) 50%, hsl(222, 16%, 28%) 50%)"
+	swatchRosePine  = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(248, 25%, 18%) 50%)"
 
 	// The mode rows preview the axis itself, not a family: a neutral light and
 	// dark disc.
@@ -91,7 +91,7 @@ templ ThemeModal() {
 		<h3>Colours</h3>
 		@themeOption("rose-pine", "Rosé Pine", swatchRosePine)
 		@themeOption("solarized", "Solarized", swatchSolarized)
-		@themeOption("catppuccin", "Catppuccin", swatchCatppuccin)
+		@themeOption("nord", "Nord", swatchNord)
 		<h3>Light / Dark</h3>
 		@modeOption("light", "Light", swatchLight)
 		@modeOption("dark", "Dark", swatchDark)

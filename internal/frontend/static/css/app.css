@@ -263,89 +263,93 @@
     --type-appointment-ink: hsl(45, 85%, 75%);
   }
 
-  /* Catppuccin Latte (light variant of the catppuccin family). Nav chrome is
-	   Latte Text darkened one step: Latte ships no dark neutral, and the rail
-	   is a dark band in every family. */
-  :root[data-colorscheme="catppuccin"] {
-    --bg: hsl(220, 23%, 95%); /* Base #eff1f5 */
-    --ink: hsl(234, 16%, 35%); /* Text #4c4f69 — 7.1:1 on bg */
+  /* Nord light — the onenordlight palette from rmehri01/onenord.nvim (MIT):
+	   near-white base, Polar Night ink, saturated One-Dark-ish accents.
+	   Nav chrome is One Nord's fg #2e3440 (nord0): the palette ships no dark
+	   neutral, and the rail is a dark band in every family. */
+  :root[data-colorscheme="nord"] {
+    --bg: hsl(220, 23%, 97%); /* bg #f7f8fa */
+    --ink: hsl(220, 16%, 22%); /* fg #2e3440 — 12.9:1 on bg */
     --ink-muted: hsl(
-      233,
-      13%,
-      41%
-    ); /* Subtext1 #5c5f77 — 5.5:1 on bg, 5.1:1 on column (WCAG AA) */
-    --ink-error: hsl(347, 87%, 44%); /* Red #d20f39 — 4.8:1 on bg */
-    --surface: hsl(220, 23%, 95%);
-    --column-bg: hsl(220, 22%, 92%); /* Mantle #e6e9ef */
-    --rail-border: hsl(225, 14%, 77%); /* Surface1 #bcc0cc */
-    --nav-bg: hsl(232, 16%, 28%);
-    --nav-ink: hsl(220, 23%, 95%);
-    --nav-hover: rgba(239, 241, 245, 0.16);
-    --nav-icon: hsl(35, 77%, 49%); /* Yellow #df8e1d — 4.0:1 on nav-bg */
-    --gutter-ink: hsl(232, 16%, 28%); /* nav-bg: 8.7:1 on column-bg */
-    --accent: hsl(219, 84%, 45%); /* Blue #1e66f5 darkened — 5.5:1 on bg */
+      220,
+      8%,
+      40%
+    ); /* light_gray #646a76 darkened a step — 5.5:1 on bg (WCAG AA) */
+    --ink-error: hsl(358, 54%, 44%); /* dark_red #c53b40 */
+    --surface: hsl(220, 23%, 97%);
+    --column-bg: hsl(220, 10%, 94%); /* active #eff0f2 */
+    --rail-border: hsl(216, 8%, 87%); /* selection #dcdee1 */
+    --nav-bg: hsl(220, 16%, 22%);
+    --nav-ink: hsl(220, 23%, 97%);
+    --nav-hover: rgba(247, 248, 250, 0.14);
+    --nav-icon: hsl(29, 55%, 58%); /* yellow #ba793e brightened for nav-bg */
+    --gutter-ink: hsl(220, 16%, 22%); /* nav-bg: legible against column-bg */
+    --accent: hsl(212, 58%, 42%); /* blue #3879c5 darkened — 4.9:1 on bg */
     --danger: hsl(
-      347,
-      87%,
+      358,
+      54%,
       44%
-    ); /* canonical Catppuccin Latte Red #d20f39 — destructive actions */
-    --scrim: rgba(76, 79, 105, 0.3);
-    --hover-shift: hsl(234, 16%, 15%);
-    --shadow-rest: 0 1px 1px rgba(76, 79, 105, 0.2);
-    --shadow-lift: 0 4px 8px rgba(76, 79, 105, 0.2);
+    ); /* One Nord dark_red #c53b40 — destructive actions */
+    --scrim: rgba(46, 52, 64, 0.3);
+    --hover-shift: hsl(220, 16%, 10%);
+    --shadow-rest: 0 1px 1px rgba(46, 52, 64, 0.15);
+    --shadow-lift: 0 4px 8px rgba(46, 52, 64, 0.15);
 
-    /* Same hue trio as Mocha below (blue / teal / maroon) so switching
-		   Light↔Dark never recolours a block type; tints with darker same-hue
-		   ink, each ≥5:1. Shallow keeps the surface/ink default. */
-    --type-deep: hsl(220, 89%, 89%);
-    --type-deep-ink: hsl(219, 80%, 33%);
+    /* Same hue trio as the dark variant below (blue / green / orange) so
+		   switching Light↔Dark never recolours a block type; tints with darker
+		   same-hue ink. Shallow keeps the surface/ink default. */
+    --type-deep: hsl(212, 70%, 89%);
+    --type-deep-ink: hsl(212, 60%, 32%);
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(183, 45%, 85%);
-    --type-break-ink: hsl(183, 74%, 24%);
-    --type-appointment: hsl(355, 60%, 89%);
-    --type-appointment-ink: hsl(355, 70%, 32%);
+    --type-break: hsl(114, 40%, 86%);
+    --type-break-ink: hsl(114, 50%, 24%);
+    --type-appointment: hsl(29, 60%, 86%);
+    --type-appointment-ink: hsl(29, 65%, 30%);
   }
 
-  /* Catppuccin Mocha — the dark variant of the catppuccin family. */
-  :root[data-colorscheme="catppuccin"][data-colormode="dark"] {
-    --bg: hsl(240, 21%, 15%);
-    --ink: hsl(227, 63%, 92%);
+  /* Nord dark — One Nord's dark palette (Nord Polar Night surfaces with the
+	   same accent set as the light variant). bg is the page (#2e3440), Float
+	   the blocks, and the column/nav darken bg a step: One Nord ships no
+	   shade below nord0. */
+  :root[data-colorscheme="nord"][data-colormode="dark"] {
+    --bg: hsl(220, 16%, 22%); /* bg #2e3440 (nord0) */
+    --ink: hsl(220, 28%, 83%); /* fg #c8d0e0 — 10.5:1 on bg */
     --ink-muted: hsl(
-      228,
-      24%,
-      72%
-    ); /* Catppuccin Subtext0 #a6adc8 — 5.7:1 on surface (WCAG AA) */
-    --ink-error: hsl(343, 81%, 75%);
-    --surface: hsl(237, 16%, 23%);
-    --column-bg: hsl(240, 21%, 12%);
-    --rail-border: hsl(235, 13%, 31%);
-    --nav-bg: hsl(240, 23%, 9%);
-    --nav-ink: hsl(226, 64%, 88%);
-    --nav-hover: rgba(205, 214, 244, 0.12);
-    --nav-icon: hsl(23, 92%, 75%);
+      220,
+      16%,
+      62%
+    ); /* light_gray #6c7a96 brightened — 4.9:1 on surface (WCAG AA) */
+    --ink-error: hsl(354, 53%, 68%); /* red #d57780 brightened a step */
+    --surface: hsl(222, 16%, 28%); /* float #3b4252 (nord1) */
+    --column-bg: hsl(221, 16%, 18%); /* bg darkened a step */
+    --rail-border: hsl(220, 16%, 36%); /* selection #4c566a (nord3) */
+    --nav-bg: hsl(220, 17%, 14%);
+    --nav-ink: hsl(220, 28%, 83%);
+    --nav-hover: rgba(200, 208, 224, 0.12);
+    --nav-icon: hsl(40, 71%, 73%); /* yellow #ebcb8b — 9.5:1 on nav-bg */
     --gutter-ink: var(--nav-icon);
-    --accent: hsl(267, 84%, 81%);
+    --accent: hsl(193, 43%, 67%); /* cyan #88c0d0 — 7.3:1 on bg */
     --danger: hsl(
-      343,
-      81%,
-      75%
-    ); /* canonical Catppuccin Mocha Red #f38ba8 — destructive actions */
-    --scrim: rgba(17, 17, 27, 0.55);
-    --hover-shift: hsl(227, 63%, 95%);
-    --shadow-rest: 0 1px 1px rgba(17, 17, 27, 0.5);
-    --shadow-lift: 0 4px 8px rgba(17, 17, 27, 0.5);
+      354,
+      53%,
+      68%
+    ); /* One Nord red #d57780 brightened — destructive actions */
+    --scrim: rgba(0, 0, 0, 0.55);
+    --hover-shift: hsl(220, 28%, 92%);
+    --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
 
-    /* Catppuccin Mocha: deep/break darkened-hue fills with bright pastel
+    /* Nord dark: deep/break/appointment darkened-hue fills with bright
 		   same-hue ink; shallow keeps the pre-feature block look (surface/ink). */
-    --type-deep: hsl(217, 50%, 30%);
-    --type-deep-ink: hsl(217, 90%, 82%);
+    --type-deep: hsl(212, 40%, 30%);
+    --type-deep-ink: hsl(212, 70%, 82%);
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(189, 45%, 24%);
-    --type-break-ink: hsl(189, 71%, 73%);
-    --type-appointment: hsl(350, 40%, 26%);
-    --type-appointment-ink: hsl(350, 65%, 77%);
+    --type-break: hsl(114, 25%, 25%);
+    --type-break-ink: hsl(114, 40%, 78%);
+    --type-appointment: hsl(29, 40%, 26%);
+    --type-appointment-ink: hsl(29, 65%, 75%);
   }
 
   /* Rosé Pine Dawn — the light variant of the rose-pine family. */

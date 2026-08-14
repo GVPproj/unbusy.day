@@ -54,14 +54,17 @@ templ Layout(title string, streamInit string) {
 					var LEGACY = {
 						"solarized-light": ["solarized", "light"],
 						"solarized-osaka": ["solarized", "dark"],
-						"catppuccin-mocha": ["catppuccin", "dark"],
+						"catppuccin-mocha": ["nord", "dark"],
 						"rose-pine-dawn": ["rose-pine", "light"],
+						// catppuccin was replaced by nord; carry the family,
+						// keep whichever mode the user had picked.
+						"catppuccin": ["nord", null],
 					};
 					var d = document.documentElement;
 					var cs = localStorage.getItem("colorscheme") || "solarized";
 					var mode = localStorage.getItem("colormode") || "light";
 					if (LEGACY[cs]) {
-						mode = LEGACY[cs][1];
+						mode = LEGACY[cs][1] || mode;
 						cs = LEGACY[cs][0];
 					}
 					localStorage.setItem("colorscheme", cs);

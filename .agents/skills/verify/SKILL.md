@@ -29,7 +29,7 @@ Endpoints read Datastar signals as a JSON body, not form fields.
 ## Drive with Playwright
 
 - Browsers are cached at `~/Library/Caches/ms-playwright` but no global package: `npm install playwright@<ver>` in a scratch dir, matching the cached chromium revision (check `node_modules/playwright-core/browsers.json` — e.g. revision 1208 → playwright@1.58).
-- Inject the session cookie via `context.addCookies`; set theme/feeling pre-paint via `addInitScript` writing `localStorage` keys `colorscheme` (`solarized|catppuccin|rose-pine`), `colormode` (`light|dark`) and `feeling` (`cozy|pixel|mono`).
+- Inject the session cookie via `context.addCookies`; set theme/feeling pre-paint via `addInitScript` writing `localStorage` keys `colorscheme` (`solarized|nord|rose-pine`), `colormode` (`light|dark`) and `feeling` (`cozy|pixel|mono`).
 - **`waitUntil: 'networkidle'` never fires** — the `/events` SSE stream stays open. Use `'load'` + a short timeout.
 - Mobile = viewport width < 640px (40rem breakpoint). Drawer/hamburger hooks: `.menu-toggle`, `#sidenav`, `.nav-scrim`; `.open` class + `aria-expanded` confirm state.
 

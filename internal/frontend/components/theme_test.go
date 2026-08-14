@@ -84,7 +84,7 @@ func TestThemePickerOffersSolarizedFamily(t *testing.T) {
 func TestThemePickerOffersFamiliesOnly(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
-	for _, family := range []string{"solarized", "catppuccin", "rose-pine"} {
+	for _, family := range []string{"solarized", "nord", "rose-pine"} {
 		for _, want := range []string{
 			`data-on:click="$_colorscheme = &#39;` + family + `&#39;"`,
 			`data-class:active="$_colorscheme === &#39;` + family + `&#39;"`,
@@ -94,13 +94,14 @@ func TestThemePickerOffersFamiliesOnly(t *testing.T) {
 			}
 		}
 	}
-	for _, gone := range []string{"catppuccin-mocha", "rose-pine-dawn"} {
+	for _, gone := range []string{"catppuccin-mocha", "catppuccin", "rose-pine-dawn"} {
 		if strings.Contains(body, `$_colorscheme = &#39;`+gone+`&#39;`) {
 			t.Errorf("page still writes legacy %q colorscheme token", gone)
 		}
 	}
 	for _, want := range []string{
-		`"catppuccin-mocha": ["catppuccin", "dark"]`,
+		`"catppuccin-mocha": ["nord", "dark"]`,
+		`"catppuccin": ["nord", null]`,
 		`"rose-pine-dawn": ["rose-pine", "light"]`,
 	} {
 		if !strings.Contains(body, want) {

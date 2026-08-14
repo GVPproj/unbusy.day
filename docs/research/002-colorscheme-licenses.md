@@ -167,3 +167,17 @@ we don't.
 - Catppuccin LICENSE — https://raw.githubusercontent.com/catppuccin/catppuccin/main/LICENSE
 - Catppuccin README (commercial-use confirmation) — https://raw.githubusercontent.com/catppuccin/catppuccin/main/README.md
 - US Copyright Office, Compendium of Practices §313.4(K) (colors not copyrightable) — https://www.copyright.gov/comp3/chap300/ch300-copyrightable-authorship.pdf
+
+---
+
+## Addendum (2026-08-14): Catppuccin replaced by Nord / One Nord
+
+The `catppuccin` family was replaced by a `nord` family whose palettes come
+from `rmehri01/onenord.nvim` (a One Dark / Nord blend). Same conclusion as
+above — permissive, commercial-use-friendly, attribution is the only
+obligation:
+
+- **onenord.nvim — MIT** (`api.github.com/repos/rmehri01/onenord.nvim`
+  reports `spdx_id = "MIT"`).
+- **Nord (upstream, `nordtheme/nord`) — MIT** (repo metadata
+  `spdx_id = "MIT"`), relevant because One Nord derives from it.
