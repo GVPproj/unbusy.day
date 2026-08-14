@@ -4,15 +4,22 @@ package layouts
 // <head>, never inside a patched fragment, so SSE patches don't re-ship CSS.
 // streamInit is the body's `data-init` expression — not the RC-era
 // `data-on-load`, which is a silent no-op on v1.0.2.
+//
+// Two theme axes persist to localStorage: _colorscheme (a family, e.g.
+// 'solarized') and _colormode (its Light/Dark variant). The pre-paint
+// script migrates the legacy single-axis 'solarized-light' / 'solarized-osaka'
+// values into the family + mode pair.
 templ Layout(title string, streamInit string) {
 	<!DOCTYPE html>
 	<html
 		lang="en"
-		data-signals:_colorscheme="localStorage.getItem('colorscheme') || 'solarized-light'"
+		data-signals:_colorscheme="localStorage.getItem('colorscheme') || 'solarized'"
+		data-signals:_colormode="localStorage.getItem('colormode') || 'light'"
 		data-signals:_feeling="localStorage.getItem('feeling') || 'cozy'"
 		data-attr:data-colorscheme="$_colorscheme"
+		data-attr:data-colormode="$_colormode"
 		data-attr:data-feeling="$_feeling"
-		data-effect="localStorage.setItem('colorscheme', $_colorscheme); localStorage.setItem('feeling', $_feeling)"
+		data-effect="localStorage.setItem('colorscheme', $_colorscheme); localStorage.setItem('colormode', $_colormode); localStorage.setItem('feeling', $_feeling)"
 	>
 		<head>
 			<meta charset="utf-8"/>
@@ -38,14 +45,26 @@ templ Layout(title string, streamInit string) {
 			<meta property="og:image:alt" content="A day column with time blocks — Deep Work, Email, Coffee — beside the tagline: give every minute one job."/>
 			<meta name="twitter:card" content="summary_large_image"/>
 			// Apply the stored theme before first paint so a dark scheme doesn't
-			// flash the default light tokens until Datastar hydrates.
+			// flash the default light tokens until Datastar hydrates. Also migrates
+			// the legacy 'solarized-light' / 'solarized-osaka' colorscheme values
+			// into the family + colormode pair once, then persists the new keys.
 			<script>
 				(function () {
 					var d = document.documentElement;
-					d.setAttribute(
-						"data-colorscheme",
-						localStorage.getItem("colorscheme") || "solarized-light",
-					);
+					var cs = localStorage.getItem("colorscheme") || "solarized-light";
+					var mode = localStorage.getItem("colormode");
+					if (cs === "solarized-light") {
+						cs = "solarized";
+						mode = mode || "light";
+					} else if (cs === "solarized-osaka") {
+						cs = "solarized";
+						mode = mode || "dark";
+					}
+					if (!mode) mode = "light";
+					localStorage.setItem("colorscheme", cs);
+					localStorage.setItem("colormode", mode);
+					d.setAttribute("data-colorscheme", cs);
+					d.setAttribute("data-colormode", mode);
 					d.setAttribute(
 						"data-feeling",
 						localStorage.getItem("feeling") || "cozy",

@@ -4,8 +4,9 @@ package modals
 // glyphs); shared with the guide's "Power User?" pane so its miniatures
 // can't drift from the picker.
 const (
-	swatchSolarizedLight = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)"
-	swatchSolarizedOsaka = "linear-gradient(135deg, hsl(192, 100%, 5%) 50%, hsl(192, 100%, 10%) 50%)"
+	// Solarized is a family whose Light/Dark variant is chosen by the modeOption
+	// toggle; the swatch previews the light half (the default).
+	swatchSolarized    = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)"
 	swatchCatppuccin     = "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)"
 	swatchRosePineDawn   = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(27, 37%, 92%) 50%)"
 
@@ -28,6 +29,17 @@ templ themeOption(id string, label string, swatch string) {
 		data-on:click={ "$_colorscheme = '" + id + "'" }
 	>
 		<span class="swatch" style={ "background: " + swatch }></span>
+		{ label }
+	</button>
+}
+
+templ modeOption(id string, label string) {
+	<button
+		class="option-row"
+		data-class:active={ "$_colormode === '" + id + "'" }
+		data-on:click={ "$_colormode = '" + id + "'" }
+	>
+		<span class="swatch"></span>
 		{ label }
 	</button>
 }
@@ -69,9 +81,11 @@ templ ThemeModal() {
 		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		<h3>Colours</h3>
 		@themeOption("rose-pine-dawn", "Rosé Pine Dawn", swatchRosePineDawn)
-		@themeOption("solarized-light", "Solarized Light", swatchSolarizedLight)
+		@themeOption("solarized", "Solarized", swatchSolarized)
 		@themeOption("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
-		@themeOption("solarized-osaka", "Solarized Dark Osaka", swatchSolarizedOsaka)
+		<h3>Light / Dark</h3>
+		@modeOption("light", "Light")
+		@modeOption("dark", "Dark")
 		<footer>
 			<button class="btn" commandfor="theme-modal" command="close">Done</button>
 		</footer>

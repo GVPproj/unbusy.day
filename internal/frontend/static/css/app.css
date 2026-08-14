@@ -172,9 +172,10 @@
     font-synthesis-weight: none;
   }
 
-  /* Solarized Light (default) */
+  /* Solarized (default family, light variant). The dark variant below
+	   overrides the same tokens under [data-colormode="dark"]. */
   :root,
-  :root[data-colorscheme="solarized-light"] {
+  :root[data-colorscheme="solarized"] {
     --bg: hsl(44, 86%, 94%);
     --ink: hsl(195, 7%, 32%);
     --ink-muted: hsl(
@@ -220,8 +221,9 @@
     --type-appointment-ink: hsl(45, 100%, 25%);
   }
 
-  /* Solarized Dark Osaka (craftzdog's solarized-osaka.nvim palette) */
-  :root[data-colorscheme="solarized-osaka"] {
+  /* Solarized Dark Osaka (craftzdog's solarized-osaka.nvim palette) — the
+	   dark variant of the solarized family, selected by data-colormode. */
+  :root[data-colorscheme="solarized"][data-colormode="dark"] {
     --bg: hsl(192, 100%, 5%);
     --ink: hsl(184, 10%, 74%);
     --ink-muted: hsl(
