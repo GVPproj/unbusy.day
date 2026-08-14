@@ -65,8 +65,8 @@ tasks:
           | sed -nE 's/.*"name": *"v?([^"]+)".*/\1/p' | head -1; }
         report() { # name pinned latest
           if [ "$2" = "$3" ]; then printf '  ✓ %-11s %s (up to date)\n' "$1" "$2";
-          else printf '  ✗ %-11s pinned %s, latest %s\n' "$1" "$2" "$3"; rc=1; fi; }
-        rc=0
+          else printf '  ✗ %-11s pinned %s, latest %s\n' "$1" "$2" "$3"; rc=1; drifted="$drifted $1"; fi; }
+        rc=0; drifted=''
         report templ "$(go list -m github.com/a-h/templ | awk '{print $2}' | sed 's/^v//')" "$(gh_latest a-h/templ)"
         report ds-sdk "$(go list -m github.com/starfederation/datastar-go | awk '{print $2}' | sed 's/^v//')" "$(gh_tag starfederation/datastar-go)"
         # Datastar client bundle: a CDN tag in the templ shells (both must agree).
@@ -79,6 +79,10 @@ tasks:
         for pin in $(grep -hoE 'esm\.sh/[^"]+@[0-9][0-9.]*' internal/frontend/static/js/jot/cm.js | sed 's|.*esm\.sh/||' | sort -u); do
           report "${pin%@*}" "${pin##*@}" "$(npm_latest "${pin%@*}")"
         done
+        if [ "$rc" = 1 ]; then
+          printf '\n  ⚠ version drift in:%s\n' "$drifted"
+          printf '  see the ✗ lines above for pinned vs latest.\n'
+        fi
         exit $rc
 
   migrate:
