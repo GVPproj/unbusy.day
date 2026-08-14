@@ -8,7 +8,7 @@ import {
 	animate,
 	motionValue,
 	styleEffect,
-} from "https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm";
+} from "https://cdn.jsdelivr.net/npm/motion@13.1.0/+esm";
 import { pushLayout } from "./push.js";
 import { droppedMsg, resizedMsg } from "./keyboard-reducer.js";
 import { enterEdit } from "./rename.js";

@@ -28,12 +28,12 @@ full DOM/cookie/keystroke access on the live app.
 - `internal/frontend/layouts/layout.templ:46` — Datastar SDK
   `cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js`.
   **Production, every page.**
-- `internal/frontend/static/drag.js:6` — Motion
-  `cdn.jsdelivr.net/npm/motion@12.40.0/+esm`. **Production, every board page.**
+- `internal/frontend/static/js/blocks/pointer.js:11` — Motion
+  `cdn.jsdelivr.net/npm/motion@13.1.0/+esm`. **Production, every board page.**
 - `internal/frontend/smoke.templ:14` — Datastar from jsdelivr. Lower stakes
   (wiring canary, not on the auth path) but same gap.
 
-Note `@v1.0.2` / `@12.40.0` are *version* pins, not *content* pins — a retagged
+Note `@v1.0.2` / `@13.1.0` are *version* pins, not *content* pins — a retagged
 or compromised artifact at that version is served transparently.
 
 ### Options (rough priority)
