@@ -46,21 +46,24 @@ templ Layout(title string, streamInit string) {
 			<meta name="twitter:card" content="summary_large_image"/>
 			// Apply the stored theme before first paint so a dark scheme doesn't
 			// flash the default light tokens until Datastar hydrates. Also migrates
-			// the legacy 'solarized-light' / 'solarized-osaka' colorscheme values
-			// into the family + colormode pair once, then persists the new keys.
+			// the legacy single-axis colorscheme values into the family + colormode
+			// pair once, then persists the new keys. A legacy name means the user
+			// never met the mode toggle, so its implied mode wins.
 			<script>
 				(function () {
+					var LEGACY = {
+						"solarized-light": ["solarized", "light"],
+						"solarized-osaka": ["solarized", "dark"],
+						"catppuccin-mocha": ["catppuccin", "dark"],
+						"rose-pine-dawn": ["rose-pine", "light"],
+					};
 					var d = document.documentElement;
-					var cs = localStorage.getItem("colorscheme") || "solarized-light";
-					var mode = localStorage.getItem("colormode");
-					if (cs === "solarized-light") {
-						cs = "solarized";
-						mode = mode || "light";
-					} else if (cs === "solarized-osaka") {
-						cs = "solarized";
-						mode = mode || "dark";
+					var cs = localStorage.getItem("colorscheme") || "solarized";
+					var mode = localStorage.getItem("colormode") || "light";
+					if (LEGACY[cs]) {
+						mode = LEGACY[cs][1];
+						cs = LEGACY[cs][0];
 					}
-					if (!mode) mode = "light";
 					localStorage.setItem("colorscheme", cs);
 					localStorage.setItem("colormode", mode);
 					d.setAttribute("data-colorscheme", cs);

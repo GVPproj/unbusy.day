@@ -78,6 +78,37 @@ func TestThemePickerOffersSolarizedFamily(t *testing.T) {
 	}
 }
 
+// Every colourscheme is a family with both variants, so the picker offers the
+// three family tokens and none of the legacy single-variant ones — and the
+// pre-paint script carries each legacy value to its family + mode pair.
+func TestThemePickerOffersFamiliesOnly(t *testing.T) {
+	body := renderPage(t, threeBlocks(), testBounds)
+
+	for _, family := range []string{"solarized", "catppuccin", "rose-pine"} {
+		for _, want := range []string{
+			`data-on:click="$_colorscheme = &#39;` + family + `&#39;"`,
+			`data-class:active="$_colorscheme === &#39;` + family + `&#39;"`,
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("page missing %s family binding %q", family, want)
+			}
+		}
+	}
+	for _, gone := range []string{"catppuccin-mocha", "rose-pine-dawn"} {
+		if strings.Contains(body, `$_colorscheme = &#39;`+gone+`&#39;`) {
+			t.Errorf("page still writes legacy %q colorscheme token", gone)
+		}
+	}
+	for _, want := range []string{
+		`"catppuccin-mocha": ["catppuccin", "dark"]`,
+		`"rose-pine-dawn": ["rose-pine", "light"]`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("pre-paint script missing legacy migration %q", want)
+		}
+	}
+}
+
 // The Light/Dark toggle writes $_colormode; both rows are present so the
 // colourscheme family and its variant are independent, persistent axes.
 func TestThemePickerOffersLightDarkModeToggle(t *testing.T) {

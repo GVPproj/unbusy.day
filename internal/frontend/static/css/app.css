@@ -263,8 +263,52 @@
     --type-appointment-ink: hsl(45, 85%, 75%);
   }
 
-  /* Catppuccin Mocha */
-  :root[data-colorscheme="catppuccin-mocha"] {
+  /* Catppuccin Latte (light variant of the catppuccin family). Nav chrome is
+	   Latte Text darkened one step: Latte ships no dark neutral, and the rail
+	   is a dark band in every family. */
+  :root[data-colorscheme="catppuccin"] {
+    --bg: hsl(220, 23%, 95%); /* Base #eff1f5 */
+    --ink: hsl(234, 16%, 35%); /* Text #4c4f69 — 7.1:1 on bg */
+    --ink-muted: hsl(
+      233,
+      13%,
+      41%
+    ); /* Subtext1 #5c5f77 — 5.5:1 on bg, 5.1:1 on column (WCAG AA) */
+    --ink-error: hsl(347, 87%, 44%); /* Red #d20f39 — 4.8:1 on bg */
+    --surface: hsl(220, 23%, 95%);
+    --column-bg: hsl(220, 22%, 92%); /* Mantle #e6e9ef */
+    --rail-border: hsl(225, 14%, 77%); /* Surface1 #bcc0cc */
+    --nav-bg: hsl(232, 16%, 28%);
+    --nav-ink: hsl(220, 23%, 95%);
+    --nav-hover: rgba(239, 241, 245, 0.16);
+    --nav-icon: hsl(35, 77%, 49%); /* Yellow #df8e1d — 4.0:1 on nav-bg */
+    --gutter-ink: hsl(232, 16%, 28%); /* nav-bg: 8.7:1 on column-bg */
+    --accent: hsl(219, 84%, 45%); /* Blue #1e66f5 darkened — 5.5:1 on bg */
+    --danger: hsl(
+      347,
+      87%,
+      44%
+    ); /* canonical Catppuccin Latte Red #d20f39 — destructive actions */
+    --scrim: rgba(76, 79, 105, 0.3);
+    --hover-shift: hsl(234, 16%, 15%);
+    --shadow-rest: 0 1px 1px rgba(76, 79, 105, 0.2);
+    --shadow-lift: 0 4px 8px rgba(76, 79, 105, 0.2);
+
+    /* Same hue trio as Mocha below (blue / teal / maroon) so switching
+		   Light↔Dark never recolours a block type; tints with darker same-hue
+		   ink, each ≥5:1. Shallow keeps the surface/ink default. */
+    --type-deep: hsl(220, 89%, 89%);
+    --type-deep-ink: hsl(219, 80%, 33%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(183, 45%, 85%);
+    --type-break-ink: hsl(183, 74%, 24%);
+    --type-appointment: hsl(355, 60%, 89%);
+    --type-appointment-ink: hsl(355, 70%, 32%);
+  }
+
+  /* Catppuccin Mocha — the dark variant of the catppuccin family. */
+  :root[data-colorscheme="catppuccin"][data-colormode="dark"] {
     --bg: hsl(240, 21%, 15%);
     --ink: hsl(227, 63%, 92%);
     --ink-muted: hsl(
@@ -304,10 +348,14 @@
     --type-appointment-ink: hsl(350, 65%, 77%);
   }
 
-  /* Rosé Pine Dawn (light) — the project's light-page counterpart palette. */
-  :root[data-colorscheme="rose-pine-dawn"] {
+  /* Rosé Pine Dawn — the light variant of the rose-pine family. */
+  :root[data-colorscheme="rose-pine"] {
     --bg: hsl(32, 57%, 95%); /* base #faf4ed */
-    --ink: hsl(248, 19%, 44%); /* text #575279 lightened — 5.7:1 on bg, 5.3:1 on column */
+    --ink: hsl(
+      248,
+      19%,
+      44%
+    ); /* text #575279 lightened — 5.7:1 on bg, 5.3:1 on column */
     --ink-muted: hsl(248, 12%, 45%); /* subtle #797593 darkened — 5.1:1 on bg */
     --ink-error: hsl(343, 45%, 45%); /* love darkened */
     --surface: hsl(32, 57%, 95%);
@@ -332,9 +380,56 @@
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
     --type-break: hsl(268, 42%, 87%);
-    --type-break-ink: hsl(268, 35%, 40%); /* iris #907aa9 — distinct from pine deep */
+    --type-break-ink: hsl(
+      268,
+      35%,
+      40%
+    ); /* iris #907aa9 — distinct from pine deep */
     --type-appointment: hsl(35, 80%, 82%);
     --type-appointment-ink: hsl(35, 80%, 29%); /* gold — 4.7:1 on tint */
+  }
+
+  /* Rosé Pine (main) — the dark variant of the rose-pine family. Base is the
+	   column, Surface the page, Overlay the blocks; nav darkens Base a step
+	   because Rosé Pine ships no shade below it. */
+  :root[data-colorscheme="rose-pine"][data-colormode="dark"] {
+    --bg: hsl(247, 23%, 15%); /* Surface #1f1d2e */
+    --ink: hsl(245, 50%, 91%); /* Text #e0def4 — 12.5:1 on bg */
+    --ink-muted: hsl(
+      248,
+      15%,
+      61%
+    ); /* Subtle #908caa — 5.1:1 on bg, 4.7:1 on surface (WCAG AA) */
+    --ink-error: hsl(343, 76%, 68%); /* Love #eb6f92 — 5.7:1 on bg */
+    --surface: hsl(248, 25%, 18%); /* Overlay #26233a */
+    --column-bg: hsl(249, 22%, 12%); /* Base #191724 */
+    --rail-border: hsl(249, 15%, 28%); /* Highlight Med #403d52 */
+    --nav-bg: hsl(251, 22%, 10%);
+    --nav-ink: hsl(245, 50%, 91%);
+    --nav-hover: rgba(224, 222, 244, 0.12);
+    --nav-icon: hsl(35, 88%, 72%); /* Gold #f6c177 — 11.1:1 on nav-bg */
+    --gutter-ink: var(--nav-icon);
+    --accent: hsl(189, 43%, 73%); /* Foam #9ccfd8 — 9.7:1 on bg */
+    --danger: hsl(
+      343,
+      76%,
+      68%
+    ); /* canonical Rosé Pine Love #eb6f92 — destructive actions */
+    --scrim: rgba(16, 14, 26, 0.6);
+    --hover-shift: hsl(245, 50%, 91%);
+    --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
+
+    /* Same hue trio as Dawn above (pine / iris / gold), inverted: darkened
+		   fills under the bright canonical ink, each ≥5.4:1. */
+    --type-deep: hsl(197, 45%, 25%);
+    --type-deep-ink: hsl(189, 43%, 73%); /* foam */
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(268, 25%, 25%);
+    --type-break-ink: hsl(267, 57%, 78%); /* iris #c4a7e7 */
+    --type-appointment: hsl(35, 45%, 20%);
+    --type-appointment-ink: hsl(35, 88%, 72%); /* gold #f6c177 */
   }
 
   /* Block-type fill, resolved once from whichever palette is active. Any
@@ -2216,7 +2311,6 @@
         user-select: text;
         outline: none;
       }
-
     }
 
     /* Delete reveals on block hover / focus; always visible on touch. */
@@ -2491,7 +2585,9 @@
 
   /* Outside the @scope block: scoped selectors are implicitly relative to
      the scope root, so a :root-anchored selector can't match in there. */
-  :root[data-feeling="pixel"] .jotpad :is(.cm-line.jot-codeline, .jot-codespan) {
+  :root[data-feeling="pixel"]
+    .jotpad
+    :is(.cm-line.jot-codeline, .jot-codespan) {
     font-family: "Gohu", ui-monospace, monospace;
   }
 }

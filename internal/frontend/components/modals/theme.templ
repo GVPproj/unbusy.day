@@ -4,11 +4,18 @@ package modals
 // glyphs); shared with the guide's "Power User?" pane so its miniatures
 // can't drift from the picker.
 const (
-	// Solarized is a family whose Light/Dark variant is chosen by the modeOption
-	// toggle; the swatch previews the light half (the default).
-	swatchSolarized    = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(46, 42%, 88%) 50%)"
-	swatchCatppuccin     = "linear-gradient(135deg, hsl(240, 21%, 15%) 50%, hsl(237, 16%, 23%) 50%)"
-	swatchRosePineDawn   = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(27, 37%, 92%) 50%)"
+	// Every colourscheme is a family whose Light/Dark variant is chosen by the
+	// modeOption toggle, so a family swatch splits its light variant's page bg
+	// against its dark variant's block surface — the most chromatic pair, so the
+	// families stay tellable apart at swatch size.
+	swatchSolarized  = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(192, 100%, 10%) 50%)"
+	swatchCatppuccin = "linear-gradient(135deg, hsl(220, 23%, 95%) 50%, hsl(237, 16%, 23%) 50%)"
+	swatchRosePine   = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(248, 25%, 18%) 50%)"
+
+	// The mode rows preview the axis itself, not a family: a neutral light and
+	// dark disc.
+	swatchLight = "linear-gradient(135deg, hsl(0, 0%, 100%) 50%, hsl(0, 0%, 91%) 50%)"
+	swatchDark  = "linear-gradient(135deg, hsl(0, 0%, 16%) 50%, hsl(0, 0%, 9%) 50%)"
 
 	feelingCozyFont  = "Zen Maru Gothic, system-ui, sans-serif"
 	feelingPixelFont = "Gohu, ui-monospace, monospace"
@@ -33,13 +40,15 @@ templ themeOption(id string, label string, swatch string) {
 	</button>
 }
 
-templ modeOption(id string, label string) {
+// modeOption is one row in the Light/Dark toggle: the mode axis applies to
+// whichever colourscheme family is active, so its swatch is neutral.
+templ modeOption(id string, label string, swatch string) {
 	<button
 		class="option-row"
 		data-class:active={ "$_colormode === '" + id + "'" }
 		data-on:click={ "$_colormode = '" + id + "'" }
 	>
-		<span class="swatch"></span>
+		<span class="swatch" style={ "background: " + swatch }></span>
 		{ label }
 	</button>
 }
@@ -80,12 +89,12 @@ templ ThemeModal() {
 		@feelingOption("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
 		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		<h3>Colours</h3>
-		@themeOption("rose-pine-dawn", "Rosé Pine Dawn", swatchRosePineDawn)
+		@themeOption("rose-pine", "Rosé Pine", swatchRosePine)
 		@themeOption("solarized", "Solarized", swatchSolarized)
-		@themeOption("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
+		@themeOption("catppuccin", "Catppuccin", swatchCatppuccin)
 		<h3>Light / Dark</h3>
-		@modeOption("light", "Light")
-		@modeOption("dark", "Dark")
+		@modeOption("light", "Light", swatchLight)
+		@modeOption("dark", "Dark", swatchDark)
 		<footer>
 			<button class="btn" commandfor="theme-modal" command="close">Done</button>
 		</footer>

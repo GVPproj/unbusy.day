@@ -73,11 +73,11 @@ templ GuideModal() {
 			// and $_feeling signals exist on both pages, so these miniatures —
 			// built from theme.templ's shared consts — are live pickers.
 			<div class="guide-pane" data-class:showing="$_guidestep === 4" data-attr:inert="$_guidestep !== 4">
-				<p>Make the app yours: <strong>Theme</strong> in the menu picks the colours…</p>
+				<p>Make the app yours: <strong>Theme</strong> in the menu picks the colours — each family in <strong>Light</strong> or <strong>Dark</strong>…</p>
 				<div class="guide-figure guide-swatches">
-					@guideSwatch("rose-pine-dawn", "Rosé Pine Dawn", swatchRosePineDawn)
+					@guideSwatch("rose-pine", "Rosé Pine", swatchRosePine)
 					@guideSwatch("solarized", "Solarized", swatchSolarized)
-					@guideSwatch("catppuccin-mocha", "Catppuccin Mocha", swatchCatppuccin)
+					@guideSwatch("catppuccin", "Catppuccin", swatchCatppuccin)
 				</div>
 				<p>…and the <strong>feeling</strong>: font and icon set swap together.</p>
 				<div class="guide-figure guide-feelings">
