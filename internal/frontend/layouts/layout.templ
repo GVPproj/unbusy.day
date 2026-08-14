@@ -77,6 +77,9 @@ templ Layout(title string, streamInit string) {
 					);
 				})();
 			</script>
+			// PROTOTYPE(nord-dark): three dark-Nord candidates via ?variant=a|b|c.
+			// Remove with static/js/nord-proto.js and the nord-dark-* blocks in app.css.
+			<script src="/static/js/nord-proto.js"></script>
 			// Passthrough service worker: makes iOS treat the app as an installed
 			// PWA with durable storage. See /static/sw.js.
 			<script>

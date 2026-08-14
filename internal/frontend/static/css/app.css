@@ -436,6 +436,107 @@
     --type-appointment-ink: hsl(35, 88%, 72%); /* gold #f6c177 */
   }
 
+  /* ------------------------------------------------------------------ */
+  /* PROTOTYPE(nord-dark) — three candidate dark variants for the nord   */
+  /* family, switchable via ?variant=a|b|c (js/nord-proto.js). Throwaway: */
+  /* remove this section, the layout include, and nord-proto.js once a   */
+  /* winner is picked. Dark-only; colormode is forced dark.              */
+  /* ------------------------------------------------------------------ */
+
+  /* nord-dark-a — Polar Night: the shipped nord dark, here as the
+	   baseline candidate. */
+  :root[data-colorscheme="nord-dark-a"][data-colormode="dark"] {
+    --bg: hsl(220, 16%, 22%);
+    --ink: hsl(220, 28%, 83%);
+    --ink-muted: hsl(220, 16%, 62%);
+    --ink-error: hsl(354, 53%, 68%);
+    --surface: hsl(222, 16%, 28%);
+    --column-bg: hsl(221, 16%, 18%);
+    --rail-border: hsl(220, 16%, 36%);
+    --nav-bg: hsl(220, 17%, 14%);
+    --nav-ink: hsl(220, 28%, 83%);
+    --nav-hover: rgba(200, 208, 224, 0.12);
+    --nav-icon: hsl(40, 71%, 73%);
+    --gutter-ink: var(--nav-icon);
+    --accent: hsl(193, 43%, 67%);
+    --danger: hsl(354, 53%, 68%);
+    --scrim: rgba(0, 0, 0, 0.55);
+    --hover-shift: hsl(220, 28%, 92%);
+    --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
+    --type-deep: hsl(212, 40%, 30%);
+    --type-deep-ink: hsl(212, 70%, 82%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(114, 25%, 25%);
+    --type-break-ink: hsl(114, 40%, 78%);
+    --type-appointment: hsl(29, 40%, 26%);
+    --type-appointment-ink: hsl(29, 65%, 75%);
+  }
+
+  /* nord-dark-b — Deep Nord: every surface a step darker than Polar
+	   Night, brighter fg_light ink — higher contrast, OLED-ish depth. */
+  :root[data-colorscheme="nord-dark-b"][data-colormode="dark"] {
+    --bg: hsl(222, 18%, 13%);
+    --ink: hsl(218, 27%, 92%); /* fg_light #e5e9f0 */
+    --ink-muted: hsl(220, 14%, 62%);
+    --ink-error: hsl(354, 53%, 70%);
+    --surface: hsl(221, 17%, 19%);
+    --column-bg: hsl(223, 20%, 10%);
+    --rail-border: hsl(220, 15%, 30%);
+    --nav-bg: hsl(224, 22%, 8%);
+    --nav-ink: hsl(218, 27%, 92%);
+    --nav-hover: rgba(229, 233, 240, 0.1);
+    --nav-icon: hsl(40, 71%, 73%);
+    --gutter-ink: var(--nav-icon);
+    --accent: hsl(193, 43%, 67%);
+    --danger: hsl(354, 53%, 70%);
+    --scrim: rgba(0, 0, 0, 0.65);
+    --hover-shift: hsl(218, 27%, 95%);
+    --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.6);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.6);
+    --type-deep: hsl(212, 45%, 26%);
+    --type-deep-ink: hsl(212, 75%, 84%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(114, 28%, 21%);
+    --type-break-ink: hsl(114, 42%, 80%);
+    --type-appointment: hsl(29, 45%, 22%);
+    --type-appointment-ink: hsl(29, 70%, 77%);
+  }
+
+  /* nord-dark-c — Frost wash: bluer and colder — more chroma in every
+	   surface, Frost blue accent, cyan nav icon. */
+  :root[data-colorscheme="nord-dark-c"][data-colormode="dark"] {
+    --bg: hsl(217, 24%, 20%);
+    --ink: hsl(210, 40%, 88%);
+    --ink-muted: hsl(213, 25%, 65%);
+    --ink-error: hsl(354, 55%, 70%);
+    --surface: hsl(216, 26%, 26%);
+    --column-bg: hsl(218, 26%, 16%);
+    --rail-border: hsl(215, 22%, 36%);
+    --nav-bg: hsl(219, 30%, 12%);
+    --nav-ink: hsl(210, 40%, 88%);
+    --nav-hover: rgba(216, 228, 242, 0.12);
+    --nav-icon: hsl(193, 43%, 67%); /* frost cyan #88c0d0 */
+    --gutter-ink: var(--nav-icon);
+    --accent: hsl(210, 45%, 68%); /* frost blue #81a1c1 brightened */
+    --danger: hsl(354, 55%, 70%);
+    --scrim: rgba(4, 10, 20, 0.6);
+    --hover-shift: hsl(210, 40%, 94%);
+    --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
+    --type-deep: hsl(212, 45%, 32%);
+    --type-deep-ink: hsl(210, 80%, 85%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(114, 22%, 27%);
+    --type-break-ink: hsl(114, 35%, 80%);
+    --type-appointment: hsl(29, 38%, 28%);
+    --type-appointment-ink: hsl(29, 62%, 76%);
+  }
+  /* ---------------------- end PROTOTYPE(nord-dark) ------------------- */
+
   /* Block-type fill, resolved once from whichever palette is active. Any
 	   element tagged data-type picks up the pair, so the five surfaces that
 	   paint a block type (block item, countdown pill, create + guide
