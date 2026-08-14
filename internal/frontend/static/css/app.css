@@ -308,48 +308,49 @@
     --type-appointment-ink: hsl(29, 65%, 30%);
   }
 
-  /* Nord dark — One Nord's dark palette (Nord Polar Night surfaces with the
-	   same accent set as the light variant). bg is the page (#2e3440), Float
-	   the blocks, and the column/nav darken bg a step: One Nord ships no
-	   shade below nord0. */
+  /* Nord dark — "Frost wash": One Nord's dark accents over surfaces pushed
+	   bluer and more chromatic than literal Polar Night (picked over the
+	   canonical mapping in the nord-dark prototype). Frost blue accent,
+	   frost cyan nav icon; One Nord ships no shade below nord0, so the
+	   column and nav darken bg a step. */
   :root[data-colorscheme="nord"][data-colormode="dark"] {
-    --bg: hsl(220, 16%, 22%); /* bg #2e3440 (nord0) */
-    --ink: hsl(220, 28%, 83%); /* fg #c8d0e0 — 10.5:1 on bg */
+    --bg: hsl(217, 24%, 20%); /* nord0 #2e3440, bluer + more chroma */
+    --ink: hsl(210, 40%, 88%); /* fg #c8d0e0 cooled — 11:1 on bg */
     --ink-muted: hsl(
-      220,
-      16%,
-      62%
-    ); /* light_gray #6c7a96 brightened — 4.9:1 on surface (WCAG AA) */
-    --ink-error: hsl(354, 53%, 68%); /* red #d57780 brightened a step */
-    --surface: hsl(222, 16%, 28%); /* float #3b4252 (nord1) */
-    --column-bg: hsl(221, 16%, 18%); /* bg darkened a step */
-    --rail-border: hsl(220, 16%, 36%); /* selection #4c566a (nord3) */
-    --nav-bg: hsl(220, 17%, 14%);
-    --nav-ink: hsl(220, 28%, 83%);
-    --nav-hover: rgba(200, 208, 224, 0.12);
-    --nav-icon: hsl(40, 71%, 73%); /* yellow #ebcb8b — 9.5:1 on nav-bg */
+      213,
+      25%,
+      65%
+    ); /* light_gray #6c7a96 brightened — 5.1:1 on surface (WCAG AA) */
+    --ink-error: hsl(354, 55%, 70%); /* red #d57780 brightened a step */
+    --surface: hsl(216, 26%, 26%); /* float #3b4252, same wash */
+    --column-bg: hsl(218, 26%, 16%); /* bg darkened a step */
+    --rail-border: hsl(215, 22%, 36%); /* selection #4c566a, same wash */
+    --nav-bg: hsl(219, 30%, 12%);
+    --nav-ink: hsl(210, 40%, 88%);
+    --nav-hover: rgba(216, 228, 242, 0.12);
+    --nav-icon: hsl(193, 43%, 67%); /* frost cyan #88c0d0 — 8.6:1 on nav-bg */
     --gutter-ink: var(--nav-icon);
-    --accent: hsl(193, 43%, 67%); /* cyan #88c0d0 — 7.3:1 on bg */
+    --accent: hsl(210, 45%, 68%); /* frost blue #81a1c1 brightened — 6:1 on bg */
     --danger: hsl(
       354,
-      53%,
-      68%
+      55%,
+      70%
     ); /* One Nord red #d57780 brightened — destructive actions */
-    --scrim: rgba(0, 0, 0, 0.55);
-    --hover-shift: hsl(220, 28%, 92%);
+    --scrim: rgba(4, 10, 20, 0.6);
+    --hover-shift: hsl(210, 40%, 94%);
     --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
     --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
 
     /* Nord dark: deep/break/appointment darkened-hue fills with bright
 		   same-hue ink; shallow keeps the pre-feature block look (surface/ink). */
-    --type-deep: hsl(212, 40%, 30%);
-    --type-deep-ink: hsl(212, 70%, 82%);
+    --type-deep: hsl(212, 45%, 32%);
+    --type-deep-ink: hsl(210, 80%, 85%);
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(114, 25%, 25%);
-    --type-break-ink: hsl(114, 40%, 78%);
-    --type-appointment: hsl(29, 40%, 26%);
-    --type-appointment-ink: hsl(29, 65%, 75%);
+    --type-break: hsl(114, 22%, 27%);
+    --type-break-ink: hsl(114, 35%, 80%);
+    --type-appointment: hsl(29, 38%, 28%);
+    --type-appointment-ink: hsl(29, 62%, 76%);
   }
 
   /* Rosé Pine Dawn — the light variant of the rose-pine family. */
