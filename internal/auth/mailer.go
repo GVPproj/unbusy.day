@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"log"
 	"net"
 	"net/smtp"
@@ -40,7 +41,7 @@ func NewSMTPMailer(host, port, user, pass, from string, logoPNG []byte) *SMTPMai
 	}
 }
 
-// ctx is unused: stdlib SendMail has no context hook.
+// SendCode ignores ctx: stdlib smtp.SendMail has no context hook, but the Mailer seam keeps one for providers that do.
 func (m *SMTPMailer) SendCode(_ context.Context, email, code string) error {
 	return smtp.SendMail(m.addr, m.auth, m.from, []string{email}, m.message(email, code))
 }
@@ -59,10 +60,11 @@ const (
 
 func (m *SMTPMailer) message(to, code string) []byte {
 	var b strings.Builder
-	b.WriteString("From: unbusy.day <" + m.from + ">\r\n")
-	b.WriteString("To: " + to + "\r\n")
+
+	fmt.Fprintf(&b, "From: unbusy.day <%s>\r\n", m.from)
+	fmt.Fprintf(&b, "To: %s\r\n", to)
 	b.WriteString("Subject: Your unbusy.day login code\r\n")
-	b.WriteString("Date: " + time.Now().Format(time.RFC1123Z) + "\r\n")
+	fmt.Fprintf(&b, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
 	b.WriteString("MIME-Version: 1.0\r\n")
 
 	hasLogo := len(m.logoPNG) > 0
@@ -83,7 +85,7 @@ func (m *SMTPMailer) message(to, code string) []byte {
 	b.WriteString("--")
 	b.WriteString(altBoundary)
 	b.WriteString("\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n")
-	b.WriteString("Your login code is " + code + "\r\n\r\n")
+	fmt.Fprintf(&b, "Your login code is %s\r\n\r\n", code)
 	b.WriteString("It expires in 10 minutes. If you didn't request it, ignore this email.\r\n\r\n")
 
 	b.WriteString("--")

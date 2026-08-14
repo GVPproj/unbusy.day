@@ -12,16 +12,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// utils
-
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
 }
-
-// email
 
 func newMailer() auth.Mailer {
 	host := os.Getenv("SMTP_HOST")
@@ -68,9 +64,6 @@ func authOptions() []auth.Option {
 	return opts
 }
 
-// guardOpenSignup fails fast when a live mailer (SMTP_HOST) would serve open
-// signup with Turnstile or the send ceiling silently off — that would make
-// /login/code an open email relay. LogMailer carries no relay risk.
 func guardOpenSignup() {
 	if os.Getenv("SMTP_HOST") == "" {
 		return
