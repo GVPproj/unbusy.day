@@ -432,6 +432,112 @@
     --type-appointment-ink: hsl(35, 88%, 72%); /* gold #f6c177 */
   }
 
+  /* ------------------------------------------------------------------ */
+  /* PROTOTYPE(nord-light) — three candidate light variants for a Nord   */
+  /* family, switchable via ?variant=a|b|c (js/nord-proto.js). Throwaway: */
+  /* remove this section, the layout include, and nord-proto.js once a   */
+  /* winner is picked. Light-only; no dark blocks.                       */
+  /* ------------------------------------------------------------------ */
+
+  /* nord-a — canonical Snow Storm: nord6/5/4 surfaces, Polar Night inks,
+	   Frost blue accent darkened for AA. */
+  :root[data-colorscheme="nord-a"] {
+    --bg: hsl(218, 27%, 94%); /* nord6 #eceff4 */
+    --ink: hsl(220, 16%, 22%); /* nord0 #2e3440 */
+    --ink-muted: hsl(220, 17%, 36%); /* nord3 #4c566a — 5.9:1 on bg */
+    --ink-error: hsl(354, 45%, 44%);
+    --surface: hsl(218, 27%, 94%);
+    --column-bg: hsl(219, 27%, 92%); /* nord5 #e5e9f0 */
+    --rail-border: hsl(219, 28%, 88%); /* nord4 #d8dee9 */
+    --nav-bg: hsl(220, 16%, 22%);
+    --nav-ink: hsl(218, 27%, 94%);
+    --nav-hover: rgba(236, 239, 244, 0.14);
+    --nav-icon: hsl(40, 71%, 73%); /* aurora yellow #ebcb8b */
+    --gutter-ink: hsl(220, 16%, 22%);
+    --accent: hsl(213, 40%, 40%); /* frost #5e81ac darkened — AA on bg */
+    --danger: hsl(354, 45%, 44%); /* aurora red #bf616a darkened */
+    --scrim: rgba(46, 52, 64, 0.35);
+    --hover-shift: hsl(220, 16%, 10%);
+    --shadow-rest: 0 1px 1px rgba(46, 52, 64, 0.2);
+    --shadow-lift: 0 4px 8px rgba(46, 52, 64, 0.2);
+
+    /* frost blue / aurora green / aurora yellow trio */
+    --type-deep: hsl(213, 45%, 86%);
+    --type-deep-ink: hsl(213, 50%, 30%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(92, 32%, 83%);
+    --type-break-ink: hsl(92, 45%, 24%);
+    --type-appointment: hsl(40, 65%, 84%);
+    --type-appointment-ink: hsl(40, 75%, 27%);
+  }
+
+  /* nord-b — One Nord light (rmehri01/onenord.nvim onenordlight palette):
+	   near-white #f7f8fa base, saturated One-Dark-ish accents. */
+  :root[data-colorscheme="nord-b"] {
+    --bg: hsl(220, 23%, 97%); /* onenord bg #f7f8fa */
+    --ink: hsl(220, 16%, 22%); /* fg #2e3440 */
+    --ink-muted: hsl(220, 8%, 40%); /* light_gray #646a76 darkened a step */
+    --ink-error: hsl(358, 54%, 44%);
+    --surface: hsl(220, 23%, 97%);
+    --column-bg: hsl(220, 10%, 94%); /* active #eff0f2 */
+    --rail-border: hsl(216, 8%, 87%); /* selection #dcdee1 */
+    --nav-bg: hsl(220, 16%, 22%);
+    --nav-ink: hsl(220, 23%, 97%);
+    --nav-hover: rgba(247, 248, 250, 0.14);
+    --nav-icon: hsl(29, 55%, 58%); /* yellow #ba793e brightened for nav */
+    --gutter-ink: hsl(220, 16%, 22%);
+    --accent: hsl(212, 58%, 42%); /* blue #3879c5 darkened — AA on bg */
+    --danger: hsl(358, 54%, 44%); /* dark_red #c53b40 */
+    --scrim: rgba(46, 52, 64, 0.3);
+    --hover-shift: hsl(220, 16%, 10%);
+    --shadow-rest: 0 1px 1px rgba(46, 52, 64, 0.15);
+    --shadow-lift: 0 4px 8px rgba(46, 52, 64, 0.15);
+
+    --type-deep: hsl(212, 70%, 89%);
+    --type-deep-ink: hsl(212, 60%, 32%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(114, 40%, 86%);
+    --type-break-ink: hsl(114, 50%, 24%);
+    --type-appointment: hsl(29, 60%, 86%);
+    --type-appointment-ink: hsl(29, 65%, 30%);
+  }
+
+  /* nord-c — Cream Nord: Polar Night inks + Frost teal accent on a warm
+	   cream base, testing whether Nord's cool identity fights the app's
+	   cozy warmth. */
+  :root[data-colorscheme="nord-c"] {
+    --bg: hsl(42, 30%, 95%);
+    --ink: hsl(220, 16%, 22%);
+    --ink-muted: hsl(220, 12%, 38%);
+    --ink-error: hsl(354, 45%, 44%);
+    --surface: hsl(42, 30%, 95%);
+    --column-bg: hsl(42, 22%, 91%);
+    --rail-border: hsl(42, 16%, 82%);
+    --nav-bg: hsl(222, 17%, 17%); /* nord0 darkened a step */
+    --nav-ink: hsl(42, 22%, 91%);
+    --nav-hover: rgba(236, 231, 220, 0.14);
+    --nav-icon: hsl(40, 71%, 73%); /* aurora yellow #ebcb8b */
+    --gutter-ink: hsl(222, 17%, 17%);
+    --accent: hsl(179, 35%, 30%); /* frost teal #8fbcbb darkened — AA on bg */
+    --danger: hsl(354, 45%, 44%);
+    --scrim: rgba(46, 52, 64, 0.35);
+    --hover-shift: hsl(220, 16%, 10%);
+    --shadow-rest: 0 1px 1px rgba(76, 86, 106, 0.2);
+    --shadow-lift: 0 4px 8px rgba(76, 86, 106, 0.2);
+
+    --type-deep: hsl(213, 42%, 85%);
+    --type-deep-ink: hsl(213, 50%, 30%);
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: hsl(92, 32%, 82%);
+    --type-break-ink: hsl(92, 45%, 24%);
+    --type-appointment: hsl(40, 62%, 83%);
+    --type-appointment-ink: hsl(40, 75%, 27%);
+  }
+  /* ---------------------- end PROTOTYPE(nord-light) ------------------ */
+
   /* Block-type fill, resolved once from whichever palette is active. Any
 	   element tagged data-type picks up the pair, so the five surfaces that
 	   paint a block type (block item, countdown pill, create + guide
