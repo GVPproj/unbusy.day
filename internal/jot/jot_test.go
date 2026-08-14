@@ -108,7 +108,7 @@ func TestSet_CASMissMergesBothSidesEdits(t *testing.T) {
 	svc := jot.NewService(db, nil)
 	owner := newOwner(t, db)
 
-	set(t, svc, owner, "## Monday\n- call Mom\n\n## Tuesday\n- dentist\n", 0) // v1, both devices load this
+	set(t, svc, owner, "## Monday\n- call Mom\n\n## Tuesday\n- dentist\n", 0)             // v1, both devices load this
 	set(t, svc, owner, "## Monday\n- call Mom\n- buy milk\n\n## Tuesday\n- dentist\n", 1) // phone edits Monday → v2
 
 	// The laptop, still on v1, edits Tuesday and flushes.
@@ -136,8 +136,8 @@ func TestSet_MissOlderThanTheShadowStillAppliesTheEdit(t *testing.T) {
 	svc := jot.NewService(db, nil)
 	owner := newOwner(t, db)
 
-	set(t, svc, owner, "alpha\nbeta\ngamma\n", 0)          // v1, stale tab loads this
-	set(t, svc, owner, "alpha one\nbeta\ngamma\n", 1)      // v2
+	set(t, svc, owner, "alpha\nbeta\ngamma\n", 0)            // v1, stale tab loads this
+	set(t, svc, owner, "alpha one\nbeta\ngamma\n", 1)        // v2
 	set(t, svc, owner, "alpha one\nbeta\ngamma\ndelta\n", 2) // v3; shadow now holds v2
 
 	// The stale tab (base v1, two revisions behind) edits the beta line.
