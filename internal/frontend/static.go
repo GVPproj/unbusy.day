@@ -61,10 +61,6 @@ func ServiceWorkerHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if os.Getenv("TEMPL_DEV_MODE") != "" {
-			http.ServeFile(w, r, "internal/frontend/static/sw.js")
-			return
-		}
 		data, err := staticFS.ReadFile("static/sw.js")
 		if err != nil {
 			http.Error(w, "service worker unavailable", http.StatusInternalServerError)
