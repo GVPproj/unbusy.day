@@ -16,7 +16,7 @@ import {
 	highlightSpecialChars,
 	Decoration,
 	ViewPlugin,
-} from "https://esm.sh/@codemirror/view@6.43.8";
+} from "https://esm.sh/@codemirror/view@6.43.9";
 import {
 	EditorState,
 	RangeSetBuilder,
