@@ -10,7 +10,7 @@ const (
 	// families stay tellable apart at swatch size.
 	swatchSolarized = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(192, 100%, 10%) 50%)"
 	swatchNord      = "linear-gradient(135deg, hsl(220, 23%, 97%) 50%, hsl(216, 26%, 26%) 50%)"
-	swatchRosePine  = "linear-gradient(135deg, hsl(32, 57%, 95%) 50%, hsl(248, 25%, 18%) 50%)"
+	swatchCatppuccin = "linear-gradient(135deg, hsl(220, 23%, 95%) 50%, hsl(237, 16%, 23%) 50%)"
 
 	// The mode rows preview the axis itself, not a family: a neutral light and
 	// dark disc.
@@ -89,7 +89,7 @@ templ ThemeModal() {
 		@feelingOption("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
 		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		<h3>Colours</h3>
-		@themeOption("rose-pine", "Rosé Pine", swatchRosePine)
+		@themeOption("catppuccin", "Catppuccin", swatchCatppuccin)
 		@themeOption("solarized", "Solarized", swatchSolarized)
 		@themeOption("nord", "Nord", swatchNord)
 		<h3>Light / Dark</h3>

@@ -84,7 +84,7 @@ func TestThemePickerOffersSolarizedFamily(t *testing.T) {
 func TestThemePickerOffersFamiliesOnly(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
-	for _, family := range []string{"solarized", "nord", "rose-pine"} {
+	for _, family := range []string{"solarized", "nord", "catppuccin"} {
 		for _, want := range []string{
 			`data-on:click="$_colorscheme = &#39;` + family + `&#39;"`,
 			`data-class:active="$_colorscheme === &#39;` + family + `&#39;"`,
@@ -94,15 +94,15 @@ func TestThemePickerOffersFamiliesOnly(t *testing.T) {
 			}
 		}
 	}
-	for _, gone := range []string{"catppuccin-mocha", "catppuccin", "rose-pine-dawn"} {
+	for _, gone := range []string{"catppuccin-mocha", "rose-pine-dawn", "rose-pine"} {
 		if strings.Contains(body, `$_colorscheme = &#39;`+gone+`&#39;`) {
 			t.Errorf("page still writes legacy %q colorscheme token", gone)
 		}
 	}
 	for _, want := range []string{
-		`"catppuccin-mocha": ["nord", "dark"]`,
-		`"catppuccin": ["nord", null]`,
-		`"rose-pine-dawn": ["rose-pine", "light"]`,
+		`"catppuccin-mocha": ["catppuccin", "dark"]`,
+		`"rose-pine-dawn": ["catppuccin", "light"]`,
+		`"rose-pine": ["catppuccin", null]`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("pre-paint script missing legacy migration %q", want)

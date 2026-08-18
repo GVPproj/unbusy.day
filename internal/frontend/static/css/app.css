@@ -353,88 +353,89 @@
     --type-appointment-ink: hsl(29, 62%, 76%);
   }
 
-  /* Rosé Pine Dawn — the light variant of the rose-pine family. */
-  :root[data-colorscheme="rose-pine"] {
-    --bg: hsl(32, 57%, 95%); /* base #faf4ed */
-    --ink: hsl(
-      248,
-      19%,
+  /* Catppuccin Latte (light variant of the catppuccin family). Nav chrome is
+	   Latte Text darkened one step: Latte ships no dark neutral, and the rail
+	   is a dark band in every family. */
+  :root[data-colorscheme="catppuccin"] {
+    --bg: hsl(220, 23%, 95%); /* Base #eff1f5 */
+    --ink: hsl(234, 16%, 35%); /* Text #4c4f69 — 7.1:1 on bg */
+    --ink-muted: hsl(
+      233,
+      13%,
+      41%
+    ); /* Subtext1 #5c5f77 — 5.5:1 on bg, 5.1:1 on column (WCAG AA) */
+    --ink-error: hsl(347, 87%, 44%); /* Red #d20f39 — 4.8:1 on bg */
+    --surface: hsl(220, 23%, 95%);
+    --column-bg: hsl(220, 22%, 92%); /* Mantle #e6e9ef */
+    --rail-border: hsl(225, 14%, 77%); /* Surface1 #bcc0cc */
+    --nav-bg: hsl(232, 16%, 28%);
+    --nav-ink: hsl(220, 23%, 95%);
+    --nav-hover: rgba(239, 241, 245, 0.16);
+    --nav-icon: hsl(35, 77%, 49%); /* Yellow #df8e1d — 4.0:1 on nav-bg */
+    --gutter-ink: hsl(232, 16%, 28%); /* nav-bg: 8.7:1 on column-bg */
+    --accent: hsl(219, 84%, 45%); /* Blue #1e66f5 darkened — 5.5:1 on bg */
+    --danger: hsl(
+      347,
+      87%,
       44%
-    ); /* text #575279 lightened — 5.7:1 on bg, 5.3:1 on column */
-    --ink-muted: hsl(248, 12%, 45%); /* subtle #797593 darkened — 5.1:1 on bg */
-    --ink-error: hsl(343, 45%, 45%); /* love darkened */
-    --surface: hsl(32, 57%, 95%);
-    --column-bg: hsl(27, 37%, 92%); /* overlay #f2e9e1 */
-    --rail-border: hsl(25, 28%, 82%);
-    --nav-bg: hsl(248, 25%, 28%);
-    --nav-ink: hsl(27, 37%, 92%);
-    --nav-hover: rgba(242, 233, 225, 0.16);
-    --nav-icon: hsl(35, 81%, 46%); /* gold #ea9d34 darkened */
-    --gutter-ink: hsl(248, 25%, 28%);
-    --accent: hsl(197, 53%, 34%); /* pine #286983 — 5.4:1 on bg */
-    --danger: hsl(343, 40%, 48%); /* love #b4637a */
-    --scrim: rgba(87, 82, 121, 0.3);
-    --hover-shift: hsl(248, 25%, 15%);
-    --shadow-rest: 0 1px 1px rgba(87, 82, 121, 0.2);
-    --shadow-lift: 0 4px 8px rgba(87, 82, 121, 0.2);
+    ); /* canonical Catppuccin Latte Red #d20f39 — destructive actions */
+    --scrim: rgba(76, 79, 105, 0.3);
+    --hover-shift: hsl(234, 16%, 15%);
+    --shadow-rest: 0 1px 1px rgba(76, 79, 105, 0.2);
+    --shadow-lift: 0 4px 8px rgba(76, 79, 105, 0.2);
 
-    /* Light scheme: deep/break/appointment tints with darker same-hue ink,
-		   each ≥4.5:1; shallow keeps the surface/ink default. */
-    --type-deep: hsl(197, 45%, 84%);
-    --type-deep-ink: hsl(197, 55%, 30%); /* pine */
+    /* Same hue trio as Mocha below (blue / teal / maroon) so switching
+	   Light↔Dark never recolours a block type; tints with darker same-hue
+	   ink, each ≥5:1. Shallow keeps the surface/ink default. */
+    --type-deep: hsl(220, 89%, 89%);
+    --type-deep-ink: hsl(219, 80%, 33%);
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(268, 42%, 87%);
-    --type-break-ink: hsl(
-      268,
-      35%,
-      40%
-    ); /* iris #907aa9 — distinct from pine deep */
-    --type-appointment: hsl(35, 80%, 82%);
-    --type-appointment-ink: hsl(35, 80%, 29%); /* gold — 4.7:1 on tint */
+    --type-break: hsl(183, 45%, 85%);
+    --type-break-ink: hsl(183, 74%, 24%);
+    --type-appointment: hsl(355, 60%, 89%);
+    --type-appointment-ink: hsl(355, 70%, 32%);
   }
 
-  /* Rosé Pine (main) — the dark variant of the rose-pine family. Base is the
-	   column, Surface the page, Overlay the blocks; nav darkens Base a step
-	   because Rosé Pine ships no shade below it. */
-  :root[data-colorscheme="rose-pine"][data-colormode="dark"] {
-    --bg: hsl(247, 23%, 15%); /* Surface #1f1d2e */
-    --ink: hsl(245, 50%, 91%); /* Text #e0def4 — 12.5:1 on bg */
+  /* Catppuccin Mocha — the dark variant of the catppuccin family. */
+  :root[data-colorscheme="catppuccin"][data-colormode="dark"] {
+    --bg: hsl(240, 21%, 15%);
+    --ink: hsl(227, 63%, 92%);
     --ink-muted: hsl(
-      248,
-      15%,
-      61%
-    ); /* Subtle #908caa — 5.1:1 on bg, 4.7:1 on surface (WCAG AA) */
-    --ink-error: hsl(343, 76%, 68%); /* Love #eb6f92 — 5.7:1 on bg */
-    --surface: hsl(248, 25%, 18%); /* Overlay #26233a */
-    --column-bg: hsl(249, 22%, 12%); /* Base #191724 */
-    --rail-border: hsl(249, 15%, 28%); /* Highlight Med #403d52 */
-    --nav-bg: hsl(251, 22%, 10%);
-    --nav-ink: hsl(245, 50%, 91%);
-    --nav-hover: rgba(224, 222, 244, 0.12);
-    --nav-icon: hsl(35, 88%, 72%); /* Gold #f6c177 — 11.1:1 on nav-bg */
+      228,
+      24%,
+      72%
+    ); /* Catppuccin Subtext0 #a6adc8 — 5.7:1 on surface (WCAG AA) */
+    --ink-error: hsl(343, 81%, 75%);
+    --surface: hsl(237, 16%, 23%);
+    --column-bg: hsl(240, 21%, 12%);
+    --rail-border: hsl(235, 13%, 31%);
+    --nav-bg: hsl(240, 23%, 9%);
+    --nav-ink: hsl(226, 64%, 88%);
+    --nav-hover: rgba(205, 214, 244, 0.12);
+    --nav-icon: hsl(23, 92%, 75%);
     --gutter-ink: var(--nav-icon);
-    --accent: hsl(189, 43%, 73%); /* Foam #9ccfd8 — 9.7:1 on bg */
+    --accent: hsl(267, 84%, 81%);
     --danger: hsl(
       343,
-      76%,
-      68%
-    ); /* canonical Rosé Pine Love #eb6f92 — destructive actions */
-    --scrim: rgba(16, 14, 26, 0.6);
-    --hover-shift: hsl(245, 50%, 91%);
-    --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.5);
-    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5);
+      81%,
+      75%
+    ); /* canonical Catppuccin Mocha Red #f38ba8 — destructive actions */
+    --scrim: rgba(17, 17, 27, 0.55);
+    --hover-shift: hsl(227, 63%, 95%);
+    --shadow-rest: 0 1px 1px rgba(17, 17, 27, 0.5);
+    --shadow-lift: 0 4px 8px rgba(17, 17, 27, 0.5);
 
-    /* Same hue trio as Dawn above (pine / iris / gold), inverted: darkened
-		   fills under the bright canonical ink, each ≥5.4:1. */
-    --type-deep: hsl(197, 45%, 25%);
-    --type-deep-ink: hsl(189, 43%, 73%); /* foam */
+    /* Catppuccin Mocha: deep/break darkened-hue fills with bright pastel
+	   same-hue ink; shallow keeps the pre-feature block look (surface/ink). */
+    --type-deep: hsl(217, 50%, 30%);
+    --type-deep-ink: hsl(217, 90%, 82%);
     --type-shallow: var(--surface);
     --type-shallow-ink: var(--ink);
-    --type-break: hsl(268, 25%, 25%);
-    --type-break-ink: hsl(267, 57%, 78%); /* iris #c4a7e7 */
-    --type-appointment: hsl(35, 45%, 20%);
-    --type-appointment-ink: hsl(35, 88%, 72%); /* gold #f6c177 */
+    --type-break: hsl(189, 45%, 24%);
+    --type-break-ink: hsl(189, 71%, 73%);
+    --type-appointment: hsl(350, 40%, 26%);
+    --type-appointment-ink: hsl(350, 65%, 77%);
   }
 
   /* Block-type fill, resolved once from whichever palette is active. Any
