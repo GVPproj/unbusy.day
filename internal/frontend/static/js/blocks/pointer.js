@@ -218,8 +218,18 @@ function startDrag(e, el) {
 		raf: 0,
 		moved: false,
 		downTarget: e.target,
+		// A press on the label may be a tap-to-rename (the label reads cursor:
+		// text), so the lift is withheld until the gesture passes TAP_SLOP.
+		lifted: false,
 	};
-	el.classList.add("dragging");
+	if (!e.target.closest(".block-label")) lift(drag);
+}
+
+// Apply the lifted state (scale/dim, z-index) once — see .dragging in app.css.
+function lift(d) {
+	if (d.lifted) return;
+	d.lifted = true;
+	d.el.classList.add("dragging");
 }
 
 // Split out of pointermove so the auto-scroll loop can re-apply the transform
@@ -228,7 +238,10 @@ function applyDrag() {
 	const d = drag;
 	const dx = d.lastX - d.startX;
 	const dy = d.lastY - d.startY;
-	if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) d.moved = true;
+	if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) {
+		d.moved = true;
+		lift(d);
+	}
 	const y = Math.max(d.minY, Math.min(d.maxY, dy));
 	// X is locked to the column: lateral pull is rubber-band resisted and tilts
 	// the block, so the drag feels tethered to the list. Amplitude stays small
