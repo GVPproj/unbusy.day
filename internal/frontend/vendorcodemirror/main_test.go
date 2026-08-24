@@ -65,6 +65,64 @@ export const lazy = import('/dynamic@~2.0.0/nested');
 	}
 }
 
+func TestGenerateSharesPinnedPackagesWithVimPeers(t *testing.T) {
+	fixture := newRegistryFixture(t)
+	state := "/@codemirror/state@6.7.6/es2022/state.mjs"
+	view := "/@codemirror/view@6.43.15/es2022/view.mjs"
+	vim := "/@replit/codemirror-vim@6.4.0/es2022/codemirror-vim.mjs"
+	fixture.modules[state] = `export class EditorState {}`
+	fixture.modules[view] = `import {EditorState} from "/@codemirror/state@^6.0.0?target=es2022"; export {EditorState};`
+	fixture.modules[vim] = `import {EditorState} from "/@codemirror/state@6.x.x?target=es2022";
+import {EditorState as ViewState} from "/@codemirror/view@6.x.x?target=es2022"; export {EditorState, ViewState};`
+	fixture.resolutions["/@codemirror/state@6.7.6"] = state
+	fixture.resolutions["/@codemirror/view@6.43.15"] = view
+	fixture.licenses["@codemirror/state@6.7.6"] = "STATE LICENSE"
+	fixture.licenses["@codemirror/view@6.43.15"] = "VIEW LICENSE"
+	fixture.licenses["@replit/codemirror-vim@6.4.0"] = "VIM LICENSE"
+	rootModules := []string{state, view, vim}
+	destination := filepath.Join(t.TempDir(), "vendor")
+	if err := generate(fixture.config(destination, rootModules, true)); err != nil {
+		t.Fatal(err)
+	}
+	locked := readManifest(t, destination)
+	if len(locked.Modules) != 3 {
+		t.Fatalf("want one module per package, got %d", len(locked.Modules))
+	}
+	vimText := readGenerated(t, destination, "modules/@replit__codemirror-vim__codemirror-vim.mjs")
+	viewText := readGenerated(t, destination, "modules/@codemirror__view__view.mjs")
+	if !strings.Contains(vimText, `from "./@codemirror__state__state.mjs"`) ||
+		!strings.Contains(viewText, `from "./@codemirror__state__state.mjs"`) ||
+		!strings.Contains(vimText, `from "./@codemirror__view__view.mjs"`) {
+		t.Fatal("Vim and the editor do not share local state/view identities")
+	}
+	before := snapshotDir(t, destination)
+	if err := generate(fixture.config(destination, rootModules, false)); err != nil {
+		t.Fatal(err)
+	}
+	if after := snapshotDir(t, destination); after != before {
+		t.Fatal("locked reproduction changed the shared graph")
+	}
+}
+
+func TestResolveExactModulePreservesSharedPackageVersion(t *testing.T) {
+	for _, selected := range []string{"", "6.7.6", "6.0.0"} {
+		t.Run("selected="+selected, func(t *testing.T) {
+			versions := map[string]string{"@codemirror/state": selected}
+			exact := "/@codemirror/state@6.7.6/es2022/state.mjs"
+			got, err := resolve(generationConfig{}, exact+"?target=es2022", versions)
+			if selected == "6.0.0" {
+				if err == nil || !strings.Contains(err.Error(), "6.0.0") || !strings.Contains(err.Error(), "6.7.6") {
+					t.Fatalf("want conflicting identity error, got %v", err)
+				}
+				return
+			}
+			if err != nil || got != exact || versions["@codemirror/state"] != "6.7.6" {
+				t.Fatalf("exact resolution: got %q, versions %v, error %v", got, versions, err)
+			}
+		})
+	}
+}
+
 func TestGenerateContentLockRejectsSourceChangeAndRefreshAcceptsIt(t *testing.T) {
 	fixture := newRegistryFixture(t)
 	modulePath := "/root@1.0.0/es2022/root.mjs"

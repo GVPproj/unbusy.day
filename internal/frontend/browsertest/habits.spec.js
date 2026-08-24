@@ -84,14 +84,17 @@ async function mobilePanel(page, name) {
 test("desktop defaults to Jotpad beside the plan; tabs have roving keyboard selection", async ({ page }) => {
 	await expect(page.locator("#block-list")).toBeVisible();
 	await expect(page.locator(".companion-head #companion-status")).toBeVisible();
-	await expect(page.locator("#jot-panel h2, #jot-panel output")).toHaveCount(0);
+	await expect(page.locator("#jot-panel h2")).toHaveCount(0);
+	await expect(page.locator("#jot-vim-mode")).toBeHidden();
 	const header = await page.locator(".companion-head").boundingBox();
 	const noteTabs = page.getByRole("tablist", { name: "Planning horizon", exact: true });
 	await expect(noteTabs).toBeVisible();
 	const noteHeader = await noteTabs.boundingBox();
 	expect(noteHeader.y - (header.y + header.height)).toBeLessThan(20);
+	const tools = await page.locator(".jot-tools").boundingBox();
+	expect(tools.y - (noteHeader.y + noteHeader.height)).toBeLessThan(20);
 	const jotEditor = await page.locator("#jot-daily-panel .cm-editor").boundingBox();
-	expect(jotEditor.y - (noteHeader.y + noteHeader.height)).toBeLessThan(20);
+	expect(jotEditor.y - (tools.y + tools.height)).toBeLessThan(20);
 	await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
 	await expect(jotTab(page)).toHaveAttribute("tabindex", "0");
 	await expect(habitsTab(page)).toHaveAttribute("aria-selected", "false");
@@ -924,6 +927,8 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		await expect(page.locator("#jot-panel")).toBeFocused();
 		await page.keyboard.press("Tab");
 		await expect(page.getByRole("tab", { name: "Daily", exact: true })).toBeFocused();
+		await page.keyboard.press("Tab");
+		await expect(page.getByRole("checkbox", { name: "Vim", exact: true })).toBeFocused();
 		await page.keyboard.press("Tab");
 		await expect(content).toBeFocused();
 		// CodeMirror restores its virtualized viewport on the next measurement frame.

@@ -5,6 +5,14 @@ const root = document.querySelector(".jotpad");
 const tabs = [...root.querySelectorAll('[role="tab"]')];
 const remotes = new Map();
 const statuses = new Map();
+const vimModes = new Map();
+const vimToggle = document.getElementById("jot-vim");
+const vimMode = document.getElementById("jot-vim-mode");
+const showVimMode = () => {
+  const mode = vimModes.get(selected);
+  vimMode.hidden = !mode;
+  if (mode) vimMode.textContent = mode;
+};
 const storageKey = "jot-note";
 let selected = "daily";
 try {
@@ -26,6 +34,7 @@ const select = (note) => {
     }
   }
   setSaveState(document, "jot", statuses.get(note) ?? "saved");
+  showVimMode();
   try { localStorage.setItem(storageKey, note); } catch { /* Selection still works. */ }
 };
 
@@ -36,7 +45,11 @@ for (const [index, tab] of tabs.entries()) {
   const mount = panel.querySelector(".jot-mount");
   const text = JSON.parse(document.getElementById(`${mount.id}-text`).textContent);
   initJotpadCM(mount, text, `/jot?note=${note}`, Number(mount.dataset.maxlen), {
-    note, label,
+    note, label, vimToggle,
+    onVimMode: (mode) => {
+      vimModes.set(note, mode);
+      if (note === selected) showVimMode();
+    },
     version: Number(mount.dataset.jotVersion),
     onReady: (remote) => remotes.set(note, remote),
     onState: (state) => {

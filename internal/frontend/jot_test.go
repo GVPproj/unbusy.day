@@ -266,6 +266,25 @@ func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	}
 }
 
+func TestPageRendersTheOptionalVimControl(t *testing.T) {
+	body := renderPageWithJot(t, "")
+	for _, want := range []string{
+		`<input id="jot-vim" type="checkbox"`,
+		`<label for="jot-vim"`,
+		`<output id="jot-vim-mode" class="jot-vim-mode" aria-live="polite" hidden>Normal mode</output>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+	if strings.Count(body, `id="jot-vim"`) != 1 {
+		t.Error("all notes must share one Vim control")
+	}
+	if tag := openTag(t, body, `id="jot-vim"`); strings.Contains(tag, "checked") {
+		t.Errorf("Vim must default off; got tag: %s", tag)
+	}
+}
+
 // Remote note state arrives as note-scoped signal patches on /events; the shell
 // hands them to the sync driver via data-on-signal-patch. Never element patches.
 func TestPageRendersTheJotRemoteListener(t *testing.T) {

@@ -31,8 +31,9 @@ manifest does not bootstrap implicitly; use `-refresh` for first generation.
 
 ## Upgrade
 
-1. Change the six direct versions in `roots` at the top of
-   `internal/frontend/vendorcodemirror/main.go`.
+1. Change the direct versions in `roots` at the top of
+   `internal/frontend/vendorcodemirror/main.go`. Roots include explicit Lezer
+   transitive pins so adding Vim does not upgrade the existing parser graph.
 2. Run `go run ./internal/frontend/vendorcodemirror -refresh` to resolve a new
    transitive graph and intentionally write new content hashes. Stable local
    filenames keep `js/jot/cm.js` unchanged.
@@ -42,6 +43,10 @@ manifest does not bootstrap implicitly; use `-refresh` for first generation.
 `-refresh` is the intentional update path: it accepts new source, license, and
 transformation bytes as well as resolving transitive versions again. The
 default command is verification, so a normal reproduction cannot silently
-adopt a compatible release or changed same-version artifact. `task
+adopt a compatible release or changed same-version artifact. Vim's peer ranges
+resolve to the same local CodeMirror modules as the editor; no runtime CDN
+resolution is involved. `go test ./internal/frontend/vendorcodemirror` checks
+the local graph, shared package identities, and Vim extension compatibility
+(the compatibility check uses Node when available). `task
 check:versions` reads the generated manifest because it reports the complete
 graph actually deployed, not only the direct upgrade inputs.

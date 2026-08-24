@@ -6,7 +6,10 @@
     "https://esm.sh/@codemirror/language@6.13.1/es2022/language.mjs",
     "https://esm.sh/@codemirror/state@6.7.6/es2022/state.mjs",
     "https://esm.sh/@codemirror/view@6.43.15/es2022/view.mjs",
-    "https://esm.sh/@lezer/highlight@1.2.5/es2022/highlight.mjs"
+    "https://esm.sh/@lezer/common@1.5.3/es2022/common.mjs",
+    "https://esm.sh/@lezer/highlight@1.2.5/es2022/highlight.mjs",
+    "https://esm.sh/@lezer/lr@1.4.11/es2022/lr.mjs",
+    "https://esm.sh/@replit/codemirror-vim@6.4.0/es2022/codemirror-vim.mjs"
   ],
   "modules": [
     {
@@ -64,6 +67,14 @@
       "sourceURL": "https://esm.sh/@codemirror/language@6.13.1/es2022/language.mjs",
       "sourceSHA256": "87ece00cb6f489cb910b94ab0dbd11824e5b5763da9f77043d1b73f45b14d73e",
       "sha256": "7d8948bbced86a09ee2efb81c14680903dfe46038c9f8cbf6d507e2fcbf41c20"
+    },
+    {
+      "path": "modules/@codemirror__search__search.mjs",
+      "package": "@codemirror/search",
+      "version": "6.7.2",
+      "sourceURL": "https://esm.sh/@codemirror/search@6.7.2/es2022/search.mjs",
+      "sourceSHA256": "15e129dba4b518cdf273015adb498d144359fe8ab9860d042adf91f0ada03222",
+      "sha256": "5660c5229cdaa5a424d8718e6cfe32ee7f7d45a4c2679ca4d1787215be73bf42"
     },
     {
       "path": "modules/@codemirror__state__state.mjs",
@@ -152,6 +163,22 @@
       "sourceURL": "https://esm.sh/@marijn/find-cluster-break@1.0.4/es2022/find-cluster-break.mjs",
       "sourceSHA256": "ee018b336697714f75221a980a3b9951f734f7b2748b0210099badaf4d011795",
       "sha256": "28840f26baa9353fe802ca89c4a174bc16e51930ea8f7126fcdc567b4a2e2891"
+    },
+    {
+      "path": "modules/@replit__codemirror-vim-core__codemirror-vim-core.mjs",
+      "package": "@replit/codemirror-vim-core",
+      "version": "0.1.0",
+      "sourceURL": "https://esm.sh/@replit/codemirror-vim-core@0.1.0/es2022/codemirror-vim-core.mjs",
+      "sourceSHA256": "adcdcf7421450f7b3ab14d90e1b3d5fa5aab3c490ca175409d7c6a32c2df1980",
+      "sha256": "07c7dc3f887953ac96bff8131e9b5826eea2e7c7d081740bf59b9aecef6e9a78"
+    },
+    {
+      "path": "modules/@replit__codemirror-vim__codemirror-vim.mjs",
+      "package": "@replit/codemirror-vim",
+      "version": "6.4.0",
+      "sourceURL": "https://esm.sh/@replit/codemirror-vim@6.4.0/es2022/codemirror-vim.mjs",
+      "sourceSHA256": "bc36e94a2efdda4a15165567d5bd97b4d72c4cd1be71a9f8f967fb4dd6404565",
+      "sha256": "9a21eedbae35fad791a2c4cf824b28c7bbba07e5887fd5f19b18e439c41f5df1"
     },
     {
       "path": "modules/crelt__crelt.mjs",

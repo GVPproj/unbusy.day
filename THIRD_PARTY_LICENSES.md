@@ -19,10 +19,15 @@ artifact hashes are recorded in that directory's `manifest.json`.
 | `@lezer/common`, `css`, `highlight`, `html`, `javascript`, `lr` | Copyright (C) 2018 Marijn Haverbeke and others | MIT |
 | `@lezer/markdown` | Copyright (C) 2020 Marijn Haverbeke and others | MIT |
 | `@marijn/find-cluster-break` | Copyright (C) 2024 Marijn Haverbeke | MIT |
+| `@replit/codemirror-vim`, `@replit/codemirror-vim-core` | Copyright (C) 2018-2021 by Marijn Haverbeke <marijnh@gmail.com> and others | MIT |
 | `crelt` | Copyright (C) 2020 Marijn Haverbeke | MIT |
 | `style-mod` | Copyright (C) 2018 Marijn Haverbeke and others | MIT |
 | `w3c-keyname` | Copyright (C) 2016 Marijn Haverbeke and others | MIT |
 | esm.sh browser transforms | Copyright (c) 2020-2025 Je Xia | MIT |
+
+The MIT notice below also applies to `@replit/codemirror-vim@6.4.0` and its
+runtime dependency `@replit/codemirror-vim-core@0.1.0`.
+Upstream: <https://github.com/replit/codemirror-vim>.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

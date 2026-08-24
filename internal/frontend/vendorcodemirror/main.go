@@ -37,6 +37,10 @@ var roots = []string{
 	"/@codemirror/language@6.13.1/es2022/language.mjs",
 	"/@lezer/highlight@1.2.5/es2022/highlight.mjs",
 	"/@codemirror/lang-markdown@6.5.2/es2022/lang-markdown.mjs",
+	"/@replit/codemirror-vim@6.4.0/es2022/codemirror-vim.mjs",
+	// Keep the existing Lezer graph pinned when refreshing the Vim addition.
+	"/@lezer/common@1.5.3/es2022/common.mjs",
+	"/@lezer/lr@1.4.11/es2022/lr.mjs",
 }
 
 var (
@@ -254,15 +258,19 @@ func fetchGraph(config generationConfig, locked map[string]string, expected map[
 }
 
 func resolve(config generationConfig, spec string, locked map[string]string) (string, error) {
-	if strings.Contains(spec, "/es2022/") {
-		return strings.Split(spec, "?")[0], nil
-	}
-	requestPath := spec
 	reference, err := parsePackageReference(spec)
 	if err != nil {
 		return "", err
 	}
 	selectedVersion := locked[reference.packageName]
+	if strings.HasPrefix(reference.modulePath, "/es2022/") {
+		if selectedVersion != "" && selectedVersion != reference.version {
+			return "", fmt.Errorf("exact import %s conflicts with shared %s@%s", spec, reference.packageName, selectedVersion)
+		}
+		locked[reference.packageName] = reference.version
+		return strings.Split(spec, "?")[0], nil
+	}
+	requestPath := spec
 	if selectedVersion != "" {
 		requestPath = "/" + reference.packageName + "@" + selectedVersion + reference.modulePath + "?target=es2022"
 	}

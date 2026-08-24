@@ -14,6 +14,13 @@ templ Jotpad(pads map[string]jot.Pad) {
 			@jotNoteTab("weekly", "Weekly", false)
 			@jotNoteTab("quarterly", "Quarterly", false)
 		</div>
+		<div class="jot-tools">
+			<label for="jot-vim" class="jot-vim-toggle">
+				<input id="jot-vim" type="checkbox"/>
+				<span>Vim</span>
+			</label>
+			<output id="jot-vim-mode" class="jot-vim-mode" aria-live="polite" hidden>Normal mode</output>
+		</div>
 		@jotNote("daily", "jot-cm", pads["daily"], true)
 		@jotNote("weekly", "jot-cm-weekly", pads["weekly"], false)
 		@jotNote("quarterly", "jot-cm-quarterly", pads["quarterly"], false)

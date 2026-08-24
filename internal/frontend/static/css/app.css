@@ -3046,6 +3046,36 @@
       }
     }
 
+    .jot-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
+      flex-shrink: 0;
+      padding: 0.25rem 0.75rem;
+      border-inline: 1px solid var(--rail-border);
+      background: var(--bg);
+      font-size: var(--text-sm);
+    }
+
+    .jot-vim-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 1.5rem;
+      min-height: 1.5rem;
+      cursor: pointer;
+
+      input {
+        margin: 0;
+        accent-color: var(--accent);
+      }
+    }
+
+    .jot-vim-mode {
+      color: var(--ink-muted);
+    }
+
     .note-tabs [role="tab"]:first-child {
       padding-left: 0;
     }
@@ -3110,6 +3140,39 @@
 
     .cm-selectionBackground {
       background: color-mix(in srgb, var(--accent) 25%, transparent) !important;
+    }
+
+    /* Vim injects unlayered cursor/search/panel styles; these overrides
+       must beat its highest-precedence theme. */
+    .cm-fat-cursor {
+      background-color: var(--accent) !important;
+      color: var(--bg) !important;
+    }
+
+    .cm-editor:not(.cm-focused) .cm-fat-cursor {
+      background-color: transparent !important;
+      outline: 1px solid var(--accent) !important;
+    }
+
+    .cm-searchMatch {
+      background-color: color-mix(in srgb, var(--accent) 35%, transparent) !important;
+    }
+
+    .cm-vim-panel {
+      border-top: 1px solid var(--rail-border);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: var(--font-family) !important;
+
+      input {
+        color: var(--ink);
+        font-family: inherit;
+
+        &:focus-visible {
+          outline: 2px solid var(--accent) !important;
+          outline-offset: -2px;
+        }
+      }
     }
 
     /* Code is always monospace, whatever the feeling font: jot/cm.js

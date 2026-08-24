@@ -14,6 +14,7 @@ import {
 	ViewPlugin,
 } from "/static/vendor/codemirror/modules/@codemirror__view__view.mjs";
 import {
+	Compartment,
 	EditorState,
 	RangeSetBuilder,
 } from "/static/vendor/codemirror/modules/@codemirror__state__state.mjs";
@@ -32,6 +33,8 @@ import {
 	markdownLanguage,
 } from "/static/vendor/codemirror/modules/@codemirror__lang-markdown__lang-markdown.mjs";
 
+import { getCM, vim } from "/static/vendor/codemirror/modules/@replit__codemirror-vim__codemirror-vim.mjs";
+import { readVimPreference, writeVimPreference } from "./preference.js";
 import { createJotSync, minimalEdit, wireTeardown } from "./sync.js";
 
 // Newlines render as line breaks, letting the empty pad sketch a weekly outline.
@@ -137,6 +140,14 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	// Set while the sync driver rewrites the doc, so its own transaction isn't
 	// mistaken for typing and re-posted as a local edit.
 	let applying = false;
+	let storage;
+	try {
+		storage = window.localStorage;
+	} catch {
+		// Restricted storage leaves Vim off for this mount.
+	}
+	const vimCompartment = new Compartment();
+	const vimEnabled = readVimPreference(storage);
 	let panelReturn;
 	const finishReturn = () => { panelReturn = undefined; };
 	const nativeCaretReset = (view) => {
@@ -163,6 +174,8 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		state: EditorState.create({
 			doc: initialText,
 			extensions: [
+				// Modal bindings must precede Markdown and the ordinary keymaps.
+				vimCompartment.of(vimEnabled ? vim() : []),
 				// CM's injected base styles are UNLAYERED, so they beat anything
 				// in app.css's @layer components regardless of specificity; the
 				// feeling font must be set from CM's own theme seam.
@@ -213,6 +226,52 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 			],
 		}),
 	});
+
+	let vimAdapter;
+	let modeListener;
+	const modeNames = {
+		normal: "Normal mode",
+		insert: "Insert mode",
+		visual: "Visual mode",
+		replace: "Replace mode",
+	};
+	const detachModeListener = () => {
+		try {
+			if (vimAdapter && modeListener) vimAdapter.off("vim-mode-change", modeListener);
+		} catch {
+			// Mode reporting must not prevent extension teardown.
+		}
+		vimAdapter = undefined;
+		modeListener = undefined;
+	};
+	const showVimMode = () => {
+		try {
+			const adapter = getCM(view);
+			if (!adapter) {
+				opts.onVimMode?.("Vim mode");
+				return;
+			}
+			const listener = (event) => opts.onVimMode?.(modeNames[event?.mode] ?? "Vim mode");
+			adapter.on("vim-mode-change", listener);
+			vimAdapter = adapter;
+			modeListener = listener;
+			opts.onVimMode?.("Normal mode");
+		} catch {
+			opts.onVimMode?.("Vim mode");
+		}
+	};
+	if (opts.vimToggle) {
+		opts.vimToggle.checked = vimEnabled;
+		opts.vimToggle.addEventListener("change", () => {
+			const enabled = opts.vimToggle.checked;
+			detachModeListener();
+			view.dispatch({ effects: vimCompartment.reconfigure(enabled ? vim() : []) });
+			if (enabled) showVimMode();
+			else opts.onVimMode?.(null);
+			writeVimPreference(storage, enabled);
+		});
+	}
+	if (vimEnabled) showVimMode();
 
 	// Capture before CM's Android key deferral, which can bypass its event observers.
 	for (const type of ["keydown", "beforeinput", "compositionstart"]) {
