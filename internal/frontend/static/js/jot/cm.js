@@ -20,7 +20,7 @@ import {
 import {
 	EditorState,
 	RangeSetBuilder,
-} from "https://esm.sh/@codemirror/state@6.7.1";
+} from "https://esm.sh/@codemirror/state@6.7.2";
 import {
 	history,
 	defaultKeymap,
