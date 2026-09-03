@@ -43,6 +43,63 @@ templ SmokePage() {
 	</html>
 }
 
+// CodeMirrorSmokePage checks the Jotpad's local Markdown module graph in a
+// real browser. The CI driver reads data-smoke after initialization.
+templ CodeMirrorSmokePage() {
+	<!DOCTYPE html>
+	<html lang="en" data-smoke="running">
+		<head>
+			<meta charset="utf-8"/>
+			<title>CodeMirror smoke</title>
+		</head>
+		<body>
+			<div id="jot-cm"></div>
+			<output id="smoke-result">running</output>
+			<script type="module">
+				import { initJotpadCM } from "/static/js/jot/cm.js"
+				const failures = []
+				const result = document.getElementById("smoke-result")
+				window.addEventListener("error", event => failures.push(event.message || "window error"))
+				window.addEventListener("unhandledrejection", event => failures.push(String(event.reason)))
+				const originalError = console.error
+				console.error = (...args) => {
+					failures.push(args.map(String).join(" "))
+					originalError(...args)
+				}
+				try {
+					const view = initJotpadCM(
+						document.getElementById("jot-cm"),
+						"# Heading\n\n**strong**\n\n- item",
+						"/_smoke/codemirror/save",
+						1000,
+					)
+					view.dispatch({selection: {anchor: view.state.doc.length}})
+					view.contentDOM.dispatchEvent(new KeyboardEvent("keydown", {
+						key: "Enter",
+						code: "Enter",
+						bubbles: true,
+						cancelable: true,
+					}))
+					await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+					await new Promise(resolve => setTimeout(resolve, 1200))
+					if (!document.querySelector(".cm-editor")) failures.push("editor did not mount")
+					if (!document.querySelector(".tok-heading")) failures.push("heading was not highlighted")
+					if (!document.querySelector(".tok-strong")) failures.push("strong text was not highlighted")
+					if (!view.state.doc.toString().endsWith("\n- ")) failures.push("list did not continue")
+					const external = performance.getEntriesByType("resource")
+						.map(entry => entry.name)
+						.filter(url => url.startsWith("https://esm.sh"))
+					if (external.length) failures.push("esm.sh requested: " + external.join(", "))
+				} catch (error) {
+					failures.push(error?.stack || String(error))
+				}
+				document.documentElement.dataset.smoke = failures.length ? "fail" : "pass"
+				result.textContent = failures.length ? failures.join(" | ") : "pass"
+			</script>
+		</body>
+	</html>
+}
+
 // SmokeFragment is the body of the element-patch frame /_smoke/events ships;
 // the #smoke-target id is the outer-morph anchor. Co-located with SmokePage so
 // the page-side anchor and the patch-side replacement evolve together.

@@ -70,3 +70,23 @@ func SmokeEchoHandler() http.Handler {
 		}
 	})
 }
+
+// CodeMirrorSmokeHandler exercises the Jotpad editor in a real browser. The
+// CI driver reads data-smoke after the module graph and Markdown parser load.
+func CodeMirrorSmokeHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		if err := CodeMirrorSmokePage().Render(r.Context(), w); err != nil {
+			http.Error(w, "render CodeMirror smoke page", http.StatusInternalServerError)
+		}
+	})
+}
+
+// CodeMirrorSmokeSaveHandler acknowledges the smoke page's list edit.
+func CodeMirrorSmokeSaveHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"version":1}`))
+	})
+}

@@ -52,9 +52,26 @@ jobs:
       - name: Test
         run: go test -race ./...
 
-      # Pure-logic JS units (the push cascade, ADR 0005) — runner's node, no deps.
+      - name: Set up Node for browser tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Pure-logic JS units use only the runner's Node standard library.
       - name: Test JS
-        run: node --test internal/frontend/jstest/*.test.js
+        run: node --test "internal/frontend/static/js/**/*.test.js"
+
+      - name: Install browser test harness
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+
+      - name: Build browser smoke binary
+        run: go build -o tmp/unbusy ./cmd/unbusy
+
+      - name: Test Jotpad in Chromium
+        run: scripts/browser-smoke.sh
 
   deploy:
     name: Deploy (Fly)

@@ -98,6 +98,43 @@ func TestSmokeHandlerRendersTargetAndSSEReference(t *testing.T) {
 	}
 }
 
+func TestCodeMirrorSmokeHandlerChecksMarkdownAndLocalModules(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/_smoke/codemirror", nil)
+	rec := httptest.NewRecorder()
+
+	CodeMirrorSmokeHandler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`from "/static/js/jot/cm.js"`,
+		`.cm-editor`,
+		`.tok-heading`,
+		`.tok-strong`,
+		`endsWith("\n- ")`,
+		`/_smoke/codemirror/save`,
+		`url.startsWith("https://esm.sh")`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+}
+
+func TestCodeMirrorSmokeSaveHandlerAcknowledgesTheEdit(t *testing.T) {
+	rec := httptest.NewRecorder()
+	CodeMirrorSmokeSaveHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/_smoke/codemirror/save", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	if got := rec.Body.String(); got != `{"version":1}` {
+		t.Errorf("body: want version ack, got %q", got)
+	}
+}
+
 // Asserts coarsely — the SDK owns the data-line layout — pinning only the SSE
 // content type, the 1.0+ event name "datastar-patch-elements" (renamed from
 // the RC-era "datastar-merge-fragments"), and the #smoke-target anchor.

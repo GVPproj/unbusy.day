@@ -2,6 +2,9 @@
 # ship local copies.
 .git
 tmp/
+node_modules/
+test-results/
+playwright-report/
 *_templ.go
 .env
 .env.*

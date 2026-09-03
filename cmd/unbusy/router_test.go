@@ -63,6 +63,8 @@ func TestRouterSessionGating(t *testing.T) {
 		{"GET", "/static/css/app.css", http.StatusOK},
 		{"GET", "/sw.js", http.StatusOK},
 		{"GET", "/_smoke", http.StatusOK},
+		{"GET", "/_smoke/codemirror", http.StatusOK},
+		{"POST", "/_smoke/codemirror/save", http.StatusOK},
 	}
 	for _, tc := range cases {
 		rec := httptest.NewRecorder()

@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "modules": [
+    {
+      "path": "modules/@codemirror__autocomplete__autocomplete.mjs",
+      "package": "@codemirror/autocomplete",
+      "version": "6.20.3",
+      "sourceURL": "https://esm.sh/@codemirror/autocomplete@6.20.3/es2022/autocomplete.mjs",
+      "sourceSHA256": "5fcf84e77915220af7e9cb427937bbbb862ba1862e564c08b52b38a2145b90a0",
+      "sha256": "70adf899faabeba5ec7ea13fee7ee557de267015d7aa348823fb69fea791891c"
+    },
+    {
+      "path": "modules/@codemirror__commands__commands.mjs",
+      "package": "@codemirror/commands",
+      "version": "6.10.4",
+      "sourceURL": "https://esm.sh/@codemirror/commands@6.10.4/es2022/commands.mjs",
+      "sourceSHA256": "8e7b933f0746bd84221f8b6ad0a505d13ee1dbe9252ad613dd85da9ee8b1c5f1",
+      "sha256": "b39610b9b2f46d7f6bbf17818a2a0b37e22fab5b74b8a294eee67618fd2a95c8"
+    },
+    {
+      "path": "modules/@codemirror__lang-css__lang-css.mjs",
+      "package": "@codemirror/lang-css",
+      "version": "6.3.1",
+      "sourceURL": "https://esm.sh/@codemirror/lang-css@6.3.1/es2022/lang-css.mjs",
+      "sourceSHA256": "b48ccb93f5fb40ca58bc13309ef414e2edc56e4730687858a394cb8c3d5eb908",
+      "sha256": "62627ae87334d5acb522a6ad1e29f6c3d3d9e5e3db35e778600618e8261b972e"
+    },
+    {
+      "path": "modules/@codemirror__lang-html__lang-html.mjs",
+      "package": "@codemirror/lang-html",
+      "version": "6.4.12",
+      "sourceURL": "https://esm.sh/@codemirror/lang-html@6.4.12/es2022/lang-html.mjs",
+      "sourceSHA256": "0e4c6fc2cefec94422cc2831fe2a1fb9e95bec1504abef7898e39acc657ed562",
+      "sha256": "3e6c8a509f2dd96531b0ae5b8f71d60fe13fc4bb3aee1b6e36d4cd675a6fa009"
+    },
+    {
+      "path": "modules/@codemirror__lang-javascript__lang-javascript.mjs",
+      "package": "@codemirror/lang-javascript",
+      "version": "6.2.5",
+      "sourceURL": "https://esm.sh/@codemirror/lang-javascript@6.2.5/es2022/lang-javascript.mjs",
+      "sourceSHA256": "c81acb4f12657c38dfe77603c53623323611542e9ced3fc36861887ecf5b1568",
+      "sha256": "58f00525d19d737380f882d5be0a5047837a3cefef3f22e629a7afb398b5c00a"
+    },
+    {
+      "path": "modules/@codemirror__lang-markdown__lang-markdown.mjs",
+      "package": "@codemirror/lang-markdown",
+      "version": "6.5.2",
+      "sourceURL": "https://esm.sh/@codemirror/lang-markdown@6.5.2/es2022/lang-markdown.mjs",
+      "sourceSHA256": "ccf0a87e5185cdf254a2dc313a9c6b29d73de54f4f7dd028b09159e36af836a4",
+      "sha256": "2d77e21f5c337a86266db21f7b94f040a24f4019c4fb26a62b791cd9382f1b03"
+    },
+    {
+      "path": "modules/@codemirror__language__language.mjs",
+      "package": "@codemirror/language",
+      "version": "6.12.4",
+      "sourceURL": "https://esm.sh/@codemirror/language@6.12.4/es2022/language.mjs",
+      "sourceSHA256": "0f35c0785708c011cd78bae7c16d2c47a94adc91268ad4802fe30a1092d7fef6",
+      "sha256": "f0323311489551da576147d39550f077d900767a583f3a6a2a5adc4b877919fc"
+    },
+    {
+      "path": "modules/@codemirror__state__state.mjs",
+      "package": "@codemirror/state",
+      "version": "6.7.2",
+      "sourceURL": "https://esm.sh/@codemirror/state@6.7.2/es2022/state.mjs",
+      "sourceSHA256": "906e9e3af16b6f1c98adec387599c57749c8d2d1f628308b37219c20f4e37c42",
+      "sha256": "d0473c33c21b37acab5af95ec647209898b972e126b32db92d10d1ce1d3517bd"
+    },
+    {
+      "path": "modules/@codemirror__view__view.mjs",
+      "package": "@codemirror/view",
+      "version": "6.43.11",
+      "sourceURL": "https://esm.sh/@codemirror/view@6.43.11/es2022/view.mjs",
+      "sourceSHA256": "30196fce3fca774fba1b4da83d104ea49a0c5916b7986270a03b719822d7d9e4",
+      "sha256": "b86d07a25f9e7e73551d72808fc64f745aa705b760db4f1222067f28117fabe0"
+    },
+    {
+      "path": "modules/@lezer__common__common.mjs",
+      "package": "@lezer/common",
+      "version": "1.5.2",
+      "sourceURL": "https://esm.sh/@lezer/common@1.5.2/es2022/common.mjs",
+      "sourceSHA256": "be5b2d95988df3a9a78fea54eb1a0f9ec931bb730e37e02b55ee98026d972b0c",
+      "sha256": "098176929adf699ad61d7ceb9a5d957c9c95236077416ff95a4f87598dfaa565"
+    },
+    {
+      "path": "modules/@lezer__css__css.mjs",
+      "package": "@lezer/css",
+      "version": "1.3.6",
+      "sourceURL": "https://esm.sh/@lezer/css@1.3.6/es2022/css.mjs",
+      "sourceSHA256": "6babf952b7b94d79f89757770fab24ebbd0e326efa695aa1dd0564fcbc33f712",
+      "sha256": "9a1b1fcd4cca499aa3c429890f4e503aafc1c4af59b1b2d734051911d931de85"
+    },
+    {
+      "path": "modules/@lezer__highlight__highlight.mjs",
+      "package": "@lezer/highlight",
+      "version": "1.2.3",
+      "sourceURL": "https://esm.sh/@lezer/highlight@1.2.3/es2022/highlight.mjs",
+      "sourceSHA256": "a8e07cfe2f791e3789f4f76c7e77e9cd96fbc0218a09860477b514b9f7d3f7ba",
+      "sha256": "abd603ff221e438471fcf3865307611e03217f5a7cd02b15a068a44dc59c848d"
+    },
+    {
+      "path": "modules/@lezer__html__html.mjs",
+      "package": "@lezer/html",
+      "version": "1.3.13",
+      "sourceURL": "https://esm.sh/@lezer/html@1.3.13/es2022/html.mjs",
+      "sourceSHA256": "61e832d671d196e0ba52c1cbb9a1dc2c98f8dd6e8dd71a6defc0be6afc49fe13",
+      "sha256": "060476a5c785b1563143ad2d2e6144634e2ddf8c542ef06c39fd7617c51a81bd"
+    },
+    {
+      "path": "modules/@lezer__javascript__javascript.mjs",
+      "package": "@lezer/javascript",
+      "version": "1.5.4",
+      "sourceURL": "https://esm.sh/@lezer/javascript@1.5.4/es2022/javascript.mjs",
+      "sourceSHA256": "cdba0c787af4862533284a0f018dafb32fb5d97d1ec630105d5eee2713e04166",
+      "sha256": "bd18d5740a1c05b5b01df1f714098d169aa0564f93206cc7ccf4d9744e27ce2a"
+    },
+    {
+      "path": "modules/@lezer__lr__lr.mjs",
+      "package": "@lezer/lr",
+      "version": "1.4.10",
+      "sourceURL": "https://esm.sh/@lezer/lr@1.4.10/es2022/lr.mjs",
+      "sourceSHA256": "3df155056bd36db39b215ad65cb6ee6922f4f0bd8cbc11bb26b2216f608e5eb6",
+      "sha256": "429e7f77b36f28396910ee20bafe2f27eddb53cb28236a225c19f5371bd41c4f"
+    },
+    {
+      "path": "modules/@lezer__markdown__markdown.mjs",
+      "package": "@lezer/markdown",
+      "version": "1.7.2",
+      "sourceURL": "https://esm.sh/@lezer/markdown@1.7.2/es2022/markdown.mjs",
+      "sourceSHA256": "412a4664d09e9a1b16cf7c895e124637d873646e858bbbc14dcd5b737a93ae8b",
+      "sha256": "d70398102885be0d1a67fdada1a7b6f8b4d5e6cc6faf77b7bf6b5c58baecf804"
+    },
+    {
+      "path": "modules/@marijn__find-cluster-break__find-cluster-break.mjs",
+      "package": "@marijn/find-cluster-break",
+      "version": "1.0.4",
+      "sourceURL": "https://esm.sh/@marijn/find-cluster-break@1.0.4/es2022/find-cluster-break.mjs",
+      "sourceSHA256": "ee018b336697714f75221a980a3b9951f734f7b2748b0210099badaf4d011795",
+      "sha256": "28840f26baa9353fe802ca89c4a174bc16e51930ea8f7126fcdc567b4a2e2891"
+    },
+    {
+      "path": "modules/crelt__crelt.mjs",
+      "package": "crelt",
+      "version": "1.0.7",
+      "sourceURL": "https://esm.sh/crelt@1.0.7/es2022/crelt.mjs",
+      "sourceSHA256": "4bd8ed290f875296a8c9320a0daecf97b4d1ae9a89c6e39d4eb05959767dd9a5",
+      "sha256": "de7b3e8226dd66f9b9bb188f0603800c2c834869fd3e832fb9e30f76aebe04de"
+    },
+    {
+      "path": "modules/style-mod__style-mod.mjs",
+      "package": "style-mod",
+      "version": "4.1.3",
+      "sourceURL": "https://esm.sh/style-mod@4.1.3/es2022/style-mod.mjs",
+      "sourceSHA256": "f9630ae52320e3869d6f1dead8f4befe5769dd44c96ef92657e1178007f17eef",
+      "sha256": "90a9734c8bde90af292387b007de556bb3332751e2e2760109a01d47b40c5538"
+    },
+    {
+      "path": "modules/w3c-keyname__w3c-keyname.mjs",
+      "package": "w3c-keyname",
+      "version": "2.2.8",
+      "sourceURL": "https://esm.sh/w3c-keyname@2.2.8/es2022/w3c-keyname.mjs",
+      "sourceSHA256": "99a47c27230eb51799d1b8dc53b17f50b46aae275423c9a19e5a1dbb0cce787a",
+      "sha256": "97ee12586f27bb2306222d788b9697e2f37c7e41a26aa2e67f450b5c795b06ff"
+    }
+  ]
+}

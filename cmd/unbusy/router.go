@@ -68,6 +68,8 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("GET /_smoke", frontend.SmokeHandler())
 	mux.Handle("GET /_smoke/events", frontend.SmokeEventsHandler())
 	mux.Handle("POST /_smoke/echo", frontend.SmokeEchoHandler())
+	mux.Handle("GET /_smoke/codemirror", frontend.CodeMirrorSmokeHandler())
+	mux.Handle("POST /_smoke/codemirror/save", frontend.CodeMirrorSmokeSaveHandler())
 
 	return mux
 }

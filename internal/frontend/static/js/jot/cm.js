@@ -1,12 +1,8 @@
 // The Jotpad editor: CodeMirror 6 with the markdown keymap, wired to the
 // shared jot-sync save/convergence driver.
 //
-// Plain pinned esm.sh imports — no ?deps: default builds are pre-cached
-// (?deps combos build on demand and routinely 408), and their shared deps
-// are range URLs that redirect to one resolved version, so the whole graph
-// dedupes to a single @codemirror/state + view instance (CM breaks silently
-// on duplicates). jsdelivr +esm is unusable here: its cached CM builds pin
-// *different* state versions per package.
+// The CodeMirror graph is vendored as one resolved module set. Markdown is
+// local; fenced code stays generic and does not load language packages.
 
 import {
 	EditorView,
@@ -16,26 +12,25 @@ import {
 	highlightSpecialChars,
 	Decoration,
 	ViewPlugin,
-} from "https://esm.sh/@codemirror/view@6.43.9";
+} from "/static/vendor/codemirror/modules/@codemirror__view__view.mjs";
 import {
 	EditorState,
 	RangeSetBuilder,
-} from "https://esm.sh/@codemirror/state@6.7.2";
+} from "/static/vendor/codemirror/modules/@codemirror__state__state.mjs";
 import {
 	history,
 	defaultKeymap,
 	historyKeymap,
-} from "https://esm.sh/@codemirror/commands@6.10.4";
+} from "/static/vendor/codemirror/modules/@codemirror__commands__commands.mjs";
 import {
 	syntaxHighlighting,
 	syntaxTree,
-} from "https://esm.sh/@codemirror/language@6.12.4";
-import { classHighlighter } from "https://esm.sh/@lezer/highlight@1.2.3";
+} from "/static/vendor/codemirror/modules/@codemirror__language__language.mjs";
+import { classHighlighter } from "/static/vendor/codemirror/modules/@lezer__highlight__highlight.mjs";
 import {
 	markdown,
 	markdownLanguage,
-} from "https://esm.sh/@codemirror/lang-markdown@6.5.2";
-import { languages } from "https://esm.sh/@codemirror/language-data@6.5.2";
+} from "/static/vendor/codemirror/modules/@codemirror__lang-markdown__lang-markdown.mjs";
 
 import { createJotSync, minimalEdit, wireTeardown } from "./sync.js";
 
@@ -165,12 +160,9 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				drawSelection(),
 				EditorView.lineWrapping,
 				placeholder(PLACEHOLDER),
-				// markdown() adds its own Enter/Backspace keymap (list
-				// continuation, marker cleanup) at high precedence; language-data
-				// gives fenced code blocks their inner language's highlighting.
-				// The default base is commonmark — markdownLanguage is the GFM
-				// dialect, needed for TaskMarker (and tables/strikethrough).
-				markdown({ base: markdownLanguage, codeLanguages: languages }),
+				// markdown() adds its own list-editing keymap. markdownLanguage is
+				// the GFM dialect needed for task markers, tables, and strikethrough.
+				markdown({ base: markdownLanguage }),
 				// classHighlighter emits plain .tok-* classes, styled from
 				// app.css with the theme tokens — no CSS-in-JS theme.
 				syntaxHighlighting(classHighlighter),
