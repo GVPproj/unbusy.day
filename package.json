@@ -1,0 +1,11 @@
+{
+  "name": "unbusy-browser-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:browser": "playwright test internal/frontend/browsertest"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.0"
+  }
+}
