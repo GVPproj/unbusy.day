@@ -1,5 +1,13 @@
 {
   "schema": 1,
+  "roots": [
+    "https://esm.sh/@codemirror/commands@6.10.4/es2022/commands.mjs",
+    "https://esm.sh/@codemirror/lang-markdown@6.5.2/es2022/lang-markdown.mjs",
+    "https://esm.sh/@codemirror/language@6.12.4/es2022/language.mjs",
+    "https://esm.sh/@codemirror/state@6.7.2/es2022/state.mjs",
+    "https://esm.sh/@codemirror/view@6.43.11/es2022/view.mjs",
+    "https://esm.sh/@lezer/highlight@1.2.3/es2022/highlight.mjs"
+  ],
   "modules": [
     {
       "path": "modules/@codemirror__autocomplete__autocomplete.mjs",
