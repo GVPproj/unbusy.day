@@ -15,6 +15,9 @@ node_modules/
 test-results/
 playwright-report/
 
+# --- CodeMirror vendor staging ---
+internal/frontend/static/vendor/.codemirror-*/
+
 # --- Logs ---
 *.log
 

@@ -5,6 +5,7 @@ tmp/
 node_modules/
 test-results/
 playwright-report/
+internal/frontend/static/vendor/.codemirror-*/
 *_templ.go
 .env
 .env.*
