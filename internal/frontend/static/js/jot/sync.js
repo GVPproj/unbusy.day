@@ -88,6 +88,7 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 	let retryTimer = 0;
 	let statusTimer = 0;
 	let inflight = false;
+	let inflightText = null;
 	let buffered = null;
 	let failures = 0;
 	let offline = false;
@@ -141,6 +142,7 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 			return;
 		}
 		inflight = true;
+		inflightText = text;
 		// keepalive: a save racing a navigation still completes.
 		fetch(postURL, {
 			method: "POST",
@@ -203,6 +205,9 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 		clearTimeout(debounce);
 		const text = getText();
 		if (text === synced.text) return;
+		// The keepalive fetch already protects this snapshot across teardown.
+		// Reposting it with the same base can merge the insertion twice.
+		if (inflight && text === inflightText) return;
 		const body = new Blob(
 			[JSON.stringify({ _jot: text, _jotVersion: synced.version })],
 			{ type: "application/json" },

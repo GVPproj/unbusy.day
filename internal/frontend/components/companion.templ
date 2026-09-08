@@ -1,0 +1,39 @@
+package components
+
+import (
+	"github.com/GVPproj/unbusy.day/internal/habit"
+	"github.com/GVPproj/unbusy.day/internal/jot"
+)
+
+// Only #habit-matrix and #habit-feedback are patch targets; tabs and editor persist.
+templ Companion(pad jot.Pad, habits []habit.Habit, month habit.Month) {
+	<aside class="column companion" aria-label="Notes & Habits">
+		<div role="tablist" aria-label="Notes & Habits">
+			<button type="button" id="jot-tab" role="tab" aria-controls="jot-panel" aria-selected="true" tabindex="0">Jotpad</button>
+			<button type="button" id="habits-tab" role="tab" aria-controls="habits-panel" aria-selected="false" tabindex="-1">Habits</button>
+		</div>
+		<div id="jot-panel" role="tabpanel" aria-labelledby="jot-tab" tabindex="0">
+			@Jotpad(pad)
+		</div>
+		<div id="habits-panel" role="tabpanel" aria-labelledby="habits-tab" tabindex="0" hidden>
+			@Habits(habits, month)
+			<form
+				id="habit-create"
+    class="habit-create"
+				data-indicator:_habitpending
+				data-on:submit="if (!$_habitpending && el.reportValidity()) @post('/habits', {filterSignals: {include: /^(habitname|habitstart|timezone)$/}})"
+				data-attr:aria-busy="$_habitpending"
+			>
+				<h2>Create a habit</h2>
+				<label for="habit-name">Name</label>
+				<input class="field" id="habit-name" name="name" type="text" required data-bind:habitname/>
+				<label for="habit-start">Start date</label>
+				<input class="field" id="habit-start" name="start" type="date" required data-bind:habitstart/>
+				<button class="btn" type="submit" data-attr:disabled="$_habitpending">Create habit</button>
+				@HabitFeedback("")
+			</form>
+		</div>
+	</aside>
+	// Runs before Datastar binds the inputs, so the local date seeds habitstart.
+	<script src="/static/js/companion.js"></script>
+}

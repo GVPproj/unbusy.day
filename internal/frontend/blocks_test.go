@@ -663,7 +663,7 @@ func TestPageRendersColumnInServiceOrder(t *testing.T) {
 
 	req := authedRequest(http.MethodGet, "/", "")
 	rec := httptest.NewRecorder()
-	PageHandler(svc, newFakeJot()).ServeHTTP(rec, req)
+	PageHandler(svc, newFakeJot(), newTestHabits(t)).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
@@ -710,7 +710,7 @@ func TestPageHostsHoursModalWithOpener(t *testing.T) {
 
 	req := authedRequest(http.MethodGet, "/", "")
 	rec := httptest.NewRecorder()
-	PageHandler(svc, newFakeJot()).ServeHTTP(rec, req)
+	PageHandler(svc, newFakeJot(), newTestHabits(t)).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)

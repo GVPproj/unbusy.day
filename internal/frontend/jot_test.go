@@ -176,7 +176,7 @@ func TestPageRendersTheStoredJotInTheEditorPayload(t *testing.T) {
 	jots.pads[testOwner] = jot.Pad{Text: "\n\n- milk & eggs <b>", Version: 4}
 	rec := httptest.NewRecorder()
 
-	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
+	PageHandler(&fakeService{blocks: threeBlocks()}, jots, newTestHabits(t)).
 		ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
 
 	if rec.Code != http.StatusOK {
@@ -195,8 +195,8 @@ func TestPageRendersTheStoredJotInTheEditorPayload(t *testing.T) {
 }
 
 // Two panels cannot both be <main>. The Day Plan keeps <main> and the page's
-// <h1>; the Jotpad is a named <aside> landmark with an <h2>.
-func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
+// <h1>; Notes & Habits is a named <aside> with the Jotpad inside it.
+func TestPageRendersTheCompanionAsANamedAsideLandmark(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
 	if n := strings.Count(body, "<main"); n != 1 {
@@ -204,7 +204,8 @@ func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<aside`,
-		`class="column jotpad"`,
+		`class="column companion"`,
+		`aria-label="Notes & Habits"`,
 		`id="jot-heading"`,
 		`aria-labelledby="jot-heading"`,
 		`<h2`,
@@ -275,7 +276,7 @@ func TestPageTogglesPanelsWithAClientOnlySignal(t *testing.T) {
 	}
 	// data-show sets display unconditionally, which would hide a panel above
 	// 52rem too; the panels must be switched by a class the media query owns.
-	for _, tag := range []string{openTag(t, body, `class="panels"`), openTag(t, body, `class="column jotpad"`)} {
+	for _, tag := range []string{openTag(t, body, `class="panels"`), openTag(t, body, `class="column companion"`)} {
 		if strings.Contains(tag, "data-show") {
 			t.Errorf("panel must not use data-show; got tag: %s", tag)
 		}
@@ -297,10 +298,10 @@ func openTag(t *testing.T, body, marker string) string {
 	return body[open : i+end+1]
 }
 
-func TestSideNavCarriesTheJotpadToggle(t *testing.T) {
+func TestSideNavCarriesPlanAndCompanionNavigation(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
-	for _, want := range []string{"View Jotpad", "View Plan", `$_jotopen = !$_jotopen`} {
+	for _, want := range []string{"Notes &amp; Habits", ">Plan</span>", `$_jotopen = true; $_navopen = false`, `$_jotopen = false; $_navopen = false`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
 		}
@@ -321,7 +322,7 @@ func renderPageWithJot(t *testing.T, text string) string {
 	jots := newFakeJot()
 	jots.pads[testOwner] = jot.Pad{Text: text}
 	rec := httptest.NewRecorder()
-	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
+	PageHandler(&fakeService{blocks: threeBlocks()}, jots, newTestHabits(t)).
 		ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
 	return rec.Body.String()
 }

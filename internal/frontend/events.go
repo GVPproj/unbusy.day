@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 	"github.com/GVPproj/unbusy.day/internal/web"
@@ -17,13 +18,20 @@ import (
 // closes. A var so tests can shrink it.
 var keepaliveInterval = 25 * time.Second
 
-// EventsHandler is the live SSE read path. The first frame is the full current
-// column plus the jot snapshot, so a (re)connecting client is made whole by one
-// render. Jot state rides as signal patches, never element patches — the client
-// applies them to the editor itself (re-rendering under the typist is the thing
-// to avoid).
-func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker) http.Handler {
+// EventsHandler reconnects with full plan, Jotpad and habit snapshots.
+// Jotpad state rides as signals; element patches never touch its editor.
+func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, habits HabitService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig habitSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals", http.StatusBadRequest)
+			return
+		}
+		month, err := habit.Calendar(sig.Timezone, time.Now())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		w.Header().Set("X-Accel-Buffering", "no")
 
 		rc := http.NewResponseController(w)
@@ -58,6 +66,10 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker) htt
 			return
 		}
 
+		if err := patchHabits(sse, r, habits, sig.Timezone); err != nil {
+			log.Printf("events habits: %v", err)
+			return
+		}
 		ticker := time.NewTicker(keepaliveInterval)
 		defer ticker.Stop()
 		for {
@@ -73,7 +85,24 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker) htt
 				if err := sse.MarshalAndPatchSignals(jotSignalPatch(jot.Pad{Text: je.Text, Version: je.Version})); err != nil {
 					return
 				}
+			case <-sub.Habits:
+				if err := patchHabits(sse, r, habits, sig.Timezone); err != nil {
+					log.Printf("events habits: %v", err)
+					return
+				}
 			case <-ticker.C:
+				// An open tab follows local midnight too, without touching form drafts.
+				current, err := habit.Calendar(sig.Timezone, time.Now())
+				if err != nil {
+					return
+				}
+				if current.Today != month.Today {
+					if err := patchHabits(sse, r, habits, sig.Timezone); err != nil {
+						log.Printf("events habits: %v", err)
+						return
+					}
+					month = current
+				}
 				if _, err := io.WriteString(w, ":keepalive\n\n"); err != nil {
 					return
 				}

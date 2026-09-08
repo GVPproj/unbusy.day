@@ -1,0 +1,48 @@
+(() => {
+  const companion = document.querySelector(".companion");
+  if (!companion) return;
+
+  const tabs = [...companion.querySelectorAll('[role="tab"]')];
+  const select = (selected) => {
+    for (const tab of tabs) {
+      const active = tab === selected;
+      tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
+      // Hide, never replace: CodeMirror owns its document, selection and save driver.
+      document.getElementById(tab.getAttribute("aria-controls")).hidden = !active;
+    }
+  };
+
+  for (const [index, tab] of tabs.entries()) {
+    tab.addEventListener("click", () => select(tab));
+    tab.addEventListener("keydown", (event) => {
+      let next;
+      switch (event.key) {
+        case "ArrowLeft": next = (index + tabs.length - 1) % tabs.length; break;
+        case "ArrowRight": next = (index + 1) % tabs.length; break;
+        case "Home": next = 0; break;
+        case "End": next = tabs.length - 1; break;
+        default: return;
+      }
+      event.preventDefault();
+      select(tabs[next]);
+      tabs[next].focus();
+    });
+  }
+
+  const form = document.getElementById("habit-create");
+  const feedback = () => document.getElementById("habit-feedback");
+  form.addEventListener("input", () => { feedback().textContent = ""; });
+  form.addEventListener("invalid", (event) => {
+    feedback().textContent = event.target.validationMessage;
+  }, true);
+
+  const start = document.getElementById("habit-start");
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+  start.value = date;
+})();

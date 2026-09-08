@@ -1,0 +1,52 @@
+package components
+
+import (
+ "strconv"
+
+ "github.com/GVPproj/unbusy.day/internal/habit"
+)
+
+// Only the matrix is morphed; tabs, form drafts and the Jotpad stay mounted.
+templ Habits(habits []habit.Habit, month habit.Month) {
+ <div id="habit-matrix" class="habits-matrix" tabindex="0" role="region" aria-label="Monthly habits, scroll for more dates">
+  if month.Today == "" {
+   <p>Loading your current month…</p>
+  }
+  if len(habits) == 0 {
+   <p>No habits yet. Create your first habit below.</p>
+  } else {
+   <table>
+    <caption>{ month.Label }</caption>
+    <thead>
+     <tr>
+      <th scope="col">Habit</th>
+      for _, date := range month.Dates {
+       <th scope="col"><time datetime={ date }>{ date[8:] }</time></th>
+      }
+     </tr>
+    </thead>
+    <tbody>
+     for _, h := range habits {
+      <tr id={ "habit-" + strconv.FormatInt(h.ID, 10) }>
+       <th scope="row">{ h.Name }</th>
+       for _, date := range month.Dates {
+        <td class={ templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
+         if date < h.StartDate || date > month.Today {
+          <span aria-label={ date + ": unavailable" }>—</span>
+         } else {
+          <span aria-label={ date + ": no check-in" }>·</span>
+         }
+        </td>
+       }
+      </tr>
+     }
+    </tbody>
+   </table>
+  }
+  <p>Check-ins are not available yet.</p>
+ </div>
+}
+
+templ HabitFeedback(message string) {
+ <output id="habit-feedback" aria-live="polite">{ message }</output>
+}

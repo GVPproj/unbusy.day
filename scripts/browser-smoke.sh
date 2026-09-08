@@ -37,4 +37,4 @@ if ! kill -0 "$server_pid" 2>/dev/null; then
 fi
 
 cd "$root"
-BROWSER_SMOKE_URL="http://127.0.0.1:$port" npm run test:browser
+BROWSER_SMOKE_URL="http://127.0.0.1:$port" BROWSER_SMOKE_LOG="$scratch/server.log" npm run test:browser -- "$@"

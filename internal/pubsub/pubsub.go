@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
-// Broker fans block.Events and jot.Events to the owner's live subscribers
-// (their phone, their laptop). Implements block.Publisher and jot.Publisher;
-// keeps no history — reconnect recovery is a full snapshot on the read path.
+// Broker fans block, jot, and habit events to the owner's live subscribers.
+// It keeps no history; reconnect recovery reads current state.
 type Broker struct {
 	mu   sync.Mutex
 	subs map[string]map[*Subscription]struct{} // owner -> subscribers
@@ -25,16 +25,19 @@ func New() *Broker {
 type Subscription struct {
 	Events <-chan block.Event
 	Jots   <-chan jot.Event
+	Habits <-chan habit.Event
 	broker *Broker
 	owner  string
 	ch     chan block.Event
 	jch    chan jot.Event
+	hch    chan habit.Event
 }
 
 func (b *Broker) Subscribe(owner string) *Subscription {
 	ch := make(chan block.Event, 16)
 	jch := make(chan jot.Event, 16)
-	sub := &Subscription{Events: ch, Jots: jch, broker: b, owner: owner, ch: ch, jch: jch}
+	hch := make(chan habit.Event, 16)
+	sub := &Subscription{Events: ch, Jots: jch, Habits: hch, broker: b, owner: owner, ch: ch, jch: jch, hch: hch}
 
 	b.mu.Lock()
 	if b.subs[owner] == nil {
@@ -68,6 +71,18 @@ func (b *Broker) PublishJot(e jot.Event) {
 	for sub := range b.subs[e.Owner] {
 		select {
 		case sub.jch <- e:
+		default:
+		}
+	}
+}
+
+// PublishHabit fans an owner-scoped invalidation without blocking slow readers.
+func (b *Broker) PublishHabit(e habit.Event) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for sub := range b.subs[e.Owner] {
+		select {
+		case sub.hch <- e:
 		default:
 		}
 	}

@@ -5,17 +5,14 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
 	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
-// BlocksPage is the full document. retry 'always' matches EventSource
-// semantics: Datastar's default 'auto' never reconnects after a *clean* stream
-// end, leaving the tab silently deaf.
-// $_jotopen is client-only (underscore = never sent to the server) and starts
-// false on every load: a planner should open on the plan. Above 52rem both
-// panels are visible and the signal is inert.
-templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
-	@layouts.Layout("unbusy.day", "@get('/events', {retry: 'always'})") {
+// Initialize timezone before the body's stream request; child signals initialize later.
+// retry 'always' reconnects even after a clean stream end.
+templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, habits []habit.Habit, month habit.Month) {
+	@layouts.Layout("unbusy.day", "$timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; @get('/events', {retry: 'always', filterSignals: {include: /^timezone$/}})") {
 		// $_jotv/$_jott carry live jot state from /events as signal patches
 		// (never element patches — nothing may re-render an editor being typed
 		// into). data-on-signal-patch hands them to the sync driver, which
@@ -45,18 +42,18 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 			// caret, and scroll position.
 			<div class="panels" data-class:jot-open="$_jotopen">
 				<main class="column">
-				@components.DateHeading()
-				@components.BlockColumn(cs, b)
-				// Keyboard-a11y scaffolding, kept OUTSIDE #block-list so SSE morphs
-				// leave it intact.
-				<div id="sr-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
-				<div id="dnd-instructions" class="sr-only">Press Space or Enter to grab this block, then the Up and Down arrow keys (or j and k) to move it, and Space or Enter again to drop it. Press r or F2 to rename, or Delete to remove it. Tab to the resize handle to change its length. Press question mark for the full list of keyboard shortcuts.</div>
-				// Block gestures live behind one init seam (blocks/gestures.js): pass the
-				// list element and an announce *function* (the #sr-announce null-guard
-				// lives here, with the DOM it owns). See the event-contract doc atop
-				// blocks/gestures.js for the layout/rename/delete CustomEvents these
-				// gestures dispatch onto #block-list below.
-				<script type="module">
+					@components.DateHeading()
+					@components.BlockColumn(cs, b)
+					// Keyboard-a11y scaffolding, kept OUTSIDE #block-list so SSE morphs
+					// leave it intact.
+					<div id="sr-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+					<div id="dnd-instructions" class="sr-only">Press Space or Enter to grab this block, then the Up and Down arrow keys (or j and k) to move it, and Space or Enter again to drop it. Press r or F2 to rename, or Delete to remove it. Tab to the resize handle to change its length. Press question mark for the full list of keyboard shortcuts.</div>
+					// Block gestures live behind one init seam (blocks/gestures.js): pass the
+					// list element and an announce *function* (the #sr-announce null-guard
+					// lives here, with the DOM it owns). See the event-contract doc atop
+					// blocks/gestures.js for the layout/rename/delete CustomEvents these
+					// gestures dispatch onto #block-list below.
+					<script type="module">
 					import { initBlockGestures } from "/static/js/blocks/gestures.js"
 					const list = document.getElementById("block-list")
 					const announcer = document.getElementById("sr-announce")
@@ -70,7 +67,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 					<script type="module" src="/static/js/now.js"></script>
 					<script type="module" src="/static/js/shortcuts.js"></script>
 				</main>
-				@components.Jotpad(pad)
+				@components.Companion(pad, habits, month)
 				// The whole save path (debounce, CAS version, retry, teardown
 				// beacon) lives in the jot-sync driver behind initJotpadCM.
 				<script type="module">

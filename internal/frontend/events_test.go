@@ -29,7 +29,7 @@ func openEvents(t *testing.T, h http.Handler) (*http.Response, *bufio.Reader) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+`?datastar=%7B%22timezone%22%3A%22UTC%22%7D`, nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestEventsConnectShipsAuthoritativeColumn(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	resp, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	resp, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker, newTestHabits(t)))
 
 	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Errorf("content-type: want text/event-stream prefix, got %q", ct)
@@ -115,10 +115,11 @@ func TestEventsStreamsPublishedReordersAsPatches(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker, newTestHabits(t)))
 	readFrame(t, br) // connect snapshot
 	readFrame(t, br) // connect envelope signals
 	readFrame(t, br) // connect jot snapshot signals
+	readFrame(t, br) // connect habits
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "b", Label: "Bravo", Position: 0},
@@ -137,10 +138,11 @@ func TestEventsStreamsPublishedBounds(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker, newTestHabits(t)))
 	readFrame(t, br) // connect snapshot
 	readFrame(t, br) // connect envelope signals
 	readFrame(t, br) // connect jot snapshot signals
+	readFrame(t, br) // connect habits
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: threeBlocks(),
 		Bounds: block.Bounds{Start: 17, End: 21}})
@@ -162,7 +164,7 @@ func TestEventsEmitsKeepaliveComments(t *testing.T) {
 
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
-	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker, newTestHabits(t)))
 
 	deadline := time.After(2 * time.Second)
 	lines := make(chan string)
@@ -197,7 +199,7 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker, newTestHabits(t)))
 	readFrame(t, br) // connect: column element patch
 	// Connect also re-seeds the envelope so a reconnect after a change is current.
 	sig := readFrame(t, br)
@@ -210,6 +212,7 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 		}
 	}
 	readFrame(t, br) // connect jot snapshot signals
+	readFrame(t, br) // connect habits
 
 	broker.Publish(block.Event{Owner: testOwner, Blocks: []block.Block{
 		{ID: "a", Position: 12, Span: 2}, // occupies 12,13 → end 14
@@ -234,7 +237,7 @@ func TestEventsConnectShipsTheJotSnapshotAsSignals(t *testing.T) {
 	jots.pads[testOwner] = jot.Pad{Text: "notes from the phone", Version: 7}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, jots, broker))
+	_, br := openEvents(t, EventsHandler(svc, jots, broker, newTestHabits(t)))
 	readFrame(t, br) // column element patch
 	readFrame(t, br) // envelope signals
 
@@ -258,10 +261,11 @@ func TestEventsStreamsPublishedJotEventsAsSignals(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	broker := pubsub.New()
 
-	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker))
+	_, br := openEvents(t, EventsHandler(svc, newFakeJot(), broker, newTestHabits(t)))
 	readFrame(t, br) // connect snapshot
 	readFrame(t, br) // connect envelope signals
 	readFrame(t, br) // connect jot snapshot signals
+	readFrame(t, br) // connect habits
 
 	broker.PublishJot(jot.Event{Owner: testOwner, Version: 8, Text: "typed on device A"})
 
