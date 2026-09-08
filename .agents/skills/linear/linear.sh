@@ -158,6 +158,18 @@ cmd_list() {
         "$(jq -n --argjson f "$filter" '{f: $f}')"
 }
 
+cmd_blocks() {
+    [ "$#" -eq 2 ] || die "blocks: expected <blocker-ref> <blocked-ref>"
+    local blocker blocked input
+    blocker=$(resolve_issue_id "$1")
+    blocked=$(resolve_issue_id "$2")
+    [ "$blocker" != "$blocked" ] || die "blocks: an issue cannot block itself"
+    input=$(jq -n --arg a "$blocker" --arg b "$blocked" \
+        '{issueId:$a, relatedIssueId:$b, type:"blocks"}')
+    gql 'mutation($input:IssueRelationCreateInput!){issueRelationCreate(input:$input){success issueRelation{id type issue{identifier} relatedIssue{identifier}}}}' \
+        "$(jq -n --argjson i "$input" '{input:$i}')"
+}
+
 cmd_comments() {
     local ref="${1:-}"
     [ -n "$ref" ] || die "comments: issue ref required"
@@ -264,6 +276,7 @@ Commands:
                                        List issues (team-scoped).
   get <UNB-42|uuid>                    Full issue detail.
   comments <ref>                       Recent comments.
+  blocks <blocker-ref> <blocked-ref>    Create a native blocking relationship.
   create --title T [--desc D] [--labels A,B]   Create an issue.
   comment <ref> "body"                 Add a comment.
   set-labels <ref> A,B,C               REPLACE the full label set.
@@ -282,7 +295,7 @@ main() {
     local cmd="${1:-}"
     [ $# -gt 0 ] && shift || true
     case "$cmd" in
-        team|create|get|list|comments|comment|set-labels|add-labels|create-label|statuses|labels|update)
+        team|create|get|list|comments|comment|blocks|set-labels|add-labels|create-label|statuses|labels|update)
             "cmd_${cmd//-/_}" "$@";;
         ""|-h|--help|help) usage;;
         *) die "unknown command: '$cmd' (see --help)";;
