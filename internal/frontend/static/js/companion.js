@@ -4,13 +4,20 @@
 
   const tabs = [...companion.querySelectorAll('[role="tab"]')];
   const select = (selected) => {
+    let shown;
     for (const tab of tabs) {
       const active = tab === selected;
       tab.setAttribute("aria-selected", String(active));
       tab.tabIndex = active ? 0 : -1;
-      // Hide, never replace: CodeMirror owns its document, selection and save driver.
-      document.getElementById(tab.getAttribute("aria-controls")).hidden = !active;
+      const panel = document.getElementById(tab.getAttribute("aria-controls"));
+      if (panel.hidden === active) {
+        // The editor snapshots before hiding and restores after becoming measurable.
+        if (!active) panel.dispatchEvent(new Event("companion-hide"));
+        panel.hidden = !active;
+        if (active) shown = panel;
+      }
     }
+    shown?.dispatchEvent(new Event("companion-show"));
   };
 
   for (const [index, tab] of tabs.entries()) {

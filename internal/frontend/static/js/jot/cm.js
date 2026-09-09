@@ -137,6 +137,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	// Set while the sync driver rewrites the doc, so its own transaction isn't
 	// mistaken for typing and re-posted as a local edit.
 	let applying = false;
+	let hiddenScroll;
 
 	const view = new EditorView({
 		parent: mount,
@@ -175,12 +176,29 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 					tr.newDoc.length > maxLen ? [] : tr,
 				),
 				EditorView.updateListener.of((u) => {
+					if (u.docChanged && hiddenScroll) hiddenScroll = hiddenScroll.map(u.changes);
 					if (!u.docChanged || applying) return;
 					sync.edited();
 				}),
 			],
 		}),
 	});
+
+	// Native refocus can scroll to zero before CM measures a redisplayed editor.
+	const panel = mount.closest('[role="tabpanel"]');
+	panel?.addEventListener("companion-hide", () => { hiddenScroll = view.scrollSnapshot(); });
+	panel?.addEventListener("companion-show", () => {
+		if (hiddenScroll) view.dispatch({ effects: hiddenScroll });
+	});
+	view.contentDOM.addEventListener("focus", () => {
+		if (!hiddenScroll) return;
+		view.dispatch({ effects: hiddenScroll });
+		hiddenScroll = undefined;
+	});
+	// Deliberate scrolling or pointer placement supersedes the return position.
+	const discardScroll = () => { hiddenScroll = undefined; };
+	view.scrollDOM.addEventListener("wheel", discardScroll, { passive: true });
+	view.scrollDOM.addEventListener("pointerdown", discardScroll);
 
 	const sync = createJotSync({
 		getText: () => view.state.doc.toString(),
