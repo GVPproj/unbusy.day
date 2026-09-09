@@ -27,7 +27,7 @@ test("Jotpad text survives blur during a pending save", async ({ page }) => {
 		const saved = page.waitForResponse((r) => new URL(r.url()).pathname === "/jot");
 		releaseSave();
 		expect((await saved).ok()).toBe(true);
-		await expect(page.locator("#jot-status")).toHaveAttribute("data-state", "saved");
+		await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 		await page.reload({ waitUntil: "load" });
 		await expect(content).toHaveText(text);
 	} finally {

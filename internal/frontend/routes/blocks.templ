@@ -72,11 +72,12 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, habits []habit.H
 				// beacon) lives in the jot-sync driver behind initJotpadCM.
 				<script type="module">
 					import { initJotpadCM } from "/static/js/jot/cm.js"
+					import { setSaveState } from "/static/js/save-status.js"
 					const mount = document.getElementById("jot-cm")
 					const text = JSON.parse(document.getElementById("jot-cm-text").textContent)
 					if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen), {
 						version: Number(mount.dataset.jotVersion),
-						status: document.getElementById("jot-status"),
+						onStatus: (state) => setSaveState(document, "jot", state),
 					})
 				</script>
 			</div>

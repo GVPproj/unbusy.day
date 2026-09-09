@@ -23,14 +23,15 @@ const emptyHabits = "No habits yet in this month. Create a habit to begin.";
 async function localCalendar(page) {
 	return page.evaluate(() => {
 		const now = new Date();
+		const monthLabel = (d) => `${d.toLocaleDateString("en-US", { month: "short" }).replace(/^Sep$/, "Sept")} '${String(d.getFullYear()).slice(-2)}`;
 		const date = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 		return {
 			today: date(now),
 			tomorrow: date(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)),
 			day: now.getDate(),
 			days: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-			month: now.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-			beforePrevious: new Date(now.getFullYear(), now.getMonth() - 2, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+			month: monthLabel(now),
+			beforePrevious: monthLabel(new Date(now.getFullYear(), now.getMonth() - 2, 1)),
 			previous: (() => {
 				const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 				const last = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -38,17 +39,24 @@ async function localCalendar(page) {
 					first: date(first),
 					last: date(last),
 					days: last.getDate(),
-					month: first.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+					month: monthLabel(first),
 				};
 			})(),
 		};
 	});
 }
 
+async function openCreateHabit(page) {
+	await page.locator('[commandfor="habit-create-dialog"][command="show-modal"]').click();
+	await expect(page.getByRole("dialog", { name: "Create habit", exact: true })).toBeVisible();
+}
+
 async function createHabit(page, name, start) {
+	await openCreateHabit(page);
 	await habitName(page).fill(name);
 	if (start) await habitStart(page).fill(start);
 	await page.locator("#habit-create").getByRole("button", { name: /create|add/i }).click();
+	await expect(page.locator("#habit-create-dialog")).toBeHidden();
 	await expect(habitRow(page, name)).toBeVisible();
 }
 
@@ -68,6 +76,11 @@ async function mobilePanel(page, name) {
 
 test("desktop defaults to Jotpad beside the plan; tabs have roving keyboard selection", async ({ page }) => {
 	await expect(page.locator("#block-list")).toBeVisible();
+	await expect(page.locator(".companion-head #companion-status")).toBeVisible();
+	await expect(page.locator("#jot-panel h2, #jot-panel output")).toHaveCount(0);
+	const header = await page.locator(".companion-head").boundingBox();
+	const jotEditor = await page.locator(".cm-editor").boundingBox();
+	expect(jotEditor.y - (header.y + header.height)).toBeLessThan(20);
 	await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
 	await expect(jotTab(page)).toHaveAttribute("tabindex", "0");
 	await expect(habitsTab(page)).toHaveAttribute("aria-selected", "false");
@@ -156,18 +169,18 @@ test("leap February and December/January navigation render real calendars", asyn
 	await habitsTab(page).click();
 	await createHabit(page, "Long history", "2020-01-01");
 	const heading = page.locator("#habit-grid .month-nav h2");
-	for (let steps = 0; await heading.textContent() !== "January 2025" && steps < 60; steps++) {
+	for (let steps = 0; await heading.textContent() !== "Jan '25" && steps < 60; steps++) {
 		await previousMonth(page);
 	}
-	await expect(heading).toHaveText("January 2025");
+	await expect(heading).toHaveText("Jan '25");
 	await expect(habitRow(page, "Long history").locator("td")).toHaveCount(31);
 	await page.getByRole("button", { name: /Previous month/ }).click();
-	await expect(heading).toHaveText("December 2024");
+	await expect(heading).toHaveText("Dec '24");
 	await expect(habitRow(page, "Long history").locator("td")).toHaveCount(31);
-	for (let steps = 0; await heading.textContent() !== "February 2024" && steps < 12; steps++) {
+	for (let steps = 0; await heading.textContent() !== "Feb '24" && steps < 12; steps++) {
 		await previousMonth(page);
 	}
-	await expect(heading).toHaveText("February 2024");
+	await expect(heading).toHaveText("Feb '24");
 	await expect(habitRow(page, "Long history").locator("td")).toHaveCount(29);
 });
 
@@ -259,10 +272,12 @@ test("check-ins wait for confirmation, survive reload, expose failure, and retry
 	await request;
 	await expect(button).toHaveAttribute("aria-pressed", "false");
 	await expect(button).toHaveAttribute("aria-busy", "true");
-	await expect(page.locator("#habit-checkin-feedback")).toHaveText("Saving…");
+	await expect(page.locator("#companion-status")).toHaveText("Saving…");
+	await expect(page.locator("#habit-checkin-feedback")).toBeEmpty();
 	release();
 	await expect(button).toHaveAttribute("aria-pressed", "true");
-	await expect(page.locator("#habit-checkin-feedback")).toHaveText("Saved.");
+	await expect(page.locator("#companion-status")).toHaveText("Saved");
+	await expect(page.locator("#habit-checkin-feedback")).toBeEmpty();
 	await page.unroute("**/habits/check-in");
 
 	await page.reload({ waitUntil: "load" });
@@ -290,11 +305,12 @@ test("live check-ins converge while preserving focused date and horizontal scrol
 	await habitsTab(page).click();
 	const { today } = await localCalendar(page);
 	await createHabit(page, "Stretch", `${today.slice(0, 8)}01`);
-	const matrix = page.locator("#habit-matrix");
+	const matrix = page.locator("#habit-scroll");
 	const button = checkIn(page, "Stretch", today);
 	await button.focus();
 	await matrix.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
 	const scroll = await matrix.evaluate((element) => element.scrollLeft);
+	expect(scroll).toBeGreaterThan(0);
 
 	const other = await context.newPage();
 	await other.goto(baseURL, { waitUntil: "load" });
@@ -591,13 +607,30 @@ test("habit deletion works in the mobile companion panel", async ({ page }) => {
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test("habit creation fields live in a dismissible modal", async ({ page }) => {
+	await habitsTab(page).click();
+	await expect(habitName(page)).toBeHidden();
+	await expect(habitStart(page)).toBeHidden();
+	await openCreateHabit(page);
+	await expect(habitName(page)).toBeFocused();
+	await habitName(page).fill("Draft habit");
+	await page.locator("#habit-create-dialog").getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(habitName(page)).toBeHidden();
+	await expect(habitRow(page, "Draft habit")).toHaveCount(0);
+	await openCreateHabit(page);
+	await expect(habitName(page)).toHaveValue("Draft habit");
+	await page.keyboard.press("Escape");
+	await expect(page.locator("#habit-create-dialog")).toBeHidden();
+});
+
 test("duplicate and future-start errors retain the submitted name and date", async ({ page }) => {
 	await habitsTab(page).click();
 	const { today, tomorrow } = await localCalendar(page);
 	await createHabit(page, "Walk", today);
+	await openCreateHabit(page);
 	await habitName(page).fill("Walk");
 	await habitStart(page).fill(today);
-	await page.getByRole("button", { name: "Create habit", exact: true }).click();
+	await page.locator("#habit-create").getByRole("button", { name: "Create habit", exact: true }).click();
 	await expect(page.locator("#habit-feedback")).toContainText(/already|duplicate/i);
 	await expect(habitName(page)).toHaveValue("Walk");
 	await expect(habitStart(page)).toHaveValue(today);
@@ -605,7 +638,7 @@ test("duplicate and future-start errors retain the submitted name and date", asy
 
 	await habitName(page).fill("Tomorrow's run");
 	await habitStart(page).fill(tomorrow);
-	await page.getByRole("button", { name: "Create habit", exact: true }).click();
+	await page.locator("#habit-create").getByRole("button", { name: "Create habit", exact: true }).click();
 	await expect(page.locator("#habit-feedback")).toContainText("after today");
 	await expect(habitName(page)).toHaveValue("Tomorrow's run");
 	await expect(habitStart(page)).toHaveValue(tomorrow);
@@ -628,8 +661,9 @@ test("habit names accept 80 Unicode characters and reject longer names without l
  await habitsTab(page).click();
  const name = "📖".repeat(80);
  await createHabit(page, name);
+ await openCreateHabit(page);
  await habitName(page).fill("x".repeat(81));
- await page.getByRole("button", { name: "Create habit", exact: true }).click();
+ await page.locator("#habit-create").getByRole("button", { name: "Create habit", exact: true }).click();
  await expect(page.locator("#habit-feedback")).toContainText("80");
  await expect(habitName(page)).toHaveValue("x".repeat(81));
  await expect(page.locator("#habit-matrix tbody tr")).toHaveCount(1);
@@ -648,7 +682,7 @@ test("mobile Plan / Notes & Habits navigation keeps names visible while dates sc
 	const { today } = await localCalendar(page);
 	await checkIn(page, "A daily walk", today).click();
 	await expect(checkIn(page, "A daily walk", today)).toHaveAttribute("aria-pressed", "true");
-	const matrix = page.locator("#habit-matrix");
+	const matrix = page.locator("#habit-scroll");
 	const name = habitRow(page, "A daily walk").getByRole("rowheader");
 	const before = await name.boundingBox();
 	await matrix.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
@@ -672,8 +706,45 @@ test("mobile Plan / Notes & Habits navigation keeps names visible while dates sc
  await page.screenshot({ path: test.info().outputPath("habits-mobile.png"), fullPage: true });
 });
 
+for (const width of [1440, 390]) {
+	test(`month controls stay fixed while dates scroll at width ${width}`, async ({ page }) => {
+		await page.setViewportSize({ width, height: 900 });
+		if (width < 832) await mobilePanel(page, "Notes & Habits");
+		await habitsTab(page).click();
+		await createHabit(page, "Scroll test");
+		const controls = page.locator(".month-nav button, .month-nav h2");
+		const positions = () => controls.evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().x));
+		const before = await positions();
+		const scroll = await page.locator("#habit-grid table").evaluate((table) => {
+			let scroller = table.parentElement;
+			while (scroller && !["auto", "scroll"].includes(getComputedStyle(scroller).overflowX)) scroller = scroller.parentElement;
+			scroller.scrollLeft = scroller.scrollWidth;
+			return scroller.scrollLeft;
+		});
+		expect(scroll).toBeGreaterThan(0);
+		await expect.poll(positions).toEqual(before);
+		for (const control of await controls.all()) await expect(control).toBeInViewport({ ratio: 1 });
+		for (const [feeling, icon] of [["cozy", "solar"], ["pixel", "pixel"], ["mono", "mono"]]) {
+			await page.locator("#theme-modal").getByRole("button", { name: new RegExp(`^${feeling}$`, "i"), includeHidden: true }).evaluate((button) => button.click());
+			await expect(page.locator("html")).toHaveAttribute("data-feeling", feeling);
+			for (const id of ["habit-previous-month", "habit-next-month"]) {
+				const button = page.locator(`#${id}`);
+				await expect(button).toHaveText("");
+				await expect(button.locator("svg:visible")).toHaveCount(1);
+				await expect(button.locator(`.icon-${icon}`)).toBeVisible();
+				const arrow = await button.boundingBox();
+				const thisMonth = await page.locator("#habit-this-month").boundingBox();
+				expect(Math.abs(arrow.width - arrow.height)).toBeLessThan(1);
+				expect(Math.abs(arrow.height - thisMonth.height)).toBeLessThan(1);
+			}
+			for (const control of await controls.all()) await expect(control).toBeInViewport({ ratio: 1 });
+		}
+	});
+}
+
 test("habits created in another tab arrive live without replacing an unfinished form", async ({ page, context }) => {
 	await habitsTab(page).click();
+	await openCreateHabit(page);
 	await habitName(page).fill("Unfinished draft");
 	await habitStart(page).fill("2020-01-02");
 	const other = await context.newPage();
@@ -710,7 +781,7 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		await page.keyboard.insertText(text);
 		await page.keyboard.press("ArrowLeft");
 		await pending;
-		await expect(page.locator("#jot-status")).not.toHaveAttribute("data-state", "saved");
+		await expect(page.locator("#companion-status")).not.toHaveAttribute("data-state", "saved");
 		await expect.poll(() => page.locator(".cm-scroller").evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 		const state = await page.evaluateHandle(async () => {
 			const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
@@ -738,7 +809,8 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		await expect(deleteDialog(page)).toBeHidden();
 		await expect(habitRow(page, "Keep notes safe")).toHaveCount(0);
 		expect(await planState()).toEqual(plan);
-		await expect(page.locator("#jot-status")).not.toHaveAttribute("data-state", "saved");
+		await expect(page.locator("#companion-status")).toBeVisible();
+		await expect(page.locator("#companion-status")).not.toHaveAttribute("data-state", "saved");
 		expect(await state.evaluate((saved) => saved.view.state.selection.toJSON())).toEqual(await state.evaluate((saved) => saved.originalSelection));
 		await jotTab(page).click();
 		await page.keyboard.press("Tab");
@@ -755,7 +827,7 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		const saved = page.waitForResponse((response) => new URL(response.url()).pathname === "/jot" && response.request().method() === "POST");
 		releaseSave();
 		expect((await saved).ok()).toBe(true);
-		await expect(page.locator("#jot-status")).toHaveAttribute("data-state", "saved");
+		await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 		// Copy reads the whole document even when CodeMirror virtualizes offscreen lines.
 		await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 		const expectWholeNote = async () => {
@@ -781,7 +853,7 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 test("adding and clearing plan blocks leaves habits and Jotpad unchanged after reload", async ({ page }) => {
 	await page.locator(".cm-content").click();
 	await page.keyboard.insertText("Keep my perpetual notes");
-	await expect(page.locator("#jot-status")).toHaveAttribute("data-state", "saved");
+	await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 	await habitsTab(page).click();
 	await createHabit(page, "Read every day");
 	await page.getByRole("button", { name: /^Add block at/ }).first().click();

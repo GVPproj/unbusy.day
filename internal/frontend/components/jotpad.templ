@@ -8,22 +8,10 @@ import (
 
 // Styling lives in app.css: @scope (.jotpad).
 
-// jotStatus is the save-state indicator, updated by the client sync driver
-// only (client-only state — no Datastar signal, the server doesn't care).
-// <output> is an implicit role=status live region, so state changes are
-// announced without stealing focus.
-templ jotStatus() {
-	<output id="jot-status" class="jot-status" data-state="saved">Saved</output>
-}
-
 // The companion keeps this editor mounted across tab switches and matrix patches.
 // Stored text travels as JSON so escaping cannot mangle it.
 templ Jotpad(pad jot.Pad) {
-	<section class="jotpad" aria-labelledby="jot-heading">
-		<div class="jot-head">
-			<h2 id="jot-heading">Jotpad</h2>
-			@jotStatus()
-		</div>
+	<section class="jotpad" aria-labelledby="jot-tab">
 		@templ.JSONScript("jot-cm-text", pad.Text)
 		<div
 			id="jot-cm"

@@ -1,0 +1,22 @@
+package components
+
+templ HabitCreateDialog() {
+	<dialog id="habit-create-dialog" class="app-dialog" closedby="any" aria-labelledby="habit-create-title" data-signals:_habitcreated="false" data-effect="if ($_habitcreated && el.open) el.close()">
+		<form
+			id="habit-create"
+			class="habit-dialog-form"
+			data-indicator:_habitpending
+			data-on:submit="if (!$_habitpending && el.reportValidity()) { $_habitcreated = false; @post('/habits', {filterSignals: {include: /^(habitname|habitstart|timezone)$/}}) }"
+			data-attr:aria-busy="$_habitpending"
+		>
+			<h2 id="habit-create-title">Create habit</h2>
+			<label class="stack" for="habit-name">Name <input class="field" id="habit-name" name="name" type="text" required data-bind:habitname autofocus/></label>
+			<label class="stack" for="habit-start">Start date <input class="field" id="habit-start" name="start" type="date" required data-bind:habitstart/></label>
+			<footer>
+				<button class="btn" type="button" commandfor="habit-create-dialog" command="close">Cancel</button>
+				<button class="btn" type="submit" data-attr:disabled="$_habitpending">Create habit</button>
+			</footer>
+			@HabitFeedback("")
+		</form>
+	</dialog>
+}

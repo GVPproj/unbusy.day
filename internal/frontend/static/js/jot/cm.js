@@ -129,7 +129,7 @@ const taskToggle = EditorView.domEventHandlers({
 /**
  * Mounts a CodeMirror Jotpad into `mount`. Saving, remote application, and the
  * save-state indicator all run through the shared jot-sync driver; opts is
- * {version, status} from the server render. Remote text lands as one minimal
+ * {version, onStatus} from the server render. Remote text lands as one minimal
  * CM transaction, so the selection maps through it and the cursor stays put
  * unless the remote edit deleted the text under it.
  */
@@ -201,7 +201,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		},
 		postURL,
 		version: opts.version ?? 0,
-		status: opts.status,
+		onStatus: opts.onStatus,
 	});
 
 	// The SSE stream hands (version, text) here via data-on-signal-patch.

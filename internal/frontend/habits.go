@@ -111,6 +111,9 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 		if err := sse.PatchElementTempl(components.HabitFeedback("Habit created.")); err != nil {
 			log.Printf("habit feedback: %v", err)
 		}
+		if err := sse.PatchSignals([]byte(`{"_habitcreated":true}`)); err != nil {
+			log.Printf("habit create signals: %v", err)
+		}
 	})
 }
 
@@ -212,7 +215,7 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 		// The owner stream serializes committed snapshots; keeping grid HTML off
 		// this response prevents a delayed mutation response overwriting a newer write.
 		sse := datastar.NewSSE(w, r)
-		if err := patchHabitCheckInFeedback(sse, "Saved.", "committed", sig.Date, sig.Refresh, sig.View); err != nil {
+		if err := patchHabitCheckInFeedback(sse, "", "committed", sig.Date, sig.Refresh, sig.View); err != nil {
 			log.Printf("habit check-in feedback: %v", err)
 		}
 	})

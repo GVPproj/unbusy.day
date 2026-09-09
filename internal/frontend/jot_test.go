@@ -206,8 +206,8 @@ func TestPageRendersTheCompanionAsANamedAsideLandmark(t *testing.T) {
 		`<aside`,
 		`class="column companion"`,
 		`aria-label="Notes & Habits"`,
-		`id="jot-heading"`,
-		`aria-labelledby="jot-heading"`,
+		`id="jot-tab"`,
+		`aria-labelledby="jot-tab"`,
 		`<h2`,
 	} {
 		if !strings.Contains(body, want) {
@@ -221,7 +221,7 @@ func TestPageRendersTheCompanionAsANamedAsideLandmark(t *testing.T) {
 
 // The write path, pinned as markup: jot/cm.js owns saving (Datastar's @post
 // can't read /jot's JSON response), the version and length cap ride data
-// attributes, and the save-state indicator is a live region next to the heading.
+// attributes, and the shared save indicator is outside both tab panels.
 func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
@@ -229,12 +229,18 @@ func TestPageRendersTheJotWriteWiring(t *testing.T) {
 		`data-jot-version="0"`,
 		`data-maxlen="100000"`,
 		`/static/js/jot/cm.js`,
-		`id="jot-status"`,
+		`id="companion-status"`,
 		`data-state="saved"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
 		}
+	}
+	if strings.Contains(body, `id="jot-heading"`) || strings.Contains(body, `class="jot-head"`) {
+		t.Error("Jotpad must use its tab label, not a duplicate editor header")
+	}
+	if strings.Count(body, `id="companion-status"`) != 1 || strings.Index(body, `id="companion-status"`) > strings.Index(body, `id="jot-panel"`) {
+		t.Error("one shared save indicator must precede both tab panels")
 	}
 	// The old Datastar save path must be gone: it can't read the JSON reply.
 	for _, gone := range []string{`data-bind:_jot`, `@post('/jot'`} {

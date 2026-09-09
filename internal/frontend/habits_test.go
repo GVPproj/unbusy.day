@@ -110,10 +110,10 @@ func TestHabitCheckInMutationConfirmsCommittedOwnedStateWithoutAStaleGridPatch(t
 		if rec.Code != http.StatusOK {
 			t.Fatalf("check status %d: %s", rec.Code, rec.Body.String())
 		}
-		if !strings.Contains(rec.Body.String(), "Saved") {
+		if !strings.Contains(rec.Body.String(), `data-result="committed"`) {
 			t.Errorf("checked response omitted confirmation: %s", rec.Body.String())
 		}
-		for _, absent := range []string{"Private", `id="habit-grid"`, `id="jot-cm"`, `id="block-list"`} {
+		for _, absent := range []string{"Private", "Saved", `id="habit-grid"`, `id="jot-cm"`, `id="block-list"`} {
 			if strings.Contains(rec.Body.String(), absent) {
 				t.Errorf("checked patch contains %q", absent)
 			}
@@ -125,7 +125,7 @@ func TestHabitCheckInMutationConfirmsCommittedOwnedStateWithoutAStaleGridPatch(t
 	}
 
 	rec := post(fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"habitchecked":false,"timezone":"UTC"}`, mine[0].ID, today))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Saved") {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `data-result="committed"`) {
 		t.Fatalf("uncheck: %d %s", rec.Code, rec.Body.String())
 	}
 	got, err = svc.List(ctx, testOwner)
@@ -248,7 +248,7 @@ func TestHabitCreationConfirmsWithoutBypassingTheOwnersLiveGridStream(t *testing
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"datastar-patch-elements", `id="habit-feedback"`, "Habit created"} {
+	for _, want := range []string{"datastar-patch-elements", `id="habit-feedback"`, "Habit created", "datastar-patch-signals", `"_habitcreated":true`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("response missing %q: %s", want, body)
 		}

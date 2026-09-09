@@ -28,6 +28,18 @@ templ IconMenu() {
 	</span>
 }
 
+templ IconChevronLeft() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5L9 12L15 19"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 13v-2h2v2zm2-2V9h2v2zm0 4v-2h2v2zm2-6V7h2v2zm0 8v-2h2v2zm2-10V5h2v2zm0 12v-2h2v2z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.28 5.22a.75.75 0 0 1 0 1.06L9.56 12l5.72 5.72a.749.749 0 0 1-.326 1.275a.75.75 0 0 1-.734-.215l-6.25-6.25a.75.75 0 0 1 0-1.06l6.25-6.25a.75.75 0 0 1 1.06 0"/></svg>`)
+}
+
+templ IconChevronRight() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5L15 12L9 19"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 13v-2h-2v2zm-2-2V9h-2v2zm0 4v-2h-2v2zm-2-6V7h-2v2zm0 8v-2h-2v2zM10 7V5H8v2zm0 12v-2H8v2z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12L8.72 6.28a.75.75 0 0 1 .018-1.042a.75.75 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg>`)
+}
+
 templ IconHours() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`)
