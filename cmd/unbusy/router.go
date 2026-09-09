@@ -50,6 +50,7 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("POST /blocks/clear", web.RequireSession(authSvc, frontend.ClearHandler(blockSvc)))
 	mux.Handle("POST /blocks/rename", web.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 	mux.Handle("POST /jot", web.RequireSession(authSvc, frontend.JotHandler(jotSvc)))
+	mux.Handle("GET /habits/month", web.RequireSession(authSvc, frontend.HabitMonthHandler(habitSvc)))
 	mux.Handle("POST /habits", web.RequireSession(authSvc, frontend.HabitCreateHandler(habitSvc)))
 	mux.Handle("POST /habits/check-in", web.RequireSession(authSvc, frontend.HabitCheckInHandler(habitSvc)))
 

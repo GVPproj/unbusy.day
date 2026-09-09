@@ -14,7 +14,8 @@ function isConfirmed(button, desired) {
 export function handleCheckInFetch(document, event) {
   const source = event.detail?.el?.closest?.("[data-checkin-action]");
   if (!source) return;
-  const button = document.getElementById(source.id) || source;
+  const liveButton = document.getElementById(source.id);
+  const button = liveButton || source;
   const status = document.getElementById("habit-checkin-feedback");
 
   if (event.detail.type === "started") {
@@ -34,6 +35,10 @@ export function handleCheckInFetch(document, event) {
   }
   const attempt = attempts.get(source.id);
   if (!attempt) return;
+  if (!liveButton && source.isConnected === false) {
+    attempts.delete(source.id);
+    return;
+  }
   if (event.detail.type === "retrying") {
     if (status) status.textContent = "Connection interrupted; retrying…";
     return;
@@ -97,6 +102,9 @@ function preserveMatrixState(document) {
         if (button.dataset.saveState !== "failed") button.dataset.saveState = "failed";
         if (button.hasAttribute("aria-busy")) button.removeAttribute("aria-busy");
         if (status && status.textContent !== failureMessage) status.textContent = failureMessage;
+      } else if (button) {
+        if (button.dataset.saveState !== "pending") button.dataset.saveState = "pending";
+        if (button.getAttribute("aria-busy") !== "true") button.setAttribute("aria-busy", "true");
       }
     }
   }).observe(matrix, { attributes: true, characterData: true, childList: true, subtree: true });

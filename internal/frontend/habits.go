@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/habit"
@@ -15,6 +17,7 @@ import (
 type HabitService interface {
 	List(context.Context, string) ([]habit.Habit, error)
 	Snapshot(ctx context.Context, owner, timezone string) (*habit.Snapshot, error)
+	MonthSnapshot(ctx context.Context, owner, timezone, month string) (*habit.Snapshot, error)
 	Create(ctx context.Context, owner, name, startDate, timezone string) ([]habit.Habit, error)
 	SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*habit.Snapshot, error)
 }
@@ -23,9 +26,56 @@ type habitSignals struct {
 	Name     string `json:"habitname"`
 	Start    string `json:"habitstart"`
 	Timezone string `json:"timezone"`
+	Month    string `json:"habitmonth"`
+	Refresh  string `json:"habitrefresh"`
+	View     uint64 `json:"habitview"`
 	HabitID  int64  `json:"habitid"`
 	Date     string `json:"habitdate"`
 	Checked  *bool  `json:"habitchecked"`
+}
+
+func validHabitRefresh(token string) bool {
+	if len(token) != 32 {
+		return false
+	}
+	for _, c := range token {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+// HabitMonthHandler renders one per-view month. The selector only matches while
+// that month is still selected, so a delayed response cannot replace a newer view.
+func HabitMonthHandler(svc HabitService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig habitSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals", http.StatusBadRequest)
+			return
+		}
+		if !validHabitRefresh(sig.Refresh) {
+			http.Error(w, "invalid refresh token", http.StatusBadRequest)
+			return
+		}
+		owner := web.OwnerFrom(r.Context())
+		snap, err := svc.MonthSnapshot(r.Context(), owner, sig.Timezone, sig.Month)
+		if habit.IsRejection(err) {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if err != nil {
+			log.Printf("habit month: %v", err)
+			http.Error(w, "Unable to load habits. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		sse := datastar.NewSSE(w, r)
+		selector := `#habit-grid[data-month="` + snap.Month.Key + `"][data-refresh="` + sig.Refresh + `"][data-view="` + strconv.FormatUint(sig.View, 10) + `"]`
+		if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Month, sig.Refresh, sig.View), datastar.WithSelector(selector)); err != nil {
+			log.Printf("habit month: %v", err)
+		}
+	})
 }
 
 func HabitCreateHandler(svc HabitService) http.Handler {
@@ -56,6 +106,20 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 	})
 }
 
+func patchHabitCheckInFeedback(sse *datastar.ServerSentEventGenerator, message, result, date, refresh string, view uint64) error {
+	opts := make([]datastar.PatchElementOption, 0, 1)
+	if validHabitRefresh(refresh) {
+		month := ""
+		if parsed, err := time.Parse(time.DateOnly, date); err == nil && parsed.Format(time.DateOnly) == date {
+			month = `[data-month="` + date[:7] + `"]`
+		}
+		opts = append(opts, datastar.WithSelector(`#habit-grid`+month+`[data-refresh="`+refresh+`"][data-view="`+strconv.FormatUint(view, 10)+`"] #habit-checkin-feedback`))
+	} else if refresh != "" {
+		return nil
+	}
+	return sse.PatchElementTempl(components.HabitCheckInFeedback(message, result), opts...)
+}
+
 func HabitCheckInHandler(svc HabitService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig habitSignals
@@ -68,22 +132,10 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 			return
 		}
 		owner := web.OwnerFrom(r.Context())
-		if _, err := svc.Snapshot(r.Context(), owner, sig.Timezone); err != nil {
-			if habit.IsRejection(err) {
-				sse := datastar.NewSSE(w, r)
-				if patchErr := sse.PatchElementTempl(components.HabitCheckInFeedback(err.Error(), "rejected")); patchErr != nil {
-					log.Printf("habit check-in feedback: %v", patchErr)
-				}
-			} else {
-				log.Printf("habit check-in preflight: %v", err)
-				http.Error(w, "Unable to save check-in. Please try again.", http.StatusInternalServerError)
-			}
-			return
-		}
 		_, err := svc.SetCheckIn(r.Context(), owner, sig.HabitID, sig.Date, *sig.Checked, sig.Timezone)
 		if habit.IsRejection(err) {
 			sse := datastar.NewSSE(w, r)
-			if patchErr := sse.PatchElementTempl(components.HabitCheckInFeedback(err.Error(), "rejected")); patchErr != nil {
+			if patchErr := patchHabitCheckInFeedback(sse, err.Error(), "rejected", sig.Date, sig.Refresh, sig.View); patchErr != nil {
 				log.Printf("habit check-in feedback: %v", patchErr)
 			}
 			return
@@ -96,16 +148,8 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 		// The owner stream serializes committed snapshots; keeping grid HTML off
 		// this response prevents a delayed mutation response overwriting a newer write.
 		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.HabitCheckInFeedback("Saved.", "committed")); err != nil {
+		if err := patchHabitCheckInFeedback(sse, "Saved.", "committed", sig.Date, sig.Refresh, sig.View); err != nil {
 			log.Printf("habit check-in feedback: %v", err)
 		}
 	})
-}
-
-func patchHabits(sse *datastar.ServerSentEventGenerator, r *http.Request, svc HabitService, timezone string) error {
-	snap, err := svc.Snapshot(r.Context(), web.OwnerFrom(r.Context()), timezone)
-	if err != nil {
-		return err
-	}
-	return sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Month))
 }

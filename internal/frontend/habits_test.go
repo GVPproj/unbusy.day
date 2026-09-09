@@ -46,6 +46,45 @@ func newTestHabits(t *testing.T) *habit.Service {
 	return habit.NewService(habitTestDB(t), nil)
 }
 
+func TestHabitMonthRendersTheOwnedSelectedMonthWithAStaleResponseGuard(t *testing.T) {
+	db := habitTestDB(t)
+	now := time.Date(2024, 3, 15, 12, 0, 0, 0, time.UTC)
+	svc := habit.NewService(db, nil, habit.WithClock(func() time.Time { return now }))
+	old, err := svc.Create(context.Background(), testOwner, "Old", "2024-02-29", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(context.Background(), testOwner, "New", "2024-03-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(context.Background(), "another-owner", "Private", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetCheckIn(context.Background(), testOwner, old[0].ID, "2024-02-29", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	HabitMonthHandler(svc).ServeHTTP(rec, authedRequest(http.MethodGet, "/habits/month?datastar=%7B%22habitmonth%22%3A%222024-02%22%2C%22habitrefresh%22%3A%22aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa%22%2C%22timezone%22%3A%22UTC%22%7D", ""))
+	body := rec.Body.String()
+	for _, want := range []string{`selector #habit-grid[data-month="2024-02"][data-refresh="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"][data-view="0"]`, "February 2024", "Old", "2024-02-29", `aria-pressed="true"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("month response missing %q: %s", want, body)
+		}
+	}
+	for _, absent := range []string{"New", "Private", `id="jot-cm"`, `id="block-list"`} {
+		if strings.Contains(body, absent) {
+			t.Errorf("month response contains %q: %s", absent, body)
+		}
+	}
+
+	future := httptest.NewRecorder()
+	HabitMonthHandler(svc).ServeHTTP(future, authedRequest(http.MethodGet, "/habits/month?datastar=%7B%22habitmonth%22%3A%222024-04%22%2C%22habitrefresh%22%3A%22aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa%22%2C%22timezone%22%3A%22UTC%22%7D", ""))
+	if future.Code != http.StatusOK || strings.Contains(future.Body.String(), `id="habit-grid"`) || strings.Contains(future.Body.String(), "datastar-patch-signals") {
+		t.Fatalf("future month reconciliation: %d %s", future.Code, future.Body.String())
+	}
+}
+
 func TestHabitCheckInMutationConfirmsCommittedOwnedStateWithoutAStaleGridPatch(t *testing.T) {
 	svc := newTestHabits(t)
 	ctx := context.Background()
@@ -228,8 +267,13 @@ func TestHabitCreationSurvivesPageReloadAndIsIndependentOfPlanAndJotpad(t *testi
 	}
 	page := httptest.NewRecorder()
 	PageHandler(blocks, jots, habit.NewService(db, nil)).ServeHTTP(page, authedRequest(http.MethodGet, "/", ""))
-	if page.Code != 200 || !strings.Contains(page.Body.String(), "Read</th>") {
-		t.Fatalf("reload lost habit: %d %s", page.Code, page.Body.String())
+	if page.Code != 200 || !strings.Contains(page.Body.String(), "/habits/month") {
+		t.Fatalf("reload omitted habit month loader: %d %s", page.Code, page.Body.String())
+	}
+	month := httptest.NewRecorder()
+	HabitMonthHandler(habits).ServeHTTP(month, authedRequest(http.MethodGet, "/habits/month?datastar=%7B%22habitmonth%22%3A%222024-02%22%2C%22habitrefresh%22%3A%22aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa%22%2C%22timezone%22%3A%22UTC%22%7D", ""))
+	if month.Code != 200 || !strings.Contains(month.Body.String(), "Read</th>") {
+		t.Fatalf("reload lost habit: %d %s", month.Code, month.Body.String())
 	}
 	if got := jotPayload(t, page.Body.String()); got != "Keep these notes" {
 		t.Fatalf("notes changed: %q", got)
@@ -291,14 +335,10 @@ func TestHabitStorageFailuresDoNotClaimCreationSucceeded(t *testing.T) {
 	}
 }
 
-func TestHabitEventsRefreshEligibilityAtBrowserLocalMidnight(t *testing.T) {
+func TestHabitEventsInvalidateAtBrowserLocalMidnight(t *testing.T) {
 	db := habitTestDB(t)
-	created, err := habit.NewService(db, nil).Create(context.Background(), testOwner, "Read", "2024-03-02", "UTC")
-	if err != nil {
-		t.Fatal(err)
-	}
 	var mu sync.Mutex
-	now := time.Date(2024, 3, 1, 23, 59, 59, 0, time.UTC)
+	now := time.Date(2024, 3, 31, 23, 59, 59, 0, time.UTC)
 	svc := habit.NewService(db, nil, habit.WithClock(func() time.Time {
 		mu.Lock()
 		defer mu.Unlock()
@@ -308,25 +348,26 @@ func TestHabitEventsRefreshEligibilityAtBrowserLocalMidnight(t *testing.T) {
 	keepaliveInterval = 20 * time.Millisecond
 	t.Cleanup(func() { keepaliveInterval = oldInterval })
 
-	_, br := openEvents(t, EventsHandler(&fakeService{}, newFakeJot(), pubsub.New(), svc))
+	broker := pubsub.New()
+	_, br := openEvents(t, EventsHandler(&fakeService{}, newFakeJot(), broker, svc))
 	readFrame(t, br)
 	readFrame(t, br)
 	readFrame(t, br)
 	initial := readFrame(t, br)
-	buttonID := fmt.Sprintf(`id="checkin-%d-2024-03-02"`, created[0].ID)
-	if strings.Contains(initial, buttonID) {
-		t.Fatalf("tomorrow was eligible before midnight: %s", initial)
+	if !strings.Contains(initial, `"_habitcurrent":"2024-03"`) {
+		t.Fatalf("initial month signal: %s", initial)
 	}
 	mu.Lock()
-	now = time.Date(2024, 3, 2, 0, 0, 1, 0, time.UTC)
+	now = time.Date(2024, 4, 1, 0, 0, 1, 0, time.UTC)
 	mu.Unlock()
+	broker.PublishHabit(habit.Event{Owner: testOwner})
 	refreshed := readFrame(t, br)
-	if !strings.Contains(refreshed, buttonID) {
-		t.Fatalf("today did not become eligible after midnight: %s", refreshed)
+	if !strings.Contains(refreshed, `"_habitcurrent":"2024-04"`) || !strings.Contains(refreshed, `"habitrefresh":`) || strings.Contains(refreshed, `id="habit-grid"`) {
+		t.Fatalf("midnight invalidation: %s", refreshed)
 	}
 }
 
-func TestHabitEventsReconnectAndLiveWritesPatchOnlyTheMatrix(t *testing.T) {
+func TestHabitEventsReconnectAndLiveWritesInvalidateEachViewsSelectedMonth(t *testing.T) {
 	db := habitTestDB(t)
 	broker := pubsub.New()
 	svc := habit.NewService(db, broker)
@@ -341,19 +382,17 @@ func TestHabitEventsReconnectAndLiveWritesPatchOnlyTheMatrix(t *testing.T) {
 	readFrame(t, br)
 	readFrame(t, br)
 	frame := readFrame(t, br)
-	if !strings.Contains(frame, "Morning walk") || strings.Contains(frame, "Private habit") {
-		t.Fatalf("initial habit snapshot: %s", frame)
+	if !strings.Contains(frame, "datastar-patch-signals") || !strings.Contains(frame, `"_habitcurrent":`) || strings.Contains(frame, "Morning walk") {
+		t.Fatalf("initial habit invalidation: %s", frame)
 	}
 	if _, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	frame = readFrame(t, br)
-	for _, want := range []string{`id="habit-grid"`, "Morning walk", "Read"} {
-		if !strings.Contains(frame, want) {
-			t.Errorf("live snapshot missing %q: %s", want, frame)
-		}
+	if !strings.Contains(frame, `"habitrefresh":`) {
+		t.Errorf("live invalidation missing refresh: %s", frame)
 	}
-	for _, absent := range []string{`id="jot-cm"`, `id="block-list"`, `id="habit-create"`, "Private habit"} {
+	for _, absent := range []string{`id="habit-grid"`, `id="jot-cm"`, `id="block-list"`, `id="habit-create"`, "Private habit", "Morning walk", "Read"} {
 		if strings.Contains(frame, absent) {
 			t.Errorf("unrelated/private content in live habit patch: %s", frame)
 		}
@@ -368,10 +407,8 @@ func TestHabitEventsReconnectAndLiveWritesPatchOnlyTheMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	frame = readFrame(t, br)
-	for _, want := range []string{`id="checkin-`, today, `aria-pressed="true"`} {
-		if !strings.Contains(frame, want) {
-			t.Errorf("live check-in snapshot missing %q: %s", want, frame)
-		}
+	if !strings.Contains(frame, `"habitrefresh":`) {
+		t.Errorf("live check-in invalidation: %s", frame)
 	}
 	if strings.Contains(frame, `id="jot-cm"`) || strings.Contains(frame, `id="block-list"`) {
 		t.Fatalf("check-in patch disturbed another feature: %s", frame)
@@ -382,7 +419,7 @@ func TestHabitEventsReconnectAndLiveWritesPatchOnlyTheMatrix(t *testing.T) {
 	readFrame(t, reconnect)
 	readFrame(t, reconnect)
 	frame = readFrame(t, reconnect)
-	if !strings.Contains(frame, today) || !strings.Contains(frame, `aria-pressed="true"`) {
-		t.Fatalf("reconnect missed authoritative check-in: %s", frame)
+	if !strings.Contains(frame, `"_habitcurrent":`) || !strings.Contains(frame, `"habitrefresh":`) || strings.Contains(frame, today) {
+		t.Fatalf("reconnect did not request an authoritative selected-month refresh: %s", frame)
 	}
 }

@@ -2534,6 +2534,33 @@
       background: var(--bg);
     }
 
+    .month-nav {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: min(100%, 32rem);
+      padding: 0.75rem;
+      background: var(--bg);
+    }
+
+    .month-nav h2 {
+      min-width: 0;
+      margin-right: auto;
+      font-weight: 700;
+    }
+
+    .month-nav button {
+      flex-shrink: 0;
+
+      &:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+    }
+
     table {
       border-collapse: separate;
       border-spacing: 0;

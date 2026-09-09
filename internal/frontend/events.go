@@ -1,6 +1,8 @@
 package frontend
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"io"
 	"log"
 	"net/http"
@@ -17,7 +19,26 @@ import (
 // closes. A var so tests can shrink it.
 var keepaliveInterval = 25 * time.Second
 
-// EventsHandler reconnects with full plan, Jotpad and habit snapshots.
+func newHabitRefresh() (string, error) {
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(token[:]), nil
+}
+
+func patchHabitRefresh(sse *datastar.ServerSentEventGenerator, currentMonth string) error {
+	refresh, err := newHabitRefresh()
+	if err != nil {
+		return err
+	}
+	return sse.MarshalAndPatchSignals(struct {
+		Current string `json:"_habitcurrent"`
+		Refresh string `json:"habitrefresh"`
+	}{currentMonth, refresh})
+}
+
+// EventsHandler reconnects the plan and Jotpad, then invalidates the view-owned habit month.
 // Jotpad state rides as signals; element patches never touch its editor.
 func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, habits HabitService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +83,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 			return
 		}
 
-		if err := sse.PatchElementTempl(components.HabitGrid(habitSnap.Habits, habitSnap.Month)); err != nil {
+		if err := patchHabitRefresh(sse, habitSnap.Month.Key); err != nil {
 			log.Printf("events habits: %v", err)
 			return
 		}
@@ -82,10 +103,16 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 					return
 				}
 			case <-sub.Habits:
-				if err := patchHabits(sse, r, habits, sig.Timezone); err != nil {
+				current, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
+				if err != nil {
 					log.Printf("events habits: %v", err)
 					return
 				}
+				if err := patchHabitRefresh(sse, current.Month.Key); err != nil {
+					log.Printf("events habits: %v", err)
+					return
+				}
+				month = current.Month
 			case <-ticker.C:
 				// An open tab follows local midnight too, without touching form drafts.
 				current, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
@@ -93,7 +120,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 					return
 				}
 				if current.Month.Today != month.Today {
-					if err := sse.PatchElementTempl(components.HabitGrid(current.Habits, current.Month)); err != nil {
+					if err := patchHabitRefresh(sse, current.Month.Key); err != nil {
 						log.Printf("events habits: %v", err)
 						return
 					}

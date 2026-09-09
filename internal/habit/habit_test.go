@@ -249,7 +249,7 @@ func TestCheckInCivilDateDoesNotShiftBetweenTimezones(t *testing.T) {
 	if _, err := s.SetCheckIn(ctx, "alice", hs[0].ID, "2024-02-29", true, "America/Los_Angeles"); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := s.Snapshot(ctx, "alice", "Pacific/Kiritimati")
+	snap, err := s.MonthSnapshot(ctx, "alice", "Pacific/Kiritimati", "2024-02")
 	if err != nil || !reflect.DeepEqual(snap.Habits[0].CheckedDates, []string{"2024-02-29"}) {
 		t.Fatalf("shifted civil date: %+v %v", snap, err)
 	}
@@ -321,6 +321,63 @@ func TestSetCheckInPublishesOnlyAfterCommit(t *testing.T) {
 	}
 	if published != 1 {
 		t.Fatalf("published rejected mutation: %d", published)
+	}
+}
+
+func TestCalendarMonthBrowsesRealMonthsWithoutPassingTheLocalPresent(t *testing.T) {
+	now := time.Date(2024, 3, 1, 0, 30, 0, 0, time.UTC) // February 29 in Los Angeles.
+	for _, tc := range []struct {
+		key, label, first, last, previous, next string
+		days                                    int
+		current                                 bool
+	}{
+		{"2023-12", "December 2023", "2023-12-01", "2023-12-31", "2023-11", "2024-01", 31, false},
+		{"2024-01", "January 2024", "2024-01-01", "2024-01-31", "2023-12", "2024-02", 31, false},
+		{"2024-02", "February 2024", "2024-02-01", "2024-02-29", "2024-01", "", 29, true},
+	} {
+		m, err := habit.CalendarMonth("America/Los_Angeles", tc.key, now)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.key, err)
+		}
+		if m.Key != tc.key || m.Label != tc.label || len(m.Dates) != tc.days || m.Dates[0] != tc.first || m.Dates[len(m.Dates)-1] != tc.last || m.Previous != tc.previous || m.Next != tc.next || m.Current != tc.current || m.Today != "2024-02-29" {
+			t.Errorf("%s: %+v", tc.key, m)
+		}
+	}
+	for _, key := range []string{"2024-03", "2024-2", "", "not-a-month"} {
+		if _, err := habit.CalendarMonth("America/Los_Angeles", key, now); !habit.IsRejection(err) {
+			t.Errorf("accepted month %q: %v", key, err)
+		}
+	}
+}
+
+func TestMonthSnapshotKeepsHistoricalCheckInsAndOmitsHabitsBeforeTheirStartMonth(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	now := time.Date(2024, 3, 15, 12, 0, 0, 0, time.UTC)
+	s := habit.NewService(db, nil, habit.WithClock(func() time.Time { return now }))
+	old, err := s.Create(ctx, "alice", "Old", "2024-02-29", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(ctx, "alice", "New", "2024-03-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetCheckIn(ctx, "alice", old[0].ID, "2024-02-29", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetCheckIn(ctx, "alice", old[0].ID, "2024-03-01", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := s.MonthSnapshot(ctx, "alice", "UTC", "2024-02")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Habits) != 1 || snap.Habits[0].Name != "Old" || !reflect.DeepEqual(snap.Habits[0].CheckedDates, []string{"2024-02-29"}) {
+		t.Fatalf("historical snapshot: %+v", snap)
+	}
+	other, err := s.MonthSnapshot(ctx, "bob", "UTC", "2024-02")
+	if err != nil || len(other.Habits) != 0 {
+		t.Fatalf("cross-owner snapshot: %+v %v", other, err)
 	}
 }
 

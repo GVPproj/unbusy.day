@@ -58,11 +58,24 @@ type Snapshot struct {
 }
 
 func (s *Service) Snapshot(ctx context.Context, owner, timezone string) (*Snapshot, error) {
-	habits, err := list(ctx, s.db, owner)
+	month, err := Calendar(timezone, s.now())
 	if err != nil {
 		return nil, err
 	}
-	month, err := Calendar(timezone, s.now())
+	return s.snapshotMonth(ctx, owner, month)
+}
+
+// MonthSnapshot reads one view-selected month without storing that selection.
+func (s *Service) MonthSnapshot(ctx context.Context, owner, timezone, key string) (*Snapshot, error) {
+	month, err := CalendarMonth(timezone, key, s.now())
+	if err != nil {
+		return nil, err
+	}
+	return s.snapshotMonth(ctx, owner, month)
+}
+
+func (s *Service) snapshotMonth(ctx context.Context, owner string, month Month) (*Snapshot, error) {
+	habits, err := listMonth(ctx, s.db, owner, month)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +100,24 @@ func list(ctx context.Context, q querier, owner string) ([]Habit, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scanHabits(rows)
+}
+
+func listMonth(ctx context.Context, q querier, owner string, month Month) ([]Habit, error) {
+	first, last := month.Dates[0], month.Dates[len(month.Dates)-1]
+	rows, err := q.QueryContext(ctx, `
+		SELECT h.id, h.name, h.start_date, c.date
+		FROM habit h
+		LEFT JOIN habit_checkin c ON c.habit_id = h.id AND c.date >= ? AND c.date <= ?
+		WHERE h.owner_id = ? AND h.start_date <= ?
+		ORDER BY h.id, c.date`, first, last, owner, last)
+	if err != nil {
+		return nil, err
+	}
+	return scanHabits(rows)
+}
+
+func scanHabits(rows *sql.Rows) ([]Habit, error) {
 	defer rows.Close()
 	habits := make([]Habit, 0)
 	for rows.Next() {
@@ -122,7 +153,8 @@ func foldKey(name string) string {
 
 // SetCheckIn records an explicit checked state for one owned habit and civil date.
 func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*Snapshot, error) {
-	month, err := Calendar(timezone, s.now())
+	now := s.now()
+	current, err := Calendar(timezone, now)
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +177,12 @@ func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, d
 	if date < startDate {
 		return nil, rejection("Check-in date cannot be before the habit started.")
 	}
-	if date > month.Today {
+	if date > current.Today {
 		return nil, rejection("Check-in date cannot be after today.")
+	}
+	month, err := CalendarMonth(timezone, date[:7], now)
+	if err != nil {
+		return nil, err
 	}
 	if checked {
 		_, err = tx.ExecContext(ctx, `INSERT INTO habit_checkin (habit_id, date) VALUES (?, ?) ON CONFLICT (habit_id, date) DO NOTHING`, habitID, date)
@@ -156,7 +192,7 @@ func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, d
 	if err != nil {
 		return nil, err
 	}
-	habits, err := list(ctx, tx, owner)
+	habits, err := listMonth(ctx, tx, owner, month)
 	if err != nil {
 		return nil, err
 	}

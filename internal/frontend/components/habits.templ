@@ -8,11 +8,15 @@ import (
 )
 
 func checkInAction(habitID int64, date string, checked bool) string {
-	request := "$habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = " + strconv.FormatBool(!checked) + "; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|timezone)$/}})"
+	request := "$habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = " + strconv.FormatBool(!checked) + "; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitrefresh|habitview|timezone)$/}})"
 	return "if (el.getAttribute('aria-busy') !== 'true') { " + request + " }"
 }
 
-// The scroll container stays mounted while its server-rendered grid morphs.
+func selectHabitMonth(month string) string {
+	return "$habitview++; $_habitfollowing = false; $habitmonth = '" + month + "'"
+}
+
+// The scroll container and view-owned month signals stay mounted while the grid morphs.
 templ Habits(habits []habit.Habit, month habit.Month) {
 	<div
 		id="habit-matrix"
@@ -23,67 +27,80 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		data-signals:habitid="0"
 		data-signals:habitdate="''"
 		data-signals:habitchecked="false"
+		data-signals:habitmonth="''"
+		data-signals:habitview="0"
+		data-signals:_habitcurrent="''"
+		data-signals:_habitfollowing="true"
+		data-signals:habitrefresh="''"
+		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh)$/}}) }"
 	>
-		@HabitGrid(habits, month)
+		@HabitGrid(habits, month, "", 0)
 	</div>
 }
 
-// HabitGrid is shared by initial rendering and every ordered live patch.
-templ HabitGrid(habits []habit.Habit, month habit.Month) {
-	<div id="habit-grid">
+// HabitGrid is shared by initial rendering and every authoritative month patch.
+templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view uint64) {
+	<div id="habit-grid" data-month={ month.Key } data-refresh={ refresh } data-view={ strconv.FormatUint(view, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview">
 		if month.Today == "" {
 			<p>Loading your current month…</p>
-		}
-		if len(habits) == 0 {
-			<p>No habits yet. Create your first habit below.</p>
 		} else {
-			<table>
-				<caption>{ month.Label }</caption>
-				<thead>
-					<tr>
-						<th scope="col">Habit</th>
-						for _, date := range month.Dates {
-							<th scope="col"><time datetime={ date }>{ date[8:] }</time></th>
-						}
-					</tr>
-				</thead>
-				<tbody>
-					for _, h := range habits {
-						<tr id={ "habit-" + strconv.FormatInt(h.ID, 10) }>
-							<th scope="row">{ h.Name }</th>
+			<nav class="month-nav" aria-label="Habit month">
+				<button id="habit-previous-month" class="btn" type="button" data-on:click={ selectHabitMonth(month.Previous) } aria-label={ "Previous month, " + month.Previous }>Previous</button>
+				<h2 aria-live="polite"><time datetime={ month.Key }>{ month.Label }</time></h2>
+				<button id="habit-next-month" class="btn" type="button" disabled?={ month.Current } data-on:click={ selectHabitMonth(month.Next) } aria-label={ "Next month" }>Next</button>
+				<button id="habit-this-month" class="btn" type="button" disabled?={ month.Current } data-on:click="$habitview++; $_habitfollowing = true; $habitmonth = $_habitcurrent">This month</button>
+			</nav>
+			if len(habits) == 0 {
+				<p>No habits yet in this month.</p>
+			} else {
+				<table>
+					<caption class="sr-only">{ month.Label } habit check-ins</caption>
+					<thead>
+						<tr>
+							<th scope="col">Habit</th>
 							for _, date := range month.Dates {
-								<td class={ templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
-									if date < h.StartDate || date > month.Today {
-										<span aria-label={ date + ": unavailable" }>—</span>
-									} else {
-										{{ checked := slices.Contains(h.CheckedDates, date) }}
-										<button
-											type="button"
-											class="check-in"
-											id={ "checkin-" + strconv.FormatInt(h.ID, 10) + "-" + date }
-											aria-label={ h.Name + " on " + date }
-											aria-pressed={ strconv.FormatBool(checked) }
-											data-checkin-action
-											data-desired={ strconv.FormatBool(!checked) }
-											data-on:click={ checkInAction(h.ID, date, checked) }
-										>
-											<span aria-hidden="true">
-												if checked {
-													✓
-												} else {
-													·
-												}
-											</span>
-										</button>
-									}
-								</td>
+								<th scope="col"><time datetime={ date }>{ date[8:] }</time></th>
 							}
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						for _, h := range habits {
+							<tr id={ "habit-" + strconv.FormatInt(h.ID, 10) }>
+								<th scope="row">{ h.Name }</th>
+								for _, date := range month.Dates {
+									<td class={ templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
+										if date < h.StartDate || date > month.Today {
+											<span aria-label={ date + ": unavailable" }>—</span>
+										} else {
+											{{ checked := slices.Contains(h.CheckedDates, date) }}
+											<button
+												type="button"
+												class="check-in"
+												id={ "checkin-" + strconv.FormatInt(h.ID, 10) + "-" + date }
+												aria-label={ h.Name + " on " + date }
+												aria-pressed={ strconv.FormatBool(checked) }
+												data-checkin-action
+												data-desired={ strconv.FormatBool(!checked) }
+												data-on:click={ checkInAction(h.ID, date, checked) }
+											>
+												<span aria-hidden="true">
+													if checked {
+														✓
+													} else {
+														·
+													}
+												</span>
+											</button>
+										}
+									</td>
+								}
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+			@HabitCheckInFeedback("", "")
 		}
-		@HabitCheckInFeedback("", "")
 	</div>
 }
 

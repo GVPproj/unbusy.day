@@ -78,6 +78,16 @@ test("a new attempt clears a stale rejected result", () => {
   assert.equal(f.button.dataset.saveState, "failed");
 });
 
+test("a response from a month that was left does not alter the new month", () => {
+  const f = fixture();
+  handleCheckInFetch(f.document, { detail: { type: "started", el: f.button } });
+  f.button.isConnected = false;
+  f.document.getElementById = (id) => id === "habit-checkin-feedback" ? f.status : null;
+  f.status.textContent = "Current month status";
+  handleCheckInFetch(f.document, { detail: { type: "finished", el: f.button } });
+  assert.equal(f.status.textContent, "Current month status");
+});
+
 test("a rejected write clears pending without changing checked state", () => {
   const f = fixture();
   f.attrs.set("aria-pressed", "false");
