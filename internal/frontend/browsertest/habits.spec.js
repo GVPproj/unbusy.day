@@ -139,6 +139,71 @@ test("creation defaults to browser-local today and persists the current-month av
  await page.screenshot({ path: test.info().outputPath("habits-desktop.png"), fullPage: true });
 });
 
+for (const mobile of [false, true]) {
+	test.describe(mobile ? "mobile habit names" : "desktop habit names", () => {
+		test.use({ hasTouch: mobile });
+
+		test("clamp long names and keep themed actions accessible", async ({ page }) => {
+			if (mobile) {
+				await page.setViewportSize({ width: 390, height: 900 });
+				await mobilePanel(page, "Notes & Habits");
+			}
+			await habitsTab(page).click();
+			const names = ["Eat", "Do large amounts of work every day with plenty of breaks", "Unbroken".repeat(10)];
+			for (const name of names) await createHabit(page, name);
+
+			for (const [feeling, icon] of [["cozy", "solar"], ["pixel", "pixel"], ["mono", "mono"]]) {
+				const theme = page.locator("#theme-modal");
+				await theme.evaluate((el) => el.showModal());
+				await theme.getByRole("button", { name: new RegExp(`^${feeling}$`, "i") }).click();
+				if (feeling === "pixel") {
+					await theme.getByRole("button", { name: "Nord", exact: true }).click();
+					await theme.getByRole("button", { name: "Dark", exact: true }).click();
+				}
+				await theme.getByRole("button", { name: "Done", exact: true }).click();
+				await page.evaluate(() => document.fonts.ready);
+				for (const name of names) {
+					const row = habitRow(page, name);
+					const label = row.locator(".habit-name");
+					await expect(label).toHaveAttribute("title", name);
+					const size = await label.evaluate((el) => ({
+						height: el.getBoundingClientRect().height,
+						line: parseFloat(getComputedStyle(el).lineHeight),
+						scroll: el.scrollHeight,
+					}));
+					expect(size.height).toBeLessThanOrEqual(size.line * 2 + 1);
+					if (name !== "Eat") {
+						expect(size.height).toBeCloseTo(size.line * 2, 0);
+						expect(size.scroll).toBeGreaterThan(size.height);
+					}
+					const header = await row.getByRole("rowheader").boundingBox();
+					expect(header.width).toBeGreaterThanOrEqual(192);
+					for (const action of ["Edit", "Delete"]) {
+						const button = row.getByRole("button", { name: `${action} ${name}`, exact: true });
+						await expect(button).toHaveText("");
+						await expect(button.locator("svg:visible")).toHaveCount(1);
+						await expect(button.locator(`.icon-${icon}`)).toBeVisible();
+						const box = await button.boundingBox();
+						expect(box.width).toBeGreaterThanOrEqual(mobile ? 44 : 32);
+						expect(box.height).toBeGreaterThanOrEqual(mobile ? 44 : 32);
+						expect(box.x + box.width).toBeLessThanOrEqual(header.x + header.width);
+					}
+				}
+				await page.locator("#habit-matrix").screenshot({ path: test.info().outputPath(`habit-names-${feeling}.png`) });
+			}
+
+			const row = habitRow(page, names[1]);
+			await row.getByRole("button", { name: `Edit ${names[1]}`, exact: true }).click();
+			await expect(page.locator("#habit-edit-name")).toHaveValue(names[1]);
+			await page.locator("#habit-edit").getByRole("button", { name: "Cancel", exact: true }).click();
+			await deleteHabit(page, names[1]).click();
+			await expect(deleteDialog(page)).toContainText(names[1]);
+			await deleteDialog(page).getByRole("button", { name: "Cancel", exact: true }).click();
+			await expect(row).toBeVisible();
+		});
+	});
+}
+
 test("historical check-ins survive reload and This month resumes the present", async ({ page }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);

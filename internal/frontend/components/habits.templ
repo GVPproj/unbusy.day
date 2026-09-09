@@ -98,7 +98,11 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view ui
 							<tr>
 								<th scope="col">Habit</th>
 								for _, date := range month.Dates {
-									<th scope="col"><time datetime={ date }>{ date[8:] }</time></th>
+									<th scope="col" class={ templ.KV("today", date == month.Today) }>
+										<time datetime={ date } if date == month.Today {
+											aria-current="date"
+										}>{ date[8:] }</time>
+									</th>
 								}
 							</tr>
 						</thead>
@@ -106,28 +110,36 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view ui
 							for _, h := range habits {
 								<tr id={ "habit-" + strconv.FormatInt(h.ID, 10) }>
 									<th scope="row" aria-label={ h.Name }>
-										<span>{ h.Name }</span>
-										<button
-											id={ "habit-edit-" + strconv.FormatInt(h.ID, 10) }
-											class="habit-action"
-											type="button"
-											commandfor="habit-edit"
-											command="show-modal"
-											data-on:click={ openHabitEditor(h) }
-											aria-label={ "Edit " + h.Name }
-										>Edit</button>
-										<button
-											id={ "habit-delete-" + strconv.FormatInt(h.ID, 10) }
-											class="habit-action"
-											type="button"
-											commandfor="habit-delete"
-											command="show-modal"
-											data-on:click={ openHabitDelete(h) }
-											aria-label={ "Delete " + h.Name }
-										>Delete</button>
+										<div class="habit-heading">
+											<span class="habit-name" title={ h.Name }>{ h.Name }</span>
+											<button
+												id={ "habit-edit-" + strconv.FormatInt(h.ID, 10) }
+												class="habit-action"
+												type="button"
+												commandfor="habit-edit"
+												command="show-modal"
+												data-on:click={ openHabitEditor(h) }
+												aria-label={ "Edit " + h.Name }
+												title="Edit habit"
+											>
+												@IconEdit()
+											</button>
+											<button
+												id={ "habit-delete-" + strconv.FormatInt(h.ID, 10) }
+												class="habit-action"
+												type="button"
+												commandfor="habit-delete"
+												command="show-modal"
+												data-on:click={ openHabitDelete(h) }
+												aria-label={ "Delete " + h.Name }
+												title="Delete habit"
+											>
+												@IconClear()
+											</button>
+										</div>
 									</th>
 									for _, date := range month.Dates {
-										<td class={ templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
+										<td class={ templ.KV("today", date == month.Today), templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
 											if date < h.StartDate || date > month.Today {
 												<span aria-label={ date + ": unavailable" }>—</span>
 											} else {

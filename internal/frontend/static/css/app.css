@@ -2615,26 +2615,71 @@
       position: sticky;
       left: 0;
       z-index: 1;
-      min-width: 8rem;
+      width: 12rem;
+      min-width: 12rem;
       max-width: 12rem;
-      overflow-wrap: anywhere;
       text-align: start;
       background: var(--surface);
       border-right: 2px solid var(--rail-border);
     }
 
-    .habit-action {
-      display: inline-block;
-      min-height: 2rem;
-      margin-inline-end: 0.5rem;
+    th.today {
       color: var(--accent);
-      font-size: var(--text-sm);
-      text-decoration: underline;
-      text-underline-offset: 2px;
+      box-shadow: inset 0 -2px var(--accent);
+    }
+
+    .today:not(.unavailable) {
+      background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+    }
+
+    .today .check-in {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .habit-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: 0.25rem;
+    }
+
+    .habit-name {
+      grid-row: span 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+
+    .habit-action {
+      grid-column: 2;
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: var(--radius);
+      color: var(--ink-muted);
+      cursor: pointer;
+
+      &:hover, &:focus-visible {
+        color: var(--accent);
+        background: color-mix(in srgb, var(--hover-shift) 8%, transparent);
+      }
+
+      &[commandfor="habit-delete"]:is(:hover, :focus-visible) {
+        color: var(--danger);
+      }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+      }
 
       @media (pointer: coarse) {
-        min-width: 2.75rem;
-        min-height: 2.75rem;
+        width: 2.75rem;
+        height: 2.75rem;
       }
     }
 
