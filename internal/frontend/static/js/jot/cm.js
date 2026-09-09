@@ -150,10 +150,12 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		for (let i = 0; i < 2 && nativeCaretReset(view); i++) {
 			view.dom.ownerDocument.dispatchEvent(new Event("selectionchange"));
 		}
+		// Android may only queue reconciliation; focus writes the current model selection.
+		if (nativeCaretReset(view)) view.focus();
 	};
-	const prepareInput = (_event, view) => {
+	const prepareInput = () => {
 		flushReturn(view);
-		finishReturn();
+		if (!nativeCaretReset(view)) finishReturn();
 	};
 
 	const view = new EditorView({
@@ -186,8 +188,6 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				syntaxHighlighting(classHighlighter),
 				jotDecorationsPlugin,
 				taskToggle,
-				// Run before every keymap so intentional selection at zero isn't filtered.
-				EditorView.domEventObservers({ keydown: prepareInput, beforeinput: prepareInput }),
 				keymap.of([...defaultKeymap, ...historyKeymap]),
 				// The jot.MaxLen cap; approximate (UTF-16 units vs server
 				// runes) but the server logs-and-drops over-cap writes anyway.
@@ -209,6 +209,11 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 			],
 		}),
 	});
+
+	// Capture before CM's Android key deferral, which can bypass its event observers.
+	for (const type of ["keydown", "beforeinput", "compositionstart"]) {
+		view.contentDOM.addEventListener(type, prepareInput, { capture: true });
+	}
 
 	// Native refocus can scroll to zero before CM measures a redisplayed editor.
 	const panel = mount.closest('[role="tabpanel"]');
@@ -232,7 +237,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 			write: () => queueMicrotask(() => {
 				if (panelReturn !== pending) return;
 				flushReturn(view);
-				if (panelReturn === pending) finishReturn();
+				if (panelReturn === pending && !nativeCaretReset(view)) finishReturn();
 			}),
 		});
 	});
