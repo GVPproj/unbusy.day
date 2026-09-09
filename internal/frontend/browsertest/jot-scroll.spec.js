@@ -29,8 +29,22 @@ test("Jotpad preserves scroll when refocused before its redisplay measurement", 
 		document.querySelector(".cm-content").focus();
 	});
 	await expect(content).toBeFocused();
-	await expect.poll(() => state.evaluate((saved) => saved.view.scrollDOM.scrollTop)).toBe(await state.evaluate((saved) => saved.scroll));
-	expect(await state.evaluate((saved) => saved.view.state.selection.toJSON())).toEqual(await state.evaluate((saved) => saved.selection));
-	expect(await state.evaluate((saved) => saved.view.state.doc.toString())).toBe(await state.evaluate((saved) => saved.text));
+	// Scroll can settle before CM's asynchronous focus/selection update.
+	await expect.poll(() => state.evaluate((saved) => {
+		const selection = getSelection();
+		const nativeCaret = saved.view.contentDOM.contains(selection?.focusNode)
+			? saved.view.posAtDOM(selection.focusNode, selection.focusOffset) : null;
+		return {
+			scroll: saved.view.scrollDOM.scrollTop,
+			selection: saved.view.state.selection.toJSON(),
+			nativeCaret,
+			text: saved.view.state.doc.toString(),
+		};
+	})).toEqual(await state.evaluate((saved) => ({
+		scroll: saved.scroll,
+		selection: saved.selection,
+		nativeCaret: saved.selection.ranges[saved.selection.main].head,
+		text: saved.text,
+	})));
 	await state.dispose();
 });
