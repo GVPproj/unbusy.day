@@ -137,7 +137,24 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	// Set while the sync driver rewrites the doc, so its own transaction isn't
 	// mistaken for typing and re-posted as a local edit.
 	let applying = false;
-	let hiddenScroll;
+	let panelReturn;
+	const finishReturn = () => { panelReturn = undefined; };
+	const nativeCaretReset = (view) => {
+		const selection = getSelection(), range = view.state.selection.main;
+		return view.hasFocus && selection?.isCollapsed && view.contentDOM.contains(selection.focusNode) &&
+			view.posAtDOM(selection.focusNode, selection.focusOffset) === 0 && (!range.empty || range.head > 0);
+	};
+	const flushReturn = (view) => {
+		if (!panelReturn?.refocusing) return;
+		// CM's focus heuristic can consume the first notification without refreshing its cache.
+		for (let i = 0; i < 2 && nativeCaretReset(view); i++) {
+			view.dom.ownerDocument.dispatchEvent(new Event("selectionchange"));
+		}
+	};
+	const prepareInput = (_event, view) => {
+		flushReturn(view);
+		finishReturn();
+	};
 
 	const view = new EditorView({
 		parent: mount,
@@ -169,15 +186,24 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				syntaxHighlighting(classHighlighter),
 				jotDecorationsPlugin,
 				taskToggle,
+				// Run before every keymap so intentional selection at zero isn't filtered.
+				EditorView.domEventObservers({ keydown: prepareInput, beforeinput: prepareInput }),
 				keymap.of([...defaultKeymap, ...historyKeymap]),
 				// The jot.MaxLen cap; approximate (UTF-16 units vs server
 				// runes) but the server logs-and-drops over-cap writes anyway.
 				EditorState.transactionFilter.of((tr) =>
 					tr.newDoc.length > maxLen ? [] : tr,
 				),
+				// A redisplayed editor's native caret-at-start must not replace CM's selection.
+				EditorState.transactionFilter.of((tr) =>
+					panelReturn?.refocusing && !tr.docChanged && tr.isUserEvent("select") &&
+					tr.selection?.main.empty && tr.selection.main.head === 0
+						? [tr, { selection: tr.startState.selection }] : tr,
+				),
 				EditorView.updateListener.of((u) => {
-					if (u.docChanged && hiddenScroll) hiddenScroll = hiddenScroll.map(u.changes);
+					if (u.docChanged && panelReturn?.scroll) panelReturn.scroll = panelReturn.scroll.map(u.changes);
 					if (!u.docChanged || applying) return;
+					if (panelReturn?.refocusing) finishReturn();
 					sync.edited();
 				}),
 			],
@@ -186,19 +212,35 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 
 	// Native refocus can scroll to zero before CM measures a redisplayed editor.
 	const panel = mount.closest('[role="tabpanel"]');
-	panel?.addEventListener("companion-hide", () => { hiddenScroll = view.scrollSnapshot(); });
+	panel?.addEventListener("companion-hide", () => {
+		flushReturn(view);
+		// Measure queued scroll effects before a rapid hide can snapshot the old viewport.
+		view.coordsAtPos(view.state.selection.main.head);
+		panelReturn = { scroll: view.scrollSnapshot() };
+	});
 	panel?.addEventListener("companion-show", () => {
-		if (hiddenScroll) view.dispatch({ effects: hiddenScroll });
+		if (panelReturn?.scroll) view.dispatch({ effects: panelReturn.scroll });
 	});
 	view.contentDOM.addEventListener("focus", () => {
-		if (!hiddenScroll) return;
-		view.dispatch({ effects: hiddenScroll });
-		hiddenScroll = undefined;
+		const pending = panelReturn;
+		if (!pending) return;
+		pending.refocusing = true;
+		if (pending.scroll) view.dispatch({ effects: pending.scroll });
+		view.requestMeasure({
+			key: pending,
+			read: () => null,
+			write: () => queueMicrotask(() => {
+				if (panelReturn !== pending) return;
+				flushReturn(view);
+				if (panelReturn === pending) finishReturn();
+			}),
+		});
 	});
-	// Deliberate scrolling or pointer placement supersedes the return position.
-	const discardScroll = () => { hiddenScroll = undefined; };
-	view.scrollDOM.addEventListener("wheel", discardScroll, { passive: true });
-	view.scrollDOM.addEventListener("pointerdown", discardScroll);
+	// Wheel discards the saved position; pointer placement also ends selection protection.
+	view.scrollDOM.addEventListener("wheel", () => {
+		if (panelReturn) panelReturn.scroll = undefined;
+	}, { passive: true });
+	view.scrollDOM.addEventListener("pointerdown", finishReturn);
 
 	const sync = createJotSync({
 		getText: () => view.state.doc.toString(),
