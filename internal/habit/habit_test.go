@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -196,6 +197,150 @@ func TestCreateValidatesWithoutChangingState(t *testing.T) {
 	}
 	if habit.IsRejection(nil) || habit.IsRejection(errors.New("storage failure")) {
 		t.Fatal("non-domain error classified as rejection")
+	}
+}
+
+func TestEditPreservesIdentityOrderAndCheckIns(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	s := habit.NewService(db, nil)
+	first, err := s.Create(ctx, "alice", "Read", "2024-02-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(ctx, "alice", "Walk", "2024-02-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	id := first[0].ID
+	if _, err := s.SetCheckIn(ctx, "alice", id, "2024-02-29", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.Edit(ctx, "alice", id, "  Books  ", "2024-02-29", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].ID != id || got[0].Name != "Books" || got[0].StartDate != "2024-02-29" || !reflect.DeepEqual(got[0].CheckedDates, []string{"2024-02-29"}) || got[1].Name != "Walk" {
+		t.Fatalf("edited state: %+v", got)
+	}
+	month, err := s.MonthSnapshot(ctx, "alice", "UTC", "2024-02")
+	if err != nil || len(month.Habits) != 2 || month.Habits[0].Name != "Books" {
+		t.Fatalf("historical current name: %+v %v", month, err)
+	}
+	longName := strings.Repeat("界", 80)
+	got, err = s.Edit(ctx, "alice", id, longName, "2023-12-01", "UTC")
+	if err != nil || got[0].ID != id || got[0].Name != longName || got[0].StartDate != "2023-12-01" || !reflect.DeepEqual(got[0].CheckedDates, []string{"2024-02-29"}) {
+		t.Fatalf("earlier boundary edit: %+v %v", got, err)
+	}
+}
+
+func TestEditRejectsInvalidOrUnownedChangesWithoutChangingState(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	s := habit.NewService(db, nil)
+	alice, err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(ctx, "alice", "Walk", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	bob, err := s.Create(ctx, "bob", "Private", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetCheckIn(ctx, "alice", alice[0].ID, "2024-02-10", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name, start string
+		id          int64
+	}{
+		{"", "2024-01-01", alice[0].ID},
+		{strings.Repeat("界", 81), "2024-01-01", alice[0].ID},
+		{"Walk", "2024-01-01", alice[0].ID},
+		{"Books", "2024-02-11", alice[0].ID},
+		{"Books", "9999-01-01", alice[0].ID},
+		{"Books", "2024-02-30", alice[0].ID},
+		{"Stolen", "2024-01-01", bob[0].ID},
+		{"Missing", "2024-01-01", 999999},
+	} {
+		if _, err := s.Edit(ctx, "alice", tc.id, tc.name, tc.start, "UTC"); !habit.IsRejection(err) {
+			t.Errorf("edit %+v: got %v", tc, err)
+		}
+	}
+	got, err := s.List(ctx, "alice")
+	if err != nil || len(got) != 2 || got[0].Name != "Read" || got[0].StartDate != "2024-01-01" || !reflect.DeepEqual(got[0].CheckedDates, []string{"2024-02-10"}) {
+		t.Fatalf("rejections changed state: %+v %v", got, err)
+	}
+}
+
+func TestCompetingEditsAndCheckInsKeepHabitInvariants(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	s := habit.NewService(db, nil)
+	hs, err := s.Create(ctx, "alice", "One", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hs, err = s.Create(ctx, "alice", "Two", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for i, id := range []int64{hs[0].ID, hs[1].ID} {
+		go func(id int64, name string) {
+			<-start
+			_, err := habit.NewService(db, nil).Edit(ctx, "alice", id, name, "2024-01-01", "UTC")
+			results <- err
+		}(id, []string{"Same", "sAME"}[i])
+	}
+	close(start)
+	successes := 0
+	for range 2 {
+		if err := <-results; err == nil {
+			successes++
+		} else if !habit.IsRejection(err) {
+			t.Fatalf("competing rename: %v", err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful duplicate renames: %d", successes)
+	}
+
+	start = make(chan struct{})
+	results = make(chan error, 2)
+	go func() {
+		<-start
+		_, err := habit.NewService(db, nil).Edit(ctx, "alice", hs[0].ID, "Later", "2024-02-02", "UTC")
+		results <- err
+	}()
+	go func() {
+		<-start
+		_, err := habit.NewService(db, nil).SetCheckIn(ctx, "alice", hs[0].ID, "2024-02-01", true, "UTC")
+		results <- err
+	}()
+	close(start)
+	successes = 0
+	for range 2 {
+		if err := <-results; err == nil {
+			successes++
+		} else if !habit.IsRejection(err) {
+			t.Fatalf("competing check-in: %v", err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful conflicting date writes: %d", successes)
+	}
+	got, err := s.List(ctx, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].StartDate > "2024-02-01" && slices.Contains(got[0].CheckedDates, "2024-02-01") {
+		t.Fatalf("inconsistent date state: %+v", got[0])
 	}
 }
 

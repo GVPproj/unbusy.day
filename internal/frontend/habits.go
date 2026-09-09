@@ -19,19 +19,24 @@ type HabitService interface {
 	Snapshot(ctx context.Context, owner, timezone string) (*habit.Snapshot, error)
 	MonthSnapshot(ctx context.Context, owner, timezone, month string) (*habit.Snapshot, error)
 	Create(ctx context.Context, owner, name, startDate, timezone string) ([]habit.Habit, error)
+	Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) ([]habit.Habit, error)
 	SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*habit.Snapshot, error)
 }
 
 type habitSignals struct {
-	Name     string `json:"habitname"`
-	Start    string `json:"habitstart"`
-	Timezone string `json:"timezone"`
-	Month    string `json:"habitmonth"`
-	Refresh  string `json:"habitrefresh"`
-	View     uint64 `json:"habitview"`
-	HabitID  int64  `json:"habitid"`
-	Date     string `json:"habitdate"`
-	Checked  *bool  `json:"habitchecked"`
+	Name      string `json:"habitname"`
+	Start     string `json:"habitstart"`
+	Timezone  string `json:"timezone"`
+	Month     string `json:"habitmonth"`
+	Refresh   string `json:"habitrefresh"`
+	View      uint64 `json:"habitview"`
+	HabitID   int64  `json:"habitid"`
+	EditID    int64  `json:"habiteditid"`
+	EditName  string `json:"habiteditname"`
+	EditStart string `json:"habiteditstart"`
+	EditView  uint64 `json:"habiteditview"`
+	Date      string `json:"habitdate"`
+	Checked   *bool  `json:"habitchecked"`
 }
 
 func validHabitRefresh(token string) bool {
@@ -102,6 +107,40 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 		sse := datastar.NewSSE(w, r)
 		if err := sse.PatchElementTempl(components.HabitFeedback("Habit created.")); err != nil {
 			log.Printf("habit feedback: %v", err)
+		}
+	})
+}
+
+func HabitEditHandler(svc HabitService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig habitSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+		_, err := svc.Edit(r.Context(), web.OwnerFrom(r.Context()), sig.EditID, sig.EditName, sig.EditStart, sig.Timezone)
+		if habit.IsRejection(err) {
+			sse := datastar.NewSSE(w, r)
+			if err := sse.MarshalAndPatchSignals(struct {
+				Message string `json:"_habitediterror"`
+				View    uint64 `json:"_habitediterrorview"`
+			}{err.Error(), sig.EditView}); err != nil {
+				log.Printf("habit edit feedback: %v", err)
+			}
+			return
+		}
+		if err != nil {
+			log.Printf("habit edit: %v", err)
+			http.Error(w, "Unable to edit habit. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		// The private acknowledgement closes only the submitting view's dialog;
+		// grid HTML stays on the ordered owner stream.
+		sse := datastar.NewSSE(w, r)
+		if err := sse.MarshalAndPatchSignals(struct {
+			View uint64 `json:"_habiteditsavedview"`
+		}{sig.EditView}); err != nil {
+			log.Printf("habit edit acknowledgement: %v", err)
 		}
 	})
 }

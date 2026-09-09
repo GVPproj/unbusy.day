@@ -52,6 +52,7 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("POST /jot", web.RequireSession(authSvc, frontend.JotHandler(jotSvc)))
 	mux.Handle("GET /habits/month", web.RequireSession(authSvc, frontend.HabitMonthHandler(habitSvc)))
 	mux.Handle("POST /habits", web.RequireSession(authSvc, frontend.HabitCreateHandler(habitSvc)))
+	mux.Handle("POST /habits/edit", web.RequireSession(authSvc, frontend.HabitEditHandler(habitSvc)))
 	mux.Handle("POST /habits/check-in", web.RequireSession(authSvc, frontend.HabitCheckInHandler(habitSvc)))
 
 	// Feedback from SES if our emails bounce/get a complaint.

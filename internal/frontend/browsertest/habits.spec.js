@@ -308,6 +308,97 @@ test("live check-ins converge while preserving focused date and horizontal scrol
 	await other.close();
 });
 
+test("habit edits preserve history, drafts, and live state across views", async ({ page, context }) => {
+	await habitsTab(page).click();
+	const calendar = await localCalendar(page);
+	await createHabit(page, "Editable", calendar.previous.first);
+	await page.getByRole("button", { name: /Previous month/ }).click();
+	await checkIn(page, "Editable", calendar.previous.last).click();
+	await page.getByRole("button", { name: "This month", exact: true }).click();
+
+	await page.getByRole("button", { name: "Edit Editable", exact: true }).focus();
+	await page.keyboard.press("Enter");
+	const dialog = page.getByRole("dialog", { name: "Edit habit" });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue("Editable");
+	await expect(dialog.getByLabel("Start date", { exact: true })).toHaveValue(calendar.previous.first);
+	await dialog.getByLabel("Name", { exact: true }).fill("Unfinished local edit");
+
+	const other = await context.newPage();
+	await other.goto(baseURL, { waitUntil: "load" });
+	await habitsTab(other).click();
+	await other.getByRole("button", { name: "Edit Editable", exact: true }).click();
+	const otherDialog = other.getByRole("dialog", { name: "Edit habit" });
+	await otherDialog.getByLabel("Name", { exact: true }).fill("Renamed elsewhere");
+	await otherDialog.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(otherDialog).toBeHidden();
+	await expect(habitRow(page, "Renamed elsewhere")).toBeVisible();
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue("Unfinished local edit");
+
+	await dialog.getByLabel("Name", { exact: true }).fill("Edited everywhere");
+	await dialog.getByLabel("Start date", { exact: true }).fill(calendar.today);
+	await dialog.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(page.locator("#habit-edit-feedback")).toContainText("existing check-in");
+	await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue("Edited everywhere");
+	await expect(dialog.getByLabel("Start date", { exact: true })).toHaveValue(calendar.today);
+
+	await dialog.getByLabel("Start date", { exact: true }).fill(calendar.previous.last);
+	await dialog.getByLabel("Start date", { exact: true }).press("Enter");
+	await expect(dialog).toBeHidden();
+	await expect(habitRow(page, "Edited everywhere")).toBeVisible();
+	await page.getByRole("button", { name: /Previous month/ }).click();
+	await expect(checkIn(page, "Edited everywhere", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
+	await expect(habitRow(other, "Edited everywhere")).toBeVisible();
+	await other.close();
+});
+
+test("a delayed edit response cannot close or overwrite a newer draft", async ({ page }) => {
+	await habitsTab(page).click();
+	const { today } = await localCalendar(page);
+	await createHabit(page, "Delayed edit", today);
+	const edit = page.getByRole("button", { name: "Edit Delayed edit", exact: true });
+	await edit.click();
+	const dialog = page.getByRole("dialog", { name: "Edit habit" });
+	await dialog.getByLabel("Name", { exact: true }).fill("First submission");
+
+	let release;
+	const gate = new Promise((resolve) => { release = resolve; });
+	await page.route("**/habits/edit", async (route) => {
+		await gate;
+		await route.continue();
+	});
+	const request = page.waitForRequest((req) => new URL(req.url()).pathname === "/habits/edit");
+	await dialog.getByRole("button", { name: "Save", exact: true }).click();
+	await request;
+	await page.keyboard.press("Escape");
+	await expect(dialog).toBeHidden();
+	await edit.click();
+	await dialog.getByLabel("Name", { exact: true }).fill("Newer draft");
+	const response = page.waitForResponse((res) => new URL(res.url()).pathname === "/habits/edit");
+	release();
+	expect((await response).ok()).toBe(true);
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue("Newer draft");
+	await page.unroute("**/habits/edit");
+});
+
+test("habit editing works in the mobile companion panel", async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await mobilePanel(page, "Notes & Habits");
+	await habitsTab(page).click();
+	const { today } = await localCalendar(page);
+	await createHabit(page, "Mobile habit", today);
+	await page.getByRole("button", { name: "Edit Mobile habit", exact: true }).click();
+	const dialog = page.getByRole("dialog", { name: "Edit habit" });
+	await expect(dialog).toBeVisible();
+	await dialog.getByLabel("Name", { exact: true }).fill("Mobile edited");
+	await dialog.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(dialog).toBeHidden();
+	await expect(habitRow(page, "Mobile edited")).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test("duplicate and future-start errors retain the submitted name and date", async ({ page }) => {
 	await habitsTab(page).click();
 	const { today, tomorrow } = await localCalendar(page);

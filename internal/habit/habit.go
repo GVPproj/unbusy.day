@@ -205,23 +205,31 @@ func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, d
 	return &Snapshot{Habits: habits, Month: month}, nil
 }
 
-func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone string) ([]Habit, error) {
+func (s *Service) validateDefinition(name, startDate, timezone string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, rejection("Enter a habit name.")
+		return "", rejection("Enter a habit name.")
 	}
 	if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 80 {
-		return nil, rejection("Habit names must contain at most 80 Unicode characters.")
+		return "", rejection("Habit names must contain at most 80 Unicode characters.")
 	}
 	month, err := Calendar(timezone, s.now())
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	if _, err := time.Parse(time.DateOnly, startDate); err != nil {
-		return nil, rejection("Enter a valid start date (yyyy-mm-dd).")
+	if parsed, err := time.Parse(time.DateOnly, startDate); err != nil || parsed.Format(time.DateOnly) != startDate {
+		return "", rejection("Enter a valid start date (yyyy-mm-dd).")
 	}
 	if startDate > month.Today {
-		return nil, rejection("Start date cannot be after today.")
+		return "", rejection("Start date cannot be after today.")
+	}
+	return name, nil
+}
+
+func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone string) ([]Habit, error) {
+	name, err := s.validateDefinition(name, startDate, timezone)
+	if err != nil {
+		return nil, err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -238,6 +246,57 @@ func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone s
 	}
 	if inserted == 0 {
 		return nil, rejection("A habit with this name already exists.")
+	}
+	habits, err := list(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.pub != nil {
+		s.pub.PublishHabit(Event{Owner: owner})
+	}
+	return habits, nil
+}
+
+// Edit updates one owned habit without changing its identity or check-ins.
+func (s *Service) Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) ([]Habit, error) {
+	name, err := s.validateDefinition(name, startDate, timezone)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var earliest sql.NullString
+	if err := tx.QueryRowContext(ctx, `
+		SELECT MIN(c.date)
+		FROM habit h
+		LEFT JOIN habit_checkin c ON c.habit_id = h.id
+		WHERE h.id = ? AND h.owner_id = ?
+		GROUP BY h.id`, habitID, owner).Scan(&earliest); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, rejection("Habit not found.")
+		}
+		return nil, err
+	}
+	if earliest.Valid && startDate > earliest.String {
+		return nil, rejection("Start date cannot be after an existing check-in.")
+	}
+	var duplicate int
+	err = tx.QueryRowContext(ctx, `SELECT 1 FROM habit WHERE owner_id = ? AND name_key = ? AND id != ?`, owner, foldKey(name), habitID).Scan(&duplicate)
+	if err == nil {
+		return nil, rejection("A habit with this name already exists.")
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE habit SET name = ?, name_key = ?, start_date = ? WHERE id = ? AND owner_id = ?`, name, foldKey(name), startDate, habitID, owner); err != nil {
+		return nil, err
 	}
 	habits, err := list(ctx, tx, owner)
 	if err != nil {

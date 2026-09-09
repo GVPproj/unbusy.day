@@ -184,6 +184,59 @@ func TestHabitCheckInRejectsInvalidInputWithAuthoritativeReconciliation(t *testi
 	}
 }
 
+func TestHabitEditConfirmsWithoutPatchingTheGridOrOtherEditors(t *testing.T) {
+	svc := newTestHabits(t)
+	hs, err := svc.Create(context.Background(), testOwner, "Read", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	body := fmt.Sprintf(`{"habiteditid":%d,"habiteditname":"  Books  ","habiteditstart":"2024-02-01","habiteditview":7,"timezone":"UTC","owner":"another-owner"}`, hs[0].ID)
+	HabitEditHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits/edit", body))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	for _, absent := range []string{`id="habit-grid"`, `id="jot-cm"`, `id="block-list"`, `id="habit-create"`, "another-owner"} {
+		if strings.Contains(rec.Body.String(), absent) {
+			t.Errorf("edit patched unrelated state %q: %s", absent, rec.Body.String())
+		}
+	}
+	if !strings.Contains(rec.Body.String(), "datastar-patch-signals") || !strings.Contains(rec.Body.String(), `"_habiteditsavedview":7`) {
+		t.Fatalf("edit acknowledgement was not sent: %s", rec.Body.String())
+	}
+	got, err := svc.List(context.Background(), testOwner)
+	if err != nil || len(got) != 1 || got[0].Name != "Books" || got[0].StartDate != "2024-02-01" || got[0].ID != hs[0].ID {
+		t.Fatalf("persisted edit: %+v %v", got, err)
+	}
+}
+
+func TestHabitEditRejectionsPreserveDraftAndPatchOnlyUsefulFeedback(t *testing.T) {
+	svc := newTestHabits(t)
+	hs, err := svc.Create(context.Background(), testOwner, "Read", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetCheckIn(context.Background(), testOwner, hs[0].ID, "2024-02-01", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, start, feedback string }{
+		{"   ", "2024-01-01", "name"},
+		{"Books", "2024-02-02", "existing check-in"},
+	} {
+		rec := httptest.NewRecorder()
+		body := fmt.Sprintf(`{"habiteditid":%d,"habiteditname":%q,"habiteditstart":%q,"habiteditview":9,"timezone":"UTC"}`, hs[0].ID, tc.name, tc.start)
+		HabitEditHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits/edit", body))
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "datastar-patch-signals") || !strings.Contains(rec.Body.String(), tc.feedback) || !strings.Contains(rec.Body.String(), `"_habitediterrorview":9`) {
+			t.Errorf("rejection %q: %d %s", tc.feedback, rec.Code, rec.Body.String())
+		}
+		for _, absent := range []string{`id="habit-edit"`, `id="habit-grid"`, `id="jot-cm"`} {
+			if strings.Contains(rec.Body.String(), absent) {
+				t.Errorf("rejection replaced draft or unrelated content %q: %s", absent, rec.Body.String())
+			}
+		}
+	}
+}
+
 func TestHabitCreationConfirmsWithoutBypassingTheOwnersLiveGridStream(t *testing.T) {
 	svc := newTestHabits(t)
 	if _, err := svc.Create(context.Background(), "another-owner", "Private habit", "2020-01-01", "UTC"); err != nil {
@@ -272,7 +325,7 @@ func TestHabitCreationSurvivesPageReloadAndIsIndependentOfPlanAndJotpad(t *testi
 	}
 	month := httptest.NewRecorder()
 	HabitMonthHandler(habits).ServeHTTP(month, authedRequest(http.MethodGet, "/habits/month?datastar=%7B%22habitmonth%22%3A%222024-02%22%2C%22habitrefresh%22%3A%22aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa%22%2C%22timezone%22%3A%22UTC%22%7D", ""))
-	if month.Code != 200 || !strings.Contains(month.Body.String(), "Read</th>") {
+	if month.Code != 200 || !strings.Contains(month.Body.String(), ">Read</span>") {
 		t.Fatalf("reload lost habit: %d %s", month.Code, month.Body.String())
 	}
 	if got := jotPayload(t, page.Body.String()); got != "Keep these notes" {
@@ -281,7 +334,7 @@ func TestHabitCreationSurvivesPageReloadAndIsIndependentOfPlanAndJotpad(t *testi
 	other := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	PageHandler(blocks, jots, habits).ServeHTTP(other, req.WithContext(web.WithOwner(req.Context(), "another-owner")))
-	if strings.Contains(other.Body.String(), "Read</th>") || strings.Contains(other.Body.String(), "Keep these notes") {
+	if strings.Contains(other.Body.String(), ">Read</span>") || strings.Contains(other.Body.String(), "Keep these notes") {
 		t.Fatal("page leaked another owner's data")
 	}
 }

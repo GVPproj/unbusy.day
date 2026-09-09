@@ -2595,6 +2595,15 @@
       border-right: 2px solid var(--rail-border);
     }
 
+    .habit-edit-button {
+      display: block;
+      margin-top: 0.2rem;
+      color: var(--accent);
+      font-size: var(--text-sm);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
     .unavailable {
       color: var(--ink-muted);
       background: repeating-linear-gradient(
@@ -2642,6 +2651,13 @@
     p {
       padding: 0.75rem;
       color: var(--ink-muted);
+    }
+  }
+
+  /* SECTION: components/habits.templ → @scope (.habit-edit-form) */
+  @scope (.habit-edit-form) {
+    :scope {
+      display: contents;
     }
   }
 
