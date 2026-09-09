@@ -81,7 +81,7 @@ function preserveMatrixState(document) {
     scrollFrame = view.requestAnimationFrame(() => { scrollLeft = matrix.scrollLeft; });
   });
   document.addEventListener("focusin", (event) => {
-    focusedID = event.target.closest?.("[data-checkin-action]")?.id || "";
+    focusedID = event.target.closest?.("[data-checkin-action], .habit-action")?.id || "";
   });
   new view.MutationObserver(() => {
     matrix.scrollLeft = scrollLeft;
@@ -91,6 +91,10 @@ function preserveMatrixState(document) {
     const status = document.getElementById("habit-checkin-feedback");
     for (const [id, attempt] of attempts) {
       const button = document.getElementById(id);
+      if (!button) {
+        attempts.delete(id);
+        continue;
+      }
       if (isConfirmed(button, attempt.desired)) {
         attempt.confirmed = true;
         if (attempt.finished) {

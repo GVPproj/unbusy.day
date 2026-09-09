@@ -20,6 +20,10 @@ func openHabitEditor(h habit.Habit) string {
 	return "$habiteditview++; $habiteditid = " + strconv.FormatInt(h.ID, 10) + "; $habiteditname = " + strconv.Quote(h.Name) + "; $habiteditstart = '" + h.StartDate + "'"
 }
 
+func openHabitDelete(h habit.Habit) string {
+	return "$habitdeleteview++; $habitdeleteid = " + strconv.FormatInt(h.ID, 10) + "; $_habitdeletename = " + strconv.Quote(h.Name) + "; $_habitdeleteerror = ''"
+}
+
 // The scroll container and view-owned month signals stay mounted while the grid morphs.
 templ Habits(habits []habit.Habit, month habit.Month) {
 	<div
@@ -28,6 +32,7 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		tabindex="0"
 		role="region"
 		aria-label="Monthly habits, scroll for more dates"
+		data-on:close__capture="if (document.activeElement === document.body || evt.target.contains(document.activeElement)) el.focus()"
 		data-signals:habitid="0"
 		data-signals:habitdate="''"
 		data-signals:habitchecked="false"
@@ -38,6 +43,12 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		data-signals:_habiteditsavedview="0"
 		data-signals:_habitediterror="''"
 		data-signals:_habitediterrorview="0"
+		data-signals:habitdeleteid="0"
+		data-signals:habitdeleteview="0"
+		data-signals:_habitdeletename="''"
+		data-signals:_habitdeletesavedview="0"
+		data-signals:_habitdeleteerror="''"
+		data-signals:_habitdeleteerrorview="0"
 		data-signals:habitmonth="''"
 		data-signals:habitview="0"
 		data-signals:_habitcurrent="''"
@@ -47,6 +58,7 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 	>
 		@HabitGrid(habits, month, "", 0)
 		@HabitEditDialog()
+		@HabitDeleteDialog()
 	</div>
 }
 
@@ -63,7 +75,7 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view ui
 				<button id="habit-this-month" class="btn" type="button" disabled?={ month.Current } data-on:click="$habitview++; $_habitfollowing = true; $habitmonth = $_habitcurrent">This month</button>
 			</nav>
 			if len(habits) == 0 {
-				<p>No habits yet in this month.</p>
+				<p>No habits yet in this month. Create a habit to begin.</p>
 			} else {
 				<table>
 					<caption class="sr-only">{ month.Label } habit check-ins</caption>
@@ -81,13 +93,23 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view ui
 								<th scope="row" aria-label={ h.Name }>
 									<span>{ h.Name }</span>
 									<button
-										class="habit-edit-button"
+										id={ "habit-edit-" + strconv.FormatInt(h.ID, 10) }
+										class="habit-action"
 										type="button"
 										commandfor="habit-edit"
 										command="show-modal"
 										data-on:click={ openHabitEditor(h) }
 										aria-label={ "Edit " + h.Name }
 									>Edit</button>
+									<button
+										id={ "habit-delete-" + strconv.FormatInt(h.ID, 10) }
+										class="habit-action"
+										type="button"
+										commandfor="habit-delete"
+										command="show-modal"
+										data-on:click={ openHabitDelete(h) }
+										aria-label={ "Delete " + h.Name }
+									>Delete</button>
 								</th>
 								for _, date := range month.Dates {
 									<td class={ templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
@@ -129,7 +151,7 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view ui
 templ HabitEditDialog() {
 	<dialog id="habit-edit" class="app-dialog" closedby="any" aria-labelledby="habit-edit-title" data-effect="if ($_habiteditsavedview === $habiteditview && el.open) el.close()">
 		<form
-			class="habit-edit-form"
+			class="habit-dialog-form"
 			data-indicator:_habiteditpending
 			data-on:submit="if (!$_habiteditpending && el.reportValidity()) @post('/habits/edit', {requestCancellation: 'disabled', filterSignals: {include: /^(habiteditid|habiteditname|habiteditstart|habiteditview|timezone)$/}})"
 			data-attr:aria-busy="$_habiteditpending"
@@ -142,6 +164,33 @@ templ HabitEditDialog() {
 				<button class="btn" type="submit" data-attr:disabled="$_habiteditpending">Save</button>
 			</footer>
 			@HabitEditFeedback()
+		</form>
+	</dialog>
+}
+
+templ HabitDeleteDialog() {
+	<dialog
+		id="habit-delete"
+		class="app-dialog"
+		closedby="any"
+		aria-labelledby="habit-delete-title"
+		aria-describedby="habit-delete-warning"
+		data-effect="if ($_habitdeletesavedview === $habitdeleteview && el.open) { el.close(); document.getElementById('habit-matrix').focus() }"
+	>
+		<form
+			class="habit-dialog-form"
+			data-indicator:_habitdeletepending
+			data-on:submit="if (!$_habitdeletepending) { el.dataset.submittedView = $habitdeleteview; $_habitdeleteerror = ''; @post('/habits/delete', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitdeleteid|habitdeleteview)$/}}) }"
+			data-on:datastar-fetch__document="if (evt.detail.el === el && ['error', 'retries-failed'].includes(evt.detail.type)) { $_habitdeleteerrorview = Number(el.dataset.submittedView); $_habitdeleteerror = 'Deletion not confirmed. Try again.' }"
+			data-attr:aria-busy="$_habitdeletepending"
+		>
+			<h2 id="habit-delete-title">Delete habit</h2>
+			<p id="habit-delete-warning">Permanently delete <strong data-text="$_habitdeletename"></strong>? All check-in history will be permanently deleted. This cannot be undone.</p>
+			<footer>
+				<button class="btn" type="button" commandfor="habit-delete" command="close" autofocus>Cancel</button>
+				<button class="btn btn-danger" type="submit" data-attr:disabled="$_habitdeletepending">Delete permanently</button>
+			</footer>
+			<output aria-live="polite" data-text="$_habitdeleteerrorview === $habitdeleteview ? $_habitdeleteerror : ''"></output>
 		</form>
 	</dialog>
 }

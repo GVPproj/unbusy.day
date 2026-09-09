@@ -15,6 +15,10 @@ const habitName = (page) => page.locator("#habit-create").getByLabel("Name", { e
 const habitStart = (page) => page.locator("#habit-create").getByLabel("Start date", { exact: true });
 const habitRow = (page, name) => page.locator("#habit-matrix tbody tr").filter({ has: page.getByRole("rowheader", { name, exact: true }) });
 const checkIn = (page, name, date) => page.getByRole("button", { name: `${name} on ${date}`, exact: true });
+const deleteHabit = (page, name) => habitRow(page, name).getByRole("button", { name: `Delete ${name}`, exact: true });
+const deleteDialog = (page) => page.getByRole("dialog", { name: "Delete habit", exact: true });
+const confirmDelete = (page) => deleteDialog(page).getByRole("button", { name: "Delete permanently", exact: true });
+const emptyHabits = "No habits yet in this month. Create a habit to begin.";
 
 async function localCalendar(page) {
 	return page.evaluate(() => {
@@ -399,6 +403,194 @@ test("habit editing works in the mobile companion panel", async ({ page }) => {
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test("deletion requires native confirmation; Cancel and Escape restore keyboard focus without writing", async ({ page }) => {
+	await habitsTab(page).click();
+	const { today } = await localCalendar(page);
+	await createHabit(page, "Keep me");
+	await checkIn(page, "Keep me", today).click();
+	await expect(checkIn(page, "Keep me", today)).toHaveAttribute("aria-pressed", "true");
+	const requests = [];
+	page.on("request", (request) => {
+		if (new URL(request.url()).pathname === "/habits/delete") requests.push(request);
+	});
+	const invoker = deleteHabit(page, "Keep me");
+	const dialog = deleteDialog(page);
+	for (const dismiss of ["Enter", "Escape"]) {
+		await invoker.focus();
+		await page.keyboard.press("Enter");
+		await expect(dialog).toBeVisible();
+		expect(await dialog.evaluate((element) => element instanceof HTMLDialogElement && element.matches(":modal"))).toBe(true);
+		await expect(dialog).toContainText("Keep me");
+		await expect(dialog).toContainText("All check-in history will be permanently deleted. This cannot be undone.");
+		const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+		await expect(cancel).toHaveAttribute("autofocus", "");
+		await expect(cancel).toBeFocused();
+		await expect(confirmDelete(page)).toBeVisible();
+		await page.keyboard.press(dismiss);
+		await expect(dialog).toBeHidden();
+		await expect(invoker).toBeFocused();
+	}
+	await page.reload({ waitUntil: "load" });
+	await habitsTab(page).click();
+	await expect(checkIn(page, "Keep me", today)).toHaveAttribute("aria-pressed", "true");
+	expect(requests).toHaveLength(0);
+});
+
+test("deletion clears past and current months across views, restores remote focus, and never reuses history", async ({ page, context }) => {
+	await habitsTab(page).click();
+	const calendar = await localCalendar(page);
+	await createHabit(page, "Fresh start", calendar.previous.first);
+	const oldID = await habitRow(page, "Fresh start").getAttribute("id");
+	expect(oldID).toMatch(/^habit-\d+$/);
+	await checkIn(page, "Fresh start", calendar.today).click();
+	await expect(checkIn(page, "Fresh start", calendar.today)).toHaveAttribute("aria-pressed", "true");
+	await previousMonth(page);
+	await checkIn(page, "Fresh start", calendar.previous.last).click();
+	await expect(checkIn(page, "Fresh start", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
+	const other = await context.newPage();
+	await other.goto(baseURL, { waitUntil: "load" });
+	await habitsTab(other).click();
+	await expect(checkIn(other, "Fresh start", calendar.today)).toHaveAttribute("aria-pressed", "true");
+	await checkIn(other, "Fresh start", calendar.today).focus();
+	await expect(checkIn(other, "Fresh start", calendar.today)).toBeFocused();
+	await deleteHabit(page, "Fresh start").click();
+	const request = page.waitForRequest((req) => new URL(req.url()).pathname === "/habits/delete" && req.method() === "POST");
+	await confirmDelete(page).click();
+	const signals = (await request).postDataJSON();
+	expect(String(signals.habitdeleteid)).toBe(oldID.slice("habit-".length));
+	expect(signals.habitdeleteview).toBeTruthy();
+	await expect(deleteDialog(page)).toBeHidden();
+	for (const view of [page, other]) {
+		await expect(habitRow(view, "Fresh start")).toHaveCount(0);
+		await expect(view.locator("#habit-matrix")).toContainText(emptyHabits);
+		await expect(view.locator("#habit-matrix")).toBeFocused();
+	}
+	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
+	await expect(other.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	for (const view of [page, other]) {
+		await view.reload({ waitUntil: "load" });
+		await habitsTab(view).click();
+		await expect(view.locator("#habit-matrix")).toContainText(emptyHabits);
+		await previousMonth(view);
+		await expect(view.locator("#habit-matrix")).toContainText(emptyHabits);
+	}
+	await page.getByRole("button", { name: "This month", exact: true }).click();
+	await createHabit(page, "Fresh start", calendar.previous.first);
+	const newID = await habitRow(page, "Fresh start").getAttribute("id");
+	expect(newID).toMatch(/^habit-\d+$/);
+	expect(newID).not.toBe(oldID);
+	await expect(checkIn(page, "Fresh start", calendar.today)).toHaveAttribute("aria-pressed", "false");
+	await expect(checkIn(other, "Fresh start", calendar.previous.last)).toHaveAttribute("aria-pressed", "false");
+	await previousMonth(page);
+	await expect(checkIn(page, "Fresh start", calendar.previous.last)).toHaveAttribute("aria-pressed", "false");
+	await expect(habitRow(page, "Fresh start").locator('[aria-pressed="true"]')).toHaveCount(0);
+	await page.reload({ waitUntil: "load" });
+	await habitsTab(page).click();
+	await expect(habitRow(page, "Fresh start")).toHaveAttribute("id", newID);
+	await expect(habitRow(page, "Fresh start").locator('[aria-pressed="true"]')).toHaveCount(0);
+	await other.close();
+});
+
+test("closing confirmation after remote deletion restores focus when its opener is gone", async ({ page, context }) => {
+	await habitsTab(page).click();
+	const other = await context.newPage();
+	await other.goto(baseURL, { waitUntil: "load" });
+	await habitsTab(other).click();
+	for (const dismiss of ["Enter", "Escape"]) {
+		const name = `Gone remotely ${dismiss}`;
+		await createHabit(page, name);
+		await deleteHabit(page, name).click();
+		await expect(deleteDialog(page).getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+		await deleteHabit(other, name).click();
+		await confirmDelete(other).click();
+		await expect(habitRow(page, name)).toHaveCount(0);
+		await expect(deleteDialog(page)).toBeVisible();
+		await page.keyboard.press(dismiss);
+		await expect(deleteDialog(page)).toBeHidden();
+		await expect(page.locator("#habit-matrix")).toBeFocused();
+	}
+	await other.close();
+});
+
+test("a failed deletion keeps confirmation open with retry feedback", async ({ page }) => {
+	await habitsTab(page).click();
+	await createHabit(page, "Retry deletion");
+	await page.route("**/habits/delete", (route) => route.fulfill({ status: 500, body: "failed" }));
+	await deleteHabit(page, "Retry deletion").click();
+	await confirmDelete(page).click();
+	await expect(deleteDialog(page)).toBeVisible();
+	await expect(deleteDialog(page)).toContainText(/retry|try again/i);
+	await expect(habitRow(page, "Retry deletion")).toBeVisible();
+	await expect(confirmDelete(page)).toBeEnabled();
+	await page.unroute("**/habits/delete");
+	await confirmDelete(page).click();
+	await expect(deleteDialog(page)).toBeHidden();
+	await expect(habitRow(page, "Retry deletion")).toHaveCount(0);
+	await expect(page.locator("#habit-matrix")).toBeFocused();
+});
+
+test("a delayed deletion ack cannot close a newer confirmation", async ({ page }) => {
+	await habitsTab(page).click();
+	await createHabit(page, "First deletion");
+	await createHabit(page, "New confirmation");
+	let release;
+	const gate = new Promise((resolve) => { release = resolve; });
+	let firstSignals;
+	await page.route("**/habits/delete", async (route) => {
+		firstSignals = route.request().postDataJSON();
+		const response = await route.fetch();
+		await gate;
+		await route.fulfill({ response });
+	});
+	try {
+		await deleteHabit(page, "First deletion").click();
+		await confirmDelete(page).click();
+		// The commit arrives via SSE while its initiating view's ack is held back.
+		await expect(habitRow(page, "First deletion")).toHaveCount(0);
+		await page.keyboard.press("Escape");
+		await expect(deleteDialog(page)).toBeHidden();
+		await deleteHabit(page, "New confirmation").click();
+		const response = page.waitForResponse((res) => new URL(res.url()).pathname === "/habits/delete");
+		release();
+		expect((await response).ok()).toBe(true);
+		await (await response).finished();
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		await expect(deleteDialog(page)).toBeVisible();
+		await expect(deleteDialog(page)).toContainText("New confirmation");
+		await expect(habitRow(page, "New confirmation")).toBeVisible();
+		await page.unroute("**/habits/delete");
+		const next = page.waitForRequest((req) => new URL(req.url()).pathname === "/habits/delete" && req.method() === "POST");
+		await confirmDelete(page).click();
+		const nextSignals = (await next).postDataJSON();
+		expect(nextSignals.habitdeleteview).not.toBe(firstSignals.habitdeleteview);
+		expect(nextSignals.habitdeleteid).not.toBe(firstSignals.habitdeleteid);
+		await expect(deleteDialog(page)).toBeHidden();
+		await expect(habitRow(page, "New confirmation")).toHaveCount(0);
+	} finally {
+		release();
+		await page.unroute("**/habits/delete");
+	}
+});
+
+test("habit deletion works in the mobile companion panel", async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await mobilePanel(page, "Notes & Habits");
+	await habitsTab(page).click();
+	await createHabit(page, "Mobile deletion");
+	await deleteHabit(page, "Mobile deletion").click();
+	await expect(deleteDialog(page)).toBeInViewport();
+	await expect(confirmDelete(page)).toBeInViewport();
+	await page.screenshot({ path: test.info().outputPath("habit-delete-mobile.png"), fullPage: true, animations: "disabled" });
+	await deleteDialog(page).getByRole("button", { name: "Cancel", exact: true }).click();
+	await expect(deleteHabit(page, "Mobile deletion")).toBeFocused();
+	await deleteHabit(page, "Mobile deletion").click();
+	await confirmDelete(page).click();
+	await expect(deleteDialog(page)).toBeHidden();
+	await expect(page.locator("#habit-matrix")).toContainText(emptyHabits);
+	await expect(page.locator("#habit-matrix")).toBeFocused();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test("duplicate and future-start errors retain the submitted name and date", async ({ page }) => {
 	await habitsTab(page).click();
 	const { today, tomorrow } = await localCalendar(page);
@@ -495,7 +687,15 @@ test("habits created in another tab arrive live without replacing an unfinished 
 	await other.close();
 });
 
-test("Jotpad text, caret, scroll and pending save survive switching tabs and a habit SSE patch", async ({ page }) => {
+test("Jotpad text, caret, scroll and pending save survive habit deletion while the plan stays unchanged", async ({ page }) => {
+	await page.getByRole("button", { name: /^Add block at/ }).first().click();
+	await page.locator("#create-modal").getByLabel("Name").fill("Keep this plan");
+	await page.locator("#create-submit").click();
+	await expect(page.locator(".block-item")).toHaveCount(1);
+	const planState = () => page.locator(".block-item").evaluateAll((blocks) => blocks.map((block) => ({
+		id: block.dataset.id, slot: block.dataset.slot, span: block.dataset.span, text: block.textContent,
+	})));
+	const plan = await planState();
 	const content = page.locator(".cm-content");
 	const text = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}: keep this note`).join("\n");
 	let releaseSave;
@@ -512,9 +712,12 @@ test("Jotpad text, caret, scroll and pending save survive switching tabs and a h
 		await pending;
 		await expect(page.locator("#jot-status")).not.toHaveAttribute("data-state", "saved");
 		await expect.poll(() => page.locator(".cm-scroller").evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-		const state = await page.evaluateHandle(() => {
+		const state = await page.evaluateHandle(async () => {
+			const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+			const view = EditorView.findFromDOM(document.querySelector(".cm-editor"));
 			const selection = getSelection();
 			return {
+				view, originalSelection: view.state.selection.toJSON(),
 				editor: document.querySelector(".cm-editor"),
 				anchorText: selection.anchorNode.textContent,
 				offset: selection.anchorOffset,
@@ -523,14 +726,27 @@ test("Jotpad text, caret, scroll and pending save survive switching tabs and a h
 		});
 		await habitsTab(page).click();
 		await createHabit(page, "Keep notes safe");
-		const { today } = await localCalendar(page);
-		await checkIn(page, "Keep notes safe", today).click();
-		await expect(checkIn(page, "Keep notes safe", today)).toHaveAttribute("aria-pressed", "true");
+		const calendar = await localCalendar(page);
+		await checkIn(page, "Keep notes safe", calendar.today).click();
+		await expect(checkIn(page, "Keep notes safe", calendar.today)).toHaveAttribute("aria-pressed", "true");
 		await page.getByRole("button", { name: /Previous month/ }).click();
+		await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
 		await page.getByRole("button", { name: "This month", exact: true }).click();
+		await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+		await deleteHabit(page, "Keep notes safe").click();
+		await confirmDelete(page).click();
+		await expect(deleteDialog(page)).toBeHidden();
+		await expect(habitRow(page, "Keep notes safe")).toHaveCount(0);
+		expect(await planState()).toEqual(plan);
+		await expect(page.locator("#jot-status")).not.toHaveAttribute("data-state", "saved");
+		expect(await state.evaluate((saved) => saved.view.state.selection.toJSON())).toEqual(await state.evaluate((saved) => saved.originalSelection));
 		await jotTab(page).click();
-		await content.focus();
-		expect(await state.evaluate((saved) => ({
+		await page.keyboard.press("Tab");
+		await expect(page.locator("#jot-panel")).toBeFocused();
+		await page.keyboard.press("Tab");
+		await expect(content).toBeFocused();
+		// CodeMirror restores its virtualized viewport on the next measurement frame.
+		await expect.poll(() => state.evaluate((saved) => ({
 			sameEditor: saved.editor === document.querySelector(".cm-editor"),
 			sameCaret: saved.anchorText === getSelection().anchorNode.textContent && saved.offset === getSelection().anchorOffset,
 			scrollDifference: Math.abs(saved.scroll - document.querySelector(".cm-scroller").scrollTop),
@@ -553,10 +769,12 @@ test("Jotpad text, caret, scroll and pending save survive switching tabs and a h
 		await page.reload({ waitUntil: "load" });
 		await expectWholeNote();
 		await habitsTab(page).click();
-		await expect(habitRow(page, "Keep notes safe")).toBeVisible();
+		await expect(habitRow(page, "Keep notes safe")).toHaveCount(0);
+		await expect(page.locator("#habit-matrix")).toContainText(emptyHabits);
+		expect(await planState()).toEqual(plan);
 	} finally {
 		releaseSave();
-		await page.unroute("**/jot");
+		await page.unrouteAll({ behavior: "wait" });
 	}
 });
 

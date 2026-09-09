@@ -236,7 +236,12 @@ func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone s
 		return nil, err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `INSERT INTO habit (owner_id,name,name_key,start_date) VALUES (?,?,?,?) ON CONFLICT (owner_id,name_key) DO NOTHING`, owner, name, foldKey(name), startDate)
+	// Keep the high-water mark even when the maximum or last habit is deleted.
+	var id int64
+	if err := tx.QueryRowContext(ctx, `UPDATE habit_id_allocator SET last_id = MAX(last_id, COALESCE((SELECT MAX(id) FROM habit), 0)) + 1 WHERE singleton = 1 RETURNING last_id`).Scan(&id); err != nil {
+		return nil, err
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO habit (id,owner_id,name,name_key,start_date) VALUES (?,?,?,?,?) ON CONFLICT (owner_id,name_key) DO NOTHING`, id, owner, name, foldKey(name), startDate)
 	if err != nil {
 		return nil, err
 	}
@@ -258,6 +263,26 @@ func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone s
 		s.pub.PublishHabit(Event{Owner: owner})
 	}
 	return habits, nil
+}
+
+// Delete permanently removes an owned habit and its check-ins, including on retries.
+func (s *Service) Delete(ctx context.Context, owner string, id int64) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM habit WHERE id = ? AND owner_id = ?`, id, owner); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	// Missing IDs still invalidate the caller's stale view, never another owner's.
+	if s.pub != nil {
+		s.pub.PublishHabit(Event{Owner: owner})
+	}
+	return nil
 }
 
 // Edit updates one owned habit without changing its identity or check-ins.

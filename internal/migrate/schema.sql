@@ -77,3 +77,8 @@ CREATE TABLE habit_checkin (
   PRIMARY KEY (habit_id, date)
 );
 
+CREATE TABLE habit_id_allocator (
+  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+  last_id INTEGER NOT NULL CHECK (typeof(last_id) = 'integer' AND last_id >= 0)
+);
+

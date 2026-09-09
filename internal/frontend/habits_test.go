@@ -467,6 +467,14 @@ func TestHabitEventsReconnectAndLiveWritesInvalidateEachViewsSelectedMonth(t *te
 		t.Fatalf("check-in patch disturbed another feature: %s", frame)
 	}
 
+	if err := svc.Delete(context.Background(), testOwner, hs[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	frame = readFrame(t, br)
+	if !strings.Contains(frame, `"habitrefresh":`) || strings.Contains(frame, "datastar-patch-elements") {
+		t.Fatalf("deletion bypassed selected-month reconciliation: %s", frame)
+	}
+
 	_, reconnect := openEvents(t, EventsHandler(&fakeService{blocks: threeBlocks()}, newFakeJot(), broker, svc))
 	readFrame(t, reconnect)
 	readFrame(t, reconnect)

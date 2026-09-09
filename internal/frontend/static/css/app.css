@@ -2595,13 +2595,19 @@
       border-right: 2px solid var(--rail-border);
     }
 
-    .habit-edit-button {
-      display: block;
-      margin-top: 0.2rem;
+    .habit-action {
+      display: inline-block;
+      min-height: 2rem;
+      margin-inline-end: 0.5rem;
       color: var(--accent);
       font-size: var(--text-sm);
       text-decoration: underline;
       text-underline-offset: 2px;
+
+      @media (pointer: coarse) {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+      }
     }
 
     .unavailable {
@@ -2654,8 +2660,8 @@
     }
   }
 
-  /* SECTION: components/habits.templ → @scope (.habit-edit-form) */
-  @scope (.habit-edit-form) {
+  /* SECTION: components/habits.templ → @scope (.habit-dialog-form) */
+  @scope (.habit-dialog-form) {
     :scope {
       display: contents;
     }

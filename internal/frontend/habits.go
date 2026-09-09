@@ -20,23 +20,26 @@ type HabitService interface {
 	MonthSnapshot(ctx context.Context, owner, timezone, month string) (*habit.Snapshot, error)
 	Create(ctx context.Context, owner, name, startDate, timezone string) ([]habit.Habit, error)
 	Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) ([]habit.Habit, error)
+	Delete(ctx context.Context, owner string, habitID int64) error
 	SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*habit.Snapshot, error)
 }
 
 type habitSignals struct {
-	Name      string `json:"habitname"`
-	Start     string `json:"habitstart"`
-	Timezone  string `json:"timezone"`
-	Month     string `json:"habitmonth"`
-	Refresh   string `json:"habitrefresh"`
-	View      uint64 `json:"habitview"`
-	HabitID   int64  `json:"habitid"`
-	EditID    int64  `json:"habiteditid"`
-	EditName  string `json:"habiteditname"`
-	EditStart string `json:"habiteditstart"`
-	EditView  uint64 `json:"habiteditview"`
-	Date      string `json:"habitdate"`
-	Checked   *bool  `json:"habitchecked"`
+	Name       string `json:"habitname"`
+	Start      string `json:"habitstart"`
+	Timezone   string `json:"timezone"`
+	Month      string `json:"habitmonth"`
+	Refresh    string `json:"habitrefresh"`
+	View       uint64 `json:"habitview"`
+	HabitID    int64  `json:"habitid"`
+	EditID     int64  `json:"habiteditid"`
+	EditName   string `json:"habiteditname"`
+	EditStart  string `json:"habiteditstart"`
+	EditView   uint64 `json:"habiteditview"`
+	DeleteID   int64  `json:"habitdeleteid"`
+	DeleteView uint64 `json:"habitdeleteview"`
+	Date       string `json:"habitdate"`
+	Checked    *bool  `json:"habitchecked"`
 }
 
 func validHabitRefresh(token string) bool {
@@ -141,6 +144,28 @@ func HabitEditHandler(svc HabitService) http.Handler {
 			View uint64 `json:"_habiteditsavedview"`
 		}{sig.EditView}); err != nil {
 			log.Printf("habit edit acknowledgement: %v", err)
+		}
+	})
+}
+
+func HabitDeleteHandler(svc HabitService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig habitSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+		if err := svc.Delete(r.Context(), web.OwnerFrom(r.Context()), sig.DeleteID); err != nil {
+			log.Printf("habit delete: %v", err)
+			http.Error(w, "Unable to delete habit. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		// Only acknowledge this confirmation; authoritative grid reads use the owner stream.
+		sse := datastar.NewSSE(w, r)
+		if err := sse.MarshalAndPatchSignals(struct {
+			View uint64 `json:"_habitdeletesavedview"`
+		}{sig.DeleteView}); err != nil {
+			log.Printf("habit delete acknowledgement: %v", err)
 		}
 	})
 }
