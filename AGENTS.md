@@ -35,7 +35,7 @@ Entrypoint `cmd/unbusy/main.go`; packages under `internal/`, wired in main:
 
 Key invariant: **page render and patch render share one templ component** (`components.BlockColumn`) so initial load and SSE patches can't drift. `#block-list` is the stable idiomorph anchor; `data-id` attributes are the per-block identity keys.
 
-**Error convention:** domain rejections (overlap, out-of-bounds, occupied shrink, blank label, unknown id, …) are surfaced as **200 + a re-render of the authoritative column**, not a 4xx — the rejected optimistic change visibly snaps back.
+**Error convention:** domain rejections (overlap, out-of-bounds, occupied shrink, blank label, unknown id, …) are surfaced as **200 + a re-render of the authoritative column**, not a 4xx — the rejected optimistic change visibly snaps back. Habit writes are non-optimistic, so their rejections patch feedback only; `#habit-grid` remains authoritative and updates exclusively on the ordered `/events` stream.
 
 **Migrations** (ADR 0004): plain forward-only `.sql` files in `internal/migrate/migrations/`, `go:embed`-ed, applied run-once by goose on boot. New migrations are plain DDL with a `-- +goose Up` header and timestamp-versioned filenames; no Down sections — fix mistakes with a new forward migration. Keep DDL additive and queries on explicit column lists (never `SELECT *`) so a migration can land before the code that reads it.
 

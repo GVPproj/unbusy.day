@@ -52,7 +52,7 @@ func TestCreateListsOwnedHabitsInCreationOrderAcrossReopen(t *testing.T) {
 	if err != nil || len(second) != 2 {
 		t.Fatalf("create: %v %v", second, err)
 	}
-	if second[0] != first[0] || second[1].ID <= second[0].ID || second[1].Name != "Walk" || second[0].StartDate != "2020-12-31" {
+	if !reflect.DeepEqual(second[0], first[0]) || second[1].ID <= second[0].ID || second[1].Name != "Walk" || second[0].StartDate != "2020-12-31" {
 		t.Fatalf("order/state: %+v", second)
 	}
 	other, err := s.List(ctx, "bob")
@@ -196,6 +196,131 @@ func TestCreateValidatesWithoutChangingState(t *testing.T) {
 	}
 	if habit.IsRejection(nil) || habit.IsRejection(errors.New("storage failure")) {
 		t.Fatal("non-domain error classified as rejection")
+	}
+}
+
+func TestSetCheckInStoresExplicitOwnedStateAcrossReopen(t *testing.T) {
+	db, dsn := database(t)
+	ctx := context.Background()
+	s := habit.NewService(db, nil)
+	habits, err := s.Create(ctx, "alice", "Read", "2024-02-28", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := habits[0].ID
+
+	for _, checked := range []bool{true, true, false, false, true} {
+		snap, err := s.SetCheckIn(ctx, "alice", id, "2024-02-29", checked, "UTC")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string(nil)
+		if checked {
+			want = []string{"2024-02-29"}
+		}
+		if !reflect.DeepEqual(snap.Habits[0].CheckedDates, want) {
+			t.Fatalf("checked=%v dates=%v, want %v", checked, snap.Habits[0].CheckedDates, want)
+		}
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	got, err := habit.NewService(reopened, nil).List(ctx, "alice")
+	if err != nil || !reflect.DeepEqual(got[0].CheckedDates, []string{"2024-02-29"}) {
+		t.Fatalf("persisted check-in: %+v %v", got, err)
+	}
+}
+
+func TestCheckInCivilDateDoesNotShiftBetweenTimezones(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	instant := time.Date(2024, 3, 1, 0, 30, 0, 0, time.UTC)
+	s := habit.NewService(db, nil, habit.WithClock(func() time.Time { return instant }))
+	hs, err := s.Create(ctx, "alice", "Read", "2024-02-29", "America/Los_Angeles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetCheckIn(ctx, "alice", hs[0].ID, "2024-02-29", true, "America/Los_Angeles"); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := s.Snapshot(ctx, "alice", "Pacific/Kiritimati")
+	if err != nil || !reflect.DeepEqual(snap.Habits[0].CheckedDates, []string{"2024-02-29"}) {
+		t.Fatalf("shifted civil date: %+v %v", snap, err)
+	}
+}
+
+func TestSetCheckInRejectsIneligibleAndUnownedDatesWithoutChangingState(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	s := habit.NewService(db, nil)
+	alice, err := s.Create(ctx, "alice", "Read", "2024-02-28", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob, err := s.Create(ctx, "bob", "Private", "2024-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, owner, date, zone string
+		id                      int64
+	}{
+		{"pre-start", "alice", "2024-02-27", "UTC", alice[0].ID},
+		{"invalid date", "alice", "2024-02-30", "UTC", alice[0].ID},
+		{"non-canonical date", "alice", "2024-2-28", "UTC", alice[0].ID},
+		{"future", "alice", "9999-01-01", "UTC", alice[0].ID},
+		{"invalid timezone", "alice", "2024-02-28", "bad/zone", alice[0].ID},
+		{"unknown habit", "alice", "2024-02-28", "UTC", 999999},
+		{"other user's habit", "alice", "2024-02-28", "UTC", bob[0].ID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := s.SetCheckIn(ctx, tc.owner, tc.id, tc.date, true, tc.zone); !habit.IsRejection(err) {
+				t.Fatalf("expected rejection, got %v", err)
+			}
+		})
+	}
+	for _, owner := range []string{"alice", "bob"} {
+		got, err := s.List(ctx, owner)
+		if err != nil || len(got) != 1 || len(got[0].CheckedDates) != 0 {
+			t.Fatalf("%s state changed: %+v %v", owner, got, err)
+		}
+	}
+}
+
+func TestSetCheckInPublishesOnlyAfterCommit(t *testing.T) {
+	db, _ := database(t)
+	ctx := context.Background()
+	reader := habit.NewService(db, nil)
+	base := habit.NewService(db, nil)
+	hs, err := base.Create(ctx, "alice", "Read", "2020-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	published := 0
+	s := habit.NewService(db, publisherFunc(func(e habit.Event) {
+		published++
+		got, err := reader.List(ctx, e.Owner)
+		if err != nil || !reflect.DeepEqual(got[0].CheckedDates, []string{"2024-02-29"}) {
+			t.Errorf("publication observed uncommitted state: %+v %v", got, err)
+		}
+	}))
+	if _, err := s.SetCheckIn(ctx, "alice", hs[0].ID, "2024-02-29", true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	if published != 1 {
+		t.Fatalf("published %d events", published)
+	}
+	if _, err := s.SetCheckIn(ctx, "alice", 999999, "2024-02-29", true, "UTC"); !habit.IsRejection(err) {
+		t.Fatal(err)
+	}
+	if published != 1 {
+		t.Fatalf("published rejected mutation: %d", published)
 	}
 }
 

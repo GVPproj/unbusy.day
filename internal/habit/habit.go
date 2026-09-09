@@ -22,9 +22,10 @@ func IsRejection(err error) bool {
 }
 
 type Habit struct {
-	ID        int64
-	Name      string
-	StartDate string
+	ID           int64
+	Name         string
+	StartDate    string
+	CheckedDates []string
 }
 
 // Event invalidates the owner's habit list; readers fetch current state.
@@ -38,7 +39,35 @@ type Service struct {
 	now func() time.Time
 }
 
-func NewService(db *sql.DB, pub Publisher) *Service { return &Service{db: db, pub: pub, now: time.Now} }
+type Option func(*Service)
+
+// WithClock makes civil-date behavior deterministic at the service boundary.
+func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = now } }
+
+func NewService(db *sql.DB, pub Publisher, opts ...Option) *Service {
+	s := &Service{db: db, pub: pub, now: time.Now}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+type Snapshot struct {
+	Habits []Habit
+	Month  Month
+}
+
+func (s *Service) Snapshot(ctx context.Context, owner, timezone string) (*Snapshot, error) {
+	habits, err := list(ctx, s.db, owner)
+	if err != nil {
+		return nil, err
+	}
+	month, err := Calendar(timezone, s.now())
+	if err != nil {
+		return nil, err
+	}
+	return &Snapshot{Habits: habits, Month: month}, nil
+}
 
 func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
 	return list(ctx, s.db, owner)
@@ -49,18 +78,31 @@ type querier interface {
 }
 
 func list(ctx context.Context, q querier, owner string) ([]Habit, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, name, start_date FROM habit WHERE owner_id = ? ORDER BY id`, owner)
+	rows, err := q.QueryContext(ctx, `
+		SELECT h.id, h.name, h.start_date, c.date
+		FROM habit h
+		LEFT JOIN habit_checkin c ON c.habit_id = h.id
+		WHERE h.owner_id = ?
+		ORDER BY h.id, c.date`, owner)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	habits := make([]Habit, 0)
 	for rows.Next() {
-		var h Habit
-		if err := rows.Scan(&h.ID, &h.Name, &h.StartDate); err != nil {
+		var id int64
+		var name, startDate string
+		var checkedDate sql.NullString
+		if err := rows.Scan(&id, &name, &startDate, &checkedDate); err != nil {
 			return nil, err
 		}
-		habits = append(habits, h)
+		if len(habits) == 0 || habits[len(habits)-1].ID != id {
+			habits = append(habits, Habit{ID: id, Name: name, StartDate: startDate})
+		}
+		if checkedDate.Valid {
+			h := &habits[len(habits)-1]
+			h.CheckedDates = append(h.CheckedDates, checkedDate.String)
+		}
 	}
 	return habits, rows.Err()
 }
@@ -76,6 +118,55 @@ func foldKey(name string) string {
 		}
 		return key
 	}, name)
+}
+
+// SetCheckIn records an explicit checked state for one owned habit and civil date.
+func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*Snapshot, error) {
+	month, err := Calendar(timezone, s.now())
+	if err != nil {
+		return nil, err
+	}
+	if _, err := time.Parse(time.DateOnly, date); err != nil {
+		return nil, rejection("Choose a valid check-in date.")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var startDate string
+	if err := tx.QueryRowContext(ctx, `SELECT start_date FROM habit WHERE id = ? AND owner_id = ?`, habitID, owner).Scan(&startDate); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, rejection("Habit not found.")
+		}
+		return nil, err
+	}
+	if date < startDate {
+		return nil, rejection("Check-in date cannot be before the habit started.")
+	}
+	if date > month.Today {
+		return nil, rejection("Check-in date cannot be after today.")
+	}
+	if checked {
+		_, err = tx.ExecContext(ctx, `INSERT INTO habit_checkin (habit_id, date) VALUES (?, ?) ON CONFLICT (habit_id, date) DO NOTHING`, habitID, date)
+	} else {
+		_, err = tx.ExecContext(ctx, `DELETE FROM habit_checkin WHERE habit_id = ? AND date = ?`, habitID, date)
+	}
+	if err != nil {
+		return nil, err
+	}
+	habits, err := list(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.pub != nil {
+		s.pub.PublishHabit(Event{Owner: owner})
+	}
+	return &Snapshot{Habits: habits, Month: month}, nil
 }
 
 func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone string) ([]Habit, error) {

@@ -3,11 +3,15 @@ package frontend
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/habit"
@@ -42,7 +46,106 @@ func newTestHabits(t *testing.T) *habit.Service {
 	return habit.NewService(habitTestDB(t), nil)
 }
 
-func TestHabitCreationPatchesOnlyTheOwnersAuthoritativeMatrix(t *testing.T) {
+func TestHabitCheckInMutationConfirmsCommittedOwnedStateWithoutAStaleGridPatch(t *testing.T) {
+	svc := newTestHabits(t)
+	ctx := context.Background()
+	mine, err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := svc.Create(ctx, "another-owner", "Private", "2020-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	today := time.Now().UTC().Format(time.DateOnly)
+
+	post := func(body string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		HabitCheckInHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits/check-in", body))
+		return rec
+	}
+	body := fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"habitchecked":true,"timezone":"UTC","owner":"another-owner"}`, mine[0].ID, today)
+	for range 2 {
+		rec := post(body)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("check status %d: %s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "Saved") {
+			t.Errorf("checked response omitted confirmation: %s", rec.Body.String())
+		}
+		for _, absent := range []string{"Private", `id="habit-grid"`, `id="jot-cm"`, `id="block-list"`} {
+			if strings.Contains(rec.Body.String(), absent) {
+				t.Errorf("checked patch contains %q", absent)
+			}
+		}
+	}
+	got, err := svc.List(ctx, testOwner)
+	if err != nil || !reflect.DeepEqual(got[0].CheckedDates, []string{today}) {
+		t.Fatalf("checked state: %+v %v", got, err)
+	}
+
+	rec := post(fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"habitchecked":false,"timezone":"UTC"}`, mine[0].ID, today))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Saved") {
+		t.Fatalf("uncheck: %d %s", rec.Code, rec.Body.String())
+	}
+	got, err = svc.List(ctx, testOwner)
+	if err != nil || len(got[0].CheckedDates) != 0 {
+		t.Fatalf("unchecked state: %+v %v", got, err)
+	}
+
+	rec = post(fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"habitchecked":true,"timezone":"UTC"}`, other[0].ID, today))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Habit not found") || strings.Contains(rec.Body.String(), "Private") {
+		t.Fatalf("cross-owner rejection: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHabitCheckInRequiresAnExplicitDesiredState(t *testing.T) {
+	svc := newTestHabits(t)
+	hs, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	today := time.Now().UTC().Format(time.DateOnly)
+	for _, body := range []string{
+		fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"timezone":"UTC"}`, hs[0].ID, today),
+		`not json`,
+	} {
+		rec := httptest.NewRecorder()
+		HabitCheckInHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits/check-in", body))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("missing/malformed explicit state: %d %s", rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestHabitCheckInRejectsInvalidInputWithAuthoritativeReconciliation(t *testing.T) {
+	svc := newTestHabits(t)
+	hs, err := svc.Create(context.Background(), testOwner, "Read", "2024-02-28", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, date, zone, feedback string }{
+		{"pre-start", "2024-02-27", "UTC", "before"},
+		{"invalid date", "2024-02-30", "UTC", "valid"},
+		{"future", "9999-01-01", "UTC", "after today"},
+		{"invalid timezone", "2024-02-28", "Not/AZone", "timezone"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			body := fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"habitchecked":true,"timezone":%q}`, hs[0].ID, tc.date, tc.zone)
+			HabitCheckInHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits/check-in", body))
+			if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), tc.feedback) {
+				t.Fatalf("rejection: %d %s", rec.Code, rec.Body.String())
+			}
+			if strings.Contains(rec.Body.String(), `id="habit-grid"`) {
+				t.Fatalf("rejection bypassed the ordered live grid stream: %s", rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestHabitCreationConfirmsWithoutBypassingTheOwnersLiveGridStream(t *testing.T) {
 	svc := newTestHabits(t)
 	if _, err := svc.Create(context.Background(), "another-owner", "Private habit", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
@@ -53,12 +156,12 @@ func TestHabitCreationPatchesOnlyTheOwnersAuthoritativeMatrix(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"datastar-patch-elements", `id="habit-matrix"`, "Read &lt;books&gt;", `id="habit-feedback"`, "Habit created"} {
+	for _, want := range []string{"datastar-patch-elements", `id="habit-feedback"`, "Habit created"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("response missing %q: %s", want, body)
 		}
 	}
-	for _, absent := range []string{"Private habit", `id="jot-cm"`, `id="block-list"`, `id="habit-create"`} {
+	for _, absent := range []string{"Private habit", "Read &lt;books&gt;", `id="habit-grid"`, `id="jot-cm"`, `id="block-list"`, `id="habit-create"`} {
 		if strings.Contains(body, absent) {
 			t.Errorf("habit write patched unrelated/private content %q", absent)
 		}
@@ -157,6 +260,24 @@ func TestHabitEventsRejectInvalidTimezoneBeforeOpeningTheStream(t *testing.T) {
 	}
 }
 
+func TestHabitCheckInStorageFailuresDoNotClaimSuccess(t *testing.T) {
+	db := habitTestDB(t)
+	svc := habit.NewService(db, nil)
+	hs, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	body := fmt.Sprintf(`{"habitid":%d,"habitdate":%q,"habitchecked":true,"timezone":"UTC"}`, hs[0].ID, time.Now().UTC().Format(time.DateOnly))
+	HabitCheckInHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits/check-in", body))
+	if rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "Saved") || strings.Contains(rec.Body.String(), `id="habit-grid"`) {
+		t.Fatalf("storage failure: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHabitStorageFailuresDoNotClaimCreationSucceeded(t *testing.T) {
 	db := habitTestDB(t)
 	svc := habit.NewService(db, nil)
@@ -167,6 +288,41 @@ func TestHabitStorageFailuresDoNotClaimCreationSucceeded(t *testing.T) {
 	HabitCreateHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits", `{"habitname":"Read","habitstart":"2020-01-01","timezone":"UTC"}`))
 	if rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "Habit created") {
 		t.Fatalf("storage failure: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHabitEventsRefreshEligibilityAtBrowserLocalMidnight(t *testing.T) {
+	db := habitTestDB(t)
+	created, err := habit.NewService(db, nil).Create(context.Background(), testOwner, "Read", "2024-03-02", "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	now := time.Date(2024, 3, 1, 23, 59, 59, 0, time.UTC)
+	svc := habit.NewService(db, nil, habit.WithClock(func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return now
+	}))
+	oldInterval := keepaliveInterval
+	keepaliveInterval = 20 * time.Millisecond
+	t.Cleanup(func() { keepaliveInterval = oldInterval })
+
+	_, br := openEvents(t, EventsHandler(&fakeService{}, newFakeJot(), pubsub.New(), svc))
+	readFrame(t, br)
+	readFrame(t, br)
+	readFrame(t, br)
+	initial := readFrame(t, br)
+	buttonID := fmt.Sprintf(`id="checkin-%d-2024-03-02"`, created[0].ID)
+	if strings.Contains(initial, buttonID) {
+		t.Fatalf("tomorrow was eligible before midnight: %s", initial)
+	}
+	mu.Lock()
+	now = time.Date(2024, 3, 2, 0, 0, 1, 0, time.UTC)
+	mu.Unlock()
+	refreshed := readFrame(t, br)
+	if !strings.Contains(refreshed, buttonID) {
+		t.Fatalf("today did not become eligible after midnight: %s", refreshed)
 	}
 }
 
@@ -192,7 +348,7 @@ func TestHabitEventsReconnectAndLiveWritesPatchOnlyTheMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	frame = readFrame(t, br)
-	for _, want := range []string{`id="habit-matrix"`, "Morning walk", "Read"} {
+	for _, want := range []string{`id="habit-grid"`, "Morning walk", "Read"} {
 		if !strings.Contains(frame, want) {
 			t.Errorf("live snapshot missing %q: %s", want, frame)
 		}
@@ -201,5 +357,32 @@ func TestHabitEventsReconnectAndLiveWritesPatchOnlyTheMatrix(t *testing.T) {
 		if strings.Contains(frame, absent) {
 			t.Errorf("unrelated/private content in live habit patch: %s", frame)
 		}
+	}
+
+	today := time.Now().UTC().Format(time.DateOnly)
+	hs, err := svc.List(context.Background(), testOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetCheckIn(context.Background(), testOwner, hs[0].ID, today, true, "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	frame = readFrame(t, br)
+	for _, want := range []string{`id="checkin-`, today, `aria-pressed="true"`} {
+		if !strings.Contains(frame, want) {
+			t.Errorf("live check-in snapshot missing %q: %s", want, frame)
+		}
+	}
+	if strings.Contains(frame, `id="jot-cm"`) || strings.Contains(frame, `id="block-list"`) {
+		t.Fatalf("check-in patch disturbed another feature: %s", frame)
+	}
+
+	_, reconnect := openEvents(t, EventsHandler(&fakeService{blocks: threeBlocks()}, newFakeJot(), broker, svc))
+	readFrame(t, reconnect)
+	readFrame(t, reconnect)
+	readFrame(t, reconnect)
+	frame = readFrame(t, reconnect)
+	if !strings.Contains(frame, today) || !strings.Contains(frame, `aria-pressed="true"`) {
+		t.Fatalf("reconnect missed authoritative check-in: %s", frame)
 	}
 }

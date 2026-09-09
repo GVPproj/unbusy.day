@@ -5,7 +5,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
-// Only #habit-matrix and #habit-feedback are patch targets; tabs and editor persist.
+// Only #habit-grid and feedback are patch targets; tabs and editor persist.
 templ Companion(pad jot.Pad, habits []habit.Habit, month habit.Month) {
 	<aside class="column companion" aria-label="Notes & Habits">
 		<div role="tablist" aria-label="Notes & Habits">
@@ -36,4 +36,5 @@ templ Companion(pad jot.Pad, habits []habit.Habit, month habit.Month) {
 	</aside>
 	// Runs before Datastar binds the inputs, so the local date seeds habitstart.
 	<script src="/static/js/companion.js"></script>
+	<script type="module" src="/static/js/habits/checkins.js"></script>
 }

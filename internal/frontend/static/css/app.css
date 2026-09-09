@@ -2577,6 +2577,41 @@
       );
     }
 
+    .check-in {
+      display: inline-grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border: 1px solid var(--rail-border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink-muted);
+      cursor: pointer;
+
+      &[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: var(--bg);
+      }
+
+      &[data-save-state="pending"] {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      &[data-save-state="failed"] {
+        border-color: var(--danger);
+        outline: 1px solid var(--danger);
+      }
+    }
+
+    output {
+      display: block;
+      min-height: 1.5rem;
+      padding: 0.25rem 0.75rem;
+      color: var(--ink-muted);
+    }
+
     p {
       padding: 0.75rem;
       color: var(--ink-muted);

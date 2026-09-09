@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
-	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 	"github.com/GVPproj/unbusy.day/internal/web"
@@ -27,24 +26,21 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 			http.Error(w, "invalid signals", http.StatusBadRequest)
 			return
 		}
-		month, err := habit.Calendar(sig.Timezone, time.Now())
+		owner := web.OwnerFrom(r.Context())
+		// Subscribe before every snapshot so a concurrent commit is queued.
+		sub := broker.Subscribe(owner)
+		defer sub.Close()
+		habitSnap, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		month := habitSnap.Month
 		w.Header().Set("X-Accel-Buffering", "no")
 
 		rc := http.NewResponseController(w)
 		// SSE is long-lived: no per-connection write deadline.
 		_ = rc.SetWriteDeadline(time.Time{})
-
-		owner := web.OwnerFrom(r.Context())
-
-		// Subscribe before the snapshot so a mutation committed in between is
-		// waiting on the channel rather than lost; the worst interleaving is
-		// one redundant full-state patch.
-		sub := broker.Subscribe(owner)
-		defer sub.Close()
 
 		sse := datastar.NewSSE(w, r)
 
@@ -66,7 +62,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 			return
 		}
 
-		if err := patchHabits(sse, r, habits, sig.Timezone); err != nil {
+		if err := sse.PatchElementTempl(components.HabitGrid(habitSnap.Habits, habitSnap.Month)); err != nil {
 			log.Printf("events habits: %v", err)
 			return
 		}
@@ -92,16 +88,16 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 				}
 			case <-ticker.C:
 				// An open tab follows local midnight too, without touching form drafts.
-				current, err := habit.Calendar(sig.Timezone, time.Now())
+				current, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
 				if err != nil {
 					return
 				}
-				if current.Today != month.Today {
-					if err := patchHabits(sse, r, habits, sig.Timezone); err != nil {
+				if current.Month.Today != month.Today {
+					if err := sse.PatchElementTempl(components.HabitGrid(current.Habits, current.Month)); err != nil {
 						log.Printf("events habits: %v", err)
 						return
 					}
-					month = current
+					month = current.Month
 				}
 				if _, err := io.WriteString(w, ":keepalive\n\n"); err != nil {
 					return

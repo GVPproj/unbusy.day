@@ -14,6 +14,7 @@ const habitsTab = (page) => page.getByRole("tab", { name: "Habits", exact: true 
 const habitName = (page) => page.locator("#habit-create").getByLabel("Name", { exact: true });
 const habitStart = (page) => page.locator("#habit-create").getByLabel("Start date", { exact: true });
 const habitRow = (page, name) => page.locator("#habit-matrix tbody tr").filter({ has: page.getByRole("rowheader", { name, exact: true }) });
+const checkIn = (page, name, date) => page.getByRole("button", { name: `${name} on ${date}`, exact: true });
 
 async function localCalendar(page) {
 	return page.evaluate(() => {
@@ -86,8 +87,12 @@ test("creation defaults to browser-local today and persists the current-month av
 	await expect(row.locator("td")).toHaveCount(calendar.days);
 	for (let day = 1; day <= calendar.days; day++) {
 		const cell = row.locator("td").nth(day - 1);
-		await expect(cell.locator("[aria-label]")).toHaveAttribute("aria-label", new RegExp(day === calendar.day ? ": no check-in$" : ": unavailable$"));
-		await expect(cell.getByRole("button")).toHaveCount(0);
+		if (day === calendar.day) {
+			await expect(cell.getByRole("button", { name: `Read books on ${calendar.today}` })).toHaveAttribute("aria-pressed", "false");
+		} else {
+			await expect(cell.locator("[aria-label]")).toHaveAttribute("aria-label", /: unavailable$/);
+			await expect(cell.getByRole("button")).toHaveCount(0);
+		}
 		await expect(cell.getByRole("checkbox")).toHaveCount(0);
 	}
 	await page.reload({ waitUntil: "load" });
@@ -97,6 +102,76 @@ test("creation defaults to browser-local today and persists the current-month av
 	await expect(page.locator("#habit-matrix caption")).toHaveText(calendar.month);
 	await expect(habitRow(page, "Read books").locator("td")).toHaveCount(calendar.days);
  await page.screenshot({ path: test.info().outputPath("habits-desktop.png"), fullPage: true });
+});
+
+test("check-ins wait for confirmation, survive reload, expose failure, and retry explicitly", async ({ page }) => {
+	await habitsTab(page).click();
+	const { today } = await localCalendar(page);
+	await createHabit(page, "Journal", today);
+	let button = checkIn(page, "Journal", today);
+
+	let release;
+	const gate = new Promise((resolve) => { release = resolve; });
+	await page.route("**/habits/check-in", async (route) => {
+		await gate;
+		await route.continue();
+	});
+	const request = page.waitForRequest((req) => new URL(req.url()).pathname === "/habits/check-in");
+	await button.click();
+	await request;
+	await expect(button).toHaveAttribute("aria-pressed", "false");
+	await expect(button).toHaveAttribute("aria-busy", "true");
+	await expect(page.locator("#habit-checkin-feedback")).toHaveText("Saving…");
+	release();
+	await expect(button).toHaveAttribute("aria-pressed", "true");
+	await expect(page.locator("#habit-checkin-feedback")).toHaveText("Saved.");
+	await page.unroute("**/habits/check-in");
+
+	await page.reload({ waitUntil: "load" });
+	await habitsTab(page).click();
+	button = checkIn(page, "Journal", today);
+	await expect(button).toHaveAttribute("aria-pressed", "true");
+
+	await page.route("**/habits/check-in", (route) => route.fulfill({ status: 500, body: "failed" }));
+	await button.click();
+	await expect(button).toHaveAttribute("aria-pressed", "true");
+	await expect(button).toHaveAttribute("data-save-state", "failed");
+	await expect(page.locator("#habit-checkin-feedback")).toContainText(/not saved.*retry/i);
+	await page.unroute("**/habits/check-in");
+	await button.click();
+	await expect(button).toHaveAttribute("aria-pressed", "false");
+
+	await button.focus();
+	await page.keyboard.press("Space");
+	await expect(button).toHaveAttribute("aria-pressed", "true");
+	await page.keyboard.press("Enter");
+	await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
+test("live check-ins converge while preserving focused date and horizontal scroll", async ({ page, context }) => {
+	await habitsTab(page).click();
+	const { today } = await localCalendar(page);
+	await createHabit(page, "Stretch", `${today.slice(0, 8)}01`);
+	const matrix = page.locator("#habit-matrix");
+	const button = checkIn(page, "Stretch", today);
+	await button.focus();
+	await matrix.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+	const scroll = await matrix.evaluate((element) => element.scrollLeft);
+
+	const other = await context.newPage();
+	await other.goto(baseURL, { waitUntil: "load" });
+	await habitsTab(other).click();
+	await checkIn(other, "Stretch", today).click();
+	await expect(button).toHaveAttribute("aria-pressed", "true");
+	await expect(button).toBeFocused();
+	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll)).toBeLessThan(2);
+
+	await button.click();
+	await expect(button).toHaveAttribute("aria-pressed", "false");
+	await expect(checkIn(other, "Stretch", today)).toHaveAttribute("aria-pressed", "false");
+	await expect(button).toBeFocused();
+	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll)).toBeLessThan(2);
+	await other.close();
 });
 
 test("duplicate and future-start errors retain the submitted name and date", async ({ page }) => {
@@ -153,6 +228,9 @@ test("mobile Plan / Notes & Habits navigation keeps names visible while dates sc
 	await expect(page.locator(".cm-editor")).toBeVisible();
 	await habitsTab(page).click();
 	await createHabit(page, "A daily walk");
+	const { today } = await localCalendar(page);
+	await checkIn(page, "A daily walk", today).click();
+	await expect(checkIn(page, "A daily walk", today)).toHaveAttribute("aria-pressed", "true");
 	const matrix = page.locator("#habit-matrix");
 	const name = habitRow(page, "A daily walk").getByRole("rowheader");
 	const before = await name.boundingBox();
@@ -215,6 +293,9 @@ test("Jotpad text, caret, scroll and pending save survive switching tabs and a h
 		});
 		await habitsTab(page).click();
 		await createHabit(page, "Keep notes safe");
+		const { today } = await localCalendar(page);
+		await checkIn(page, "Keep notes safe", today).click();
+		await expect(checkIn(page, "Keep notes safe", today)).toHaveAttribute("aria-pressed", "true");
 		await jotTab(page).click();
 		await content.focus();
 		expect(await state.evaluate((saved) => ({
