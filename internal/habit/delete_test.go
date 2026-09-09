@@ -53,7 +53,10 @@ func TestDeleteAfterUpgradeRetainsExistingIdentityHighWaterMark(t *testing.T) {
 	if err := s.Delete(ctx, "alice", 41); err != nil {
 		t.Fatal(err)
 	}
-	hs, err = s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+	if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err = s.List(ctx, "alice")
 	if err != nil || len(hs) != 1 || hs[0].ID <= 41 || len(hs[0].CheckedDates) != 0 {
 		t.Fatalf("upgrade reused identity/history: %+v %v", hs, err)
 	}
@@ -63,19 +66,25 @@ func TestDeleteNeverReusesMaximumOrLastIdentityAcrossReopen(t *testing.T) {
 	db, dsn := database(t)
 	ctx := context.Background()
 	s := habit.NewService(db, nil)
-	hs, err := s.Create(ctx, "alice", "Keep", "2024-01-01", "UTC")
+	if err := s.Create(ctx, "alice", "Keep", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := s.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
 	keep := hs[0].ID
-	hs, err = s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+	if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err = s.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := hs[1].ID
 	for cycle := range 2 {
 		for _, date := range []string{"2024-01-31", "2024-02-29"} {
-			if _, err := s.SetCheckIn(ctx, "alice", id, date, true, "UTC"); err != nil {
+			if err := s.SetCheckIn(ctx, "alice", id, date, true, "UTC"); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -94,7 +103,10 @@ func TestDeleteNeverReusesMaximumOrLastIdentityAcrossReopen(t *testing.T) {
 		}
 		defer db.Close()
 		s = habit.NewService(db, nil)
-		hs, err = s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+		if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+			t.Fatal(err)
+		}
+		hs, err = s.List(ctx, "alice")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -117,15 +129,21 @@ func TestDeleteIsOwnerScopedAndPublishesCommittedStateEvenWhenMissing(t *testing
 	db.SetMaxOpenConns(1)
 	ctx := context.Background()
 	reader := habit.NewService(db, nil)
-	alice, err := reader.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+	if err := reader.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	alice, err := reader.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
-	bob, err := reader.Create(ctx, "bob", "Private", "2024-01-01", "UTC")
+	if err := reader.Create(ctx, "bob", "Private", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	bob, err := reader.List(ctx, "bob")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := reader.SetCheckIn(ctx, "bob", bob[0].ID, "2024-02-29", true, "UTC"); err != nil {
+	if err := reader.SetCheckIn(ctx, "bob", bob[0].ID, "2024-02-29", true, "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	bob, err = reader.List(ctx, "bob")
@@ -185,7 +203,10 @@ func TestDeleteConcurrentEditsAndCheckInRetriesNeverRecreate(t *testing.T) {
 	ctx := context.Background()
 	s := habit.NewService(db, nil)
 	for range 10 {
-		hs, err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+		if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+			t.Fatal(err)
+		}
+		hs, err := s.List(ctx, "alice")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -201,9 +222,9 @@ func TestDeleteConcurrentEditsAndCheckInRetriesNeverRecreate(t *testing.T) {
 				case 0:
 					err = writer.Delete(ctx, "alice", id)
 				case 1:
-					_, err = writer.Edit(ctx, "alice", id, "Books", "2024-01-01", "UTC")
+					err = writer.Edit(ctx, "alice", id, "Books", "2024-01-01", "UTC")
 				case 2:
-					_, err = writer.SetCheckIn(ctx, "alice", id, "2024-02-29", true, "UTC")
+					err = writer.SetCheckIn(ctx, "alice", id, "2024-02-29", true, "UTC")
 				}
 				if n%3 == 0 && err != nil {
 					results <- err
@@ -221,16 +242,19 @@ func TestDeleteConcurrentEditsAndCheckInRetriesNeverRecreate(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		fresh, err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+		if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+			t.Fatal(err)
+		}
+		fresh, err := s.List(ctx, "alice")
 		if err != nil {
 			t.Fatal(err)
 		}
 		for range 2 {
-			if _, err := s.Edit(ctx, "alice", id, "Resurrected", "2024-01-01", "UTC"); !habit.IsRejection(err) {
+			if err := s.Edit(ctx, "alice", id, "Resurrected", "2024-01-01", "UTC"); !habit.IsRejection(err) {
 				t.Fatalf("stale edit: %v", err)
 			}
 			for _, checked := range []bool{true, false} {
-				if _, err := s.SetCheckIn(ctx, "alice", id, "2024-02-29", checked, "UTC"); !habit.IsRejection(err) {
+				if err := s.SetCheckIn(ctx, "alice", id, "2024-02-29", checked, "UTC"); !habit.IsRejection(err) {
 					t.Fatalf("stale check-in: %v", err)
 				}
 			}
@@ -273,16 +297,22 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hs, err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+	if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := s.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
 	deleted := hs[0].ID
-	hs, err = s.Create(ctx, "alice", "Walk", "2024-01-01", "UTC")
+	if err := s.Create(ctx, "alice", "Walk", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err = s.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.SetCheckIn(ctx, "alice", hs[1].ID, "2024-02-29", true, "UTC"); err != nil {
+	if err := s.SetCheckIn(ctx, "alice", hs[1].ID, "2024-02-29", true, "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	hs, err = s.List(ctx, "alice")
@@ -321,13 +351,16 @@ func TestDeleteRemovesHabitAcrossMonths(t *testing.T) {
 	db, _ := database(t)
 	ctx := context.Background()
 	s := habit.NewService(db, nil)
-	hs, err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC")
+	if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := s.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := hs[0].ID
 	for _, date := range []string{"2024-01-31", "2024-02-29", "2024-03-01"} {
-		if _, err := s.SetCheckIn(ctx, "alice", id, date, true, "UTC"); err != nil {
+		if err := s.SetCheckIn(ctx, "alice", id, date, true, "UTC"); err != nil {
 			t.Fatal(err)
 		}
 	}

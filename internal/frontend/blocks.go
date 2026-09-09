@@ -8,7 +8,6 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/routes"
-	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/web"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -37,7 +36,7 @@ func snapshot(ctx context.Context, svc BlockService, owner string) ([]block.Bloc
 }
 
 // PageHandler serves the column page, server-rendered on every hit (no-cache).
-func PageHandler(svc BlockService, jots JotService, habits HabitService) http.Handler {
+func PageHandler(svc BlockService, jots JotService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		owner := web.OwnerFrom(r.Context())
 		bs, b, err := snapshot(r.Context(), svc, owner)
@@ -52,16 +51,10 @@ func PageHandler(svc BlockService, jots JotService, habits HabitService) http.Ha
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		hs, err := habits.List(r.Context(), owner)
-		if err != nil {
-			log.Printf("page habits: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
 		// The browser supplies its timezone on /events; don't guess a UTC month here.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		if err := routes.BlocksPage(bs, b, pad, hs, habit.Month{}).Render(r.Context(), w); err != nil {
+		if err := routes.BlocksPage(bs, b, pad).Render(r.Context(), w); err != nil {
 			http.Error(w, "render page", http.StatusInternalServerError)
 		}
 	})

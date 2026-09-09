@@ -354,7 +354,7 @@ test("check-ins wait for confirmation, survive reload, expose failure, and retry
 	await button.click();
 	await expect(button).toHaveAttribute("aria-pressed", "true");
 	await expect(button).toHaveAttribute("data-save-state", "failed");
-	await expect(page.locator("#habit-checkin-feedback")).toContainText(/not saved.*retry/i);
+	await expect(page.locator("#habit-checkin-feedback")).toContainText(/save not confirmed.*retry the original change/i);
 	await page.unroute("**/habits/check-in");
 	await button.click();
 	await expect(button).toHaveAttribute("aria-pressed", "false");
@@ -385,7 +385,8 @@ test("live check-ins converge while preserving focused date and horizontal scrol
 	await expect(button).toBeFocused();
 	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll)).toBeLessThan(2);
 
-	await button.click();
+	// Activate without Playwright introducing a new scroll-to-click position.
+	await page.keyboard.press("Enter");
 	await expect(button).toHaveAttribute("aria-pressed", "false");
 	await expect(checkIn(other, "Stretch", today)).toHaveAttribute("aria-pressed", "false");
 	await expect(button).toBeFocused();

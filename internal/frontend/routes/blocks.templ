@@ -5,13 +5,12 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
 	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
 	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
-	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
 // Initialize timezone before the body's stream request; child signals initialize later.
 // retry 'always' reconnects even after a clean stream end.
-templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, habits []habit.Habit, month habit.Month) {
+templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 	@layouts.Layout("unbusy.day", "$timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; @get('/events', {retry: 'always', filterSignals: {include: /^timezone$/}})") {
 		// $_jotv/$_jott carry live jot state from /events as signal patches
 		// (never element patches — nothing may re-render an editor being typed
@@ -67,7 +66,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad, habits []habit.H
 					<script type="module" src="/static/js/now.js"></script>
 					<script type="module" src="/static/js/shortcuts.js"></script>
 				</main>
-				@components.Companion(pad, habits, month)
+				@components.Companion(pad)
 				// The whole save path (debounce, CAS version, retry, teardown
 				// beacon) lives in the jot-sync driver behind initJotpadCM.
 				<script type="module">

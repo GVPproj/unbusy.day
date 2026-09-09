@@ -36,20 +36,4 @@
       tabs[next].focus();
     });
   }
-
-  const form = document.getElementById("habit-create");
-  const feedback = () => document.getElementById("habit-feedback");
-  form.addEventListener("input", () => { feedback().textContent = ""; });
-  form.addEventListener("invalid", (event) => {
-    feedback().textContent = event.target.validationMessage;
-  }, true);
-
-  const start = document.getElementById("habit-start");
-  const today = new Date();
-  const date = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
-  start.value = date;
 })();

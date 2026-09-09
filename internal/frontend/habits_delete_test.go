@@ -27,11 +27,17 @@ func TestHabitDeleteStorageFailureDoesNotAcknowledgeDeletion(t *testing.T) {
 func TestHabitDeleteAcknowledgesOwnedDeletionAndRetriesWithoutGridPatches(t *testing.T) {
 	svc := newTestHabits(t)
 	ctx := context.Background()
-	mine, err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC")
+	if err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	mine, err := svc.List(ctx, testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	other, err := svc.Create(ctx, "another-owner", "Private", "2020-01-01", "UTC")
+	if err := svc.Create(ctx, "another-owner", "Private", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	other, err := svc.List(ctx, "another-owner")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +58,10 @@ func TestHabitDeleteAcknowledgesOwnedDeletionAndRetriesWithoutGridPatches(t *tes
 	if err != nil || len(got) != 0 {
 		t.Fatalf("owned state: %+v %v", got, err)
 	}
-	replacement, err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC")
+	if err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	replacement, err := svc.List(ctx, testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}

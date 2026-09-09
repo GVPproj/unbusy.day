@@ -15,13 +15,12 @@ import (
 
 // HabitService keeps calendar-backed habits separate from the undated plan and Jotpad.
 type HabitService interface {
-	List(context.Context, string) ([]habit.Habit, error)
-	Snapshot(ctx context.Context, owner, timezone string) (*habit.Snapshot, error)
+	CurrentCalendar(timezone string) (habit.Month, error)
 	MonthSnapshot(ctx context.Context, owner, timezone, month string) (*habit.Snapshot, error)
-	Create(ctx context.Context, owner, name, startDate, timezone string) ([]habit.Habit, error)
-	Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) ([]habit.Habit, error)
+	Create(ctx context.Context, owner, name, startDate, timezone string) error
+	Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) error
 	Delete(ctx context.Context, owner string, habitID int64) error
-	SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*habit.Snapshot, error)
+	SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) error
 }
 
 type habitSignals struct {
@@ -97,7 +96,7 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 			http.Error(w, "invalid signals body", http.StatusBadRequest)
 			return
 		}
-		_, err := svc.Create(r.Context(), web.OwnerFrom(r.Context()), sig.Name, sig.Start, sig.Timezone)
+		err := svc.Create(r.Context(), web.OwnerFrom(r.Context()), sig.Name, sig.Start, sig.Timezone)
 		if habit.IsRejection(err) {
 			sse := datastar.NewSSE(w, r)
 			if err := sse.MarshalAndPatchSignals(struct {
@@ -130,7 +129,7 @@ func HabitEditHandler(svc HabitService) http.Handler {
 			http.Error(w, "invalid signals body", http.StatusBadRequest)
 			return
 		}
-		_, err := svc.Edit(r.Context(), web.OwnerFrom(r.Context()), sig.EditID, sig.EditName, sig.EditStart, sig.Timezone)
+		err := svc.Edit(r.Context(), web.OwnerFrom(r.Context()), sig.EditID, sig.EditName, sig.EditStart, sig.Timezone)
 		if habit.IsRejection(err) {
 			sse := datastar.NewSSE(w, r)
 			if err := sse.MarshalAndPatchSignals(struct {
@@ -212,7 +211,7 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 			return
 		}
 		owner := web.OwnerFrom(r.Context())
-		_, err := svc.SetCheckIn(r.Context(), owner, sig.HabitID, sig.Date, *sig.Checked, sig.Timezone)
+		err := svc.SetCheckIn(r.Context(), owner, sig.HabitID, sig.Date, *sig.Checked, sig.Timezone)
 		if habit.IsRejection(err) {
 			sse := datastar.NewSSE(w, r)
 			if patchErr := patchHabitCheckInFeedback(sse, err.Error(), "rejected", sig.Date, sig.Refresh, sig.View); patchErr != nil {

@@ -51,12 +51,11 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 		// Subscribe before every snapshot so a concurrent commit is queued.
 		sub := broker.Subscribe(owner)
 		defer sub.Close()
-		habitSnap, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
+		month, err := habits.CurrentCalendar(sig.Timezone)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		month := habitSnap.Month
 		w.Header().Set("X-Accel-Buffering", "no")
 
 		rc := http.NewResponseController(w)
@@ -83,7 +82,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 			return
 		}
 
-		if err := patchHabitRefresh(sse, habitSnap.Month.Key); err != nil {
+		if err := patchHabitRefresh(sse, month.Key); err != nil {
 			log.Printf("events habits: %v", err)
 			return
 		}
@@ -103,28 +102,28 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 					return
 				}
 			case <-sub.Habits:
-				current, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
+				current, err := habits.CurrentCalendar(sig.Timezone)
 				if err != nil {
 					log.Printf("events habits: %v", err)
 					return
 				}
-				if err := patchHabitRefresh(sse, current.Month.Key); err != nil {
+				if err := patchHabitRefresh(sse, current.Key); err != nil {
 					log.Printf("events habits: %v", err)
 					return
 				}
-				month = current.Month
+				month = current
 			case <-ticker.C:
 				// An open tab follows local midnight too, without touching form drafts.
-				current, err := habits.Snapshot(r.Context(), owner, sig.Timezone)
+				current, err := habits.CurrentCalendar(sig.Timezone)
 				if err != nil {
 					return
 				}
-				if current.Month.Today != month.Today {
-					if err := patchHabitRefresh(sse, current.Month.Key); err != nil {
+				if current.Today != month.Today {
+					if err := patchHabitRefresh(sse, current.Key); err != nil {
 						log.Printf("events habits: %v", err)
 						return
 					}
-					month = current.Month
+					month = current
 				}
 				if _, err := io.WriteString(w, ":keepalive\n\n"); err != nil {
 					return

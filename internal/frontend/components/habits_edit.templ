@@ -1,0 +1,48 @@
+package components
+
+import (
+	"strconv"
+
+	"github.com/GVPproj/unbusy.day/internal/habit"
+)
+
+func openHabitEditor(h habit.Habit) string {
+	return "$habiteditview++; $habiteditid = " + strconv.FormatInt(h.ID, 10) + "; $habiteditname = " + strconv.Quote(h.Name) + "; $habiteditstart = '" + h.StartDate + "'"
+}
+
+templ HabitEditDialog() {
+	<dialog
+		id="habit-edit"
+		class="app-dialog"
+		closedby="any"
+		aria-labelledby="habit-edit-title"
+		data-signals:habiteditid="0"
+		data-signals:habiteditname="''"
+		data-signals:habiteditstart="''"
+		data-signals:habiteditview="0"
+		data-signals:_habiteditsavedview="0"
+		data-signals:_habitediterror="''"
+		data-signals:_habitediterrorview="0"
+		data-effect="if ($_habiteditsavedview === $habiteditview && el.open) el.close()"
+	>
+		<form
+			class="habit-dialog-form"
+			data-indicator:_habiteditpending
+			data-on:submit="if (!$_habiteditpending && el.reportValidity()) @post('/habits/edit', {requestCancellation: 'disabled', filterSignals: {include: /^(habiteditid|habiteditname|habiteditstart|habiteditview|timezone)$/}})"
+			data-attr:aria-busy="$_habiteditpending"
+		>
+			<h2 id="habit-edit-title">Edit habit</h2>
+			<label class="stack" for="habit-edit-name">Name <input class="field" id="habit-edit-name" name="name" type="text" required data-bind:habiteditname/></label>
+			<label class="stack" for="habit-edit-start">Start date <input class="field" id="habit-edit-start" name="start" type="date" required data-bind:habiteditstart/></label>
+			<footer>
+				<button class="btn" type="button" commandfor="habit-edit" command="close">Cancel</button>
+				<button class="btn" type="submit" data-attr:disabled="$_habiteditpending">Save</button>
+			</footer>
+			@HabitEditFeedback()
+		</form>
+	</dialog>
+}
+
+templ HabitEditFeedback() {
+	<output id="habit-edit-feedback" aria-live="polite" data-text="$_habitediterrorview === $habiteditview ? $_habitediterror : ''"></output>
+}

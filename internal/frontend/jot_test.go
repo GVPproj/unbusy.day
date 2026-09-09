@@ -176,7 +176,7 @@ func TestPageRendersTheStoredJotInTheEditorPayload(t *testing.T) {
 	jots.pads[testOwner] = jot.Pad{Text: "\n\n- milk & eggs <b>", Version: 4}
 	rec := httptest.NewRecorder()
 
-	PageHandler(&fakeService{blocks: threeBlocks()}, jots, newTestHabits(t)).
+	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
 		ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
 
 	if rec.Code != http.StatusOK {
@@ -328,7 +328,7 @@ func renderPageWithJot(t *testing.T, text string) string {
 	jots := newFakeJot()
 	jots.pads[testOwner] = jot.Pad{Text: text}
 	rec := httptest.NewRecorder()
-	PageHandler(&fakeService{blocks: threeBlocks()}, jots, newTestHabits(t)).
+	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
 		ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))
 	return rec.Body.String()
 }

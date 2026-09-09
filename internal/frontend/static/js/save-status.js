@@ -3,7 +3,7 @@ const priority = { saved: 0, saving: 1, failed: 2, offline: 3 };
 const labels = {
   saved: "Saved",
   saving: "Saving…",
-  failed: "Not saved — try again",
+  failed: "Not confirmed — try again",
   offline: "Offline — will retry",
 };
 

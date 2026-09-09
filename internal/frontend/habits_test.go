@@ -50,17 +50,20 @@ func TestHabitMonthRendersTheOwnedSelectedMonthWithAStaleResponseGuard(t *testin
 	db := habitTestDB(t)
 	now := time.Date(2024, 3, 15, 12, 0, 0, 0, time.UTC)
 	svc := habit.NewService(db, nil, habit.WithClock(func() time.Time { return now }))
-	old, err := svc.Create(context.Background(), testOwner, "Old", "2024-02-29", "UTC")
+	if err := svc.Create(context.Background(), testOwner, "Old", "2024-02-29", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	old, err := svc.List(context.Background(), testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(context.Background(), testOwner, "New", "2024-03-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), testOwner, "New", "2024-03-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(context.Background(), "another-owner", "Private", "2020-01-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), "another-owner", "Private", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SetCheckIn(context.Background(), testOwner, old[0].ID, "2024-02-29", true, "UTC"); err != nil {
+	if err := svc.SetCheckIn(context.Background(), testOwner, old[0].ID, "2024-02-29", true, "UTC"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,11 +91,17 @@ func TestHabitMonthRendersTheOwnedSelectedMonthWithAStaleResponseGuard(t *testin
 func TestHabitCheckInMutationConfirmsCommittedOwnedStateWithoutAStaleGridPatch(t *testing.T) {
 	svc := newTestHabits(t)
 	ctx := context.Background()
-	mine, err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC")
+	if err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	mine, err := svc.List(ctx, testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	other, err := svc.Create(ctx, "another-owner", "Private", "2020-01-01", "UTC")
+	if err := svc.Create(ctx, "another-owner", "Private", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	other, err := svc.List(ctx, "another-owner")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +150,10 @@ func TestHabitCheckInMutationConfirmsCommittedOwnedStateWithoutAStaleGridPatch(t
 
 func TestHabitCheckInRequiresAnExplicitDesiredState(t *testing.T) {
 	svc := newTestHabits(t)
-	hs, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC")
+	if err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := svc.List(context.Background(), testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +172,10 @@ func TestHabitCheckInRequiresAnExplicitDesiredState(t *testing.T) {
 
 func TestHabitCheckInRejectsInvalidInputWithAuthoritativeReconciliation(t *testing.T) {
 	svc := newTestHabits(t)
-	hs, err := svc.Create(context.Background(), testOwner, "Read", "2024-02-28", "UTC")
+	if err := svc.Create(context.Background(), testOwner, "Read", "2024-02-28", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := svc.List(context.Background(), testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +201,10 @@ func TestHabitCheckInRejectsInvalidInputWithAuthoritativeReconciliation(t *testi
 
 func TestHabitEditConfirmsWithoutPatchingTheGridOrOtherEditors(t *testing.T) {
 	svc := newTestHabits(t)
-	hs, err := svc.Create(context.Background(), testOwner, "Read", "2024-01-01", "UTC")
+	if err := svc.Create(context.Background(), testOwner, "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := svc.List(context.Background(), testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,11 +230,14 @@ func TestHabitEditConfirmsWithoutPatchingTheGridOrOtherEditors(t *testing.T) {
 
 func TestHabitEditRejectionsPreserveDraftAndPatchOnlyUsefulFeedback(t *testing.T) {
 	svc := newTestHabits(t)
-	hs, err := svc.Create(context.Background(), testOwner, "Read", "2024-01-01", "UTC")
+	if err := svc.Create(context.Background(), testOwner, "Read", "2024-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := svc.List(context.Background(), testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SetCheckIn(context.Background(), testOwner, hs[0].ID, "2024-02-01", true, "UTC"); err != nil {
+	if err := svc.SetCheckIn(context.Background(), testOwner, hs[0].ID, "2024-02-01", true, "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ name, start, feedback string }{
@@ -239,7 +260,7 @@ func TestHabitEditRejectionsPreserveDraftAndPatchOnlyUsefulFeedback(t *testing.T
 
 func TestHabitCreationConfirmsWithoutBypassingTheOwnersLiveGridStream(t *testing.T) {
 	svc := newTestHabits(t)
-	if _, err := svc.Create(context.Background(), "another-owner", "Private habit", "2020-01-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), "another-owner", "Private habit", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	rec := httptest.NewRecorder()
@@ -266,7 +287,7 @@ func TestHabitCreationConfirmsWithoutBypassingTheOwnersLiveGridStream(t *testing
 
 func TestHabitRejectionsKeepTheDraftAndExplainTheProblem(t *testing.T) {
 	svc := newTestHabits(t)
-	if _, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ name, body, feedback string }{
@@ -319,7 +340,7 @@ func TestHabitCreationSurvivesPageReloadAndIsIndependentOfPlanAndJotpad(t *testi
 		t.Fatal(clear.Body.String())
 	}
 	page := httptest.NewRecorder()
-	PageHandler(blocks, jots, habit.NewService(db, nil)).ServeHTTP(page, authedRequest(http.MethodGet, "/", ""))
+	PageHandler(blocks, jots).ServeHTTP(page, authedRequest(http.MethodGet, "/", ""))
 	if page.Code != 200 || !strings.Contains(page.Body.String(), "/habits/month") {
 		t.Fatalf("reload omitted habit month loader: %d %s", page.Code, page.Body.String())
 	}
@@ -333,7 +354,7 @@ func TestHabitCreationSurvivesPageReloadAndIsIndependentOfPlanAndJotpad(t *testi
 	}
 	other := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	PageHandler(blocks, jots, habits).ServeHTTP(other, req.WithContext(web.WithOwner(req.Context(), "another-owner")))
+	PageHandler(blocks, jots).ServeHTTP(other, req.WithContext(web.WithOwner(req.Context(), "another-owner")))
 	if strings.Contains(other.Body.String(), ">Read</span>") || strings.Contains(other.Body.String(), "Keep these notes") {
 		t.Fatal("page leaked another owner's data")
 	}
@@ -360,7 +381,10 @@ func TestHabitEventsRejectInvalidTimezoneBeforeOpeningTheStream(t *testing.T) {
 func TestHabitCheckInStorageFailuresDoNotClaimSuccess(t *testing.T) {
 	db := habitTestDB(t)
 	svc := habit.NewService(db, nil)
-	hs, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC")
+	if err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := svc.List(context.Background(), testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,7 +412,7 @@ func TestHabitStorageFailuresDoNotClaimCreationSucceeded(t *testing.T) {
 	}
 }
 
-func TestHabitEventsInvalidateAtBrowserLocalMidnight(t *testing.T) {
+func TestHabitEventsCalendarAndHeartbeatRemainAvailableWithoutHabitStorage(t *testing.T) {
 	db := habitTestDB(t)
 	var mu sync.Mutex
 	now := time.Date(2024, 3, 31, 23, 59, 59, 0, time.UTC)
@@ -397,6 +421,9 @@ func TestHabitEventsInvalidateAtBrowserLocalMidnight(t *testing.T) {
 		defer mu.Unlock()
 		return now
 	}))
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
 	oldInterval := keepaliveInterval
 	keepaliveInterval = 20 * time.Millisecond
 	t.Cleanup(func() { keepaliveInterval = oldInterval })
@@ -413,10 +440,15 @@ func TestHabitEventsInvalidateAtBrowserLocalMidnight(t *testing.T) {
 	mu.Lock()
 	now = time.Date(2024, 4, 1, 0, 0, 1, 0, time.UTC)
 	mu.Unlock()
-	broker.PublishHabit(habit.Event{Owner: testOwner})
+	// No mutation wakes the stream: the heartbeat must detect rollover itself.
 	refreshed := readFrame(t, br)
 	if !strings.Contains(refreshed, `"_habitcurrent":"2024-04"`) || !strings.Contains(refreshed, `"habitrefresh":`) || strings.Contains(refreshed, `id="habit-grid"`) {
 		t.Fatalf("midnight invalidation: %s", refreshed)
+	}
+	broker.PublishHabit(habit.Event{Owner: testOwner})
+	invalidated := readFrame(t, br)
+	if !strings.Contains(invalidated, `"_habitcurrent":"2024-04"`) || !strings.Contains(invalidated, `"habitrefresh":`) {
+		t.Fatalf("calendar on invalidation without storage: %s", invalidated)
 	}
 }
 
@@ -424,10 +456,10 @@ func TestHabitEventsReconnectAndLiveWritesInvalidateEachViewsSelectedMonth(t *te
 	db := habitTestDB(t)
 	broker := pubsub.New()
 	svc := habit.NewService(db, broker)
-	if _, err := svc.Create(context.Background(), testOwner, "Morning walk", "2020-01-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), testOwner, "Morning walk", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(context.Background(), "another-owner", "Private habit", "2020-01-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), "another-owner", "Private habit", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	_, br := openEvents(t, EventsHandler(&fakeService{blocks: threeBlocks()}, newFakeJot(), broker, svc))
@@ -438,7 +470,7 @@ func TestHabitEventsReconnectAndLiveWritesInvalidateEachViewsSelectedMonth(t *te
 	if !strings.Contains(frame, "datastar-patch-signals") || !strings.Contains(frame, `"_habitcurrent":`) || strings.Contains(frame, "Morning walk") {
 		t.Fatalf("initial habit invalidation: %s", frame)
 	}
-	if _, err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+	if err := svc.Create(context.Background(), testOwner, "Read", "2020-01-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	frame = readFrame(t, br)
@@ -456,7 +488,7 @@ func TestHabitEventsReconnectAndLiveWritesInvalidateEachViewsSelectedMonth(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SetCheckIn(context.Background(), testOwner, hs[0].ID, today, true, "UTC"); err != nil {
+	if err := svc.SetCheckIn(context.Background(), testOwner, hs[0].ID, today, true, "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	frame = readFrame(t, br)

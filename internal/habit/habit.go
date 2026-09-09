@@ -57,12 +57,9 @@ type Snapshot struct {
 	Month  Month
 }
 
-func (s *Service) Snapshot(ctx context.Context, owner, timezone string) (*Snapshot, error) {
-	month, err := Calendar(timezone, s.now())
-	if err != nil {
-		return nil, err
-	}
-	return s.snapshotMonth(ctx, owner, month)
+// CurrentCalendar uses the service clock and browser timezone, without storage reads.
+func (s *Service) CurrentCalendar(timezone string) (Month, error) {
+	return Calendar(timezone, s.now())
 }
 
 // MonthSnapshot reads one view-selected month without storing that selection.
@@ -71,10 +68,6 @@ func (s *Service) MonthSnapshot(ctx context.Context, owner, timezone, key string
 	if err != nil {
 		return nil, err
 	}
-	return s.snapshotMonth(ctx, owner, month)
-}
-
-func (s *Service) snapshotMonth(ctx context.Context, owner string, month Month) (*Snapshot, error) {
 	habits, err := listMonth(ctx, s.db, owner, month)
 	if err != nil {
 		return nil, err
@@ -83,15 +76,7 @@ func (s *Service) snapshotMonth(ctx context.Context, owner string, month Month) 
 }
 
 func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
-	return list(ctx, s.db, owner)
-}
-
-type querier interface {
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-}
-
-func list(ctx context.Context, q querier, owner string) ([]Habit, error) {
-	rows, err := q.QueryContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT h.id, h.name, h.start_date, c.date
 		FROM habit h
 		LEFT JOIN habit_checkin c ON c.habit_id = h.id
@@ -103,9 +88,9 @@ func list(ctx context.Context, q querier, owner string) ([]Habit, error) {
 	return scanHabits(rows)
 }
 
-func listMonth(ctx context.Context, q querier, owner string, month Month) ([]Habit, error) {
+func listMonth(ctx context.Context, db *sql.DB, owner string, month Month) ([]Habit, error) {
 	first, last := month.Dates[0], month.Dates[len(month.Dates)-1]
-	rows, err := q.QueryContext(ctx, `
+	rows, err := db.QueryContext(ctx, `
 		SELECT h.id, h.name, h.start_date, c.date
 		FROM habit h
 		LEFT JOIN habit_checkin c ON c.habit_id = h.id AND c.date >= ? AND c.date <= ?
@@ -152,37 +137,32 @@ func foldKey(name string) string {
 }
 
 // SetCheckIn records an explicit checked state for one owned habit and civil date.
-func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) (*Snapshot, error) {
-	now := s.now()
-	current, err := Calendar(timezone, now)
+func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) error {
+	current, err := s.CurrentCalendar(timezone)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if _, err := time.Parse(time.DateOnly, date); err != nil {
-		return nil, rejection("Choose a valid check-in date.")
+		return rejection("Choose a valid check-in date.")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer tx.Rollback()
 	var startDate string
 	if err := tx.QueryRowContext(ctx, `SELECT start_date FROM habit WHERE id = ? AND owner_id = ?`, habitID, owner).Scan(&startDate); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, rejection("Habit not found.")
+			return rejection("Habit not found.")
 		}
-		return nil, err
+		return err
 	}
 	if date < startDate {
-		return nil, rejection("Check-in date cannot be before the habit started.")
+		return rejection("Check-in date cannot be before the habit started.")
 	}
 	if date > current.Today {
-		return nil, rejection("Check-in date cannot be after today.")
-	}
-	month, err := CalendarMonth(timezone, date[:7], now)
-	if err != nil {
-		return nil, err
+		return rejection("Check-in date cannot be after today.")
 	}
 	if checked {
 		_, err = tx.ExecContext(ctx, `INSERT INTO habit_checkin (habit_id, date) VALUES (?, ?) ON CONFLICT (habit_id, date) DO NOTHING`, habitID, date)
@@ -190,19 +170,15 @@ func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, d
 		_, err = tx.ExecContext(ctx, `DELETE FROM habit_checkin WHERE habit_id = ? AND date = ?`, habitID, date)
 	}
 	if err != nil {
-		return nil, err
-	}
-	habits, err := listMonth(ctx, tx, owner, month)
-	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return err
 	}
 	if s.pub != nil {
 		s.pub.PublishHabit(Event{Owner: owner})
 	}
-	return &Snapshot{Habits: habits, Month: month}, nil
+	return nil
 }
 
 func (s *Service) validateDefinition(name, startDate, timezone string) (string, error) {
@@ -213,7 +189,7 @@ func (s *Service) validateDefinition(name, startDate, timezone string) (string, 
 	if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 80 {
 		return "", rejection("Habit names must contain at most 80 Unicode characters.")
 	}
-	month, err := Calendar(timezone, s.now())
+	month, err := s.CurrentCalendar(timezone)
 	if err != nil {
 		return "", err
 	}
@@ -226,43 +202,39 @@ func (s *Service) validateDefinition(name, startDate, timezone string) (string, 
 	return name, nil
 }
 
-func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone string) ([]Habit, error) {
+func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone string) error {
 	name, err := s.validateDefinition(name, startDate, timezone)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer tx.Rollback()
 	// Keep the high-water mark even when the maximum or last habit is deleted.
 	var id int64
 	if err := tx.QueryRowContext(ctx, `UPDATE habit_id_allocator SET last_id = MAX(last_id, COALESCE((SELECT MAX(id) FROM habit), 0)) + 1 WHERE singleton = 1 RETURNING last_id`).Scan(&id); err != nil {
-		return nil, err
+		return err
 	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO habit (id,owner_id,name,name_key,start_date) VALUES (?,?,?,?,?) ON CONFLICT (owner_id,name_key) DO NOTHING`, id, owner, name, foldKey(name), startDate)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	inserted, err := result.RowsAffected()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if inserted == 0 {
-		return nil, rejection("A habit with this name already exists.")
-	}
-	habits, err := list(ctx, tx, owner)
-	if err != nil {
-		return nil, err
+		return rejection("A habit with this name already exists.")
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return err
 	}
 	if s.pub != nil {
 		s.pub.PublishHabit(Event{Owner: owner})
 	}
-	return habits, nil
+	return nil
 }
 
 // Delete permanently removes an owned habit and its check-ins, including on retries.
@@ -286,14 +258,14 @@ func (s *Service) Delete(ctx context.Context, owner string, id int64) error {
 }
 
 // Edit updates one owned habit without changing its identity or check-ins.
-func (s *Service) Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) ([]Habit, error) {
+func (s *Service) Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) error {
 	name, err := s.validateDefinition(name, startDate, timezone)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer tx.Rollback()
 
@@ -305,33 +277,29 @@ func (s *Service) Edit(ctx context.Context, owner string, habitID int64, name, s
 		WHERE h.id = ? AND h.owner_id = ?
 		GROUP BY h.id`, habitID, owner).Scan(&earliest); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, rejection("Habit not found.")
+			return rejection("Habit not found.")
 		}
-		return nil, err
+		return err
 	}
 	if earliest.Valid && startDate > earliest.String {
-		return nil, rejection("Start date cannot be after an existing check-in.")
+		return rejection("Start date cannot be after an existing check-in.")
 	}
 	var duplicate int
 	err = tx.QueryRowContext(ctx, `SELECT 1 FROM habit WHERE owner_id = ? AND name_key = ? AND id != ?`, owner, foldKey(name), habitID).Scan(&duplicate)
 	if err == nil {
-		return nil, rejection("A habit with this name already exists.")
+		return rejection("A habit with this name already exists.")
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+		return err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE habit SET name = ?, name_key = ?, start_date = ? WHERE id = ? AND owner_id = ?`, name, foldKey(name), startDate, habitID, owner); err != nil {
-		return nil, err
-	}
-	habits, err := list(ctx, tx, owner)
-	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return err
 	}
 	if s.pub != nil {
 		s.pub.PublishHabit(Event{Owner: owner})
 	}
-	return habits, nil
+	return nil
 }

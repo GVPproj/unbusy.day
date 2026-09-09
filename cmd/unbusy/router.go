@@ -29,7 +29,7 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	mux.Handle("GET /{$}", web.RequireSession(authSvc, frontend.PageHandler(blockSvc, jotSvc, habitSvc)))
+	mux.Handle("GET /{$}", web.RequireSession(authSvc, frontend.PageHandler(blockSvc, jotSvc)))
 	mux.Handle("GET /login", frontend.LoginPageHandler(cfg.turnstileSiteKey))
 
 	// Identify the caller (Fly-Client-IP only behind Fly's proxy, else RemoteAddr)

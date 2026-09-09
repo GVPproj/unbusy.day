@@ -9,8 +9,8 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/habit"
 )
 
-func checkInAction(habitID int64, date string, checked bool) string {
-	request := "$habitcheckinattempt++; el.dataset.attempt = $habitcheckinattempt; $habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = " + strconv.FormatBool(!checked) + "; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitcheckinattempt|habitrefresh|habitview|timezone)$/}})"
+func checkInAction(habitID int64, date string) string {
+	request := "$habitcheckinattempt++; el.dataset.attempt = $habitcheckinattempt; $habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = el.dataset.desired === 'true'; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitcheckinattempt|habitrefresh|habitview|timezone)$/}})"
 	return "if (el.getAttribute('aria-busy') !== 'true') { " + request + " }"
 }
 
@@ -26,16 +26,8 @@ func selectHabitMonth(month string) string {
 	return "$habitview++; $_habitfollowing = false; $habitmonth = '" + month + "'"
 }
 
-func openHabitEditor(h habit.Habit) string {
-	return "$habiteditview++; $habiteditid = " + strconv.FormatInt(h.ID, 10) + "; $habiteditname = " + strconv.Quote(h.Name) + "; $habiteditstart = '" + h.StartDate + "'"
-}
-
-func openHabitDelete(h habit.Habit) string {
-	return "$habitdeleteview++; $habitdeleteid = " + strconv.FormatInt(h.ID, 10) + "; $_habitdeletename = " + strconv.Quote(h.Name) + "; $_habitdeleteerror = ''"
-}
-
 // View-owned month signals and dialogs stay mounted while the grid morphs.
-templ Habits(habits []habit.Habit, month habit.Month) {
+templ Habits() {
 	<div
 		id="habit-matrix"
 		class="habits-matrix"
@@ -50,19 +42,6 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		data-signals:_habitcheckinack="''"
 		data-signals:habitread="0"
 		data-on:habit-checkin-read="$habitread = evt.detail.read"
-		data-signals:habiteditid="0"
-		data-signals:habiteditname="''"
-		data-signals:habiteditstart="''"
-		data-signals:habiteditview="0"
-		data-signals:_habiteditsavedview="0"
-		data-signals:_habitediterror="''"
-		data-signals:_habitediterrorview="0"
-		data-signals:habitdeleteid="0"
-		data-signals:habitdeleteview="0"
-		data-signals:_habitdeletename="''"
-		data-signals:_habitdeletesavedview="0"
-		data-signals:_habitdeleteerror="''"
-		data-signals:_habitdeleteerrorview="0"
 		data-signals:habitmonth="''"
 		data-signals:habitview="0"
 		data-signals:_habitcurrent="''"
@@ -70,7 +49,7 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		data-signals:habitrefresh="''"
 		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; $habitread; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh|habitread)$/}}) }"
 	>
-		@HabitGrid(habits, month, "", 0)
+		@HabitGrid(nil, habit.Month{}, "", 0)
 		@HabitEditDialog()
 		@HabitDeleteDialog()
 	</div>
@@ -161,7 +140,7 @@ templ HabitGridRead(habits []habit.Habit, month habit.Month, refresh string, vie
 													aria-pressed={ strconv.FormatBool(checked) }
 													data-checkin-action
 													data-desired={ strconv.FormatBool(!checked) }
-													data-on:click={ checkInAction(h.ID, date, checked) }
+													data-on:click={ checkInAction(h.ID, date) }
 												>
 													<span aria-hidden="true">
 														if checked {
@@ -183,57 +162,6 @@ templ HabitGridRead(habits []habit.Habit, month habit.Month, refresh string, vie
 			@HabitCheckInFeedback("", "")
 		}
 	</div>
-}
-
-templ HabitEditDialog() {
-	<dialog id="habit-edit" class="app-dialog" closedby="any" aria-labelledby="habit-edit-title" data-effect="if ($_habiteditsavedview === $habiteditview && el.open) el.close()">
-		<form
-			class="habit-dialog-form"
-			data-indicator:_habiteditpending
-			data-on:submit="if (!$_habiteditpending && el.reportValidity()) @post('/habits/edit', {requestCancellation: 'disabled', filterSignals: {include: /^(habiteditid|habiteditname|habiteditstart|habiteditview|timezone)$/}})"
-			data-attr:aria-busy="$_habiteditpending"
-		>
-			<h2 id="habit-edit-title">Edit habit</h2>
-			<label class="stack" for="habit-edit-name">Name <input class="field" id="habit-edit-name" name="name" type="text" required data-bind:habiteditname/></label>
-			<label class="stack" for="habit-edit-start">Start date <input class="field" id="habit-edit-start" name="start" type="date" required data-bind:habiteditstart/></label>
-			<footer>
-				<button class="btn" type="button" commandfor="habit-edit" command="close">Cancel</button>
-				<button class="btn" type="submit" data-attr:disabled="$_habiteditpending">Save</button>
-			</footer>
-			@HabitEditFeedback()
-		</form>
-	</dialog>
-}
-
-templ HabitDeleteDialog() {
-	<dialog
-		id="habit-delete"
-		class="app-dialog"
-		closedby="any"
-		aria-labelledby="habit-delete-title"
-		aria-describedby="habit-delete-warning"
-		data-effect="if ($_habitdeletesavedview === $habitdeleteview && el.open) { el.close(); document.getElementById('habit-matrix').focus() }"
-	>
-		<form
-			class="habit-dialog-form"
-			data-indicator:_habitdeletepending
-			data-on:submit="if (!$_habitdeletepending) { el.dataset.submittedView = $habitdeleteview; $_habitdeleteerror = ''; @post('/habits/delete', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitdeleteid|habitdeleteview)$/}}) }"
-			data-on:datastar-fetch__document="if (evt.detail.el === el && ['error', 'retries-failed'].includes(evt.detail.type)) { $_habitdeleteerrorview = Number(el.dataset.submittedView); $_habitdeleteerror = 'Deletion not confirmed. Try again.' }"
-			data-attr:aria-busy="$_habitdeletepending"
-		>
-			<h2 id="habit-delete-title">Delete habit</h2>
-			<p id="habit-delete-warning">Permanently delete <strong data-text="$_habitdeletename"></strong>? All check-in history will be permanently deleted. This cannot be undone.</p>
-			<footer>
-				<button class="btn" type="button" commandfor="habit-delete" command="close" autofocus>Cancel</button>
-				<button class="btn btn-danger" type="submit" data-attr:disabled="$_habitdeletepending">Delete permanently</button>
-			</footer>
-			<output aria-live="polite" data-text="$_habitdeleteerrorview === $habitdeleteview ? $_habitdeleteerror : ''"></output>
-		</form>
-	</dialog>
-}
-
-templ HabitEditFeedback() {
-	<output id="habit-edit-feedback" aria-live="polite" data-text="$_habitediterrorview === $habiteditview ? $_habitediterror : ''"></output>
 }
 
 templ HabitCheckInFeedback(message, result string) {

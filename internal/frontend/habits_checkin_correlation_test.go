@@ -14,7 +14,10 @@ import (
 func TestHabitCheckInReceiptFencesAnAuthoritativeReadAfterSupersession(t *testing.T) {
 	svc := newTestHabits(t)
 	ctx := context.Background()
-	hs, err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC")
+	if err := svc.Create(ctx, testOwner, "Read", "2020-01-01", "UTC"); err != nil {
+		t.Fatal(err)
+	}
+	hs, err := svc.List(ctx, testOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +30,7 @@ func TestHabitCheckInReceiptFencesAnAuthoritativeReadAfterSupersession(t *testin
 	if strings.Contains(post.Body.String(), `id="habit-grid"`) {
 		t.Fatal("mutation response must not render a potentially stale grid")
 	}
-	if _, err := svc.SetCheckIn(ctx, testOwner, hs[0].ID, today, false, "UTC"); err != nil {
+	if err := svc.SetCheckIn(ctx, testOwner, hs[0].ID, today, false, "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	read := httptest.NewRecorder()

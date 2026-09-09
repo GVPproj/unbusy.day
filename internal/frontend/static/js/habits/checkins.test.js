@@ -43,21 +43,16 @@ function fixture() {
     elements.set(id, button);
     return button;
   }
-  function form(operation) {
-    return {
-      id: operation === "create" ? "habit-create" : "",
-      closest(selector) {
-        if (selector === "#habit-create, #habit-edit form, #habit-delete form") return this;
-        if (selector === "dialog") return { id: `habit-${operation}` };
-        return null;
-      },
-    };
-  }
   const button = addButton();
   initCheckIns(document);
   return {
-    button, document, status, shared, elements, addButton, form, grid, reads,
+    button, document, status, shared, elements, addButton, grid, reads,
     reconcile() { reconcile(); },
+    click(el = button) {
+      let prevented = false;
+      listeners.get("click")?.({ target: el, preventDefault() { prevented = true; }, stopImmediatePropagation() {} });
+      return prevented;
+    },
     ack(result = "committed", el = button) {
       listeners.get("datastar-signal-patch")?.({ detail: { _habitcheckinack: `${el.dataset.attempt}:${result}` } });
     },
@@ -71,13 +66,51 @@ function fixture() {
 
 function assertState(f, state) {
   assert.equal(f.shared.dataset.state, state);
-  const labels = { saved: /Saved/, saving: /Saving/, failed: /Not saved/, offline: /Offline/ };
+  const labels = { saved: /Saved/, saving: /Saving/, failed: /Not confirmed/, offline: /Offline/ };
   assert.match(f.shared.textContent, labels[state]);
 }
 
 function confirm(button) {
   button.setAttribute("aria-pressed", button.dataset.desired);
 }
+
+test("committed recovery requests a fresh read instead of activating the inverse toggle", () => {
+  const f = fixture();
+  f.fetch("started");
+  confirm(f.button);
+  f.ack();
+  f.fetch("finished");
+  const matrix = f.elements.get("habit-matrix");
+  f.fetch("started", matrix);
+  f.fetch("finished", matrix);
+  assert.match(f.status.textContent, /saved.*refresh/i);
+  assert.doesNotMatch(f.shared.textContent, /not saved/i);
+  assert.equal(f.click(), true);
+  assert.deepEqual(f.reads, [1, 2]);
+  assertState(f, "saving");
+  f.button.setAttribute("aria-pressed", "false");
+  f.render(1);
+  assertState(f, "saving");
+  f.render(2);
+  assertState(f, "saved");
+  assert.equal(f.button.getAttribute("aria-pressed"), "false");
+});
+
+test("a failed read remains recoverable while the receipt stream is still open", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.ack();
+  const matrix = f.elements.get("habit-matrix");
+  f.fetch("started", matrix);
+  f.fetch("finished", matrix);
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assert.equal(f.click(), true);
+  assert.deepEqual(f.reads, [1, 2]);
+  f.render(2);
+  assertState(f, "saved");
+  f.fetch("finished");
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+});
 
 test("a post-commit month read settles a check-in superseded by another device", () => {
   const f = fixture();
@@ -154,6 +187,35 @@ test("a correlated read cannot clear another cell's unacknowledged failure", () 
   assertState(f, "failed");
 });
 
+test("read recovery and unknown write recovery remain independent across dates", () => {
+  const f = fixture();
+  const other = f.addButton("checkin-1-2026-01-02");
+  f.fetch("started");
+  f.fetch("started", other);
+  f.fetch("error", other);
+  f.fetch("finished", other);
+  f.ack();
+  f.fetch("finished");
+  const matrix = f.elements.get("habit-matrix");
+  f.fetch("started", matrix);
+  f.fetch("finished", matrix);
+  assert.match(f.status.textContent, /saved, but refresh not confirmed/i);
+  assert.match(f.status.textContent, /save not confirmed/i);
+  assert.equal(f.click(), true);
+  f.render(2);
+  assertState(f, "failed");
+  assert.equal(other.dataset.saveState, "failed");
+  other.dataset.desired = "false";
+  assert.equal(f.click(other), false);
+  assert.equal(other.dataset.desired, "true");
+  f.fetch("started", other);
+  f.ack("committed", other);
+  f.fetch("finished", other);
+  f.render(3);
+  assertState(f, "saved");
+  assert.deepEqual(f.reads, [1, 2, 3]);
+});
+
 test("another cell's rejection cannot settle a committed check-in", () => {
   const f = fixture();
   const other = f.addButton("checkin-1-2026-01-02");
@@ -212,6 +274,23 @@ test("an older canceled read finishing cannot fail a newer read still in flight"
   f.fetch("finished");
   f.fetch("started", matrix);
   f.fetch("started", matrix);
+  f.fetch("finished", matrix);
+  assertState(f, "saving");
+  assert.equal(f.button.getAttribute("aria-busy"), "true");
+  f.render();
+  f.fetch("finished", matrix);
+  assertState(f, "saved");
+});
+
+test("an older canceled read error cannot fail a newer read still in flight", () => {
+  const f = fixture();
+  const matrix = f.elements.get("habit-matrix");
+  f.fetch("started");
+  f.ack();
+  f.fetch("finished");
+  f.fetch("started", matrix);
+  f.fetch("started", matrix);
+  f.fetch("error", matrix);
   f.fetch("finished", matrix);
   assertState(f, "saving");
   assert.equal(f.button.getAttribute("aria-busy"), "true");
@@ -307,12 +386,14 @@ for (const failure of ["error", "retries-failed"]) {
     assertState(f, "failed");
     assert.equal(f.button.dataset.saveState, "failed");
     assert.equal(f.button.hasAttribute("aria-busy"), false);
-    assert.match(f.status.textContent, /not saved.*retry/i);
+    assert.match(f.status.textContent, /save not confirmed.*retry/i);
     f.fetch("started");
     assertState(f, "saving");
     assert.equal(f.status.textContent, "");
     confirm(f.button);
+    f.ack();
     f.fetch("finished");
+    f.render();
     assertState(f, "saved");
   });
 }
@@ -327,18 +408,35 @@ test("offline check-in failures require explicit retry", () => {
   assert.match(f.status.textContent, /retry/i);
 });
 
-test("a lost response is reconciled when live HTML already confirms the desired state", () => {
+for (const desired of ["true", "false"]) {
+  test(`unknown outcomes preserve desired ${desired} even after matching live HTML`, () => {
+    const f = fixture();
+    f.button.dataset.desired = desired;
+    f.fetch("started");
+    confirm(f.button);
+    f.button.dataset.desired = desired === "true" ? "false" : "true";
+    f.fetch("error");
+    f.fetch("finished");
+    assertState(f, "failed");
+    assert.match(f.status.textContent, /save not confirmed/i);
+    assert.equal(f.click(), false);
+    assert.equal(f.button.dataset.desired, desired);
+    assert.deepEqual(f.reads, []);
+  });
+}
+
+test("matching live HTML does not confirm a lost receipt", () => {
   const f = fixture();
   f.fetch("started");
   confirm(f.button);
   f.fetch("error");
   f.fetch("finished");
-  assert.equal(f.button.dataset.saveState, undefined);
-  assertState(f, "saved");
-  assert.equal(f.status.textContent, "");
+  assert.equal(f.button.dataset.saveState, "failed");
+  assertState(f, "failed");
+  assert.match(f.status.textContent, /save not confirmed/i);
 });
 
-test("authoritative matrix patches reconcile a failure after finished", () => {
+test("a delayed receipt and its read reconcile a failure after a matching morph", () => {
   const f = fixture();
   f.fetch("started");
   f.fetch("error");
@@ -347,6 +445,9 @@ test("authoritative matrix patches reconcile a failure after finished", () => {
   const replacement = f.addButton(f.button.id);
   confirm(replacement);
   f.reconcile();
+  assertState(f, "failed");
+  f.ack();
+  f.render();
   assertState(f, "saved");
   assert.equal(replacement.dataset.saveState, undefined);
   assert.equal(replacement.hasAttribute("aria-busy"), false);
@@ -374,11 +475,15 @@ test("one confirmed check-in cannot hide another pending check-in", () => {
   f.fetch("started");
   f.fetch("started", other);
   confirm(f.button);
+  f.ack();
   f.fetch("finished");
+  f.render();
   assertState(f, "saving");
   assert.equal(f.status.textContent, "");
   confirm(other);
+  f.ack("committed", other);
   f.fetch("finished", other);
+  f.render();
   assertState(f, "saved");
 });
 
@@ -390,11 +495,14 @@ test("a concurrent success preserves another check-in's failure and retry instru
   f.fetch("error");
   f.fetch("finished");
   confirm(other);
+  f.ack("committed", other);
   f.fetch("finished", other);
+  f.render();
   assertState(f, "failed");
   assert.match(f.status.textContent, /retry/i);
   confirm(f.button);
-  f.reconcile();
+  f.ack();
+  f.render();
   assertState(f, "saved");
   assert.equal(f.status.textContent, "");
 });
@@ -408,7 +516,8 @@ test("reconciling a failure preserves another pending check-in", () => {
   f.fetch("started", other);
   assertState(f, "failed");
   confirm(f.button);
-  f.reconcile();
+  f.ack();
+  f.render();
   assertState(f, "saving");
   assert.equal(f.status.textContent, "");
 });
@@ -421,6 +530,21 @@ test("a new attempt clears a stale rejected result", () => {
   f.fetch("finished");
   assert.equal(f.button.dataset.saveState, "failed");
   assertState(f, "failed");
+});
+
+test("unknown retry intent survives navigating away and returning to the date", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.elements.delete(f.button.id);
+  f.fetch("error");
+  f.fetch("finished");
+  const returned = f.addButton(f.button.id);
+  returned.setAttribute("aria-pressed", "true");
+  returned.dataset.desired = "false";
+  f.reconcile();
+  assertState(f, "failed");
+  assert.equal(f.click(returned), false);
+  assert.equal(returned.dataset.desired, "true");
 });
 
 test("a response from a month that was left does not alter the new month", () => {
@@ -468,76 +592,6 @@ test("a rejected write clears pending and preserves inline validation", () => {
   assert.equal(f.button.getAttribute("aria-pressed"), "false");
   assert.equal(f.status.textContent, "This date is before the habit start date.");
   assertState(f, "saved");
-});
-
-for (const operation of ["create", "edit", "delete"]) {
-  test(`${operation} tracks fetch lifecycle without changing inline domain feedback`, () => {
-    const f = fixture();
-    const form = f.form(operation);
-    const feedback = { textContent: "Invalid habit name." };
-    f.elements.set(`habit-${operation}-feedback`, feedback);
-    f.fetch("started", form);
-    assertState(f, "saving");
-    f.fetch("finished", form);
-    assertState(f, "saved");
-    assert.equal(feedback.textContent, "Invalid habit name.");
-  });
-
-  for (const failure of ["error", "retries-failed"]) {
-    test(`${operation} ${failure} survives finished until a successful retry`, () => {
-      const f = fixture();
-      const form = f.form(operation);
-      f.fetch("started", form);
-      f.fetch(failure, form);
-      assertState(f, "failed");
-      f.fetch("finished", form);
-      assertState(f, "failed");
-      f.fetch("started", form);
-      assertState(f, "saving");
-      f.fetch("finished", form);
-      assertState(f, "saved");
-    });
-  }
-}
-
-test("form retries return to saving and clear after a successful finish", () => {
-  const f = fixture();
-  const form = f.form("create");
-  f.fetch("started", form);
-  f.fetch("error", form);
-  f.fetch("retrying", form);
-  assertState(f, "saving");
-  f.fetch("finished", form);
-  assertState(f, "saved");
-});
-
-test("offline form failures preserve explicit retry instructions", () => {
-  const f = fixture();
-  const form = f.form("delete");
-  const feedback = { textContent: "Deletion not confirmed. Try again." };
-  f.elements.set("habit-delete-feedback", feedback);
-  f.document.defaultView.navigator.onLine = false;
-  f.fetch("started", form);
-  f.fetch("error", form);
-  f.fetch("finished", form);
-  assertState(f, "failed");
-  assert.equal(feedback.textContent, "Deletion not confirmed. Try again.");
-});
-
-test("form completion cannot hide other form or check-in saves", () => {
-  const f = fixture();
-  const create = f.form("create");
-  const edit = f.form("edit");
-  f.fetch("started", create);
-  f.fetch("started", edit);
-  f.fetch("started");
-  f.fetch("finished", create);
-  assertState(f, "saving");
-  f.fetch("error", edit);
-  f.fetch("finished", edit);
-  confirm(f.button);
-  f.fetch("finished");
-  assertState(f, "failed");
 });
 
 test("unrelated fetches do not change shared save state", () => {

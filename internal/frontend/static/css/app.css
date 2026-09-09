@@ -2539,7 +2539,7 @@
 
   /* SECTION: components/habits.templ → @scope (.habits-matrix)
      Real-sized day cells scroll underneath opaque, pinned habit names. */
-  @scope (.habits-matrix) {
+  @scope (.habits-matrix) to (.app-dialog) {
     :scope {
       flex-shrink: 0;
       max-width: 100%;
