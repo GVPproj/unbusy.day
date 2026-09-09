@@ -10,7 +10,7 @@ import (
 )
 
 func checkInAction(habitID int64, date string, checked bool) string {
-	request := "$habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = " + strconv.FormatBool(!checked) + "; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitrefresh|habitview|timezone)$/}})"
+	request := "$habitcheckinattempt++; el.dataset.attempt = $habitcheckinattempt; $habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = " + strconv.FormatBool(!checked) + "; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitcheckinattempt|habitrefresh|habitview|timezone)$/}})"
 	return "if (el.getAttribute('aria-busy') !== 'true') { " + request + " }"
 }
 
@@ -46,6 +46,10 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		data-signals:habitid="0"
 		data-signals:habitdate="''"
 		data-signals:habitchecked="false"
+		data-signals:habitcheckinattempt="0"
+		data-signals:_habitcheckinack="''"
+		data-signals:habitread="0"
+		data-on:habit-checkin-read="$habitread = evt.detail.read"
 		data-signals:habiteditid="0"
 		data-signals:habiteditname="''"
 		data-signals:habiteditstart="''"
@@ -64,7 +68,7 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 		data-signals:_habitcurrent="''"
 		data-signals:_habitfollowing="true"
 		data-signals:habitrefresh="''"
-		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh)$/}}) }"
+		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; $habitread; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh|habitread)$/}}) }"
 	>
 		@HabitGrid(habits, month, "", 0)
 		@HabitEditDialog()
@@ -74,7 +78,12 @@ templ Habits(habits []habit.Habit, month habit.Month) {
 
 // HabitGrid is shared by initial rendering and every authoritative month patch.
 templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view uint64) {
-	<div id="habit-grid" data-month={ month.Key } data-refresh={ refresh } data-view={ strconv.FormatUint(view, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview">
+	@HabitGridRead(habits, month, refresh, view, 0)
+}
+
+// The rendered read is immutable; only the selector's request key follows signals.
+templ HabitGridRead(habits []habit.Habit, month habit.Month, refresh string, view, read uint64) {
+	<div id="habit-grid" data-month={ month.Key } data-refresh={ refresh } data-view={ strconv.FormatUint(view, 10) } data-read={ strconv.FormatUint(read, 10) } data-read-request={ strconv.FormatUint(read, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
 		if month.Today == "" {
 			<p>Loading your current month…</p>
 		} else {
@@ -86,7 +95,7 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view ui
 				<button id="habit-next-month" class="btn" type="button" disabled?={ month.Current } data-on:click={ selectHabitMonth(month.Next) } aria-label={ "Next month" }>
 					@IconChevronRight()
 				</button>
-				<button id="habit-this-month" class="btn" type="button" disabled?={ month.Current } data-on:click="$habitview++; $_habitfollowing = true; $habitmonth = $_habitcurrent">This month</button>
+				<button id="habit-this-month" class="btn" type="button" data-attr:disabled="$_habitfollowing && $habitmonth === $_habitcurrent" data-on:click="$habitview++; $_habitfollowing = true; $habitmonth = $_habitcurrent">This month</button>
 			</nav>
 			if len(habits) == 0 {
 				<p>No habits yet in this month. Create a habit to begin.</p>
@@ -229,8 +238,4 @@ templ HabitEditFeedback() {
 
 templ HabitCheckInFeedback(message, result string) {
 	<output id="habit-checkin-feedback" aria-live="polite" data-result={ result }>{ message }</output>
-}
-
-templ HabitFeedback(message string) {
-	<output id="habit-feedback" aria-live="polite">{ message }</output>
 }

@@ -4,18 +4,24 @@ import test from "node:test";
 import { handleCheckInFetch, initCheckIns } from "./checkins.js";
 
 function fixture() {
+  const listeners = new Map();
+  const reads = [];
+  let sequence = 0;
+  const grid = { dataset: { read: "0", view: "0", month: "2026-01" } };
   const status = { dataset: {}, textContent: "" };
   const shared = { dataset: { state: "saved" }, textContent: "Saved" };
   const elements = new Map([
     ["habit-checkin-feedback", status],
     ["companion-status", shared],
-    ["habit-matrix", { scrollLeft: 0, addEventListener() {} }],
+    ["habit-grid", grid],
+    ["habit-matrix", { id: "habit-matrix", scrollLeft: 0, addEventListener() {}, dispatchEvent(event) { reads.push(event.detail.read); } }],
   ]);
   let reconcile;
   const document = {
     getElementById(id) { return elements.get(id) ?? null; },
-    addEventListener() {},
+    addEventListener(type, callback) { listeners.set(type, callback); },
     defaultView: {
+      CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
       navigator: { onLine: true },
       MutationObserver: class {
         constructor(callback) { reconcile = callback; }
@@ -50,9 +56,16 @@ function fixture() {
   const button = addButton();
   initCheckIns(document);
   return {
-    button, document, status, shared, elements, addButton, form,
+    button, document, status, shared, elements, addButton, form, grid, reads,
     reconcile() { reconcile(); },
-    fetch(type, el = button) { handleCheckInFetch(document, { detail: { type, el } }); },
+    ack(result = "committed", el = button) {
+      listeners.get("datastar-signal-patch")?.({ detail: { _habitcheckinack: `${el.dataset.attempt}:${result}` } });
+    },
+    render(read = reads.at(-1)) { grid.dataset.read = String(read); reconcile(); },
+    fetch(type, el = button) {
+      if (type === "started" && el.dataset) el.dataset.attempt = String(++sequence);
+      handleCheckInFetch(document, { detail: { type, el } });
+    },
   };
 }
 
@@ -65,6 +78,212 @@ function assertState(f, state) {
 function confirm(button) {
   button.setAttribute("aria-pressed", button.dataset.desired);
 }
+
+test("a post-commit month read settles a check-in superseded by another device", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.ack();
+  f.fetch("finished");
+  assertState(f, "saving");
+  f.render(1);
+  assert.equal(f.button.getAttribute("aria-pressed"), "false");
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assert.equal(f.button.dataset.saveState, undefined);
+  assertState(f, "saved");
+});
+
+test("a month morph cannot lose the submitting fetch before finished", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.ack();
+  delete f.button.dataset.attempt;
+  f.render();
+  assert.equal(f.button.getAttribute("aria-busy"), "true");
+  f.fetch("finished");
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assertState(f, "saved");
+});
+
+test("matching values and unrelated reads cannot replace a post-commit read", () => {
+  const f = fixture();
+  f.fetch("started");
+  confirm(f.button);
+  f.render(0);
+  assertState(f, "saving");
+  f.ack();
+  f.fetch("finished");
+  f.render(0);
+  assertState(f, "saving");
+  assert.equal(f.button.getAttribute("aria-busy"), "true");
+  f.render(1);
+  assertState(f, "saved");
+});
+
+test("concurrent cells require their own receipt and a sufficiently new read", () => {
+  const f = fixture();
+  const other = f.addButton("checkin-1-2026-01-02");
+  f.fetch("started");
+  f.fetch("started", other);
+  f.ack();
+  f.fetch("finished");
+  f.render(1);
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assert.equal(other.getAttribute("aria-busy"), "true");
+  assertState(f, "saving");
+  f.ack("committed", other);
+  f.fetch("finished", other);
+  f.render(1);
+  assertState(f, "saving");
+  f.render(2);
+  assertState(f, "saved");
+  assert.deepEqual(f.reads, [1, 2]);
+});
+
+test("a correlated read cannot clear another cell's unacknowledged failure", () => {
+  const f = fixture();
+  const other = f.addButton("checkin-1-2026-01-02");
+  f.fetch("started");
+  f.fetch("started", other);
+  f.fetch("error", other);
+  f.fetch("finished", other);
+  f.ack();
+  f.fetch("finished");
+  f.render();
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assert.equal(other.dataset.saveState, "failed");
+  assertState(f, "failed");
+});
+
+test("another cell's rejection cannot settle a committed check-in", () => {
+  const f = fixture();
+  const other = f.addButton("checkin-1-2026-01-02");
+  f.fetch("started");
+  f.fetch("started", other);
+  f.ack();
+  f.status.dataset.result = "rejected";
+  f.ack("rejected", other);
+  f.fetch("finished", other);
+  f.fetch("finished");
+  assert.equal(other.hasAttribute("aria-busy"), false);
+  assert.equal(f.button.getAttribute("aria-busy"), "true");
+  assertState(f, "saving");
+  f.render();
+  assertState(f, "saved");
+});
+
+for (const failure of ["error", "retries-failed"]) {
+  test(`post-commit month ${failure} releases busy and reconnect reconciles the last committed value`, () => {
+    const f = fixture();
+    f.fetch("started");
+    f.ack();
+    f.fetch("finished");
+    const matrix = { id: "habit-matrix" };
+    f.fetch(failure, matrix);
+    f.fetch("finished", matrix);
+    assertState(f, "failed");
+    assert.equal(f.button.hasAttribute("aria-busy"), false);
+    assert.equal(f.button.getAttribute("aria-pressed"), "false");
+    f.fetch("started", matrix);
+    assertState(f, "saving");
+    f.render();
+    assertState(f, "saved");
+    assert.equal(f.button.dataset.saveState, undefined);
+  });
+}
+
+test("a completed month read without an authoritative patch releases busy for retry", () => {
+  const f = fixture();
+  const matrix = f.elements.get("habit-matrix");
+  f.fetch("started");
+  f.ack();
+  f.fetch("finished");
+  f.fetch("started", matrix);
+  f.fetch("finished", matrix);
+  assertState(f, "failed");
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assert.match(f.status.textContent, /retry/i);
+});
+
+test("an older canceled read finishing cannot fail a newer read still in flight", () => {
+  const f = fixture();
+  const matrix = f.elements.get("habit-matrix");
+  f.fetch("started");
+  f.ack();
+  f.fetch("finished");
+  f.fetch("started", matrix);
+  f.fetch("started", matrix);
+  f.fetch("finished", matrix);
+  assertState(f, "saving");
+  assert.equal(f.button.getAttribute("aria-busy"), "true");
+  f.render();
+  f.fetch("finished", matrix);
+  assertState(f, "saved");
+});
+
+test("a received commit receipt survives a lost POST response and supersession", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.ack();
+  f.fetch("error");
+  f.fetch("finished");
+  assertState(f, "failed");
+  f.render();
+  assertState(f, "saved");
+  assert.equal(f.button.getAttribute("aria-pressed"), "false");
+});
+
+test("a superseded value without a commit receipt remains retryable, not falsely saved", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.fetch("error");
+  f.fetch("finished");
+  f.render(10);
+  assertState(f, "failed");
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+});
+
+test("a confirmed attempt stays settled when superseded before POST finished", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.ack();
+  confirm(f.button);
+  f.render();
+  f.button.setAttribute("aria-pressed", "false");
+  f.reconcile();
+  f.fetch("finished");
+  assertState(f, "saved");
+  assert.equal(f.button.hasAttribute("aria-busy"), false);
+  assert.equal(f.button.getAttribute("aria-pressed"), "false");
+});
+
+test("a retry ignores the old attempt's receipt and fetch lifecycle", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.fetch("error");
+  f.fetch("finished");
+  const retry = f.addButton(f.button.id);
+  f.fetch("started", retry);
+  f.ack();
+  f.fetch("finished");
+  assert.deepEqual(f.reads, []);
+  assertState(f, "saving");
+  f.ack("committed", retry);
+  f.fetch("finished", retry);
+  f.render();
+  assertState(f, "saved");
+});
+
+test("duplicate and abandoned receipts do not trigger unrelated reads", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.ack();
+  f.ack();
+  f.fetch("finished");
+  f.render();
+  f.ack();
+  assert.deepEqual(f.reads, [1]);
+  assertState(f, "saved");
+});
 
 test("check-in fetch shows shared pending without changing confirmed pressed state", () => {
   const f = fixture();
@@ -138,11 +357,12 @@ test("successful finish waits for authoritative state without local success text
   const f = fixture();
   f.fetch("started");
   f.status.dataset.result = "committed";
+  f.ack();
   f.fetch("finished");
   assertState(f, "saving");
   assert.equal(f.status.textContent, "");
   confirm(f.button);
-  f.reconcile();
+  f.render();
   assert.equal(f.button.dataset.saveState, undefined);
   assertState(f, "saved");
   assert.equal(f.status.textContent, "");
@@ -216,6 +436,16 @@ test("a response from a month that was left does not alter the new month", () =>
   assertState(f, "saved");
 });
 
+test("a failed response from an abandoned month cannot pin shared failure", () => {
+  const f = fixture();
+  f.fetch("started");
+  f.button.isConnected = false;
+  f.elements.delete(f.button.id);
+  f.fetch("error");
+  f.fetch("finished");
+  assertState(f, "saved");
+});
+
 test("matrix removal clears abandoned check-in sources", () => {
   const f = fixture();
   f.fetch("started");
@@ -231,6 +461,7 @@ test("a rejected write clears pending and preserves inline validation", () => {
   f.fetch("started");
   f.status.dataset.result = "rejected";
   f.status.textContent = "This date is before the habit start date.";
+  f.ack("rejected");
   f.fetch("finished");
   f.reconcile();
   assert.equal(f.button.dataset.saveState, undefined);

@@ -5,7 +5,7 @@ const documents = new WeakMap();
 const failureMessage = "Not saved. Press the same date again to retry.";
 
 function stateFor(document) {
-  if (!documents.has(document)) documents.set(document, { attempts: new Map(), forms: new Map() });
+  if (!documents.has(document)) documents.set(document, { attempts: new Map(), sources: new WeakMap(), forms: new Map(), read: 0, reading: 0 });
   return documents.get(document);
 }
 
@@ -58,22 +58,90 @@ function handleFormFetch(document, event) {
   }
 }
 
+function reconcileAttempts(document) {
+  const { attempts } = stateFor(document);
+  const read = Number(document.getElementById("habit-grid")?.dataset.read || 0);
+  for (const [id, attempt] of attempts) {
+    const button = document.getElementById(id);
+    if (!button) {
+      if (!attempt.finished) continue;
+      attempts.delete(id);
+      setSaveState(document, checkInSource(id), "saved");
+      continue;
+    }
+    // A receipt fences the read, not its value: another device may already have won.
+    attempt.confirmed ||= (attempt.read > 0 && read >= attempt.read)
+      || (!attempt.read && attempt.failed && isConfirmed(button, attempt.desired));
+    if (attempt.finished && (attempt.confirmed || attempt.rejected)) {
+      attempts.delete(id);
+      settle(button);
+      setSaveState(document, checkInSource(id), "saved");
+    } else if (attempt.failed && !attempt.confirmed) {
+      if (button.dataset.saveState !== "failed") button.dataset.saveState = "failed";
+      if (attempt.finished && button.hasAttribute("aria-busy")) button.removeAttribute("aria-busy");
+      setSaveState(document, checkInSource(id), "failed");
+    } else {
+      if (button.dataset.saveState !== "pending") button.dataset.saveState = "pending";
+      if (button.getAttribute("aria-busy") !== "true") button.setAttribute("aria-busy", "true");
+      setSaveState(document, checkInSource(id), attempt.confirmed ? "saved" : "saving");
+    }
+  }
+  updateFeedback(document);
+}
+
+function acknowledge(document, event) {
+  const receipt = event.detail?._habitcheckinack;
+  if (typeof receipt !== "string") return;
+  const { attempts } = stateFor(document);
+  const [token, result] = receipt.split(":");
+  const attempt = [...attempts.values()].find((attempt) => attempt.token === token);
+  if (!attempt || attempt.read || attempt.rejected) return;
+  if (result === "rejected") {
+    attempt.rejected = true;
+  } else if (result === "committed") {
+    const state = stateFor(document);
+    attempt.read = ++state.read;
+    document.getElementById("habit-matrix").dispatchEvent(new document.defaultView.CustomEvent("habit-checkin-read", {
+      detail: { read: attempt.read },
+    }));
+  }
+  reconcileAttempts(document);
+}
+
 export function handleCheckInFetch(document, event) {
   handleFormFetch(document, event);
+  if (event.detail?.el?.id === "habit-matrix") {
+    const state = stateFor(document);
+    const type = event.detail.type;
+    if (type === "started") state.reading++;
+    if (type === "finished") state.reading = Math.max(0, state.reading - 1);
+    for (const attempt of state.attempts.values()) {
+      if (!attempt.read || attempt.confirmed) continue;
+      // An empty/truncated stream is retryable, but canceled older reads can finish last.
+      if (failureTypes.has(type) || (type === "finished" && state.reading === 0)) attempt.failed = true;
+      else if (["started", "retrying"].includes(type)) attempt.failed = false;
+    }
+    reconcileAttempts(document);
+    return;
+  }
   const source = event.detail?.el?.closest?.("[data-checkin-action]");
   if (!source) return;
-  const { attempts } = stateFor(document);
+  const { attempts, sources } = stateFor(document);
   const liveButton = document.getElementById(source.id);
   const button = liveButton || source;
   const status = document.getElementById("habit-checkin-feedback");
 
   if (event.detail.type === "started") {
     attempts.set(source.id, {
+      token: source.dataset.attempt,
       desired: source.dataset.desired,
+      read: 0,
+      rejected: false,
       confirmed: false,
       failed: false,
       finished: false,
     });
+    sources.set(source, attempts.get(source.id));
     button.dataset.saveState = "pending";
     button.setAttribute("aria-busy", "true");
     if (status) {
@@ -85,49 +153,20 @@ export function handleCheckInFetch(document, event) {
     return;
   }
   const attempt = attempts.get(source.id);
-  if (!attempt) return;
-  if (!liveButton && source.isConnected === false) {
-    if (failureTypes.has(event.detail.type)) {
-      attempt.failed = true;
-      setSaveState(document, checkInSource(source.id), "failed");
-    } else if (event.detail.type === "finished") {
-      attempts.delete(source.id);
-      setSaveState(document, checkInSource(source.id), attempt.failed ? "failed" : "saved");
-    }
-    return;
-  }
-  if (event.detail.type === "retrying") {
-    setSaveState(document, checkInSource(source.id), attempt.confirmed ? "saved" : "saving");
-    return;
-  }
-  if (failureTypes.has(event.detail.type)) {
-    attempt.failed = true;
-    attempt.confirmed ||= isConfirmed(button, attempt.desired);
-    button.dataset.saveState = attempt.confirmed ? "pending" : "failed";
-    setSaveState(document, checkInSource(source.id), attempt.confirmed ? "saved" : "failed");
-    updateFeedback(document);
-    return;
-  }
-  if (event.detail.type !== "finished") return;
-
-  attempt.finished = true;
-  attempt.confirmed ||= isConfirmed(button, attempt.desired);
-  if (status?.dataset.result === "rejected" || attempt.confirmed) {
-    attempts.delete(source.id);
-    settle(button);
-    setSaveState(document, checkInSource(source.id), "saved");
-  } else if (attempt.failed) {
-    settle(button);
-    button.dataset.saveState = "failed";
-    setSaveState(document, checkInSource(source.id), "failed");
-  }
-  updateFeedback(document);
+  if (!attempt || attempt !== sources.get(source)) return;
+  if (event.detail.type === "retrying") attempt.failed = false;
+  else if (failureTypes.has(event.detail.type)) attempt.failed = true;
+  else if (event.detail.type === "finished") {
+    attempt.finished = true;
+    // Missing receipts (including interrupted SSE responses) remain explicitly retryable.
+    if (!attempt.read && !attempt.rejected) attempt.failed = true;
+  } else return;
+  reconcileAttempts(document);
 }
 
 function preserveMatrixState(document) {
   const matrix = document.getElementById("habit-matrix");
   if (!matrix) return;
-  const { attempts } = stateFor(document);
   const view = document.defaultView;
   const scroller = () => document.getElementById("habit-scroll");
   let scrollLeft = scroller()?.scrollLeft || 0;
@@ -148,34 +187,12 @@ function preserveMatrixState(document) {
     if (focusedID && (!document.activeElement || document.activeElement === document.body)) {
       (document.getElementById(focusedID) || matrix).focus();
     }
-    for (const [id, attempt] of attempts) {
-      const button = document.getElementById(id);
-      if (!button) {
-        if (!attempt.finished) continue;
-        attempts.delete(id);
-        setSaveState(document, checkInSource(id), "saved");
-        continue;
-      }
-      if (isConfirmed(button, attempt.desired)) {
-        attempt.confirmed = true;
-        if (attempt.finished) {
-          attempts.delete(id);
-          settle(button);
-        }
-        setSaveState(document, checkInSource(id), "saved");
-      } else if (attempt.failed && attempt.finished) {
-        if (button.dataset.saveState !== "failed") button.dataset.saveState = "failed";
-        if (button.hasAttribute("aria-busy")) button.removeAttribute("aria-busy");
-      } else {
-        if (button.dataset.saveState !== "pending") button.dataset.saveState = "pending";
-        if (button.getAttribute("aria-busy") !== "true") button.setAttribute("aria-busy", "true");
-      }
-    }
-    updateFeedback(document);
+    reconcileAttempts(document);
   }).observe(matrix, { attributes: true, characterData: true, childList: true, subtree: true });
 }
 
 export function initCheckIns(document) {
+  document.addEventListener("datastar-signal-patch", (event) => acknowledge(document, event));
   document.addEventListener("datastar-fetch", (event) => handleCheckInFetch(document, event));
   preserveMatrixState(document);
 }

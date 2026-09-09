@@ -20,7 +20,7 @@ templ Companion(pad jot.Pad, habits []habit.Habit, month habit.Month) {
 		</div>
 		<div id="habits-panel" role="tabpanel" aria-labelledby="habits-tab" tabindex="0" hidden>
 			@Habits(habits, month)
-			<button class="btn" type="button" commandfor="habit-create-dialog" command="show-modal">Create habit</button>
+			<button class="btn" type="button" commandfor="habit-create-dialog" command="show-modal" data-on:click="$habitcreateview++">Create habit</button>
 			@HabitCreateDialog()
 		</div>
 	</aside>

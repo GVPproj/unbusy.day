@@ -248,12 +248,12 @@ func TestHabitCreationConfirmsWithoutBypassingTheOwnersLiveGridStream(t *testing
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"datastar-patch-elements", `id="habit-feedback"`, "Habit created", "datastar-patch-signals", `"_habitcreated":true`} {
+	for _, want := range []string{"datastar-patch-signals", `"_habitcreatesavedview":0`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("response missing %q: %s", want, body)
 		}
 	}
-	for _, absent := range []string{"Private habit", "Read &lt;books&gt;", `id="habit-grid"`, `id="jot-cm"`, `id="block-list"`, `id="habit-create"`} {
+	for _, absent := range []string{"datastar-patch-elements", "Private habit", "Read &lt;books&gt;", `id="habit-grid"`, `id="jot-cm"`, `id="block-list"`, `id="habit-create"`} {
 		if strings.Contains(body, absent) {
 			t.Errorf("habit write patched unrelated/private content %q", absent)
 		}
@@ -280,10 +280,10 @@ func TestHabitRejectionsKeepTheDraftAndExplainTheProblem(t *testing.T) {
 			rec := httptest.NewRecorder()
 			HabitCreateHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/habits", tc.body))
 			body := rec.Body.String()
-			if rec.Code != http.StatusOK || !strings.Contains(body, tc.feedback) || !strings.Contains(body, `id="habit-feedback"`) {
+			if rec.Code != http.StatusOK || !strings.Contains(body, tc.feedback) || !strings.Contains(body, `"_habitcreateerrorview":0`) || !strings.Contains(body, "datastar-patch-signals") {
 				t.Fatalf("rejection: %d %s", rec.Code, body)
 			}
-			for _, absent := range []string{`id="habit-create"`, "datastar-patch-signals", `id="jot-cm"`} {
+			for _, absent := range []string{`id="habit-create"`, "datastar-patch-elements", `id="jot-cm"`} {
 				if strings.Contains(body, absent) {
 					t.Errorf("rejection overwrites draft/editor: %s", body)
 				}

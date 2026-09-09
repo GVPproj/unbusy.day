@@ -27,6 +27,7 @@ type HabitService interface {
 type habitSignals struct {
 	Name       string `json:"habitname"`
 	Start      string `json:"habitstart"`
+	CreateView uint64 `json:"habitcreateview"`
 	Timezone   string `json:"timezone"`
 	Month      string `json:"habitmonth"`
 	Refresh    string `json:"habitrefresh"`
@@ -40,6 +41,9 @@ type habitSignals struct {
 	DeleteView uint64 `json:"habitdeleteview"`
 	Date       string `json:"habitdate"`
 	Checked    *bool  `json:"habitchecked"`
+
+	CheckInAttempt uint64 `json:"habitcheckinattempt"`
+	Read           uint64 `json:"habitread"`
 }
 
 func validHabitRefresh(token string) bool {
@@ -79,8 +83,8 @@ func HabitMonthHandler(svc HabitService) http.Handler {
 			return
 		}
 		sse := datastar.NewSSE(w, r)
-		selector := `#habit-grid[data-month="` + snap.Month.Key + `"][data-refresh="` + sig.Refresh + `"][data-view="` + strconv.FormatUint(sig.View, 10) + `"]`
-		if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Month, sig.Refresh, sig.View), datastar.WithSelector(selector)); err != nil {
+		selector := `#habit-grid[data-month="` + snap.Month.Key + `"][data-refresh="` + sig.Refresh + `"][data-view="` + strconv.FormatUint(sig.View, 10) + `"][data-read-request="` + strconv.FormatUint(sig.Read, 10) + `"]`
+		if err := sse.PatchElementTempl(components.HabitGridRead(snap.Habits, snap.Month, sig.Refresh, sig.View, sig.Read), datastar.WithSelector(selector)); err != nil {
 			log.Printf("habit month: %v", err)
 		}
 	})
@@ -96,8 +100,11 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 		_, err := svc.Create(r.Context(), web.OwnerFrom(r.Context()), sig.Name, sig.Start, sig.Timezone)
 		if habit.IsRejection(err) {
 			sse := datastar.NewSSE(w, r)
-			if err := sse.PatchElementTempl(components.HabitFeedback(err.Error())); err != nil {
-				log.Printf("habit feedback: %v", err)
+			if err := sse.MarshalAndPatchSignals(struct {
+				Message string `json:"_habitcreateerror"`
+				View    uint64 `json:"_habitcreateerrorview"`
+			}{err.Error(), sig.CreateView}); err != nil {
+				log.Printf("habit create feedback: %v", err)
 			}
 			return
 		}
@@ -106,13 +113,12 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 			http.Error(w, "Unable to create habit. Please try again.", http.StatusInternalServerError)
 			return
 		}
-		// The owner stream is the sole ordered path for habit-grid HTML.
+		// Only acknowledge this opening; grid HTML stays on the ordered owner stream.
 		sse := datastar.NewSSE(w, r)
-		if err := sse.PatchElementTempl(components.HabitFeedback("Habit created.")); err != nil {
-			log.Printf("habit feedback: %v", err)
-		}
-		if err := sse.PatchSignals([]byte(`{"_habitcreated":true}`)); err != nil {
-			log.Printf("habit create signals: %v", err)
+		if err := sse.MarshalAndPatchSignals(struct {
+			View uint64 `json:"_habitcreatesavedview"`
+		}{sig.CreateView}); err != nil {
+			log.Printf("habit create acknowledgement: %v", err)
 		}
 	})
 }
@@ -187,6 +193,13 @@ func patchHabitCheckInFeedback(sse *datastar.ServerSentEventGenerator, message, 
 	return sse.PatchElementTempl(components.HabitCheckInFeedback(message, result), opts...)
 }
 
+// A scalar keeps the attempt/result atomic in Datastar's changed-path signal events.
+func patchHabitCheckInReceipt(sse *datastar.ServerSentEventGenerator, attempt uint64, result string) error {
+	return sse.MarshalAndPatchSignals(struct {
+		Receipt string `json:"_habitcheckinack"`
+	}{strconv.FormatUint(attempt, 10) + ":" + result})
+}
+
 func HabitCheckInHandler(svc HabitService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig habitSignals
@@ -205,6 +218,9 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 			if patchErr := patchHabitCheckInFeedback(sse, err.Error(), "rejected", sig.Date, sig.Refresh, sig.View); patchErr != nil {
 				log.Printf("habit check-in feedback: %v", patchErr)
 			}
+			if patchErr := patchHabitCheckInReceipt(sse, sig.CheckInAttempt, "rejected"); patchErr != nil {
+				log.Printf("habit check-in receipt: %v", patchErr)
+			}
 			return
 		}
 		if err != nil {
@@ -212,11 +228,14 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 			http.Error(w, "Unable to save check-in. Please try again.", http.StatusInternalServerError)
 			return
 		}
-		// The owner stream serializes committed snapshots; keeping grid HTML off
-		// this response prevents a delayed mutation response overwriting a newer write.
+		// The private receipt triggers a fenced month read, never a mutation snapshot.
+		// A later write may supersede this value before that authoritative read.
 		sse := datastar.NewSSE(w, r)
 		if err := patchHabitCheckInFeedback(sse, "", "committed", sig.Date, sig.Refresh, sig.View); err != nil {
 			log.Printf("habit check-in feedback: %v", err)
+		}
+		if err := patchHabitCheckInReceipt(sse, sig.CheckInAttempt, "committed"); err != nil {
+			log.Printf("habit check-in receipt: %v", err)
 		}
 	})
 }
