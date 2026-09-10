@@ -1663,6 +1663,11 @@
         background: var(--nav-hover);
       }
 
+      @media (width < 52rem) {
+        font-size: var(--text-xl);
+        line-height: var(--text-xl--line-height);
+      }
+
       @media (width >= 52rem) {
         display: none;
       }
