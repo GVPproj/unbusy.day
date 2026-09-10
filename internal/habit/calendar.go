@@ -40,6 +40,12 @@ func CalendarMonth(timezone, key string, now time.Time) (Month, error) {
 	return calendarMonth(local, key), nil
 }
 
+// Canonical dates sort chronologically in SQLite and in the rendered calendar.
+func validCivilDate(date string) bool {
+	parsed, err := time.Parse(time.DateOnly, date)
+	return err == nil && parsed.Format(time.DateOnly) == date
+}
+
 func localTime(timezone string, now time.Time) (time.Time, error) {
 	if timezone == "" || timezone == "Local" {
 		return time.Time{}, rejection("Choose a valid timezone.")

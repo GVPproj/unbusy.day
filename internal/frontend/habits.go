@@ -82,8 +82,8 @@ func HabitMonthHandler(svc HabitService) http.Handler {
 			return
 		}
 		sse := datastar.NewSSE(w, r)
-		selector := `#habit-grid[data-month="` + snap.Month.Key + `"][data-refresh="` + sig.Refresh + `"][data-view="` + strconv.FormatUint(sig.View, 10) + `"][data-read-request="` + strconv.FormatUint(sig.Read, 10) + `"]`
-		if err := sse.PatchElementTempl(components.HabitGridRead(snap.Habits, snap.Month, sig.Refresh, sig.View, sig.Read), datastar.WithSelector(selector)); err != nil {
+		view := components.HabitView{Refresh: sig.Refresh, View: sig.View, Read: sig.Read}
+		if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Month, view), datastar.WithSelector(view.ReadSelector(snap.Month.Key))); err != nil {
 			log.Printf("habit month: %v", err)
 		}
 	})
@@ -97,28 +97,7 @@ func HabitCreateHandler(svc HabitService) http.Handler {
 			return
 		}
 		err := svc.Create(r.Context(), web.OwnerFrom(r.Context()), sig.Name, sig.Start, sig.Timezone)
-		if habit.IsRejection(err) {
-			sse := datastar.NewSSE(w, r)
-			if err := sse.MarshalAndPatchSignals(struct {
-				Message string `json:"_habitcreateerror"`
-				View    uint64 `json:"_habitcreateerrorview"`
-			}{err.Error(), sig.CreateView}); err != nil {
-				log.Printf("habit create feedback: %v", err)
-			}
-			return
-		}
-		if err != nil {
-			log.Printf("habit create: %v", err)
-			http.Error(w, "Unable to create habit. Please try again.", http.StatusInternalServerError)
-			return
-		}
-		// Only acknowledge this opening; grid HTML stays on the ordered owner stream.
-		sse := datastar.NewSSE(w, r)
-		if err := sse.MarshalAndPatchSignals(struct {
-			View uint64 `json:"_habitcreatesavedview"`
-		}{sig.CreateView}); err != nil {
-			log.Printf("habit create acknowledgement: %v", err)
-		}
+		respondHabitForm(w, r, "create", sig.CreateView, err)
 	})
 }
 
@@ -130,30 +109,32 @@ func HabitEditHandler(svc HabitService) http.Handler {
 			return
 		}
 		err := svc.Edit(r.Context(), web.OwnerFrom(r.Context()), sig.EditID, sig.EditName, sig.EditStart, sig.Timezone)
-		if habit.IsRejection(err) {
-			sse := datastar.NewSSE(w, r)
-			if err := sse.MarshalAndPatchSignals(struct {
-				Message string `json:"_habitediterror"`
-				View    uint64 `json:"_habitediterrorview"`
-			}{err.Error(), sig.EditView}); err != nil {
-				log.Printf("habit edit feedback: %v", err)
-			}
-			return
-		}
-		if err != nil {
-			log.Printf("habit edit: %v", err)
-			http.Error(w, "Unable to edit habit. Please try again.", http.StatusInternalServerError)
-			return
-		}
-		// The private acknowledgement closes only the submitting view's dialog;
-		// grid HTML stays on the ordered owner stream.
-		sse := datastar.NewSSE(w, r)
-		if err := sse.MarshalAndPatchSignals(struct {
-			View uint64 `json:"_habiteditsavedview"`
-		}{sig.EditView}); err != nil {
-			log.Printf("habit edit acknowledgement: %v", err)
-		}
+		respondHabitForm(w, r, "edit", sig.EditView, err)
 	})
+}
+
+// Form replies belong to one dialog opening; grid HTML stays on the ordered owner stream.
+func respondHabitForm(w http.ResponseWriter, r *http.Request, action string, view uint64, err error) {
+	prefix := "_habit" + action
+	if habit.IsRejection(err) {
+		sse := datastar.NewSSE(w, r)
+		if err := sse.MarshalAndPatchSignals(map[string]any{
+			prefix + "error":     err.Error(),
+			prefix + "errorview": view,
+		}); err != nil {
+			log.Printf("habit %s feedback: %v", action, err)
+		}
+		return
+	}
+	if err != nil {
+		log.Printf("habit %s: %v", action, err)
+		http.Error(w, "Unable to "+action+" habit. Please try again.", http.StatusInternalServerError)
+		return
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]uint64{prefix + "savedview": view}); err != nil {
+		log.Printf("habit %s acknowledgement: %v", action, err)
+	}
 }
 
 func HabitDeleteHandler(svc HabitService) http.Handler {
@@ -183,9 +164,10 @@ func patchHabitCheckInFeedback(sse *datastar.ServerSentEventGenerator, message, 
 	if validHabitRefresh(refresh) {
 		month := ""
 		if parsed, err := time.Parse(time.DateOnly, date); err == nil && parsed.Format(time.DateOnly) == date {
-			month = `[data-month="` + date[:7] + `"]`
+			month = date[:7]
 		}
-		opts = append(opts, datastar.WithSelector(`#habit-grid`+month+`[data-refresh="`+refresh+`"][data-view="`+strconv.FormatUint(view, 10)+`"] #habit-checkin-feedback`))
+		correlation := components.HabitView{Refresh: refresh, View: view}
+		opts = append(opts, datastar.WithSelector(correlation.GridSelector(month)+` #habit-checkin-feedback`))
 	} else if refresh != "" {
 		return nil
 	}

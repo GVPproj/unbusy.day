@@ -49,20 +49,16 @@ templ Habits() {
 		data-signals:habitrefresh="''"
 		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; $habitread; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh|habitread)$/}}) }"
 	>
-		@HabitGrid(nil, habit.Month{}, "", 0)
+		@HabitGrid(nil, habit.Month{}, HabitView{})
 		@HabitEditDialog()
 		@HabitDeleteDialog()
 	</div>
 }
 
 // HabitGrid is shared by initial rendering and every authoritative month patch.
-templ HabitGrid(habits []habit.Habit, month habit.Month, refresh string, view uint64) {
-	@HabitGridRead(habits, month, refresh, view, 0)
-}
-
 // The rendered read is immutable; only the selector's request key follows signals.
-templ HabitGridRead(habits []habit.Habit, month habit.Month, refresh string, view, read uint64) {
-	<div id="habit-grid" data-month={ month.Key } data-refresh={ refresh } data-view={ strconv.FormatUint(view, 10) } data-read={ strconv.FormatUint(read, 10) } data-read-request={ strconv.FormatUint(read, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
+templ HabitGrid(habits []habit.Habit, month habit.Month, view HabitView) {
+	<div id="habit-grid" data-month={ month.Key } data-refresh={ view.Refresh } data-view={ strconv.FormatUint(view.View, 10) } data-read={ strconv.FormatUint(view.Read, 10) } data-read-request={ strconv.FormatUint(view.Read, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
 		if month.Today == "" {
 			<p>Loading your current month…</p>
 		} else {

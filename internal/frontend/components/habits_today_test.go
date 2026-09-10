@@ -21,7 +21,7 @@ func TestHabitGridHighlightsLocalToday(t *testing.T) {
 			}
 			var out strings.Builder
 			habits := []habit.Habit{{ID: 1, Name: "Read", StartDate: "2026-08-01"}}
-			if err := components.HabitGrid(habits, month, "", 0).Render(context.Background(), &out); err != nil {
+			if err := components.HabitGrid(habits, month, components.HabitView{}).Render(context.Background(), &out); err != nil {
 				t.Fatal(err)
 			}
 			body := out.String()

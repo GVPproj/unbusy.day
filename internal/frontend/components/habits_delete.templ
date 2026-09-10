@@ -7,7 +7,7 @@ import (
 )
 
 func openHabitDelete(h habit.Habit) string {
-	return "$habitdeleteview++; $habitdeleteid = " + strconv.FormatInt(h.ID, 10) + "; $_habitdeletename = " + strconv.Quote(h.Name) + "; $_habitdeleteerror = ''"
+	return "$habitdeleteview++; $habitdeleteid = " + strconv.FormatInt(h.ID, 10) + "; document.getElementById('habit-delete-name').textContent = el.closest('tr').querySelector('.habit-name').textContent; $_habitdeleteerror = ''"
 }
 
 templ HabitDeleteDialog() {
@@ -19,7 +19,6 @@ templ HabitDeleteDialog() {
 		aria-describedby="habit-delete-warning"
 		data-signals:habitdeleteid="0"
 		data-signals:habitdeleteview="0"
-		data-signals:_habitdeletename="''"
 		data-signals:_habitdeletesavedview="0"
 		data-signals:_habitdeleteerror="''"
 		data-signals:_habitdeleteerrorview="0"
@@ -33,7 +32,7 @@ templ HabitDeleteDialog() {
 			data-attr:aria-busy="$_habitdeletepending"
 		>
 			<h2 id="habit-delete-title">Delete habit</h2>
-			<p id="habit-delete-warning">Permanently delete <strong data-text="$_habitdeletename"></strong>? All check-in history will be permanently deleted. This cannot be undone.</p>
+			<p id="habit-delete-warning">Permanently delete <strong id="habit-delete-name"></strong>? All check-in history will be permanently deleted. This cannot be undone.</p>
 			<footer>
 				<button class="btn" type="button" commandfor="habit-delete" command="close" autofocus>Cancel</button>
 				<button class="btn btn-danger" type="submit" data-attr:disabled="$_habitdeletepending">Delete permanently</button>

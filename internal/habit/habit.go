@@ -142,7 +142,7 @@ func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, d
 	if err != nil {
 		return err
 	}
-	if _, err := time.Parse(time.DateOnly, date); err != nil {
+	if !validCivilDate(date) {
 		return rejection("Choose a valid check-in date.")
 	}
 
@@ -193,7 +193,7 @@ func (s *Service) validateDefinition(name, startDate, timezone string) (string, 
 	if err != nil {
 		return "", err
 	}
-	if parsed, err := time.Parse(time.DateOnly, startDate); err != nil || parsed.Format(time.DateOnly) != startDate {
+	if !validCivilDate(startDate) {
 		return "", rejection("Enter a valid start date (yyyy-mm-dd).")
 	}
 	if startDate > month.Today {

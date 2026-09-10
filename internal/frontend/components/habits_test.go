@@ -24,7 +24,7 @@ func TestHabitMonthHeading(t *testing.T) {
 				t.Fatal(err)
 			}
 			var out strings.Builder
-			if err := components.HabitGrid(nil, month, "", 0).Render(context.Background(), &out); err != nil {
+			if err := components.HabitGrid(nil, month, components.HabitView{}).Render(context.Background(), &out); err != nil {
 				t.Fatal(err)
 			}
 			body := html.UnescapeString(out.String())
