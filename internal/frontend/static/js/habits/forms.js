@@ -3,6 +3,7 @@
   if (!create) return;
 
   const start = document.getElementById("habit-start");
+  const dialog = document.getElementById("habit-create-dialog");
   let draft = false;
   let defaulting = false;
   const seedDate = () => {
@@ -19,13 +20,14 @@
   start.addEventListener("keydown", (event) => {
     if (!["Tab", "Escape"].includes(event.key)) draft = true;
   });
-  document.getElementById("habit-create-dialog").addEventListener("beforetoggle", (event) => {
+  dialog.addEventListener("beforetoggle", (event) => {
     if (event.newState !== "open" || draft) return;
     defaulting = true;
     seedDate();
     start.dispatchEvent(new Event("input", { bubbles: true }));
     defaulting = false;
   });
+  dialog.addEventListener("habit-create-saved", () => { draft = false; });
 
   for (const form of document.querySelectorAll(".habit-dialog-form")) {
     const feedback = () => form.querySelector("output");

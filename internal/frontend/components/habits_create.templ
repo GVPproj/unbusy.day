@@ -10,7 +10,7 @@ templ HabitCreateDialog() {
 		data-signals:_habitcreatesavedview="0"
 		data-signals:_habitcreateerror="''"
 		data-signals:_habitcreateerrorview="0"
-		data-effect="if ($_habitcreatesavedview === $habitcreateview && el.open) el.close()"
+		data-effect="if ($habitcreateview && $_habitcreatesavedview === $habitcreateview) { $_habitcreateerror = ''; $habitname = ''; $habitstart = ''; el.dispatchEvent(new Event('habit-create-saved')); if (el.open) el.close() }"
 	>
 		<form
 			id="habit-create"

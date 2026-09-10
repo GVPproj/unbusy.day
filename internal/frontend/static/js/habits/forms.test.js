@@ -71,6 +71,22 @@ function assertState(f, state) {
   assert.match(f.shared.textContent, labels[state]);
 }
 
+test("a saved creation event clears the draft so the next open reseeds the start date", async (t) => {
+  const f = await fixture(t);
+  const form = f.form("create");
+  const start = f.elements.get("habit-start");
+  const dialog = f.elements.get("habit-create-dialog");
+  start.value = "2020-01-01";
+  await form.dispatchEvent({ type: "input" });
+  await dialog.dispatchEvent({ type: "beforetoggle", newState: "open" });
+  assert.equal(start.value, "2020-01-01");
+  await dialog.dispatchEvent({ type: "habit-create-saved" });
+  await dialog.dispatchEvent({ type: "beforetoggle", newState: "open" });
+  const now = new Date();
+  assert.equal(start.value, [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0")].join("-"));
+});
+
 for (const operation of ["create", "edit", "delete"]) {
   test(`${operation} tracks fetch lifecycle without changing inline domain feedback`, async (t) => {
     const f = await fixture(t);

@@ -673,7 +673,7 @@ test("habit deletion works in the mobile companion panel", async ({ page }) => {
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("habit creation fields live in a dismissible modal", async ({ page }) => {
+test("habit creation fields live in a dismissible modal and keep a dismissed draft", async ({ page }) => {
 	await habitsTab(page).click();
 	await expect(habitName(page)).toBeHidden();
 	await expect(habitStart(page)).toBeHidden();
@@ -684,7 +684,19 @@ test("habit creation fields live in a dismissible modal", async ({ page }) => {
 	await expect(habitName(page)).toBeHidden();
 	await expect(habitRow(page, "Draft habit")).toHaveCount(0);
 	await openCreateHabit(page);
+	await expect(habitName(page)).toBeFocused();
 	await expect(habitName(page)).toHaveValue("Draft habit");
+	await page.keyboard.press("Escape");
+	await expect(page.locator("#habit-create-dialog")).toBeHidden();
+});
+
+test("saving a habit clears the create form back to its defaults", async ({ page }) => {
+	await habitsTab(page).click();
+	const { today, previous } = await localCalendar(page);
+	await createHabit(page, "Reset after save", previous.first);
+	await openCreateHabit(page);
+	await expect(habitName(page)).toHaveValue("");
+	await expect(habitStart(page)).toHaveValue(today);
 	await page.keyboard.press("Escape");
 	await expect(page.locator("#habit-create-dialog")).toBeHidden();
 });

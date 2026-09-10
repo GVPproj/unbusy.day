@@ -15,6 +15,10 @@ const name = (page) => dialog(page).getByLabel("Name", { exact: true });
 const start = (page) => dialog(page).getByLabel("Start date", { exact: true });
 const submit = (page) => dialog(page).getByRole("button", { name: "Create habit", exact: true });
 const row = (page, label) => page.getByRole("rowheader", { name: label, exact: true });
+const localToday = (page) => page.evaluate(() => {
+	const now = new Date();
+	return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+});
 
 async function open(page) {
 	await page.locator('[commandfor="habit-create-dialog"][command="show-modal"]').click();
@@ -78,21 +82,58 @@ for (const outcome of ["success", "rejection"]) {
 			await expect(name(page)).toHaveValue("Newer draft");
 			await expect(start(page)).toHaveValue("2020-02-02");
 			await expect(page.locator("#habit-feedback")).toBeEmpty();
+			// The held receipt belongs to the dismissed opening and must not clear this draft.
+			await page.keyboard.press("Escape");
+			await open(page);
+			await expect(name(page)).toHaveValue("Newer draft");
+			await expect(start(page)).toHaveValue("2020-02-02");
 			await page.unroute("**/habits");
 
 			const next = page.waitForRequest((request) => new URL(request.url()).pathname === "/habits" && request.method() === "POST");
 			await submit(page).click();
 			const nextSignals = (await next).postDataJSON();
 			expect(firstSignals.habitcreateview).toBe(1);
-			expect(nextSignals.habitcreateview).toBe(2);
+			expect(nextSignals.habitcreateview).toBe(3);
 			await expect(dialog(page)).toBeHidden();
 			await expect(row(page, "Newer draft")).toBeVisible();
 			await open(page);
 			await expect(page.locator("#habit-feedback")).toBeEmpty();
-			await expect(name(page)).toHaveValue("Newer draft");
+			// A saved creation hands the form back to its defaults instead of preserving
+			// the previously saved name.
+			await expect(name(page)).toHaveValue("");
+			await expect(start(page)).toHaveValue(await localToday(page));
 		} finally {
 			release();
 			await page.unrouteAll({ behavior: "wait" });
 		}
 	});
 }
+
+test("a saved creation receipt landing after dismissal still resets the form", async ({ page }) => {
+	await open(page);
+	await name(page).fill("Late receipt");
+	await start(page).fill("2020-01-01");
+	let release;
+	const gate = new Promise((resolve) => { release = resolve; });
+	await page.route("**/habits", async (route) => {
+		const response = await route.fetch();
+		await gate;
+		await route.fulfill({ response });
+	});
+	try {
+		await submit(page).click();
+		await expect(submit(page)).toBeDisabled();
+		await page.keyboard.press("Escape");
+		await expect(dialog(page)).toBeHidden();
+		release();
+		// The indicator clears once Datastar has consumed the held receipt.
+		await expect(dialog(page).locator('button[type="submit"]')).toBeEnabled();
+		await open(page);
+		await expect(page.locator("#habit-feedback")).toBeEmpty();
+		await expect(name(page)).toHaveValue("");
+		await expect(start(page)).toHaveValue(await localToday(page));
+	} finally {
+		release();
+		await page.unrouteAll({ behavior: "wait" });
+	}
+});
