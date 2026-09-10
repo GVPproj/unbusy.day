@@ -64,6 +64,13 @@ templ IconPlus() {
 	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.75 4.5a.75.75 0 0 1 .75.75V11h5.75a.75.75 0 0 1 0 1.5H12.5v5.75a.75.75 0 0 1-1.5 0V12.5H5.25a.75.75 0 0 1 0-1.5H11V5.25a.75.75 0 0 1 .75-.75Z"/></svg>`)
 }
 
+// IconCheck marks a completed habit in each feeling's native visual language.
+templ IconCheck() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4.5 4.5L19 7"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 18H8v-2h2v2Zm-2-2H6v-2h2v2Zm4-2v2h-2v-2h2Zm-6 0H4v-2h2v2Zm8 0h-2v-2h2v2Zm2-2h-2v-2h2v2Zm2-2h-2V8h2v2Zm2-2h-2V6h2v2Z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.28 6.22a.75.75 0 0 1 0 1.06l-9.25 9.25a.75.75 0 0 1-1.06 0l-4.25-4.25a.75.75 0 1 1 1.06-1.06l3.72 3.72 8.72-8.72a.75.75 0 0 1 1.06 0Z"/></svg>`)
+}
+
 templ IconX() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" d="M8.97 8.97a.75.75 0 0 1 1.06 0L12 10.94l1.97-1.97a.75.75 0 1 1 1.06 1.06L13.06 12l1.97 1.97a.75.75 0 0 1-1.06 1.06L12 13.06l-1.97 1.97a.75.75 0 1 1-1.06-1.06L10.94 12L8.97 10.03a.75.75 0 0 1 0-1.06"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 19H8v-2h12v2ZM8 17H6v-2h2v2Zm14 0h-2V7h2v10ZM6 15H4v-2h2v2Zm8 0h-2v-2h2v2Zm4 0h-2v-2h2v2ZM4 13H2v-2h2v2Zm12 0h-2v-2h2v2ZM6 11H4V9h2v2Zm8 0h-2V9h2v2Zm4 0h-2V9h2v2ZM8 9H6V7h2v2Zm12-2H8V5h12v2Z"/></svg>`)

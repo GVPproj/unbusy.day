@@ -2698,10 +2698,26 @@
       width: 2rem;
       height: 2rem;
       border: 1px solid var(--rail-border);
-      border-radius: var(--radius);
+      border-radius: 50%;
+      vertical-align: middle;
       background: var(--surface);
       color: var(--ink-muted);
       cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
+
+      &:is(:hover, :focus-visible) {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      &:active {
+        transform: scale(0.9);
+      }
+
+      .icon {
+        width: 1.15rem;
+        height: 1.15rem;
+      }
 
       &[aria-pressed="true"] {
         border-color: var(--accent);
@@ -2717,6 +2733,10 @@
       &[data-save-state="failed"] {
         border-color: var(--danger);
         outline: 1px solid var(--danger);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
       }
     }
 

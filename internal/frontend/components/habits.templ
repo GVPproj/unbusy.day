@@ -138,13 +138,9 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, view HabitView) {
 													data-desired={ strconv.FormatBool(!checked) }
 													data-on:click={ checkInAction(h.ID, date) }
 												>
-													<span aria-hidden="true">
-														if checked {
-															✓
-														} else {
-															·
-														}
-													</span>
+													if checked {
+														@IconCheck()
+													}
 												</button>
 											}
 										</td>
