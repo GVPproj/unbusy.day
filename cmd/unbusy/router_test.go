@@ -10,6 +10,7 @@ import (
 
 	"github.com/GVPproj/unbusy.day/internal/auth"
 	"github.com/GVPproj/unbusy.day/internal/block"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/migrate"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
@@ -32,6 +33,7 @@ func testRouter(t *testing.T) *http.ServeMux {
 		auth.NewService(db, auth.LogMailer{}),
 		block.NewService(db, broker),
 		jot.NewService(db, broker),
+		habit.NewService(db, broker),
 		broker,
 		routerConfig{},
 	)
@@ -57,6 +59,11 @@ func TestRouterSessionGating(t *testing.T) {
 		{"POST", "/blocks/clear", http.StatusUnauthorized},
 		{"POST", "/blocks/rename", http.StatusUnauthorized},
 		{"POST", "/jot", http.StatusUnauthorized},
+		{"GET", "/habits/month", http.StatusUnauthorized},
+		{"POST", "/habits", http.StatusUnauthorized},
+		{"POST", "/habits/edit", http.StatusUnauthorized},
+		{"POST", "/habits/delete", http.StatusUnauthorized},
+		{"POST", "/habits/check-in", http.StatusUnauthorized},
 		// Ungated.
 		{"GET", "/healthz", http.StatusOK},
 		{"GET", "/login", http.StatusOK},

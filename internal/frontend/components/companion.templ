@@ -1,0 +1,30 @@
+package components
+
+import (
+	"github.com/GVPproj/unbusy.day/internal/jot"
+)
+
+// Only #habit-grid and feedback are patch targets; tabs and editor persist.
+templ Companion(pad jot.Pad) {
+	<aside class="column companion" aria-label="Notes & Habits">
+		<header class="companion-head">
+			<div role="tablist" aria-label="Notes & Habits">
+				<button type="button" id="jot-tab" role="tab" aria-controls="jot-panel" aria-selected="true" tabindex="0">Jotpad</button>
+				<button type="button" id="habits-tab" role="tab" aria-controls="habits-panel" aria-selected="false" tabindex="-1">Habits</button>
+			</div>
+			<output id="companion-status" data-state="saved">Saved</output>
+		</header>
+		<div id="jot-panel" role="tabpanel" aria-labelledby="jot-tab" tabindex="0">
+			@Jotpad(pad)
+		</div>
+		<div id="habits-panel" role="tabpanel" aria-labelledby="habits-tab" tabindex="0" hidden>
+			@Habits()
+			<button class="btn" type="button" commandfor="habit-create-dialog" command="show-modal" data-on:click="$habitcreateview++">Create habit</button>
+			@HabitCreateDialog()
+		</div>
+	</aside>
+	<script src="/static/js/companion.js"></script>
+	// Runs before Datastar binds the inputs, so the local date seeds habitstart.
+	<script src="/static/js/habits/forms.js"></script>
+	<script type="module" src="/static/js/habits/checkins.js"></script>
+}

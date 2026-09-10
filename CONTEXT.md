@@ -5,7 +5,7 @@ Glossary of the domain language. Definitions only — no implementation detail.
 ## User
 A person who can log in. Identified by their **email address** (the email *is*
 the identity; there are no usernames or passwords). A User privately owns a
-Day Plan.
+Day Plan, Jotpad, and Habits.
 
 ## Block
 A single time block on a User's Day Plan. Owned by exactly one User. Occupies a
@@ -43,6 +43,20 @@ that empties it. Where the Day Plan has no history because a day ends, the
 Jotpad has no history because it never does. It is markdown-*flavoured* by
 convention only: nothing renders it, and its value is exactly the characters
 the User typed. Clearing the Day Plan does not touch it.
+
+## Habit
+A named practice privately owned by exactly one User, with a calendar start
+date. It persists across months independently of the Day Plan and Jotpad;
+the monthly matrix is a view of those same Habits, not a new list each month.
+
+## Check-in
+A record that a User performed one of their Habits on a calendar date. Each
+Habit/date pair is binary: present means checked; absent means not recorded,
+not failure. Dates are civil calendar dates and do not shift with timezones.
+
+## Companion Panel
+The area beside the Day Plan containing the Jotpad and Habits as two tabs.
+On mobile it is the Notes & Habits view, separate from the Plan view.
 
 ## Template (future)
 A reusable Day Plan layout a User can stamp onto their Day Plan. Not built

@@ -127,7 +127,7 @@ tasks:
       - npx playwright install chromium
 
   test:browser:
-    desc: "Build and smoke-test the Jotpad in Chromium"
+    desc: "Build and test the planner, Jotpad, and Habits in Chromium"
     deps: [build, browser:install]
     cmds:
       - scripts/browser-smoke.sh

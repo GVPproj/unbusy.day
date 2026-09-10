@@ -516,7 +516,7 @@
     min-height: 100vh;
   }
 
-  /* The Day Plan and the Jotpad, side by side above 52rem. Both panels
+  /* The Day Plan and companion, side by side above 52rem. Both panels
 	   flex from a zero basis so they share and shrink together rather than
 	   demanding the ~74rem two full-width columns would need. Below 52rem
 	   they stack in the same cell and .jot-open picks which one shows —
@@ -542,15 +542,15 @@
     @media (width < 52rem) {
       /* Both panels stay in the DOM so switching keeps each one's value,
 			   caret, and scroll position; only one is displayed. */
-      > .jotpad {
+      > .companion {
         display: none;
       }
 
-      &.jot-open > .column:not(.jotpad) {
+      &.jot-open > main.column {
         display: none;
       }
 
-      &.jot-open > .jotpad {
+      &.jot-open > .companion {
         display: flex;
       }
     }
@@ -1640,6 +1640,12 @@
     /* Panel switch: only meaningful below 52rem, where one panel shows at a
 		   time. Above it both are visible and $_jotopen is inert. */
     .jot-toggle {
+      font-size: var(--text-base);
+
+      &[aria-pressed="true"] {
+        background: var(--nav-hover);
+      }
+
       @media (width >= 52rem) {
         display: none;
       }
@@ -2424,55 +2430,324 @@
     }
   }
 
-  /* SECTION: components/jotpad.templ → @scope (.jotpad)
-     The second panel. Same .column chrome as the Day Plan; the CodeMirror
-     editor (mounted by jot/cm.js) fills what's left and is the panel's only
-     scroll region. The .cm-editor rules mirror the block grid's chrome. */
-  @scope (.jotpad) {
-    /* Mirrors .date-heading's metrics so the two panel headers share a
-		   baseline above 52rem, and the toggle doesn't shift the header bar
-		   below it. The row also carries the save-state indicator. */
-    .jot-head {
+  /* SECTION: components/companion.templ → @scope (.companion)
+     Persistent tab panels; only the matrix and feedback are live patch targets. */
+  @scope (.companion) {
+    .companion-head {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.5rem;
+      gap: var(--gap);
       flex-shrink: 0;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid var(--rail-border);
 
       @media (width >= 52rem) {
+        --divider-offset: calc(0.5rem + 1px);
         min-height: 2rem;
+        padding-bottom: var(--divider-offset);
+        border-bottom: 0;
+        box-shadow: inset 0 -1px var(--rail-border);
       }
 
       @media (width < 52rem) {
-        z-index: 11;
-        height: 3.5rem;
-        margin-bottom: 0;
-        padding-top: 0.75rem;
-        padding-inline: 1rem;
-        /* Clear the fixed hamburger (right: 1rem). */
-        padding-right: 4.25rem;
-        background: var(--column-bg);
+        min-height: 3.5rem;
+        padding: 0.75rem 4.25rem 0 1rem;
       }
     }
 
-    h2 {
+    [role="tablist"] {
       display: flex;
-      align-items: center;
-      font-weight: 700;
-      color: var(--ink);
+      flex-shrink: 0;
+      gap: var(--gap);
     }
 
-    /* Save-state honesty (updated by jot/sync.js): Saved is the resting state
-		   and must not attract attention; Offline is allowed to be noticeable. */
-    .jot-status {
+    #companion-status {
       margin-left: auto;
       font-size: var(--text-sm);
       color: var(--ink-muted);
+      text-align: right;
 
-      &[data-state="offline"] {
+      &[data-state="offline"],
+      &[data-state="failed"] {
         color: var(--ink-error);
         font-weight: 600;
       }
+    }
+
+    [role="tab"] {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 3px solid transparent;
+      color: var(--ink-muted);
+      cursor: pointer;
+
+      &[aria-selected="true"] {
+        border-bottom-color: var(--accent);
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      &:hover {
+        background: color-mix(in srgb, var(--hover-shift) 8%, transparent);
+      }
+
+      @media (width >= 52rem) {
+        position: relative;
+        min-height: 2rem;
+        padding-block: 0;
+        border-bottom: 0;
+
+        &:first-child {
+          padding-left: 0;
+        }
+
+        &[aria-selected="true"]::after {
+          content: "";
+          position: absolute;
+          inset-inline: 0;
+          bottom: calc(-1 * var(--divider-offset));
+          height: 3px;
+          background: var(--accent);
+          pointer-events: none;
+        }
+      }
+    }
+
+    [role="tabpanel"] {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    #habits-panel {
+      gap: 1rem;
+      overflow-y: auto;
+      padding: 0.25rem 0;
+
+      > button {
+        align-self: start;
+        flex-shrink: 0;
+      }
+
+      @media (width < 52rem) {
+        padding: 0.25rem 1rem 1rem;
+      }
+    }
+
+  }
+
+  /* SECTION: components/habits.templ → @scope (.habits-matrix)
+     Real-sized day cells scroll underneath opaque, pinned habit names. */
+  @scope (.habits-matrix) to (.app-dialog) {
+    :scope {
+      flex-shrink: 0;
+      max-width: 100%;
+      border: 1px solid var(--rail-border);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    .habit-scroll {
+      overflow-x: auto;
+    }
+
+    .month-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      width: min(100%, 32rem);
+      padding: 0.75rem;
+      background: var(--bg);
+
+      @media (width >= 52rem) {
+        width: 100%;
+      }
+    }
+
+    .month-nav h2 {
+      min-width: 0;
+      margin-right: auto;
+      font-weight: 700;
+    }
+
+    .month-nav button {
+      flex-shrink: 0;
+
+      &:has(.icon) {
+        display: grid;
+        place-items: center;
+        width: calc(1lh + 0.7rem);
+        height: calc(1lh + 0.7rem);
+        padding: 0;
+      }
+
+      &:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      font-size: var(--text-sm);
+    }
+
+    caption {
+      text-align: start;
+      padding: 0.75rem;
+      font-weight: 700;
+    }
+
+    th, td {
+      min-width: 2.75rem;
+      height: 2.75rem;
+      padding: 0.5rem;
+      text-align: center;
+      border-bottom: 1px solid var(--rail-border);
+      border-right: 1px solid var(--rail-border);
+    }
+
+    th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      width: 12rem;
+      min-width: 12rem;
+      max-width: 12rem;
+      text-align: start;
+      background: var(--surface);
+      border-right: 2px solid var(--rail-border);
+    }
+
+    th.today {
+      color: var(--accent);
+      box-shadow: inset 0 -2px var(--accent);
+    }
+
+    .today:not(.unavailable) {
+      background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+    }
+
+    .today .check-in {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .habit-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: 0.25rem;
+    }
+
+    .habit-name {
+      grid-row: span 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+
+    .habit-action {
+      grid-column: 2;
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: var(--radius);
+      color: var(--ink-muted);
+      cursor: pointer;
+
+      &:hover, &:focus-visible {
+        color: var(--accent);
+        background: color-mix(in srgb, var(--hover-shift) 8%, transparent);
+      }
+
+      &[commandfor="habit-delete"]:is(:hover, :focus-visible) {
+        color: var(--danger);
+      }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      @media (pointer: coarse) {
+        width: 2.75rem;
+        height: 2.75rem;
+      }
+    }
+
+    .unavailable {
+      color: var(--ink-muted);
+      background: repeating-linear-gradient(
+        135deg,
+        var(--column-bg) 0 4px,
+        var(--rail-border) 4px 5px
+      );
+    }
+
+    .check-in {
+      display: inline-grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border: 1px solid var(--rail-border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink-muted);
+      cursor: pointer;
+
+      &[aria-pressed="true"] {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: var(--bg);
+      }
+
+      &[data-save-state="pending"] {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      &[data-save-state="failed"] {
+        border-color: var(--danger);
+        outline: 1px solid var(--danger);
+      }
+    }
+
+    output {
+      display: block;
+      min-height: 1.5rem;
+      padding: 0.25rem 0.75rem;
+      color: var(--ink-muted);
+    }
+
+    p {
+      padding: 0.75rem;
+      color: var(--ink-muted);
+    }
+  }
+
+  /* SECTION: components/habits.templ → @scope (.habit-dialog-form) */
+  @scope (.habit-dialog-form) {
+    :scope {
+      display: contents;
+    }
+  }
+
+  /* SECTION: components/jotpad.templ → @scope (.jotpad)
+     The persistent editor fills its tab panel and scrolls internally. */
+  @scope (.jotpad) {
+    :scope {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
     }
 
     /* Fills the panel; the editor scrolls internally — no auto-grow, which
@@ -2495,13 +2770,10 @@
       color: var(--ink);
       font-size: var(--text-base);
 
-      /* Full-bleed below 52rem, like the block grid: no box edge against the
-				   screen edge, just one rule under the header at the same offset the
-				   grid's first hour line sits at. */
+      /* Full-bleed on mobile; the tabs already provide the header divider. */
       @media (width < 52rem) {
         margin-top: 0.75rem;
-        border-inline: 0;
-        border-bottom: 0;
+        border: 0;
         border-radius: 0;
         background: transparent;
       }

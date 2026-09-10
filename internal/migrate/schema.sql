@@ -60,3 +60,25 @@ CREATE TABLE jot_base (
     text TEXT NOT NULL
 );
 
+CREATE TABLE habit (
+  id INTEGER PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  name_key TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  UNIQUE (owner_id, name_key)
+);
+
+CREATE INDEX habit_owner_id_idx ON habit (owner_id, id);
+
+CREATE TABLE habit_checkin (
+  habit_id INTEGER NOT NULL REFERENCES habit(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  PRIMARY KEY (habit_id, date)
+);
+
+CREATE TABLE habit_id_allocator (
+  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+  last_id INTEGER NOT NULL CHECK (typeof(last_id) = 'integer' AND last_id >= 0)
+);
+

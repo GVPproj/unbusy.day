@@ -1,0 +1,165 @@
+package components
+
+import (
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/GVPproj/unbusy.day/internal/habit"
+)
+
+func checkInAction(habitID int64, date string) string {
+	request := "$habitcheckinattempt++; el.dataset.attempt = $habitcheckinattempt; $habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = el.dataset.desired === 'true'; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitcheckinattempt|habitrefresh|habitview|timezone)$/}})"
+	return "if (el.getAttribute('aria-busy') !== 'true') { " + request + " }"
+}
+
+func shortHabitMonth(key string) string {
+	month, err := time.Parse("2006-01", key)
+	if err != nil {
+		return key
+	}
+	return strings.Replace(month.Format("Jan '06"), "Sep ", "Sept ", 1)
+}
+
+func selectHabitMonth(month string) string {
+	return "$habitview++; $_habitfollowing = false; $habitmonth = '" + month + "'"
+}
+
+// View-owned month signals and dialogs stay mounted while the grid morphs.
+templ Habits() {
+	<div
+		id="habit-matrix"
+		class="habits-matrix"
+		tabindex="0"
+		role="region"
+		aria-label="Monthly habits"
+		data-on:close__capture="if (document.activeElement === document.body || evt.target.contains(document.activeElement)) el.focus()"
+		data-signals:habitid="0"
+		data-signals:habitdate="''"
+		data-signals:habitchecked="false"
+		data-signals:habitcheckinattempt="0"
+		data-signals:_habitcheckinack="''"
+		data-signals:habitread="0"
+		data-on:habit-checkin-read="$habitread = evt.detail.read"
+		data-signals:habitmonth="''"
+		data-signals:habitview="0"
+		data-signals:_habitcurrent="''"
+		data-signals:_habitfollowing="true"
+		data-signals:habitrefresh="''"
+		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; $habitread; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh|habitread)$/}}) }"
+	>
+		@HabitGrid(nil, habit.Month{}, HabitView{})
+		@HabitEditDialog()
+		@HabitDeleteDialog()
+	</div>
+}
+
+// HabitGrid is shared by initial rendering and every authoritative month patch.
+// The rendered read is immutable; only the selector's request key follows signals.
+templ HabitGrid(habits []habit.Habit, month habit.Month, view HabitView) {
+	<div id="habit-grid" data-month={ month.Key } data-refresh={ view.Refresh } data-view={ strconv.FormatUint(view.View, 10) } data-read={ strconv.FormatUint(view.Read, 10) } data-read-request={ strconv.FormatUint(view.Read, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
+		if month.Today == "" {
+			<p>Loading your current month…</p>
+		} else {
+			<nav class="month-nav" aria-label="Habit month">
+				<h2 aria-live="polite"><time datetime={ month.Key } aria-label={ month.Label }>{ shortHabitMonth(month.Key) }</time></h2>
+				<button id="habit-previous-month" class="btn" type="button" data-on:click={ selectHabitMonth(month.Previous) } aria-label={ "Previous month, " + month.Previous }>
+					@IconChevronLeft()
+				</button>
+				<button id="habit-next-month" class="btn" type="button" disabled?={ month.Current } data-on:click={ selectHabitMonth(month.Next) } aria-label={ "Next month" }>
+					@IconChevronRight()
+				</button>
+				<button id="habit-this-month" class="btn" type="button" data-attr:disabled="$_habitfollowing && $habitmonth === $_habitcurrent" data-on:click="$habitview++; $_habitfollowing = true; $habitmonth = $_habitcurrent">This month</button>
+			</nav>
+			if len(habits) == 0 {
+				<p>No habits yet in this month. Create a habit to begin.</p>
+			} else {
+				<div id="habit-scroll" class="habit-scroll" tabindex="0" role="region" aria-label="Habit check-ins, scroll for more dates">
+					<table>
+						<caption class="sr-only">{ month.Label } habit check-ins</caption>
+						<thead>
+							<tr>
+								<th scope="col">Habit</th>
+								for _, date := range month.Dates {
+									<th scope="col" class={ templ.KV("today", date == month.Today) }>
+										<time datetime={ date } if date == month.Today {
+											aria-current="date"
+										}>{ date[8:] }</time>
+									</th>
+								}
+							</tr>
+						</thead>
+						<tbody>
+							for _, h := range habits {
+								<tr id={ "habit-" + strconv.FormatInt(h.ID, 10) }>
+									<th scope="row" aria-label={ h.Name }>
+										<div class="habit-heading">
+											<span class="habit-name" title={ h.Name }>{ h.Name }</span>
+											<button
+												id={ "habit-edit-" + strconv.FormatInt(h.ID, 10) }
+												class="habit-action"
+												type="button"
+												commandfor="habit-edit"
+												command="show-modal"
+												data-on:click={ openHabitEditor(h) }
+												aria-label={ "Edit " + h.Name }
+												title="Edit habit"
+											>
+												@IconEdit()
+											</button>
+											<button
+												id={ "habit-delete-" + strconv.FormatInt(h.ID, 10) }
+												class="habit-action"
+												type="button"
+												commandfor="habit-delete"
+												command="show-modal"
+												data-on:click={ openHabitDelete(h) }
+												aria-label={ "Delete " + h.Name }
+												title="Delete habit"
+											>
+												@IconClear()
+											</button>
+										</div>
+									</th>
+									for _, date := range month.Dates {
+										<td class={ templ.KV("today", date == month.Today), templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
+											if date < h.StartDate || date > month.Today {
+												<span aria-label={ date + ": unavailable" }>—</span>
+											} else {
+												{{ checked := slices.Contains(h.CheckedDates, date) }}
+												<button
+													type="button"
+													class="check-in"
+													id={ "checkin-" + strconv.FormatInt(h.ID, 10) + "-" + date }
+													aria-label={ h.Name + " on " + date }
+													aria-pressed={ strconv.FormatBool(checked) }
+													data-checkin-action
+													data-desired={ strconv.FormatBool(!checked) }
+													data-on:click={ checkInAction(h.ID, date) }
+												>
+													<span aria-hidden="true">
+														if checked {
+															✓
+														} else {
+															·
+														}
+													</span>
+												</button>
+											}
+										</td>
+									}
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			@HabitCheckInFeedback("", "")
+		}
+	</div>
+}
+
+templ HabitCheckInFeedback(message, result string) {
+	<output id="habit-checkin-feedback" aria-live="polite" data-result={ result }>{ message }</output>
+}

@@ -26,7 +26,7 @@ func assertSchema(t *testing.T, dbURL string) {
 	}
 	defer db.Close()
 
-	for _, table := range []string{"block", "user", "login_code", "session"} {
+	for _, table := range []string{"block", "user", "login_code", "session", "habit", "habit_checkin"} {
 		var name string
 		err := db.QueryRow(
 			`SELECT name FROM sqlite_master WHERE type='table' AND name = ?`,

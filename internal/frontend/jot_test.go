@@ -195,8 +195,8 @@ func TestPageRendersTheStoredJotInTheEditorPayload(t *testing.T) {
 }
 
 // Two panels cannot both be <main>. The Day Plan keeps <main> and the page's
-// <h1>; the Jotpad is a named <aside> landmark with an <h2>.
-func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
+// <h1>; Notes & Habits is a named <aside> with the Jotpad inside it.
+func TestPageRendersTheCompanionAsANamedAsideLandmark(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
 	if n := strings.Count(body, "<main"); n != 1 {
@@ -204,9 +204,10 @@ func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<aside`,
-		`class="column jotpad"`,
-		`id="jot-heading"`,
-		`aria-labelledby="jot-heading"`,
+		`class="column companion"`,
+		`aria-label="Notes & Habits"`,
+		`id="jot-tab"`,
+		`aria-labelledby="jot-tab"`,
 		`<h2`,
 	} {
 		if !strings.Contains(body, want) {
@@ -220,7 +221,7 @@ func TestPageRendersTheJotpadAsANamedAsideLandmark(t *testing.T) {
 
 // The write path, pinned as markup: jot/cm.js owns saving (Datastar's @post
 // can't read /jot's JSON response), the version and length cap ride data
-// attributes, and the save-state indicator is a live region next to the heading.
+// attributes, and the shared save indicator is outside both tab panels.
 func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
@@ -228,12 +229,18 @@ func TestPageRendersTheJotWriteWiring(t *testing.T) {
 		`data-jot-version="0"`,
 		`data-maxlen="100000"`,
 		`/static/js/jot/cm.js`,
-		`id="jot-status"`,
+		`id="companion-status"`,
 		`data-state="saved"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
 		}
+	}
+	if strings.Contains(body, `id="jot-heading"`) || strings.Contains(body, `class="jot-head"`) {
+		t.Error("Jotpad must use its tab label, not a duplicate editor header")
+	}
+	if strings.Count(body, `id="companion-status"`) != 1 || strings.Index(body, `id="companion-status"`) > strings.Index(body, `id="jot-panel"`) {
+		t.Error("one shared save indicator must precede both tab panels")
 	}
 	// The old Datastar save path must be gone: it can't read the JSON reply.
 	for _, gone := range []string{`data-bind:_jot`, `@post('/jot'`} {
@@ -275,7 +282,7 @@ func TestPageTogglesPanelsWithAClientOnlySignal(t *testing.T) {
 	}
 	// data-show sets display unconditionally, which would hide a panel above
 	// 52rem too; the panels must be switched by a class the media query owns.
-	for _, tag := range []string{openTag(t, body, `class="panels"`), openTag(t, body, `class="column jotpad"`)} {
+	for _, tag := range []string{openTag(t, body, `class="panels"`), openTag(t, body, `class="column companion"`)} {
 		if strings.Contains(tag, "data-show") {
 			t.Errorf("panel must not use data-show; got tag: %s", tag)
 		}
@@ -297,10 +304,10 @@ func openTag(t *testing.T, body, marker string) string {
 	return body[open : i+end+1]
 }
 
-func TestSideNavCarriesTheJotpadToggle(t *testing.T) {
+func TestSideNavCarriesPlanAndCompanionNavigation(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
-	for _, want := range []string{"View Jotpad", "View Plan", `$_jotopen = !$_jotopen`} {
+	for _, want := range []string{"Notes &amp; Habits", ">Plan</span>", `$_jotopen = true; $_navopen = false`, `$_jotopen = false; $_navopen = false`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
 		}

@@ -5,9 +5,61 @@ import (
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/block"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 )
+
+func TestHabitInvalidationsAreScopedNonblockingAndUnsubscribed(t *testing.T) {
+	b := pubsub.New()
+	var _ habit.Publisher = b
+	a := b.Subscribe("alice")
+	defer a.Close()
+	c := b.Subscribe("alice")
+	defer c.Close()
+	other := b.Subscribe("bob")
+	defer other.Close()
+	closed := b.Subscribe("alice")
+	closed.Close()
+	closed.Close()
+	b.PublishHabit(habit.Event{Owner: "alice"})
+	for _, sub := range []*pubsub.Subscription{a, c} {
+		select {
+		case e := <-sub.Habits:
+			if e.Owner != "alice" {
+				t.Fatalf("event: %+v", e)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("missing invalidation")
+		}
+		select {
+		case <-sub.Events:
+			t.Fatal("habit sent to blocks")
+		case <-sub.Jots:
+			t.Fatal("habit sent to jot")
+		default:
+		}
+	}
+	for _, sub := range []*pubsub.Subscription{other, closed} {
+		select {
+		case e := <-sub.Habits:
+			t.Fatalf("unexpected event: %+v", e)
+		default:
+		}
+	}
+	done := make(chan struct{})
+	go func() {
+		for range 1000 {
+			b.PublishHabit(habit.Event{Owner: "alice"})
+		}
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("slow subscriber blocked habit publication")
+	}
+}
 
 func recv(t *testing.T, ch <-chan block.Event) block.Event {
 	t.Helper()

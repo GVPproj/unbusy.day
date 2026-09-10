@@ -10,6 +10,7 @@ import (
 
 	"github.com/GVPproj/unbusy.day/internal/auth"
 	"github.com/GVPproj/unbusy.day/internal/block"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/migrate"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
@@ -49,11 +50,12 @@ func main() {
 	broker := pubsub.New()
 	blockSvc := block.NewService(db, broker)
 	jotSvc := jot.NewService(db, broker)
+	habitSvc := habit.NewService(db, broker)
 	authSvc := auth.NewService(db, newMailer(), authOptions()...)
 
 	guardOpenSignup()
 
-	mux := newRouter(authSvc, blockSvc, jotSvc, broker, routerConfig{
+	mux := newRouter(authSvc, blockSvc, jotSvc, habitSvc, broker, routerConfig{
 		// Set SECURE_COOKIES=1 wherever the app sits behind HTTPS (ADR 0002).
 		secureCookies:    os.Getenv("SECURE_COOKIES") == "1",
 		turnstileSiteKey: os.Getenv("TURNSTILE_SITEKEY"),

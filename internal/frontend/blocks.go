@@ -51,6 +51,7 @@ func PageHandler(svc BlockService, jots JotService) http.Handler {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		// The browser supplies its timezone on /events; don't guess a UTC month here.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		if err := routes.BlocksPage(bs, b, pad).Render(r.Context(), w); err != nil {

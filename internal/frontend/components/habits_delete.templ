@@ -1,0 +1,43 @@
+package components
+
+import (
+	"strconv"
+
+	"github.com/GVPproj/unbusy.day/internal/habit"
+)
+
+func openHabitDelete(h habit.Habit) string {
+	return "$habitdeleteview++; $habitdeleteid = " + strconv.FormatInt(h.ID, 10) + "; document.getElementById('habit-delete-name').textContent = el.closest('tr').querySelector('.habit-name').textContent; $_habitdeleteerror = ''"
+}
+
+templ HabitDeleteDialog() {
+	<dialog
+		id="habit-delete"
+		class="app-dialog"
+		closedby="any"
+		aria-labelledby="habit-delete-title"
+		aria-describedby="habit-delete-warning"
+		data-signals:habitdeleteid="0"
+		data-signals:habitdeleteview="0"
+		data-signals:_habitdeletesavedview="0"
+		data-signals:_habitdeleteerror="''"
+		data-signals:_habitdeleteerrorview="0"
+		data-effect="if ($_habitdeletesavedview === $habitdeleteview && el.open) { el.close(); document.getElementById('habit-matrix').focus() }"
+	>
+		<form
+			class="habit-dialog-form"
+			data-indicator:_habitdeletepending
+			data-on:submit="if (!$_habitdeletepending) { el.dataset.submittedView = $habitdeleteview; $_habitdeleteerror = ''; @post('/habits/delete', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitdeleteid|habitdeleteview)$/}}) }"
+			data-on:datastar-fetch__document="if (evt.detail.el === el && ['error', 'retries-failed'].includes(evt.detail.type)) { $_habitdeleteerrorview = Number(el.dataset.submittedView); $_habitdeleteerror = 'Deletion not confirmed. Try again.' }"
+			data-attr:aria-busy="$_habitdeletepending"
+		>
+			<h2 id="habit-delete-title">Delete habit</h2>
+			<p id="habit-delete-warning">Permanently delete <strong id="habit-delete-name"></strong>? All check-in history will be permanently deleted. This cannot be undone.</p>
+			<footer>
+				<button class="btn" type="button" commandfor="habit-delete" command="close" autofocus>Cancel</button>
+				<button class="btn btn-danger" type="submit" data-attr:disabled="$_habitdeletepending">Delete permanently</button>
+			</footer>
+			<output aria-live="polite" data-text="$_habitdeleteerrorview === $habitdeleteview ? $_habitdeleteerror : ''"></output>
+		</form>
+	</dialog>
+}

@@ -28,6 +28,18 @@ templ IconMenu() {
 	</span>
 }
 
+templ IconChevronLeft() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5L9 12L15 19"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 13v-2h2v2zm2-2V9h2v2zm0 4v-2h2v2zm2-6V7h2v2zm0 8v-2h2v2zm2-10V5h2v2zm0 12v-2h2v2z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.28 5.22a.75.75 0 0 1 0 1.06L9.56 12l5.72 5.72a.749.749 0 0 1-.326 1.275a.75.75 0 0 1-.734-.215l-6.25-6.25a.75.75 0 0 1 0-1.06l6.25-6.25a.75.75 0 0 1 1.06 0"/></svg>`)
+}
+
+templ IconChevronRight() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5L15 12L9 19"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 13v-2h-2v2zm-2-2V9h-2v2zm0 4v-2h-2v2zm-2-6V7h-2v2zm0 8v-2h-2v2zM10 7V5H8v2zm0 12v-2H8v2z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12L8.72 6.28a.75.75 0 0 1 .018-1.042a.75.75 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg>`)
+}
+
 templ IconHours() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10" opacity=".5"/><path fill="currentColor" fill-rule="evenodd" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1-.22-.53V8a.75.75 0 0 1 .75-.75" clip-rule="evenodd"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/></svg>`)
@@ -89,6 +101,13 @@ templ IconJot() {
 	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 8c0-2.828 0-4.243.879-5.121C4.757 2 6.172 2 9 2h6c2.828 0 4.243 0 5.121.879C21 3.757 21 5.172 21 8v8c0 2.828 0 4.243-.879 5.121C19.243 22 17.828 22 15 22H9c-2.828 0-4.243 0-5.121-.879C3 20.243 3 18.828 3 16z" opacity=".5"/><path fill="currentColor" d="M7.25 8A.75.75 0 0 1 8 7.25h8a.75.75 0 0 1 0 1.5H8A.75.75 0 0 1 7.25 8m0 4a.75.75 0 0 1 .75-.75h8a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1-.75-.75m0 4a.75.75 0 0 1 .75-.75h5a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1-.75-.75"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 2h16v2H4zM2 4h2v16H2zm18 0h2v16h-2zM4 20h16v2H4zM7 7h10v2H7zm0 4h10v2H7zm0 4h6v2H7z"/></svg>`)
 	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3.75 3h16.5c.966 0 1.75.784 1.75 1.75v14.5A1.75 1.75 0 0 1 20.25 21H3.75A1.75 1.75 0 0 1 2 19.25V4.75C2 3.784 2.784 3 3.75 3Zm-.25 1.75v14.5c0 .138.112.25.25.25h16.5a.25.25 0 0 0 .25-.25V4.75a.25.25 0 0 0-.25-.25H3.75a.25.25 0 0 0-.25.25Z"/><path d="M6.75 8h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1 0-1.5Zm0 3.5h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1 0-1.5Zm0 3.5h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5Z"/></svg>`)
+}
+
+// IconEdit pairs Solar pen-bold-duotone, Pixelarticons edit, and Octicons pencil.
+templ IconEdit() {
+	@templ.Raw(`<svg class="icon icon-solar" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><path d="M20.8487 8.71306C22.3844 7.17735 22.3844 4.68748 20.8487 3.15178C19.313 1.61607 16.8231 1.61607 15.2874 3.15178L14.4004 4.03882C14.4125 4.0755 14.4251 4.11268 14.4382 4.15035C14.7633 5.0875 15.3768 6.31601 16.5308 7.47002C17.6848 8.62403 18.9133 9.23749 19.8505 9.56262C19.888 9.57563 19.925 9.58817 19.9615 9.60026L20.8487 8.71306Z" opacity=".5"/><path d="M14.4386 4L14.4004 4.03819C14.4125 4.07487 14.4251 4.11206 14.4382 4.14973C14.7633 5.08687 15.3768 6.31538 16.5308 7.4694C17.6848 8.62341 18.9133 9.23686 19.8505 9.56199C19.8876 9.57489 19.9243 9.58733 19.9606 9.59933L11.4001 18.1598C10.823 18.7369 10.5343 19.0255 10.2162 19.2737C9.84082 19.5665 9.43469 19.8175 9.00498 20.0223C8.6407 20.1959 8.25351 20.3249 7.47918 20.583L3.39584 21.9442C3.01478 22.0712 2.59466 21.972 2.31063 21.688C2.0266 21.4039 1.92743 20.9838 2.05445 20.6028L3.41556 16.5194C3.67368 15.7451 3.80273 15.3579 3.97634 14.9936C4.18114 14.5639 4.43213 14.1578 4.7249 13.7824C4.97307 13.4643 5.26165 13.1757 5.83874 12.5986L14.4386 4Z"/></g></svg>`)
+	@templ.Raw(`<svg class="icon icon-pixel" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 2h-2v2h-2v2h-2v2h-2v2H8v2H6v2H4v2H2v6h6v-2h2v-2h2v-2h2v-2h2v-2h2v-2h2V8h2V6h-2V4h-2zm0 8h-2v2h-2v2h-2v2h-2v2H8v-2H6v-2h2v-2h2v-2h2V8h2V6h2v2h2zM6 16H4v4h4v-2H6z"/></svg>`)
+	@templ.Raw(`<svg class="icon icon-mono" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.263 2.177a1.75 1.75 0 0 1 2.474 0l2.586 2.586a1.75 1.75 0 0 1 0 2.474L19.53 10.03l-.012.013L8.69 20.378a1.75 1.75 0 0 1-.699.409l-5.523 1.68a.75.75 0 0 1-.747-.188a.75.75 0 0 1-.188-.747l1.673-5.5a1.75 1.75 0 0 1 .466-.756L14.476 4.963ZM4.708 16.361a.26.26 0 0 0-.067.108l-1.264 4.154l4.177-1.271a.25.25 0 0 0 .1-.059l10.273-9.806l-2.94-2.939zM19 8.44l2.263-2.262a.25.25 0 0 0 0-.354l-2.586-2.586a.25.25 0 0 0-.354 0L16.061 5.5Z"/></svg>`)
 }
 
 // IconClear is the trash bin for the nav's "remove all blocks" action.

@@ -7,6 +7,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/auth"
 	"github.com/GVPproj/unbusy.day/internal/block"
 	"github.com/GVPproj/unbusy.day/internal/frontend"
+	"github.com/GVPproj/unbusy.day/internal/habit"
 	"github.com/GVPproj/unbusy.day/internal/jot"
 	"github.com/GVPproj/unbusy.day/internal/pubsub"
 	"github.com/GVPproj/unbusy.day/internal/web"
@@ -19,7 +20,7 @@ type routerConfig struct {
 	sesTopicARN      string
 }
 
-func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Service, broker *pubsub.Broker, cfg routerConfig) *http.ServeMux {
+func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Service, habitSvc *habit.Service, broker *pubsub.Broker, cfg routerConfig) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health Check: In-process 200 only — a liveness probe, not a DB readiness check.
@@ -41,7 +42,7 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("POST /login/code", loginRateLimiter.Limit(frontend.RequestCodeHandler(authSvc, turnstilePresence)))
 	mux.Handle("POST /login/verify", frontend.VerifyCodeHandler(authSvc, cfg.secureCookies))
 	mux.Handle("POST /logout", frontend.LogoutHandler(authSvc, cfg.secureCookies))
-	mux.Handle("GET /events", web.RequireSession(authSvc, frontend.EventsHandler(blockSvc, jotSvc, broker)))
+	mux.Handle("GET /events", web.RequireSession(authSvc, frontend.EventsHandler(blockSvc, jotSvc, broker, habitSvc)))
 	mux.Handle("POST /blocks/layout", web.RequireSession(authSvc, frontend.LayoutHandler(blockSvc)))
 	mux.Handle("POST /blocks/bounds", web.RequireSession(authSvc, frontend.BoundsHandler(blockSvc)))
 	mux.Handle("POST /blocks", web.RequireSession(authSvc, frontend.CreateHandler(blockSvc)))
@@ -49,6 +50,11 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("POST /blocks/clear", web.RequireSession(authSvc, frontend.ClearHandler(blockSvc)))
 	mux.Handle("POST /blocks/rename", web.RequireSession(authSvc, frontend.RenameHandler(blockSvc)))
 	mux.Handle("POST /jot", web.RequireSession(authSvc, frontend.JotHandler(jotSvc)))
+	mux.Handle("GET /habits/month", web.RequireSession(authSvc, frontend.HabitMonthHandler(habitSvc)))
+	mux.Handle("POST /habits", web.RequireSession(authSvc, frontend.HabitCreateHandler(habitSvc)))
+	mux.Handle("POST /habits/edit", web.RequireSession(authSvc, frontend.HabitEditHandler(habitSvc)))
+	mux.Handle("POST /habits/delete", web.RequireSession(authSvc, frontend.HabitDeleteHandler(habitSvc)))
+	mux.Handle("POST /habits/check-in", web.RequireSession(authSvc, frontend.HabitCheckInHandler(habitSvc)))
 
 	// Feedback from SES if our emails bounce/get a complaint.
 	// Unauthenticated (SNS calls it) but checked against

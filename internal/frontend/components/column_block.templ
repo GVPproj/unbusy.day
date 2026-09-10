@@ -33,7 +33,7 @@ templ blockItem(c block.Block, b block.Bounds) {
 			data-on:pointerdown="evt.stopPropagation()"
 			data-on:click={ "$deleteid = '" + c.ID + "'; @post('/blocks/delete')" }
 		>
-			@IconX()
+			@IconClear()
 		</button>
 		// APG Window Splitter: aria-valuemax is the day-end ceiling — the true
 		// compressible max is probed live by the End key.

@@ -129,7 +129,7 @@ const taskToggle = EditorView.domEventHandlers({
 /**
  * Mounts a CodeMirror Jotpad into `mount`. Saving, remote application, and the
  * save-state indicator all run through the shared jot-sync driver; opts is
- * {version, status} from the server render. Remote text lands as one minimal
+ * {version, onStatus} from the server render. Remote text lands as one minimal
  * CM transaction, so the selection maps through it and the cursor stays put
  * unless the remote edit deleted the text under it.
  */
@@ -137,6 +137,26 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	// Set while the sync driver rewrites the doc, so its own transaction isn't
 	// mistaken for typing and re-posted as a local edit.
 	let applying = false;
+	let panelReturn;
+	const finishReturn = () => { panelReturn = undefined; };
+	const nativeCaretReset = (view) => {
+		const selection = getSelection(), range = view.state.selection.main;
+		return view.hasFocus && selection?.isCollapsed && view.contentDOM.contains(selection.focusNode) &&
+			view.posAtDOM(selection.focusNode, selection.focusOffset) === 0 && (!range.empty || range.head > 0);
+	};
+	const flushReturn = (view) => {
+		if (!panelReturn?.refocusing) return;
+		// CM's focus heuristic can consume the first notification without refreshing its cache.
+		for (let i = 0; i < 2 && nativeCaretReset(view); i++) {
+			view.dom.ownerDocument.dispatchEvent(new Event("selectionchange"));
+		}
+		// Android may only queue reconciliation; focus writes the current model selection.
+		if (nativeCaretReset(view)) view.focus();
+	};
+	const prepareInput = () => {
+		flushReturn(view);
+		if (!nativeCaretReset(view)) finishReturn();
+	};
 
 	const view = new EditorView({
 		parent: mount,
@@ -174,13 +194,58 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				EditorState.transactionFilter.of((tr) =>
 					tr.newDoc.length > maxLen ? [] : tr,
 				),
+				// A redisplayed editor's native caret-at-start must not replace CM's selection.
+				EditorState.transactionFilter.of((tr) =>
+					panelReturn?.refocusing && !tr.docChanged && tr.isUserEvent("select") &&
+					tr.selection?.main.empty && tr.selection.main.head === 0
+						? [tr, { selection: tr.startState.selection }] : tr,
+				),
 				EditorView.updateListener.of((u) => {
+					if (u.docChanged && panelReturn?.scroll) panelReturn.scroll = panelReturn.scroll.map(u.changes);
 					if (!u.docChanged || applying) return;
+					if (panelReturn?.refocusing) finishReturn();
 					sync.edited();
 				}),
 			],
 		}),
 	});
+
+	// Capture before CM's Android key deferral, which can bypass its event observers.
+	for (const type of ["keydown", "beforeinput", "compositionstart"]) {
+		view.contentDOM.addEventListener(type, prepareInput, { capture: true });
+	}
+
+	// Native refocus can scroll to zero before CM measures a redisplayed editor.
+	const panel = mount.closest('[role="tabpanel"]');
+	panel?.addEventListener("companion-hide", () => {
+		flushReturn(view);
+		// Measure queued scroll effects before a rapid hide can snapshot the old viewport.
+		view.coordsAtPos(view.state.selection.main.head);
+		panelReturn = { scroll: view.scrollSnapshot() };
+	});
+	panel?.addEventListener("companion-show", () => {
+		if (panelReturn?.scroll) view.dispatch({ effects: panelReturn.scroll });
+	});
+	view.contentDOM.addEventListener("focus", () => {
+		const pending = panelReturn;
+		if (!pending) return;
+		pending.refocusing = true;
+		if (pending.scroll) view.dispatch({ effects: pending.scroll });
+		view.requestMeasure({
+			key: pending,
+			read: () => null,
+			write: () => queueMicrotask(() => {
+				if (panelReturn !== pending) return;
+				flushReturn(view);
+				if (panelReturn === pending && !nativeCaretReset(view)) finishReturn();
+			}),
+		});
+	});
+	// Wheel discards the saved position; pointer placement also ends selection protection.
+	view.scrollDOM.addEventListener("wheel", () => {
+		if (panelReturn) panelReturn.scroll = undefined;
+	}, { passive: true });
+	view.scrollDOM.addEventListener("pointerdown", finishReturn);
 
 	const sync = createJotSync({
 		getText: () => view.state.doc.toString(),
@@ -201,7 +266,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		},
 		postURL,
 		version: opts.version ?? 0,
-		status: opts.status,
+		onStatus: opts.onStatus,
 	});
 
 	// The SSE stream hands (version, text) here via data-on-signal-patch.

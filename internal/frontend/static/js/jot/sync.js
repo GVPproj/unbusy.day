@@ -61,12 +61,6 @@ export function statusOf({ offline, dirty, inflight }) {
 	return "saved";
 }
 
-const STATUS_TEXT = {
-	saved: "Saved",
-	saving: "Saving…",
-	offline: "Offline — will retry",
-};
-
 // "Saving…" only shows once the state has persisted ~500ms, so normal typing
 // under a fast network never flickers the indicator.
 const SAVING_DELAY = 500;
@@ -78,16 +72,18 @@ const DEBOUNCE = 1000;
  *  - applyText(text):  make the editor show exactly text (a CM transaction —
  *                      the editor's business, never a DOM morph)
  *  - postURL, version: the save endpoint and the version the page rendered
- *  - status:           the indicator element (optional)
+ *  - onStatus(state):  reports saved/saving/offline (optional)
  * Returns {edited, flush, beacon, remote} — call edited() on every local
  * change, beacon() on teardown; remote() is fed by the SSE signal patches.
  */
-export function createJotSync({ getText, applyText, postURL, version, status }) {
+export function createJotSync({ getText, applyText, postURL, version, onStatus }) {
 	let synced = { version, text: getText() };
 	let debounce = 0;
 	let retryTimer = 0;
 	let statusTimer = 0;
+	let displayedState = "saved";
 	let inflight = false;
+	let inflightText = null;
 	let buffered = null;
 	let failures = 0;
 	let offline = false;
@@ -100,9 +96,8 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 		offline || (typeof navigator !== "undefined" && navigator.onLine === false);
 
 	const render = (state) => {
-		if (!status) return;
-		status.dataset.state = state;
-		status.textContent = STATUS_TEXT[state];
+		displayedState = state;
+		onStatus?.(state);
 	};
 
 	const updateStatus = () => {
@@ -113,7 +108,7 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 			render(state);
 			return;
 		}
-		if (statusTimer || status?.dataset.state === "saving") return;
+		if (statusTimer || displayedState === "saving") return;
 		statusTimer = setTimeout(() => {
 			statusTimer = 0;
 			if (statusOf({ offline: isOffline(), dirty: dirty(), inflight }) === "saving") {
@@ -141,6 +136,7 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 			return;
 		}
 		inflight = true;
+		inflightText = text;
 		// keepalive: a save racing a navigation still completes.
 		fetch(postURL, {
 			method: "POST",
@@ -203,6 +199,9 @@ export function createJotSync({ getText, applyText, postURL, version, status }) 
 		clearTimeout(debounce);
 		const text = getText();
 		if (text === synced.text) return;
+		// The keepalive fetch already protects this snapshot across teardown.
+		// Reposting it with the same base can merge the insertion twice.
+		if (inflight && text === inflightText) return;
 		const body = new Blob(
 			[JSON.stringify({ _jot: text, _jotVersion: synced.version })],
 			{ type: "application/json" },
