@@ -19,7 +19,7 @@ templ LoginAmoeba(turnstileSiteKey string) {
 				<feComposite in="SourceGraphic" in2="grid" operator="in"></feComposite>
 				<feMorphology operator="dilate" radius="8"></feMorphology>
 			</filter>
-			<path fill="currentColor">
+			<path class="login-amoeba-morph" fill="currentColor" d="M300,60 C420,70 520,160 510,300 C500,440 400,540 290,535 C180,530 80,440 85,295 C90,150 180,50 300,60 Z">
 				<animate
 					attributeName="d"
 					dur="14s"
@@ -30,6 +30,7 @@ templ LoginAmoeba(turnstileSiteKey string) {
 						M300,60 C420,70 520,160 510,300 C500,440 400,540 290,535 C180,530 80,440 85,295 C90,150 180,50 300,60 Z"
 				></animate>
 			</path>
+			<path class="login-amoeba-still" fill="currentColor" d="M300,60 C420,70 520,160 510,300 C500,440 400,540 290,535 C180,530 80,440 85,295 C90,150 180,50 300,60 Z"></path>
 		</svg>
 		<div class="login-stack">
 			<div class="login-logo">

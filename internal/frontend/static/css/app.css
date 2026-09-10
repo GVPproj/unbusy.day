@@ -730,12 +730,19 @@
       animation: login-amoeba-spin 90s linear infinite;
     }
 
+    .login-amoeba-still {
+      display: none;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .login-amoeba-svg {
         animation: none;
       }
-      .login-amoeba-svg animate {
+      .login-amoeba-morph {
         display: none;
+      }
+      .login-amoeba-still {
+        display: inline;
       }
     }
 
@@ -925,6 +932,16 @@
   }
   :root[data-feeling="pixel"] .login-amoeba-svg path {
     filter: url(#amoeba-pixelate);
+  }
+
+  /* Filtering a morph rerasterizes the large SVG every frame on mobile. */
+  @media (width < 52rem) {
+    :root[data-feeling="pixel"] .login-amoeba-morph {
+      display: none;
+    }
+    :root[data-feeling="pixel"] .login-amoeba-still {
+      display: inline;
+    }
   }
 
   /* @keyframes are global by nature — they sit at layer level, outside
