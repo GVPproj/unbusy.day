@@ -60,7 +60,7 @@ Key invariant: **page render and patch render share one templ component** (`comp
 
 ## Conventions & deploy
 
-- **Sign off every commit**: `git commit -s` (DCO; CI enforces it). Open an issue before non-trivial work.
+- Open an issue before non-trivial work.
 - **Tool versions have one source each**: templ in `go.mod` (CLI installed via `go list -m`), Datastar and Motion as exact CDN tags in their call sites, and CodeMirror's direct upgrade inputs in `internal/frontend/vendorcodemirror/main.go`. Its generated manifest records the complete deployed graph; `task check:versions` reads that lock state to flag deployed version drift. For CodeMirror upgrades, read `docs/agents/codemirror.md`.
 - `DATABASE_URL` is a SQLite DSN in `.env` — copy `.env.example`.
 - Deploy is Fly via **`fly.app.toml`**: `flyctl deploy --config fly.app.toml`; CI auto-deploys on push to `main`. Production data is a SQLite file on a Fly volume backed up by scheduled volume snapshots. The app runs **exactly one always-on machine** — never scale to >1 or enable auto-stop (in-process pub/sub, single-writer SQLite).
