@@ -20,7 +20,11 @@ binaries. None are hash-verified today. This doc captures hardening them.
 
 ## Exposure 1 — runtime CDN `<script>`s with no SRI (highest priority)
 
-Every production page load pulls executable JS from jsdelivr with **no
+> **Partially resolved 2026-09-11 by removal**: Motion and its transitive graph
+> were replaced by CSS transitions. Planner pages no longer request that
+> runtime; the remaining exposure is Datastar only.
+
+Every production page load pulls the Datastar SDK from jsdelivr with **no
 Subresource Integrity hash**. A jsdelivr compromise, or a compromise of the
 upstream package/tag, injects arbitrary JS into every authenticated session —
 full DOM/cookie/keystroke access on the live app.
@@ -28,13 +32,11 @@ full DOM/cookie/keystroke access on the live app.
 - `internal/frontend/layouts/layout.templ:46` — Datastar SDK
   `cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js`.
   **Production, every page.**
-- `internal/frontend/static/js/blocks/pointer.js:11` — Motion
-  `cdn.jsdelivr.net/npm/motion@13.1.0/+esm`. **Production, every board page.**
 - `internal/frontend/smoke.templ:14` — Datastar from jsdelivr. Lower stakes
   (wiring canary, not on the auth path) but same gap.
 
-Note `@v1.0.2` / `@13.1.0` are *version* pins, not *content* pins — a retagged
-or compromised artifact at that version is served transparently.
+The Datastar version tag is a version pin, not a content pin — a retagged or
+compromised artifact at that version is served transparently.
 
 ### Options (rough priority)
 
@@ -51,9 +53,8 @@ or compromised artifact at that version is served transparently.
 3. Either way, do `smoke.templ` too so the canary doesn't model the unsafe
    pattern.
 
-Recommendation: **vendor Motion (drag.js can't use SRI anyway) and the Datastar
-bundle into `static/`**; it's the only option that fully closes the ESM-import
-gap and it fits the embed-everything architecture.
+Recommendation: **vendor the Datastar bundle into `static/`** so the remaining
+runtime dependency is reviewable and immutable per deploy.
 
 ## Exposure 2 — Tailwind binary downloaded without checksum verification
 
@@ -94,5 +95,5 @@ the published checksums from the Tailwind release page when bumping.
 - ADR 0008 — Tailwind standalone binary (the no-Node decision).
 - CLAUDE.md "Conventions & deploy" — the three-places pin rule these checksums
   would extend.
-- `internal/frontend/layouts/layout.templ`, `internal/frontend/static/drag.js`,
-  `internal/frontend/smoke.templ` — the CDN call sites.
+- `internal/frontend/layouts/layout.templ` and `internal/frontend/smoke.templ`
+  — the remaining CDN call sites.

@@ -8,6 +8,7 @@
 // `delete` { id }.
 
 import { init as initKeyboard } from "./keyboard.js";
+import { init as initPointer } from "./pointer.js";
 
 // A path missing its handle would silently no-op every arbitration guard, so
 // fail loudly at boot instead.
@@ -21,10 +22,7 @@ function bindArb(name, handle) {
 export function initBlockGestures(list, announce) {
 	const ctx = { list, announce };
 
-	// Pointer is imported lazily: node --test can't resolve Motion's CDN URL.
 	const arb = {};
 	arb.keyboard = bindArb("keyboard", initKeyboard(ctx, arb));
-	import("./pointer.js").then(({ init }) => {
-		arb.pointer = bindArb("pointer", init(ctx, arb));
-	});
+	arb.pointer = bindArb("pointer", initPointer(ctx, arb));
 }
