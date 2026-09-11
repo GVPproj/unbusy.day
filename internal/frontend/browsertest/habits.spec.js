@@ -146,7 +146,7 @@ for (const mobile of [false, true]) {
 		test("clamp long names and keep themed actions accessible", async ({ page }) => {
 			if (mobile) {
 				await page.setViewportSize({ width: 390, height: 900 });
-				await mobilePanel(page, "Notes & Habits");
+				await mobilePanel(page, "Extras");
 			}
 			await habitsTab(page).click();
 			const names = ["Eat", "Do large amounts of work every day with plenty of breaks", "Unbroken".repeat(10)];
@@ -471,7 +471,7 @@ test("a delayed edit response cannot close or overwrite a newer draft", async ({
 
 test("habit editing works in the mobile companion panel", async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await mobilePanel(page, "Notes & Habits");
+	await mobilePanel(page, "Extras");
 	await habitsTab(page).click();
 	const { today } = await localCalendar(page);
 	await createHabit(page, "Mobile habit", today);
@@ -656,7 +656,7 @@ test("a delayed deletion ack cannot close a newer confirmation", async ({ page }
 
 test("habit deletion works in the mobile companion panel", async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await mobilePanel(page, "Notes & Habits");
+	await mobilePanel(page, "Extras");
 	await habitsTab(page).click();
 	await createHabit(page, "Mobile deletion");
 	await deleteHabit(page, "Mobile deletion").click();
@@ -747,11 +747,11 @@ test("habit names accept 80 Unicode characters and reject longer names without l
  await expect(page.locator("#habit-matrix tbody tr")).toHaveCount(1);
 });
 
-test("mobile Plan / Notes & Habits navigation keeps names visible while dates scroll", async ({ page }) => {
+test("mobile Plan / Extras navigation keeps names visible while dates scroll", async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await expect(page.locator("#block-list")).toBeVisible();
 	await expect(page.locator(".cm-editor")).toBeHidden();
-	await mobilePanel(page, "Notes & Habits");
+	await mobilePanel(page, "Extras");
 	await expect(page.locator("#block-list")).toBeHidden();
 	await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
 	await expect(page.locator(".cm-editor")).toBeVisible();
@@ -778,7 +778,7 @@ test("mobile Plan / Notes & Habits navigation keeps names visible while dates sc
 	await mobilePanel(page, "Plan");
 	await expect(page.locator("#block-list")).toBeVisible();
 	await expect(matrix).toBeHidden();
-	await mobilePanel(page, "Notes & Habits");
+	await mobilePanel(page, "Extras");
 	await expect(habitsTab(page)).toHaveAttribute("aria-selected", "true");
 	await expect(habitRow(page, "A daily walk")).toBeVisible();
  await page.screenshot({ path: test.info().outputPath("habits-mobile.png"), fullPage: true });
@@ -787,7 +787,7 @@ test("mobile Plan / Notes & Habits navigation keeps names visible while dates sc
 for (const width of [1440, 390]) {
 	test(`month controls stay fixed while dates scroll at width ${width}`, async ({ page }) => {
 		await page.setViewportSize({ width, height: 900 });
-		if (width < 832) await mobilePanel(page, "Notes & Habits");
+		if (width < 832) await mobilePanel(page, "Extras");
 		await habitsTab(page).click();
 		await createHabit(page, "Scroll test");
 		const controls = page.locator(".month-nav button, .month-nav h2");

@@ -13,7 +13,7 @@ async function openMatrix(context, page) {
   await page.goto(baseURL, { waitUntil: "load" });
   if (page.viewportSize().width < 832) {
     await page.locator(".menu-toggle").click();
-    await page.locator("#sidenav").getByRole("button", { name: "Notes & Habits", exact: true }).click();
+    await page.locator("#sidenav").getByRole("button", { name: "Extras", exact: true }).click();
   }
   await page.getByRole("tab", { name: "Habits", exact: true }).click();
   await expect(page.locator("#habit-scroll")).toBeVisible();
