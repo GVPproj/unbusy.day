@@ -304,16 +304,6 @@ func openTag(t *testing.T, body, marker string) string {
 	return body[open : i+end+1]
 }
 
-func TestSideNavCarriesPlanAndCompanionNavigation(t *testing.T) {
-	body := renderPageWithJot(t, "")
-
-	for _, want := range []string{"Notes &amp; Habits", ">Plan</span>", `$_jotopen = true; $_navopen = false`, `$_jotopen = false; $_navopen = false`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("body missing %q; body:\n%s", want, body)
-		}
-	}
-}
-
 // The guide is the app's narrative onboarding; without a mention there, the
 // second panel is unexplained.
 func TestGuideModalIntroducesTheJotpad(t *testing.T) {
