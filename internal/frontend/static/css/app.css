@@ -1212,6 +1212,7 @@
         padding-inline: var(--bleed);
         overflow-x: auto;
         overscroll-behavior-x: contain; /* don't hand a swipe to browser back */
+        scroll-behavior: smooth;
         scroll-snap-type: x mandatory;
         scrollbar-width: none;
       }
@@ -1231,6 +1232,12 @@
         opacity: 1;
         pointer-events: auto;
         transition: none;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .guide-body {
+          scroll-behavior: auto;
+        }
       }
     }
 
@@ -1323,21 +1330,23 @@
       }
     }
 
-    /* pane 3's demo is live (guide/demo.js): grab / stretch affordances and
-		   the transition that animates pushed neighbours. .gc-dragging suspends
-		   it so the held block tracks the pointer 1:1. */
+    /* pane 3's demo uses the same CSS-owned gesture interpolation and
+       completion policy as the planner. */
     .gc-demo {
+      --gesture-duration: 0.18s;
+
       .gc-block {
         cursor: grab;
         user-select: none;
         touch-action: none;
-        transition:
-          translate 0.18s ease,
-          height 0.18s ease;
+        transition-property: translate, height;
+        transition-duration: var(--gesture-duration), var(--gesture-duration);
+        transition-timing-function: ease, ease;
+        transition-delay: 0s, 0s;
 
         &.gc-dragging {
           z-index: 2;
-          transition: none;
+          transition-property: none;
           cursor: grabbing;
           opacity: 0.85;
           box-shadow: var(--shadow-lift);
@@ -1345,7 +1354,10 @@
 
         &.gc-resizing {
           z-index: 2;
-          transition: height 0.18s ease;
+          transition-property: height;
+          transition-duration: var(--gesture-duration);
+          transition-timing-function: ease;
+          transition-delay: 0s;
 
           .gc-label {
             opacity: 0.4;
@@ -1354,6 +1366,18 @@
           .gc-cue {
             display: flex;
           }
+        }
+
+        &.gc-flip {
+          transition-property: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        --gesture-duration: 0s;
+
+        .gc-block {
+          box-shadow: none;
         }
       }
     }
@@ -2242,9 +2266,8 @@
         outline-offset: -2px;
       }
 
-      /* Lifted state: scale + slight translucency, no shadow (shadows read
-			   wrong on the dark schemes). Motion owns the transform (y-track,
-			   rubber-band x, tilt); we ease only the pickup scale/dim. */
+      /* Pointer JS writes direct transforms; CSS eases only the lifted
+         block's scale and translucency. */
       &.dragging {
         z-index: 2;
         cursor: grabbing;
@@ -2317,8 +2340,42 @@
       }
     }
 
+    /* Gesture interpolation is CSS-owned. The held drag omits transform until
+       release; siblings and resize previews transition only owned properties. */
+    :scope {
+      --gesture-duration: 0.18s;
+    }
+
+    :scope .block-item.gesture-preview:not(.dragging) {
+      transition-property: transform, height;
+      transition-duration: var(--gesture-duration), var(--gesture-duration);
+      transition-timing-function: ease, ease;
+      transition-delay: 0s, 0s;
+    }
+
+    :scope .block-item.dragging.gesture-settling {
+      transition-property: transform, opacity, scale;
+      transition-duration:
+        var(--gesture-duration),
+        0.15s,
+        0.15s;
+      transition-timing-function:
+        ease,
+        cubic-bezier(0.23, 1, 0.32, 1),
+        cubic-bezier(0.23, 1, 0.32, 1);
+      transition-delay: 0s, 0s, 0s;
+    }
+
+    :scope .block-item.gesture-flip.gesture-flip {
+      transition-property: opacity, scale;
+    }
+
     @media (prefers-reduced-motion: reduce) {
-      :scope.hydrated .block-item {
+      :scope {
+        --gesture-duration: 0s;
+      }
+
+      :scope.hydrated .block-item:not(.gesture-preview, .gesture-settling) {
         transition-duration: 0.01s;
       }
     }

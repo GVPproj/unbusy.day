@@ -1,11 +1,7 @@
-// Drag + stretch for the guide's demo column (.gc-demo): the real grid's push
-// cascade (push.js) driven pointer-only and committed nowhere — neighbours
-// animate via the CSS translate/height transition on .gc-block, and a gesture
-// settles by rewriting grid-row in place of the transforms (FLIP).
+// Drag + stretch for the Guide demo. JavaScript computes the real push cascade;
+// CSS interpolates targets and the final placement is swapped in as a FLIP.
 import { pushLayout } from "../blocks/push.js";
-
-// Must match the .gc-demo .gc-block transition duration in app.css.
-const SETTLE_MS = 180;
+import { waitForTransitions } from "../transitions.js";
 
 for (const col of document.querySelectorAll(".gc-demo")) initDemo(col);
 
@@ -18,140 +14,151 @@ function initDemo(col) {
   });
   const layoutIn = () => blocksIn().map(placementOf);
   const bounds = { start: 1, end: col.querySelectorAll(".gc-slot").length + 1 };
-  // Measured per gesture: the column sits in a <dialog> and has no box while closed.
+  const dialog = col.closest("dialog");
   const slotPitch = () => {
-    const s = col.querySelectorAll(".gc-slot");
-    return s[1].getBoundingClientRect().top - s[0].getBoundingClientRect().top;
+    const slots = col.querySelectorAll(".gc-slot");
+    return slots[1].getBoundingClientRect().top - slots[0].getBoundingClientRect().top;
   };
 
-  let g = null; // active gesture
+  let gesture = null;
   let settling = false;
+  let generation = 0;
 
   col.addEventListener("pointerdown", (e) => {
-    if (g || settling || e.button !== 0) return;
+    if (gesture || settling || e.button !== 0) return;
     const el = e.target.closest(".gc-block");
     if (!el) return;
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
     const orig = placementOf(el);
     const pitch = slotPitch();
-    g = {
+    gesture = {
       el,
       orig,
       pitch,
       resize: !!e.target.closest(".gc-grip"),
       current: layoutIn(),
       valid: { slot: orig.slot, span: orig.span, layout: layoutIn() },
-      // CSS margin around a block, constant across blocks — preserved so a
-      // resized block keeps the gap a static one has.
       margin: orig.span * pitch - el.getBoundingClientRect().height,
       pointerId: e.pointerId,
       startY: e.clientY,
+      generation: ++generation,
     };
-    // Prime every block with its natural height as explicit px (same pixels,
-    // so nothing moves): a height transition from auto can't interpolate, so
-    // an unprimed block would snap on the gesture's first compression.
-    for (const b of blocksIn()) {
-      b.style.height = placementOf(b).span * pitch - g.margin + "px";
+    for (const block of blocksIn()) {
+      block.style.height = placementOf(block).span * pitch - gesture.margin + "px";
     }
-    el.classList.add(g.resize ? "gc-resizing" : "gc-dragging");
+    el.classList.add(gesture.resize ? "gc-resizing" : "gc-dragging");
   });
 
   col.addEventListener("pointermove", (e) => {
-    if (!g || e.pointerId !== g.pointerId) return;
-    const dy = e.clientY - g.startY;
-    if (g.resize) {
-      previewResize(g.orig.span + Math.round(dy / g.pitch));
+    if (!gesture || e.pointerId !== gesture.pointerId) return;
+    const dy = e.clientY - gesture.startY;
+    if (gesture.resize) {
+      previewResize(gesture.orig.span + Math.round(dy / gesture.pitch));
     } else {
       const y = Math.max(
-        (bounds.start - g.orig.slot) * g.pitch,
-        Math.min((bounds.end - g.orig.span - g.orig.slot) * g.pitch, dy),
+        (bounds.start - gesture.orig.slot) * gesture.pitch,
+        Math.min((bounds.end - gesture.orig.span - gesture.orig.slot) * gesture.pitch, dy),
       );
-      g.el.style.translate = `0 ${y}px`;
-      previewDrag(g.orig.slot + Math.round(y / g.pitch));
+      gesture.el.style.translate = `0 ${y}px`;
+      previewDrag(gesture.orig.slot + Math.round(y / gesture.pitch));
     }
   });
 
   col.addEventListener("pointerup", (e) => settle(e, true));
   col.addEventListener("pointercancel", (e) => settle(e, false));
+  dialog?.addEventListener("close", abort);
 
-  // Keep the last valid layout when the cascade rejects, so invalid drops
-  // snap to legal positions — same contract as gestures/pointer.js.
   function previewDrag(slot) {
-    slot = Math.max(bounds.start, Math.min(bounds.end - g.orig.span, slot));
-    if (slot === g.valid.slot) return;
-    const lay = pushLayout(bounds, g.current, {
-      id: g.orig.id,
+    slot = Math.max(bounds.start, Math.min(bounds.end - gesture.orig.span, slot));
+    if (slot === gesture.valid.slot) return;
+    const layout = pushLayout(bounds, gesture.current, {
+      id: gesture.orig.id,
       slot,
-      span: g.orig.span,
+      span: gesture.orig.span,
     });
-    if (!lay) return;
-    g.valid = { ...g.valid, slot, layout: lay };
-    moveSibs(g, lay);
+    if (!layout) return;
+    gesture.valid = { ...gesture.valid, slot, layout };
+    moveSiblings(gesture, layout);
   }
 
   function previewResize(span) {
-    span = Math.max(1, Math.min(bounds.end - g.orig.slot, span));
-    if (span === g.valid.span) return;
-    const lay = pushLayout(
+    span = Math.max(1, Math.min(bounds.end - gesture.orig.slot, span));
+    if (span === gesture.valid.span) return;
+    const layout = pushLayout(
       bounds,
-      g.current,
-      { id: g.orig.id, slot: g.orig.slot, span },
+      gesture.current,
+      { id: gesture.orig.id, slot: gesture.orig.slot, span },
       { compress: true },
     );
-    if (!lay) return;
-    g.valid = { ...g.valid, span, layout: lay };
-    g.el.style.height = span * g.pitch - g.margin + "px";
-    moveSibs(g, lay);
+    if (!layout) return;
+    gesture.valid = { ...gesture.valid, span, layout };
+    gesture.el.style.height = span * gesture.pitch - gesture.margin + "px";
+    moveSiblings(gesture, layout);
   }
 
-  // Offset every other block toward its previewed placement; the CSS
-  // transition animates the change. Heights are always explicit px — a
-  // transition to "" (auto) snaps, so a compressed block couldn't re-expand
-  // smoothly.
-  function moveSibs(d, lay) {
-    const by = new Map(lay.map((p) => [p.id, p]));
+  function moveSiblings(active, layout) {
+    const byID = new Map(layout.map((placement) => [placement.id, placement]));
     for (const el of blocksIn()) {
-      if (el === d.el) continue;
-      const p = by.get(el.dataset.id);
+      if (el === active.el) continue;
+      const placement = byID.get(el.dataset.id);
       const from = placementOf(el);
-      el.style.translate = `0 ${(p.slot - from.slot) * d.pitch}px`;
-      el.style.height = p.span * d.pitch - d.margin + "px";
+      if (!placement) continue;
+      el.style.translate = `0 ${(placement.slot - from.slot) * active.pitch}px`;
+      el.style.height = placement.span * active.pitch - active.margin + "px";
     }
   }
 
-  function settle(e, commit) {
-    if (!g || e.pointerId !== g.pointerId) return;
-    const d = g;
-    g = null;
+  async function settle(e, commit) {
+    if (!gesture || e.pointerId !== gesture.pointerId) return;
+    if (dialog && !dialog.open) return abort();
+    const active = gesture;
+    gesture = null;
     settling = true;
-    if (!commit) d.valid = { slot: d.orig.slot, span: d.orig.span, layout: d.current };
-    // Re-enable the transition on the grabbed block and glide it to its
-    // settled slot/size; siblings are already heading to d.valid.layout.
-    d.el.classList.remove("gc-dragging", "gc-resizing");
-    d.el.style.translate = `0 ${(d.valid.slot - d.orig.slot) * d.pitch}px`;
-    d.el.style.height = d.valid.span * d.pitch - d.margin + "px";
-    moveSibs(d, d.valid.layout);
-    // Then swap the transforms for real grid placement in one frame — same
-    // pixels, transitions suspended so nothing glides twice.
-    setTimeout(() => {
-      const by = new Map(d.valid.layout.map((p) => [p.id, p]));
-      const els = blocksIn();
-      for (const el of els) {
-        const p = by.get(el.dataset.id);
-        el.style.transition = "none";
-        el.dataset.slot = p.slot;
-        el.dataset.span = p.span;
-        el.style.gridRow = p.slot + " / span " + p.span;
-        el.style.translate = "";
-        el.style.height = "";
-      }
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          for (const el of els) el.style.transition = "";
-          settling = false;
-        }),
-      );
-    }, SETTLE_MS);
+    if (!commit) {
+      active.valid = { slot: active.orig.slot, span: active.orig.span, layout: active.current };
+    }
+    active.el.classList.remove("gc-dragging", "gc-resizing");
+    active.el.style.translate = `0 ${(active.valid.slot - active.orig.slot) * active.pitch}px`;
+    active.el.style.height = active.valid.span * active.pitch - active.margin + "px";
+    moveSiblings(active, active.valid.layout);
+    await waitForTransitions(blocksIn(), ["translate", "height"]);
+    if (active.generation !== generation) return;
+    // Hiding cancels transitions before the dialog's queued close event runs.
+    if (dialog && !dialog.open) return abort();
+    finish(active.valid.layout);
+    settling = false;
+  }
+
+  function abort() {
+    generation++;
+    const active = gesture;
+    gesture = null;
+    if (active) finish(active.current);
+    else clearTransient();
+    settling = false;
+  }
+
+  function finish(layout) {
+    const byID = new Map(layout.map((placement) => [placement.id, placement]));
+    const elements = blocksIn().filter((el) => byID.has(el.dataset.id));
+    for (const el of elements) {
+      const placement = byID.get(el.dataset.id);
+      el.dataset.slot = placement.slot;
+      el.dataset.span = placement.span;
+      el.style.gridRow = placement.slot + " / span " + placement.span;
+    }
+    clearTransient(elements);
+  }
+
+  function clearTransient(elements = blocksIn()) {
+    for (const el of elements) {
+      el.classList.add("gc-flip");
+      el.style.translate = "";
+      el.style.height = "";
+      el.classList.remove("gc-dragging", "gc-resizing");
+    }
+    void col.offsetHeight;
+    for (const el of elements) el.classList.remove("gc-flip");
   }
 }

@@ -42,7 +42,7 @@ Key invariant: **page render and patch render share one templ component** (`comp
 ## Frontend gotchas (Datastar / templ)
 
 - Datastar **keyed** attributes use a **colon** between plugin and key (`data-on:layout`, `data-signals:layout`). The dash form is silently skipped — no error.
-- Drag/stretch lives behind the `initBlockGestures(list, announce)` seam in `frontend/static/js/blocks/gestures.js`, implemented across sibling modules. Motion is pinned via a CDN import in `js/blocks/pointer.js`; it transforms the real `<li>`, previews the client-computed push cascade (`push.js`, ADR 0005), settles as a FLIP, then commits through `commit.js`, which dispatches one `layout` event carrying the full layout. Listeners are delegated to `#block-list` so wiring survives morphs; block state is persisted in `data-span`/`data-slot` attributes so server render and client gesture agree.
+- Drag/stretch lives behind the `initBlockGestures(list, announce)` seam in `frontend/static/js/blocks/gestures.js`, implemented across sibling modules. `js/blocks/pointer.js` transforms the real `<li>` and previews the client-computed push cascade (`push.js`, ADR 0005); CSS interpolates transient targets, then the pointer path settles as a FLIP and commits through `commit.js`, which dispatches one `layout` event carrying the full layout. Listeners are delegated to `#block-list` so wiring survives morphs; block state is persisted in `data-span`/`data-slot` attributes so server render and client gesture agree.
 - `/_smoke` + `/_smoke/events` are a wiring canary for the pinned Datastar SDK + templ versions — keep them working when bumping those deps.
 
 ## Theming & HTML practices
@@ -61,7 +61,7 @@ Key invariant: **page render and patch render share one templ component** (`comp
 ## Conventions & deploy
 
 - Open an issue before non-trivial work.
-- **Tool versions have one source each**: templ in `go.mod` (CLI installed via `go list -m`), Datastar and Motion as exact CDN tags in their call sites, and CodeMirror's direct upgrade inputs in `internal/frontend/vendorcodemirror/main.go`. Its generated manifest records the complete deployed graph; `task check:versions` reads that lock state to flag deployed version drift. For CodeMirror upgrades, read `docs/agents/codemirror.md`.
+- **Tool versions have one source each**: templ in `go.mod` (CLI installed via `go list -m`), Datastar as an exact CDN tag in its call sites, and CodeMirror's direct upgrade inputs in `internal/frontend/vendorcodemirror/main.go`. Its generated manifest records the complete deployed graph; `task check:versions` reads that lock state to flag deployed version drift. For CodeMirror upgrades, read `docs/agents/codemirror.md`.
 - `DATABASE_URL` is a SQLite DSN in `.env` — copy `.env.example`.
 - Deploy is Fly via **`fly.app.toml`**: `flyctl deploy --config fly.app.toml`; CI auto-deploys on push to `main`. Production data is a SQLite file on a Fly volume backed up by scheduled volume snapshots. The app runs **exactly one always-on machine** — never scale to >1 or enable auto-stop (in-process pub/sub, single-writer SQLite).
 - `/healthz` is an in-process 200 only — a liveness probe, never a DB readiness check.

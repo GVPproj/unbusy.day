@@ -1,12 +1,5 @@
-// Swipe stepping for the guide's panes. On touch, app.css lays .guide-body out
-// as a scroll-snap carousel; this keeps the scroll offset and $_guidestep in
-// sync both ways — a settled swipe dispatches `guidestep`, and a step change
-// from anywhere else is seen through the .showing class Datastar toggles.
-// On pointer:fine the body never scrolls, so stride() is 0 and both no-op.
-const behavior = matchMedia("(prefers-reduced-motion: reduce)").matches
-  ? "instant"
-  : "smooth";
-
+// Sync settled guide swipes with Datastar's .showing pane via `guidestep`.
+// CSS owns the touch carousel and smooth versus reduced-motion scrolling.
 for (const body of document.querySelectorAll(".guide-body")) initSwipe(body);
 
 function initSwipe(body) {
@@ -40,7 +33,7 @@ function initSwipe(body) {
     body.dispatchEvent(new CustomEvent("guidestep", { detail: { step: i } }));
   }
 
-  const classes = new MutationObserver(() => scrollToShowing(behavior));
+  const classes = new MutationObserver(() => scrollToShowing());
   for (const p of panes) {
     classes.observe(p, { attributes: true, attributeFilter: ["class"] });
   }
@@ -52,13 +45,13 @@ function initSwipe(body) {
     { attributes: true, attributeFilter: ["open"] },
   );
 
-  function scrollToShowing(how) {
+  function scrollToShowing(behavior) {
     const i = showing();
     if (i < 0) return;
     step = i + 1;
     const left = i * stride();
     // Already there — this is the swipe's own round trip back through Datastar.
     if (Math.abs(body.scrollLeft - left) < 2) return;
-    body.scrollTo({ left, behavior: how });
+    body.scrollTo(behavior ? { left, behavior } : { left });
   }
 }

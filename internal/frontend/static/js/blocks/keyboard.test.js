@@ -1,8 +1,5 @@
-// Contract test for the cross-gesture arbitration seam: each path's init must
-// return a live { isActive, cancel } handle, or every arbitration guard silently
-// no-ops (the UNB-26 regression). Only the keyboard path is reachable here —
-// pointer.js imports Motion over https, which node can't resolve, so its
-// contract stays covered by /verify. Run: node --test internal/frontend/jstest
+// Guard against UNB-26: keyboard init must return a live { isActive, cancel }
+// handle so cross-gesture arbitration cannot silently no-op.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { init } from "./keyboard.js";
