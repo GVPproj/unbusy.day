@@ -68,23 +68,28 @@ templ GuideModal() {
 					</span>
 				}
 			</div>
-			// Pane 4 can't open the Theme dialog (app-only chrome; the guide
-			// also mounts on the login page), but the layout's $_colorscheme
-			// and $_feeling signals exist on both pages, so these miniatures —
-			// built from theme.templ's shared consts — are live pickers.
+			// Pane 4 can't open the Theme dialog because the guide also mounts
+			// on login. Its radio groups bind the same layout theme signals.
 			<div class="guide-pane" data-class:showing="$_guidestep === 4" data-attr:inert="$_guidestep !== 4">
 				<p>Make the app yours: <strong>Theme</strong> in the menu picks the colours — each family in <strong>Light</strong> or <strong>Dark</strong>…</p>
-				<div class="guide-figure guide-swatches">
+				<fieldset class="guide-figure guide-swatches">
+					<legend class="sr-only">Colours</legend>
 					@guideSwatch("catppuccin", "Catppuccin", swatchCatppuccin)
 					@guideSwatch("solarized", "Solarized", swatchSolarized)
 					@guideSwatch("nord", "Nord", swatchNord)
-				</div>
+				</fieldset>
+				<fieldset class="guide-figure guide-modes">
+					<legend class="sr-only">Light / Dark</legend>
+					@guideMode("light", "Light", swatchLight)
+					@guideMode("dark", "Dark", swatchDark)
+				</fieldset>
 				<p>…and the <strong>feeling</strong>: font and icon set swap together.</p>
-				<div class="guide-figure guide-feelings">
+				<fieldset class="guide-figure guide-feelings">
+					<legend class="sr-only">Feeling</legend>
 					@guideFeeling("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
 					@guideFeeling("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 					@guideFeeling("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
-				</div>
+				</fieldset>
 				<p>Every action has a key, too — press <kbd>?</kbd> to see the <strong>shortcuts</strong> reference.</p>
 				<p>Beside the plan sits the <strong>Jotpad</strong>: a scratchpad for everything that isn't a block. It keeps what you type and never resets — on a narrow screen, reach it from the menu.</p>
 			</div>
@@ -143,30 +148,49 @@ templ gcHandle() {
 	</span>
 }
 
-// guideSwatch is a live miniature of themeOption: a bare swatch button that
-// writes $_colorscheme. The gradient carries no name, so label becomes the
-// accessible name.
+// guideSwatch is a compact radio sharing the colourscheme signal with the
+// Theme dialog while keeping its own native arrow-key group.
 templ guideSwatch(id string, label string, swatch string) {
-	<button
-		style={ "background: " + swatch }
-		aria-label={ label }
-		data-class:active={ "$_colorscheme === '" + id + "'" }
-		data-on:click={ "$_colorscheme = '" + id + "'" }
-	></button>
+	<label style={ "background: " + swatch }>
+		<input
+			type="radio"
+			name="guide-colourscheme"
+			data-bind:_colorscheme
+			value={ id }
+			class="sr-only"
+		/>
+		<span class="sr-only">{ label }</span>
+	</label>
 }
 
-// guideFeeling is a live miniature of feelingOption, previewing the feeling's
-// glyph and font while writing $_feeling. family must be UNQUOTED (see
-// feelingOption).
+// guideMode is the Guide's independent native group for the mode signal.
+templ guideMode(id string, label string, swatch string) {
+	<label>
+		<input
+			type="radio"
+			name="guide-colormode"
+			data-bind:_colormode
+			value={ id }
+			class="sr-only"
+		/>
+		<span class="swatch" style={ "background: " + swatch }></span>
+		{ label }
+	</label>
+}
+
+// guideFeeling is a compact radio previewing the feeling's glyph and font.
 templ guideFeeling(id string, label string, family string, pixel bool, preview templ.Component) {
-	<button
-		style={ "font-family: " + family }
-		data-class:active={ "$_feeling === '" + id + "'" }
-		data-on:click={ "$_feeling = '" + id + "'" }
-	>
+	<label style={ "font-family: " + family }>
+		<input
+			type="radio"
+			name="guide-feeling"
+			data-bind:_feeling
+			value={ id }
+			class="sr-only"
+		/>
 		<span class={ "feeling-preview", templ.KV("pixelated", pixel) }>
 			@preview
 		</span>
 		{ label }
-	</button>
+	</label>
 }

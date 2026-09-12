@@ -653,11 +653,12 @@
     }
   }
 
-  /* Picker row (theme/feeling options): full-width bordered button with
-	   an .active ring toggled by data-class:active. */
+  /* Picker row (theme/feeling options): a full-width radio label whose
+     selected and keyboard-focus states are owned by CSS. */
   .option-row {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 0.6rem;
     width: 100%;
     padding: 0.5rem 0.6rem;
@@ -676,9 +677,14 @@
       background: color-mix(in srgb, var(--hover-shift) 10%, transparent);
     }
 
-    &.active {
+    &:has(input:checked) {
       border-color: var(--accent);
       outline: 1px solid var(--accent);
+    }
+
+    &:has(input:focus-visible) {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
   }
 
@@ -1053,7 +1059,19 @@
       padding-block: 0.4rem;
     }
 
-    /* theme.templ: colorscheme swatch + feeling preview inside .option-row */
+    /* theme.templ: one stacked native radio group per theme axis. */
+    .theme-options {
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .theme-options legend {
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
     .option-row .swatch {
       width: 1.4rem;
       height: 1.4rem;
@@ -1441,33 +1459,37 @@
       }
     }
 
-    /* pane 4 figures: live miniatures of the theme picker — the scheme
-		   swatches, then a chip per feeling previewing its font + glyph (both
-		   built from theme.templ's shared consts). Live buttons writing the
-		   layout signals; .active mirrors .option-row's accent ring. */
+    /* pane 4 figures: compact native radio groups bound to the same theme
+       signals as the full picker. */
     .guide-swatches {
       display: flex;
       gap: 0.6rem;
 
-      button {
+      > label {
         flex: 1;
         height: 2.25rem;
         border-radius: var(--radius);
         box-shadow: inset 0 0 0 1px var(--rail-border);
         cursor: pointer;
 
-        &.active {
+        &:has(input:checked) {
           box-shadow: inset 0 0 0 1px var(--accent);
           outline: 1px solid var(--accent);
+        }
+
+        &:has(input:focus-visible) {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
       }
     }
 
-    .guide-feelings {
+    .guide-feelings,
+    .guide-modes {
       display: flex;
       gap: 0.6rem;
 
-      > button {
+      > label {
         display: flex;
         flex: 1;
         align-items: center;
@@ -1478,11 +1500,24 @@
         border-radius: var(--radius);
         cursor: pointer;
 
-        &.active {
+        &:has(input:checked) {
           border-color: var(--accent);
           outline: 1px solid var(--accent);
         }
+
+        &:has(input:focus-visible) {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
       }
+    }
+
+    .guide-modes .swatch {
+      width: 1.25rem;
+      height: 1.25rem;
+      flex-shrink: 0;
+      border: 1px solid var(--rail-border);
+      border-radius: 50%;
     }
 
     /* footer: dots pinned left, Back/Next right (overrides the flex-end

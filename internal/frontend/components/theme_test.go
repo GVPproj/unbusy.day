@@ -1,7 +1,5 @@
-// Render tests pinning the theme picker's feeling options and the colourscheme
-// family + Light/Dark mode axis. The live font/icon swap and the live colormode
-// swap are Datastar mirroring signals into data-* attributes and are verified
-// manually.
+// Render tests pinning the theme picker's native radio groups and the
+// colourscheme family + Light/Dark mode axis.
 package components_test
 
 import (
@@ -9,17 +7,55 @@ import (
 	"testing"
 )
 
+// Every rendered picker is an independent native group. The dialog and Guide
+// bind those groups to the same signals without merging their arrow-key scope.
+func TestThemePickersRenderIndependentBoundRadioGroups(t *testing.T) {
+	body := renderPage(t, threeBlocks(), testBounds)
+
+	groups := map[string]int{
+		"theme-feeling":      3,
+		"theme-colourscheme": 3,
+		"theme-colormode":    2,
+		"guide-colourscheme": 3,
+		"guide-colormode":    2,
+		"guide-feeling":      3,
+	}
+	for name, want := range groups {
+		if got := strings.Count(body, `type="radio" name="`+name+`"`); got != want {
+			t.Errorf("radio group %q has %d options, want %d", name, got, want)
+		}
+	}
+	for signal, want := range map[string]int{
+		"_colorscheme": 6,
+		"_colormode":    4,
+		"_feeling":      6,
+	} {
+		if got := strings.Count(body, `data-bind:`+signal); got != want {
+			t.Errorf("signal %q has %d bound radios, want %d", signal, got, want)
+		}
+	}
+	for _, gone := range []string{
+		`data-on:click="$_colorscheme =`,
+		`data-on:click="$_colormode =`,
+		`data-on:click="$_feeling =`,
+		`data-class:active="$_colorscheme`,
+		`data-class:active="$_colormode`,
+		`data-class:active="$_feeling`,
+	} {
+		if strings.Contains(body, gone) {
+			t.Errorf("page retains manual selection plumbing %q", gone)
+		}
+	}
+}
+
 // The feeling picker offers "Mono" — the JetBrains-Mono + Octicons feeling —
-// which writes the 'mono' token, and the retired "business" token appears nowhere
-// in the rendered page (picker, guide preview, or data-feeling bindings).
+// and the retired "business" token appears nowhere in the rendered page.
 func TestThemePickerOffersMonoFeeling(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
-	// templ HTML-escapes the single quotes in the Datastar expressions to &#39;.
 	for _, want := range []string{
-		`data-on:click="$_feeling = &#39;mono&#39;"`,
-		`data-class:active="$_feeling === &#39;mono&#39;"`,
-		`Mono</button>`,
+		`data-bind:_feeling value="mono"`,
+		`Mono</label>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page missing Mono feeling %q; body:\n%s", want, body)
@@ -60,17 +96,16 @@ func TestThemePickerOffersSolarizedFamily(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
 	for _, want := range []string{
-		`data-on:click="$_colorscheme = &#39;solarized&#39;"`,
-		`data-class:active="$_colorscheme === &#39;solarized&#39;"`,
-		`Solarized</button>`,
+		`data-bind:_colorscheme value="solarized"`,
+		`Solarized</label>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page missing Solarized family %q; body:\n%s", want, body)
 		}
 	}
 	for _, gone := range []string{
-		`$_colorscheme = &#39;solarized-light&#39;`,
-		`$_colorscheme = &#39;solarized-osaka&#39;`,
+		`value="solarized-light"`,
+		`value="solarized-osaka"`,
 	} {
 		if strings.Contains(body, gone) {
 			t.Errorf("page still references legacy %q colorscheme token; body:\n%s", gone, body)
@@ -85,18 +120,13 @@ func TestThemePickerOffersFamiliesOnly(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
 	for _, family := range []string{"solarized", "nord", "catppuccin"} {
-		for _, want := range []string{
-			`data-on:click="$_colorscheme = &#39;` + family + `&#39;"`,
-			`data-class:active="$_colorscheme === &#39;` + family + `&#39;"`,
-		} {
-			if !strings.Contains(body, want) {
-				t.Errorf("page missing %s family binding %q", family, want)
-			}
+		if want := `data-bind:_colorscheme value="` + family + `"`; !strings.Contains(body, want) {
+			t.Errorf("page missing %s family binding %q", family, want)
 		}
 	}
 	for _, gone := range []string{"catppuccin-mocha", "rose-pine-dawn", "rose-pine"} {
-		if strings.Contains(body, `$_colorscheme = &#39;`+gone+`&#39;`) {
-			t.Errorf("page still writes legacy %q colorscheme token", gone)
+		if strings.Contains(body, `value="`+gone+`"`) {
+			t.Errorf("page still offers legacy %q colorscheme token", gone)
 		}
 	}
 	for _, want := range []string{
@@ -116,12 +146,10 @@ func TestThemePickerOffersLightDarkModeToggle(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
 	for _, want := range []string{
-		`data-on:click="$_colormode = &#39;light&#39;"`,
-		`data-on:click="$_colormode = &#39;dark&#39;"`,
-		`data-class:active="$_colormode === &#39;light&#39;"`,
-		`data-class:active="$_colormode === &#39;dark&#39;"`,
-		`Light</button>`,
-		`Dark</button>`,
+		`data-bind:_colormode value="light"`,
+		`data-bind:_colormode value="dark"`,
+		`Light</label>`,
+		`Dark</label>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page missing Light/Dark mode toggle %q; body:\n%s", want, body)

@@ -155,10 +155,10 @@ for (const mobile of [false, true]) {
 			for (const [feeling, icon] of [["cozy", "solar"], ["pixel", "pixel"], ["mono", "mono"]]) {
 				const theme = page.locator("#theme-modal");
 				await theme.evaluate((el) => el.showModal());
-				await theme.getByRole("button", { name: new RegExp(`^${feeling}$`, "i") }).click();
+				await theme.locator(`label:has(input[value="${feeling}"])`).click();
 				if (feeling === "pixel") {
-					await theme.getByRole("button", { name: "Nord", exact: true }).click();
-					await theme.getByRole("button", { name: "Dark", exact: true }).click();
+					await theme.locator('label:has(input[value="nord"])').click();
+					await theme.locator('label:has(input[value="dark"])').click();
 				}
 				await theme.getByRole("button", { name: "Done", exact: true }).click();
 				await page.evaluate(() => document.fonts.ready);
@@ -803,7 +803,7 @@ for (const width of [1440, 390]) {
 		await expect.poll(positions).toEqual(before);
 		for (const control of await controls.all()) await expect(control).toBeInViewport({ ratio: 1 });
 		for (const [feeling, icon] of [["cozy", "solar"], ["pixel", "pixel"], ["mono", "mono"]]) {
-			await page.locator("#theme-modal").getByRole("button", { name: new RegExp(`^${feeling}$`, "i"), includeHidden: true }).evaluate((button) => button.click());
+			await page.locator("#theme-modal").getByRole("radio", { name: new RegExp(`^${feeling}$`, "i"), includeHidden: true }).evaluate((radio) => radio.click());
 			await expect(page.locator("html")).toHaveAttribute("data-feeling", feeling);
 			for (const id of ["habit-previous-month", "habit-next-month"]) {
 				const button = page.locator(`#${id}`);

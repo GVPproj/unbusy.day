@@ -30,52 +30,55 @@ const (
 
 // themeOption is one row in the picker; swatch shows the theme's bg/column split.
 templ themeOption(id string, label string, swatch string) {
-	<button
-		class="option-row"
-		data-class:active={ "$_colorscheme === '" + id + "'" }
-		data-on:click={ "$_colorscheme = '" + id + "'" }
-	>
+	<label class="option-row">
+		<input
+			type="radio"
+			name="theme-colourscheme"
+			data-bind:_colorscheme
+			value={ id }
+			class="sr-only"
+		/>
 		<span class="swatch" style={ "background: " + swatch }></span>
 		{ label }
-	</button>
+	</label>
 }
 
-// modeOption is one row in the Light/Dark toggle: the mode axis applies to
+// modeOption is one row in the Light/Dark group: the mode axis applies to
 // whichever colourscheme family is active, so its swatch is neutral.
 templ modeOption(id string, label string, swatch string) {
-	<button
-		class="option-row"
-		data-class:active={ "$_colormode === '" + id + "'" }
-		data-on:click={ "$_colormode = '" + id + "'" }
-	>
+	<label class="option-row">
+		<input
+			type="radio"
+			name="theme-colormode"
+			data-bind:_colormode
+			value={ id }
+			class="sr-only"
+		/>
 		<span class="swatch" style={ "background: " + swatch }></span>
 		{ label }
-	</button>
+	</label>
 }
 
-// feelingOption is one row in the feeling picker: previews both axes by showing
-// the icon set's glyph and the label in the feeling's font. Writes $_feeling;
-// pixel adds the pixelated rendering hint for the 8-bit set.
-//
-// family must be UNQUOTED: templ double-escapes quotes in a dynamic style attr,
-// which kills the declaration and falls back to the default font.
+// feelingOption previews the icon and font together. family must be unquoted:
+// templ double-escapes quotes in a dynamic style attribute.
 templ feelingOption(id string, label string, family string, pixel bool, preview templ.Component) {
-	<button
-		class="option-row"
-		data-class:active={ "$_feeling === '" + id + "'" }
-		data-on:click={ "$_feeling = '" + id + "'" }
-		style={ "font-family: " + family }
-	>
+	<label class="option-row" style={ "font-family: " + family }>
+		<input
+			type="radio"
+			name="theme-feeling"
+			data-bind:_feeling
+			value={ id }
+			class="sr-only"
+		/>
 		<span class={ "feeling-preview", templ.KV("pixelated", pixel) }>
 			@preview
 		</span>
 		{ label }
-	</button>
+	</label>
 }
 
-// ThemeModal's two sections write $_colorscheme and $_feeling, which the layout
-// <html> mirrors into data-colorscheme/data-feeling (and localStorage), so both
-// swaps are live without closing.
+// The groups bind the layout's theme signals, so changes apply and persist
+// without closing the dialog.
 templ ThemeModal() {
 	<dialog
 		id="theme-modal"
@@ -84,17 +87,23 @@ templ ThemeModal() {
 		aria-labelledby="theme-modal-title"
 	>
 		<h2 id="theme-modal-title">Theme</h2>
-		<h3>Feeling</h3>
-		@feelingOption("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
-		@feelingOption("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
-		@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
-		<h3>Colours</h3>
-		@themeOption("catppuccin", "Catppuccin", swatchCatppuccin)
-		@themeOption("solarized", "Solarized", swatchSolarized)
-		@themeOption("nord", "Nord", swatchNord)
-		<h3>Light / Dark</h3>
-		@modeOption("light", "Light", swatchLight)
-		@modeOption("dark", "Dark", swatchDark)
+		<fieldset class="theme-options">
+			<legend>Feeling</legend>
+			@feelingOption("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
+			@feelingOption("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
+			@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
+		</fieldset>
+		<fieldset class="theme-options">
+			<legend>Colours</legend>
+			@themeOption("catppuccin", "Catppuccin", swatchCatppuccin)
+			@themeOption("solarized", "Solarized", swatchSolarized)
+			@themeOption("nord", "Nord", swatchNord)
+		</fieldset>
+		<fieldset class="theme-options">
+			<legend>Light / Dark</legend>
+			@modeOption("light", "Light", swatchLight)
+			@modeOption("dark", "Dark", swatchDark)
+		</fieldset>
 		<footer>
 			<button class="btn" commandfor="theme-modal" command="close">Done</button>
 		</footer>
