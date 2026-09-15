@@ -1,18 +1,20 @@
 package habit
 
 import (
+	"strings"
 	"time"
 	_ "time/tzdata" // Production's scratch image has no system zoneinfo.
 )
 
 type Week struct {
-	Today    string
-	Key      string
-	Label    string
-	Dates    []string
-	Previous string
-	Next     string
-	Current  bool
+	Today      string
+	Key        string
+	Label      string
+	ShortLabel string
+	Dates      []string
+	Previous   string
+	Next       string
+	Current    bool
 }
 
 // CurrentWeek returns the Sunday-to-Saturday week in the browser's timezone.
@@ -68,12 +70,13 @@ func calendarWeek(local time.Time, key string) Week {
 	last := first.AddDate(0, 0, 6)
 	currentKey := WeekKey(local)
 	week := Week{
-		Today:    local.Format(time.DateOnly),
-		Key:      key,
-		Label:    weekLabel(first, last),
-		Dates:    make([]string, 0, 7),
-		Previous: first.AddDate(0, 0, -7).Format(time.DateOnly),
-		Current:  key == currentKey,
+		Today:      local.Format(time.DateOnly),
+		Key:        key,
+		Label:      weekLabel(first, last, "January", ", 2006"),
+		ShortLabel: strings.ReplaceAll(weekLabel(first, last, "Jan", " '06"), "Sep ", "Sept "),
+		Dates:      make([]string, 0, 7),
+		Previous:   first.AddDate(0, 0, -7).Format(time.DateOnly),
+		Current:    key == currentKey,
 	}
 	if !week.Current {
 		week.Next = first.AddDate(0, 0, 7).Format(time.DateOnly)
@@ -84,12 +87,14 @@ func calendarWeek(local time.Time, key string) Week {
 	return week
 }
 
-func weekLabel(first, last time.Time) string {
+func weekLabel(first, last time.Time, monthLayout, yearLayout string) string {
+	monthDay := monthLayout + " 2"
+	fullDate := monthDay + yearLayout
 	if first.Year() != last.Year() {
-		return first.Format("January 2, 2006") + "–" + last.Format("January 2, 2006")
+		return first.Format(fullDate) + "–" + last.Format(fullDate)
 	}
 	if first.Month() != last.Month() {
-		return first.Format("January 2") + "–" + last.Format("January 2, 2006")
+		return first.Format(monthDay) + "–" + last.Format(fullDate)
 	}
-	return first.Format("January 2") + "–" + last.Format("2, 2006")
+	return first.Format(monthDay) + "–" + last.Format("2"+yearLayout)
 }

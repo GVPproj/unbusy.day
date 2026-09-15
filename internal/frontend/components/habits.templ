@@ -3,7 +3,6 @@ package components
 import (
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/habit"
@@ -12,24 +11,6 @@ import (
 func checkInAction(habitID int64, date string) string {
 	request := "$habitcheckinattempt++; el.dataset.attempt = $habitcheckinattempt; $habitid = " + strconv.FormatInt(habitID, 10) + "; $habitdate = '" + date + "'; $habitchecked = el.dataset.desired === 'true'; @post('/habits/check-in', {retry: 'never', retryMaxCount: 0, requestCancellation: 'disabled', filterSignals: {include: /^(habitid|habitdate|habitchecked|habitcheckinattempt|habitrefresh|habitview|timezone)$/}})"
 	return "if (el.getAttribute('aria-busy') !== 'true') { " + request + " }"
-}
-
-func shortHabitWeek(key string) string {
-	first, err := time.Parse(time.DateOnly, key)
-	if err != nil {
-		return key
-	}
-	last := first.AddDate(0, 0, 6)
-	short := func(date time.Time, layout string) string {
-		return strings.Replace(date.Format(layout), "Sep ", "Sept ", 1)
-	}
-	if first.Year() != last.Year() {
-		return short(first, "Jan 2 '06") + "–" + short(last, "Jan 2 '06")
-	}
-	if first.Month() != last.Month() {
-		return short(first, "Jan 2") + "–" + short(last, "Jan 2 '06")
-	}
-	return short(first, "Jan 2") + "–" + short(last, "2 '06")
 }
 
 func habitWeekday(date string) string {
@@ -81,7 +62,7 @@ templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
 			<p>Loading your current week…</p>
 		} else {
 			<nav class="week-nav" aria-label="Habit week">
-				<h2 aria-live="polite"><time datetime={ week.Key } aria-label={ week.Label }>{ shortHabitWeek(week.Key) }</time></h2>
+				<h2 aria-live="polite"><time datetime={ week.Key } aria-label={ week.Label }>{ week.ShortLabel }</time></h2>
 				<button id="habit-previous-week" class="btn" type="button" data-on:click={ selectHabitWeek(week.Previous) } aria-label={ "Previous week, " + week.Previous }>
 					@IconChevronLeft()
 				</button>

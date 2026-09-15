@@ -68,7 +68,7 @@ func (s *Service) WeekSnapshot(ctx context.Context, owner, timezone, key string)
 	if err != nil {
 		return nil, err
 	}
-	habits, err := listDates(ctx, s.db, owner, week.Dates)
+	habits, err := listHabitsInRange(ctx, s.db, owner, week.Dates[0], week.Dates[len(week.Dates)-1])
 	if err != nil {
 		return nil, err
 	}
@@ -88,8 +88,7 @@ func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
 	return scanHabits(rows)
 }
 
-func listDates(ctx context.Context, db *sql.DB, owner string, dates []string) ([]Habit, error) {
-	first, last := dates[0], dates[len(dates)-1]
+func listHabitsInRange(ctx context.Context, db *sql.DB, owner, first, last string) ([]Habit, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT h.id, h.name, h.start_date, c.date
 		FROM habit h
