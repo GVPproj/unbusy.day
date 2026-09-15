@@ -7,7 +7,7 @@ function fixture() {
   const listeners = new Map();
   const reads = [];
   let sequence = 0;
-  const grid = { dataset: { read: "0", view: "0", month: "2026-01" } };
+  const grid = { dataset: { read: "0", view: "0", week: "2025-12-28" } };
   const status = { dataset: {}, textContent: "" };
   const shared = { dataset: { state: "saved" }, textContent: "Saved" };
   const elements = new Map([
@@ -112,7 +112,7 @@ test("a failed read remains recoverable while the receipt stream is still open",
   assert.equal(f.button.hasAttribute("aria-busy"), false);
 });
 
-test("a post-commit month read settles a check-in superseded by another device", () => {
+test("a post-commit week read settles a check-in superseded by another device", () => {
   const f = fixture();
   f.fetch("started");
   f.ack();
@@ -125,7 +125,7 @@ test("a post-commit month read settles a check-in superseded by another device",
   assertState(f, "saved");
 });
 
-test("a month morph cannot lose the submitting fetch before finished", () => {
+test("a week morph cannot lose the submitting fetch before finished", () => {
   const f = fixture();
   f.fetch("started");
   f.ack();
@@ -234,7 +234,7 @@ test("another cell's rejection cannot settle a committed check-in", () => {
 });
 
 for (const failure of ["error", "retries-failed"]) {
-  test(`post-commit month ${failure} releases busy and reconnect reconciles the last committed value`, () => {
+  test(`post-commit week ${failure} releases busy and reconnect reconciles the last committed value`, () => {
     const f = fixture();
     f.fetch("started");
     f.ack();
@@ -253,7 +253,7 @@ for (const failure of ["error", "retries-failed"]) {
   });
 }
 
-test("a completed month read without an authoritative patch releases busy for retry", () => {
+test("a completed week read without an authoritative patch releases busy for retry", () => {
   const f = fixture();
   const matrix = f.elements.get("habit-matrix");
   f.fetch("started");
@@ -547,20 +547,20 @@ test("unknown retry intent survives navigating away and returning to the date", 
   assert.equal(returned.dataset.desired, "true");
 });
 
-test("a response from a month that was left does not alter the new month", () => {
+test("a response from a week that was left does not alter the new week", () => {
   const f = fixture();
   f.fetch("started");
   f.button.isConnected = false;
   f.elements.delete(f.button.id);
-  f.status.textContent = "Current month status";
+  f.status.textContent = "Current week status";
   f.reconcile();
   assertState(f, "saving");
   f.fetch("finished");
-  assert.equal(f.status.textContent, "Current month status");
+  assert.equal(f.status.textContent, "Current week status");
   assertState(f, "saved");
 });
 
-test("a failed response from an abandoned month cannot pin shared failure", () => {
+test("a failed response from an abandoned week cannot pin shared failure", () => {
   const f = fixture();
   f.fetch("started");
   f.button.isConnected = false;

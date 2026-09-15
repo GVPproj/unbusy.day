@@ -26,56 +26,62 @@ for (const width of [1440, 390]) {
     await openMatrix(context, page);
     const position = await page.evaluate(async () => {
       const scroll = document.getElementById("habit-scroll");
-      scroll.scrollLeft = 160;
+      const target = Math.min(160, scroll.scrollWidth - scroll.clientWidth);
+      scroll.scrollLeft = target;
       scroll.dispatchEvent(new Event("scroll", { bubbles: true }));
       // Deliver a live attribute update before the scroll handler's next frame.
       document.querySelector("[data-checkin-action]").setAttribute("aria-busy", "true");
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      return scroll.scrollLeft;
+      return { left: scroll.scrollLeft, target };
     });
-    expect(position).toBe(160);
+    expect(position.left).toBe(position.target);
 
     const restored = await page.evaluate(async () => {
       const scroll = document.getElementById("habit-scroll");
-      scroll.scrollLeft = 240;
+      const target = Math.min(240, scroll.scrollWidth - scroll.clientWidth);
+      scroll.scrollLeft = target;
       scroll.dispatchEvent(new Event("scroll", { bubbles: true }));
       // Replacement models the browser's lost scroll state during an authoritative morph.
       scroll.replaceWith(scroll.cloneNode(true));
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      return document.getElementById("habit-scroll").scrollLeft;
+      return { left: document.getElementById("habit-scroll").scrollLeft, target };
     });
-    expect(restored).toBe(240);
+    expect(restored.left).toBe(restored.target);
     const newer = await page.evaluate(async () => {
       const old = document.getElementById("habit-scroll");
       const replacement = old.cloneNode(true);
       old.replaceWith(replacement);
-      replacement.scrollLeft = 320;
+      const target = Math.min(320, replacement.scrollWidth - replacement.clientWidth);
+      replacement.scrollLeft = target;
       replacement.dispatchEvent(new Event("scroll", { bubbles: true }));
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      return replacement.scrollLeft;
+      return { left: replacement.scrollLeft, target };
     });
-    expect(newer).toBe(320);
+    expect(newer.left).toBe(newer.target);
   });
 
-  test(`keyboard scroll and focus survive an authoritative month update at ${width}px`, async ({ context, page }) => {
+  test(`keyboard focus survives an authoritative week update at ${width}px`, async ({ context, page }) => {
     await page.setViewportSize({ width, height: 900 });
     await openMatrix(context, page);
     const heading = page.locator("#habit-grid time").first();
     const current = await heading.getAttribute("datetime");
-    await page.getByRole("button", { name: /Previous month/ }).click();
+    await page.getByRole("button", { name: /Previous week/ }).click();
     await expect(heading).not.toHaveAttribute("datetime", current);
-    const month = await heading.getAttribute("datetime");
-    const twentieth = page.getByRole("button", { name: `Read on ${month}-20`, exact: true });
-    await twentieth.focus();
+    const week = await heading.getAttribute("datetime");
+    const dates = [3, 4].map((offset) => {
+      const date = new Date(`${week}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + offset);
+      return date.toISOString().slice(0, 10);
+    });
+    await page.getByRole("button", { name: `Read on ${dates[0]}`, exact: true }).focus();
     await page.keyboard.press("Tab");
-    const focused = page.getByRole("button", { name: `Read on ${month}-21`, exact: true });
+    const focused = page.getByRole("button", { name: `Read on ${dates[1]}`, exact: true });
     await expect(focused).toBeFocused();
     const scroll = page.locator("#habit-scroll");
-    await expect.poll(() => scroll.evaluate((el) => el.scrollLeft)).toBeGreaterThan(240);
     const position = await scroll.evaluate((el) => el.scrollLeft);
     const id = Number((await focused.getAttribute("id")).split("-")[1]);
     const response = await context.request.post(`${baseURL}/habits/check-in`, {
-      data: { habitid: id, habitdate: `${month}-21`, habitchecked: true, timezone: "UTC" },
+      data: { habitid: id, habitdate: dates[1], habitchecked: true, timezone: "UTC" },
     });
     expect(response.ok()).toBe(true);
     await expect(focused).toHaveAttribute("aria-pressed", "true");

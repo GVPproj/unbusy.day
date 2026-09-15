@@ -34,7 +34,7 @@ for (const superseded of [false, true]) {
       await receipt.promise;
       await route.fulfill({ response });
     });
-    await page.route("**/habits/month?*", async (route) => {
+    await page.route("**/habits/week?*", async (route) => {
       const signals = JSON.parse(new URL(route.request().url()).searchParams.get("datastar"));
       if (signals.habitread === 1) {
         await route.fulfill({ contentType: "text/event-stream", body: ": truncated\n\n" });
@@ -49,7 +49,7 @@ for (const superseded of [false, true]) {
       await expect(button).toHaveAttribute("data-save-state", "failed");
       await expect(page.locator("#habit-checkin-feedback")).toContainText("Saved, but refresh not confirmed");
       if (superseded) {
-        const invalidated = page.waitForResponse((response) => new URL(response.url()).pathname === "/habits/month");
+        const invalidated = page.waitForResponse((response) => new URL(response.url()).pathname === "/habits/week");
         const response = await context.request.post(`${baseURL}/habits/check-in`, {
           data: { habitid: id, habitdate: today, habitchecked: false, timezone: "UTC" },
         });
@@ -78,7 +78,7 @@ for (const liveHTML of [false, true]) {
     const writes = [];
     let recovering = false;
     if (!liveHTML) {
-      await page.route("**/habits/month?*", (route) => recovering ? route.continue() : route.fulfill({
+      await page.route("**/habits/week?*", (route) => recovering ? route.continue() : route.fulfill({
         contentType: "text/event-stream", body: ": truncated\n\n",
       }));
     }

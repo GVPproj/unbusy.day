@@ -23,7 +23,7 @@ func TestPageHabitLoadingShellDoesNotRequireHabitStorage(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("loading shell: %d %s", rec.Code, rec.Body.String())
 	}
-	for _, want := range []string{`id="habit-grid"`, "Loading", "/habits/month", `id="block-list"`, `id="jot-cm"`} {
+	for _, want := range []string{`id="habit-grid"`, "Loading", "/habits/week", `id="block-list"`, `id="jot-cm"`} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("loading shell missing %q", want)
 		}

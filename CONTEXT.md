@@ -46,8 +46,9 @@ the User typed. Clearing the Day Plan does not touch it.
 
 ## Habit
 A named practice privately owned by exactly one User, with a calendar start
-date. It persists across months independently of the Day Plan and Jotpad;
-the monthly matrix is a view of those same Habits, not a new list each month.
+date. It persists across weeks independently of the Day Plan and Jotpad; the
+Sunday-through-Saturday matrix is a view of those same Habits, not a new list
+each week.
 
 ## Check-in
 A record that a User performed one of their Habits on a calendar date. Each

@@ -27,7 +27,7 @@ test("a superseded check-in settles only after its post-commit authoritative rea
   const { button, today, id } = await openHabit(context, page);
   const reads = latch();
   let requests = 0;
-  await page.route("**/habits/month?*", async (route) => {
+  await page.route("**/habits/week?*", async (route) => {
     requests++;
     await reads.promise;
     await route.continue();
@@ -50,7 +50,7 @@ test("a superseded check-in settles only after its post-commit authoritative rea
     await expect(button).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 
-    await page.unroute("**/habits/month?*");
+    await page.unroute("**/habits/week?*");
     await button.click();
     await expect(button).toHaveAttribute("aria-pressed", "true");
     await expect(button).not.toHaveAttribute("aria-busy", "true");
@@ -60,9 +60,9 @@ test("a superseded check-in settles only after its post-commit authoritative rea
   }
 });
 
-test("an empty correlated month stream releases busy for an explicit retry", async ({ context, page }) => {
+test("an empty correlated week stream releases busy for an explicit retry", async ({ context, page }) => {
   const { button } = await openHabit(context, page);
-  await page.route("**/habits/month?*", (route) => route.fulfill({
+  await page.route("**/habits/week?*", (route) => route.fulfill({
     contentType: "text/event-stream",
     body: ": truncated before the snapshot\n\n",
   }));
@@ -70,13 +70,13 @@ test("an empty correlated month stream releases busy for an explicit retry", asy
   await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "failed");
   await expect(button).not.toHaveAttribute("aria-busy", "true");
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await page.unroute("**/habits/month?*");
+  await page.unroute("**/habits/week?*");
   await button.click();
   await expect(button).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 });
 
-test("a failed correlated month read releases busy and reconnect restores the last committed state", async ({ context, page }) => {
+test("a failed correlated week read releases busy and reconnect restores the last committed state", async ({ context, page }) => {
   await page.addInitScript(() => {
     const fetch = window.fetch.bind(window);
     window.fetch = (input, options) => {
@@ -87,12 +87,12 @@ test("a failed correlated month read releases busy and reconnect restores the la
     };
   });
   const { button, today, id } = await openHabit(context, page);
-  await page.route("**/habits/month?*", (route) => route.fulfill({ status: 500, body: "read unavailable" }));
+  await page.route("**/habits/week?*", (route) => route.fulfill({ status: 500, body: "read unavailable" }));
   await button.click();
   await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "failed");
   await expect(button).not.toHaveAttribute("aria-busy", "true");
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await page.unroute("**/habits/month?*");
+  await page.unroute("**/habits/week?*");
   const reconnect = latch();
   await page.route("**/events?*", async (route) => {
     await reconnect.promise;

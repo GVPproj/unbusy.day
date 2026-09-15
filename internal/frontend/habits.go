@@ -15,8 +15,8 @@ import (
 
 // HabitService keeps calendar-backed habits separate from the undated plan and Jotpad.
 type HabitService interface {
-	CurrentCalendar(timezone string) (habit.Month, error)
-	MonthSnapshot(ctx context.Context, owner, timezone, month string) (*habit.Snapshot, error)
+	CurrentWeek(timezone string) (habit.Week, error)
+	WeekSnapshot(ctx context.Context, owner, timezone, week string) (*habit.Snapshot, error)
 	Create(ctx context.Context, owner, name, startDate, timezone string) error
 	Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) error
 	Delete(ctx context.Context, owner string, habitID int64) error
@@ -28,7 +28,7 @@ type habitSignals struct {
 	Start      string `json:"habitstart"`
 	CreateView uint64 `json:"habitcreateview"`
 	Timezone   string `json:"timezone"`
-	Month      string `json:"habitmonth"`
+	Week       string `json:"habitweek"`
 	Refresh    string `json:"habitrefresh"`
 	View       uint64 `json:"habitview"`
 	HabitID    int64  `json:"habitid"`
@@ -57,9 +57,9 @@ func validHabitRefresh(token string) bool {
 	return true
 }
 
-// HabitMonthHandler renders one per-view month. The selector only matches while
-// that month is still selected, so a delayed response cannot replace a newer view.
-func HabitMonthHandler(svc HabitService) http.Handler {
+// HabitWeekHandler renders one per-view week. The selector only matches while
+// that week is still selected, so a delayed response cannot replace a newer view.
+func HabitWeekHandler(svc HabitService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sig habitSignals
 		if err := datastar.ReadSignals(r, &sig); err != nil {
@@ -71,20 +71,20 @@ func HabitMonthHandler(svc HabitService) http.Handler {
 			return
 		}
 		owner := web.OwnerFrom(r.Context())
-		snap, err := svc.MonthSnapshot(r.Context(), owner, sig.Timezone, sig.Month)
+		snap, err := svc.WeekSnapshot(r.Context(), owner, sig.Timezone, sig.Week)
 		if habit.IsRejection(err) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if err != nil {
-			log.Printf("habit month: %v", err)
+			log.Printf("habit week: %v", err)
 			http.Error(w, "Unable to load habits. Please try again.", http.StatusInternalServerError)
 			return
 		}
 		sse := datastar.NewSSE(w, r)
 		view := components.HabitView{Refresh: sig.Refresh, View: sig.View, Read: sig.Read}
-		if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Month, view), datastar.WithSelector(view.ReadSelector(snap.Month.Key))); err != nil {
-			log.Printf("habit month: %v", err)
+		if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Week, view), datastar.WithSelector(view.ReadSelector(snap.Week.Key))); err != nil {
+			log.Printf("habit week: %v", err)
 		}
 	})
 }
@@ -162,12 +162,12 @@ func HabitDeleteHandler(svc HabitService) http.Handler {
 func patchHabitCheckInFeedback(sse *datastar.ServerSentEventGenerator, message, result, date, refresh string, view uint64) error {
 	opts := make([]datastar.PatchElementOption, 0, 1)
 	if validHabitRefresh(refresh) {
-		month := ""
+		week := ""
 		if parsed, err := time.Parse(time.DateOnly, date); err == nil && parsed.Format(time.DateOnly) == date {
-			month = date[:7]
+			week = parsed.AddDate(0, 0, -int(parsed.Weekday())).Format(time.DateOnly)
 		}
 		correlation := components.HabitView{Refresh: refresh, View: view}
-		opts = append(opts, datastar.WithSelector(correlation.GridSelector(month)+` #habit-checkin-feedback`))
+		opts = append(opts, datastar.WithSelector(correlation.GridSelector(week)+` #habit-checkin-feedback`))
 	} else if refresh != "" {
 		return nil
 	}
@@ -209,7 +209,7 @@ func HabitCheckInHandler(svc HabitService) http.Handler {
 			http.Error(w, "Unable to save check-in. Please try again.", http.StatusInternalServerError)
 			return
 		}
-		// The private receipt triggers a fenced month read, never a mutation snapshot.
+		// The private receipt triggers a fenced week read, never a mutation snapshot.
 		// A later write may supersede this value before that authoritative read.
 		sse := datastar.NewSSE(w, r)
 		if err := patchHabitCheckInFeedback(sse, "", "committed", sig.Date, sig.Refresh, sig.View); err != nil {

@@ -238,9 +238,9 @@ func TestEditPreservesIdentityOrderAndCheckIns(t *testing.T) {
 	if len(got) != 2 || got[0].ID != id || got[0].Name != "Books" || got[0].StartDate != "2024-02-29" || !reflect.DeepEqual(got[0].CheckedDates, []string{"2024-02-29"}) || got[1].Name != "Walk" {
 		t.Fatalf("edited state: %+v", got)
 	}
-	month, err := s.MonthSnapshot(ctx, "alice", "UTC", "2024-02")
-	if err != nil || len(month.Habits) != 2 || month.Habits[0].Name != "Books" {
-		t.Fatalf("historical current name: %+v %v", month, err)
+	week, err := s.WeekSnapshot(ctx, "alice", "UTC", "2024-02-25")
+	if err != nil || len(week.Habits) != 2 || week.Habits[0].Name != "Books" {
+		t.Fatalf("historical current name: %+v %v", week, err)
 	}
 	longName := strings.Repeat("界", 80)
 	if err := s.Edit(ctx, "alice", id, longName, "2023-12-01", "UTC"); err != nil {
@@ -387,7 +387,7 @@ func TestSetCheckInStoresExplicitOwnedStateAcrossReopen(t *testing.T) {
 		if err := s.SetCheckIn(ctx, "alice", id, "2024-02-29", checked, "UTC"); err != nil {
 			t.Fatal(err)
 		}
-		snap, err := s.MonthSnapshot(ctx, "alice", "UTC", "2024-02")
+		snap, err := s.WeekSnapshot(ctx, "alice", "UTC", "2024-02-25")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -429,7 +429,7 @@ func TestCheckInCivilDateDoesNotShiftBetweenTimezones(t *testing.T) {
 	if err := s.SetCheckIn(ctx, "alice", hs[0].ID, "2024-02-29", true, "America/Los_Angeles"); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := s.MonthSnapshot(ctx, "alice", "Pacific/Kiritimati", "2024-02")
+	snap, err := s.WeekSnapshot(ctx, "alice", "Pacific/Kiritimati", "2024-02-25")
 	if err != nil || !reflect.DeepEqual(snap.Habits[0].CheckedDates, []string{"2024-02-29"}) {
 		t.Fatalf("shifted civil date: %+v %v", snap, err)
 	}
@@ -513,98 +513,98 @@ func TestSetCheckInPublishesOnlyAfterCommit(t *testing.T) {
 	}
 }
 
-func TestCalendarMonthBrowsesRealMonthsWithoutPassingTheLocalPresent(t *testing.T) {
-	now := time.Date(2024, 3, 1, 0, 30, 0, 0, time.UTC) // February 29 in Los Angeles.
+func TestCalendarWeekBrowsesSundayToSaturdayWithoutPassingTheLocalPresent(t *testing.T) {
+	now := time.Date(2024, 3, 1, 0, 30, 0, 0, time.UTC) // Thursday, February 29 in Los Angeles.
 	for _, tc := range []struct {
 		key, label, first, last, previous, next string
-		days                                    int
 		current                                 bool
 	}{
-		{"2023-12", "December 2023", "2023-12-01", "2023-12-31", "2023-11", "2024-01", 31, false},
-		{"2024-01", "January 2024", "2024-01-01", "2024-01-31", "2023-12", "2024-02", 31, false},
-		{"2024-02", "February 2024", "2024-02-01", "2024-02-29", "2024-01", "", 29, true},
+		{"2023-12-31", "December 31, 2023–January 6, 2024", "2023-12-31", "2024-01-06", "2023-12-24", "2024-01-07", false},
+		{"2024-02-18", "February 18–24, 2024", "2024-02-18", "2024-02-24", "2024-02-11", "2024-02-25", false},
+		{"2024-02-25", "February 25–March 2, 2024", "2024-02-25", "2024-03-02", "2024-02-18", "", true},
 	} {
-		m, err := habit.CalendarMonth("America/Los_Angeles", tc.key, now)
+		week, err := habit.CalendarWeek("America/Los_Angeles", tc.key, now)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.key, err)
 		}
-		if m.Key != tc.key || m.Label != tc.label || len(m.Dates) != tc.days || m.Dates[0] != tc.first || m.Dates[len(m.Dates)-1] != tc.last || m.Previous != tc.previous || m.Next != tc.next || m.Current != tc.current || m.Today != "2024-02-29" {
-			t.Errorf("%s: %+v", tc.key, m)
+		if week.Key != tc.key || week.Label != tc.label || len(week.Dates) != 7 || week.Dates[0] != tc.first || week.Dates[6] != tc.last || week.Previous != tc.previous || week.Next != tc.next || week.Current != tc.current || week.Today != "2024-02-29" {
+			t.Errorf("%s: %+v", tc.key, week)
 		}
 	}
-	for _, key := range []string{"2024-03", "2024-2", "", "not-a-month"} {
-		if _, err := habit.CalendarMonth("America/Los_Angeles", key, now); !habit.IsRejection(err) {
-			t.Errorf("accepted month %q: %v", key, err)
+	for _, key := range []string{"2024-03-03", "2024-02-26", "2024-2-25", "", "not-a-week"} {
+		if _, err := habit.CalendarWeek("America/Los_Angeles", key, now); !habit.IsRejection(err) {
+			t.Errorf("accepted week %q: %v", key, err)
 		}
 	}
 }
 
-func TestMonthSnapshotKeepsHistoricalCheckInsAndOmitsHabitsBeforeTheirStartMonth(t *testing.T) {
+func TestWeekSnapshotSpansMonthsAndOmitsHabitsStartingAfterItsSaturday(t *testing.T) {
 	db, _ := database(t)
 	ctx := context.Background()
 	now := time.Date(2024, 3, 15, 12, 0, 0, 0, time.UTC)
 	s := habit.NewService(db, nil, habit.WithClock(func() time.Time { return now }))
-	if err := s.Create(ctx, "alice", "Old", "2024-02-29", "UTC"); err != nil {
+	if err := s.Create(ctx, "alice", "Old", "2024-02-01", "UTC"); err != nil {
 		t.Fatal(err)
 	}
 	old, err := s.List(ctx, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Create(ctx, "alice", "New", "2024-03-01", "UTC"); err != nil {
+	if err := s.Create(ctx, "alice", "Saturday", "2024-03-02", "UTC"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetCheckIn(ctx, "alice", old[0].ID, "2024-02-29", true, "UTC"); err != nil {
+	if err := s.Create(ctx, "alice", "New", "2024-03-03", "UTC"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetCheckIn(ctx, "alice", old[0].ID, "2024-03-01", true, "UTC"); err != nil {
-		t.Fatal(err)
+	for _, date := range []string{"2024-02-24", "2024-02-29", "2024-03-01", "2024-03-03"} {
+		if err := s.SetCheckIn(ctx, "alice", old[0].ID, date, true, "UTC"); err != nil {
+			t.Fatal(err)
+		}
 	}
-	snap, err := s.MonthSnapshot(ctx, "alice", "UTC", "2024-02")
+	snap, err := s.WeekSnapshot(ctx, "alice", "UTC", "2024-02-25")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snap.Habits) != 1 || snap.Habits[0].Name != "Old" || !reflect.DeepEqual(snap.Habits[0].CheckedDates, []string{"2024-02-29"}) {
+	if len(snap.Habits) != 2 || snap.Habits[0].Name != "Old" || !reflect.DeepEqual(snap.Habits[0].CheckedDates, []string{"2024-02-29", "2024-03-01"}) || snap.Habits[1].Name != "Saturday" {
 		t.Fatalf("historical snapshot: %+v", snap)
 	}
-	other, err := s.MonthSnapshot(ctx, "bob", "UTC", "2024-02")
+	other, err := s.WeekSnapshot(ctx, "bob", "UTC", "2024-02-25")
 	if err != nil || len(other.Habits) != 0 {
 		t.Fatalf("cross-owner snapshot: %+v %v", other, err)
 	}
 }
 
-func TestCalendarUsesLocalMonthAndCivilDates(t *testing.T) {
+func TestCurrentWeekUsesLocalSundayAndCivilDates(t *testing.T) {
 	for _, tc := range []struct {
 		zone, instant, today, label, first, last string
-		days                                     int
 	}{
-		{"America/Los_Angeles", "2024-03-01T00:30:00Z", "2024-02-29", "February 2024", "2024-02-01", "2024-02-29", 29},
-		{"Pacific/Kiritimati", "2024-12-31T12:30:00Z", "2025-01-01", "January 2025", "2025-01-01", "2025-01-31", 31},
-		{"America/New_York", "2025-03-10T02:00:00Z", "2025-03-09", "March 2025", "2025-03-01", "2025-03-31", 31},
-		{"UTC", "2023-02-28T12:00:00Z", "2023-02-28", "February 2023", "2023-02-01", "2023-02-28", 28},
+		{"America/Los_Angeles", "2024-03-01T00:30:00Z", "2024-02-29", "February 25–March 2, 2024", "2024-02-25", "2024-03-02"},
+		{"Pacific/Kiritimati", "2024-12-31T12:30:00Z", "2025-01-01", "December 29, 2024–January 4, 2025", "2024-12-29", "2025-01-04"},
+		{"America/New_York", "2025-03-10T02:00:00Z", "2025-03-09", "March 9–15, 2025", "2025-03-09", "2025-03-15"},
+		{"UTC", "2023-02-28T12:00:00Z", "2023-02-28", "February 26–March 4, 2023", "2023-02-26", "2023-03-04"},
 	} {
 		t.Run(tc.zone+tc.today, func(t *testing.T) {
 			now, err := time.Parse(time.RFC3339, tc.instant)
 			if err != nil {
 				t.Fatal(err)
 			}
-			m, err := habit.Calendar(tc.zone, now)
+			week, err := habit.CurrentWeek(tc.zone, now)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if m.Today != tc.today || m.Label != tc.label || len(m.Dates) != tc.days || m.Dates[0] != tc.first || m.Dates[len(m.Dates)-1] != tc.last {
-				t.Fatalf("calendar: %+v", m)
+			if week.Today != tc.today || week.Label != tc.label || len(week.Dates) != 7 || week.Dates[0] != tc.first || week.Dates[6] != tc.last {
+				t.Fatalf("calendar: %+v", week)
 			}
-			for i, date := range m.Dates {
-				parsed, err := time.Parse("2006-01-02", date)
-				if err != nil || parsed.Day() != i+1 {
+			for i, date := range week.Dates {
+				parsed, err := time.Parse(time.DateOnly, date)
+				if err != nil || parsed.Weekday() != time.Weekday(i) {
 					t.Fatalf("date %d: %s %v", i, date, err)
 				}
 			}
 		})
 	}
 	for _, zone := range []string{"", "not/a-zone", "Local"} {
-		if _, err := habit.Calendar(zone, time.Now()); err == nil {
+		if _, err := habit.CurrentWeek(zone, time.Now()); err == nil {
 			t.Errorf("accepted zone %q", zone)
 		}
 	}

@@ -18,30 +18,36 @@ const checkIn = (page, name, date) => page.getByRole("button", { name: `${name} 
 const deleteHabit = (page, name) => habitRow(page, name).getByRole("button", { name: `Delete ${name}`, exact: true });
 const deleteDialog = (page) => page.getByRole("dialog", { name: "Delete habit", exact: true });
 const confirmDelete = (page) => deleteDialog(page).getByRole("button", { name: "Delete permanently", exact: true });
-const emptyHabits = "No habits yet in this month. Create a habit to begin.";
+const emptyHabits = "No habits yet in this week. Create a habit to begin.";
+const dateWeekKey = (date) => {
+	const d = new Date(`${date}T00:00:00Z`);
+	d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+	return d.toISOString().slice(0, 10);
+};
 
 async function localCalendar(page) {
 	return page.evaluate(() => {
-		const now = new Date();
-		const monthLabel = (d) => `${d.toLocaleDateString("en-US", { month: "short" }).replace(/^Sep$/, "Sept")} '${String(d.getFullYear()).slice(-2)}`;
 		const date = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+		const shortDate = (d, year = false) => `${d.toLocaleDateString("en-US", { month: "short" }).replace(/^Sep$/, "Sept")} ${d.getDate()}${year ? ` '${String(d.getFullYear()).slice(-2)}` : ""}`;
+		const week = (offset) => {
+			const now = new Date();
+			const first = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + offset * 7);
+			const last = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 6);
+			let label;
+			if (first.getFullYear() !== last.getFullYear()) label = `${shortDate(first, true)}–${shortDate(last, true)}`;
+			else if (first.getMonth() !== last.getMonth()) label = `${shortDate(first)}–${shortDate(last, true)}`;
+			else label = `${shortDate(first)}–${last.getDate()} '${String(last.getFullYear()).slice(-2)}`;
+			return { first: date(first), last: date(last), days: 7, label };
+		};
+		const now = new Date();
 		return {
 			today: date(now),
 			tomorrow: date(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)),
-			day: now.getDate(),
-			days: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-			month: monthLabel(now),
-			beforePrevious: monthLabel(new Date(now.getFullYear(), now.getMonth() - 2, 1)),
-			previous: (() => {
-				const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-				const last = new Date(now.getFullYear(), now.getMonth(), 0);
-				return {
-					first: date(first),
-					last: date(last),
-					days: last.getDate(),
-					month: monthLabel(first),
-				};
-			})(),
+			day: now.getDay() + 1,
+			days: 7,
+			label: week(0).label,
+			beforePrevious: week(-2).label,
+			previous: week(-1),
 		};
 	});
 }
@@ -60,10 +66,10 @@ async function createHabit(page, name, start) {
 	await expect(habitRow(page, name)).toBeVisible();
 }
 
-async function previousMonth(page) {
-	const heading = page.locator("#habit-grid .month-nav h2");
+async function previousWeek(page) {
+	const heading = page.locator("#habit-grid .week-nav h2");
 	const before = await heading.textContent();
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	await expect(heading).not.toHaveText(before);
 }
 
@@ -111,14 +117,15 @@ test("desktop defaults to Jotpad beside the plan; tabs have roving keyboard sele
 	}
 });
 
-test("creation defaults to browser-local today and persists the current-month availability matrix", async ({ page }) => {
+test("creation defaults to browser-local today and persists the current-week availability matrix", async ({ page }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
  await expect(page.locator("#habit-matrix")).toContainText("No habits yet");
 	await expect(habitStart(page)).toHaveValue(calendar.today);
 	await createHabit(page, "Read books");
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 	const row = habitRow(page, "Read books");
+	await expect(page.locator("#habit-grid thead th span")).toHaveText(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 	await expect(row.locator("td")).toHaveCount(calendar.days);
 	for (let day = 1; day <= calendar.days; day++) {
 		const cell = row.locator("td").nth(day - 1);
@@ -134,7 +141,7 @@ test("creation defaults to browser-local today and persists the current-month av
  await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
 	await habitsTab(page).click();
 	await expect(habitRow(page, "Read books")).toBeVisible();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 	await expect(habitRow(page, "Read books").locator("td")).toHaveCount(calendar.days);
  await page.screenshot({ path: test.info().outputPath("habits-desktop.png"), fullPage: true });
 });
@@ -204,52 +211,67 @@ for (const mobile of [false, true]) {
 	});
 }
 
-test("historical check-ins survive reload and This month resumes the present", async ({ page }) => {
+test("historical check-ins survive reload and This week resumes the present", async ({ page }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "History", calendar.previous.first);
-	await page.getByRole("button", { name: /Previous month/ }).focus();
+	await page.getByRole("button", { name: /Previous week/ }).focus();
 	await page.keyboard.press("Enter");
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
-	await expect(page.locator("#habit-previous-month")).toBeFocused();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
+	await expect(page.locator("#habit-previous-week")).toBeFocused();
 	await expect(habitRow(page, "History").locator("td")).toHaveCount(calendar.previous.days);
 	await checkIn(page, "History", calendar.previous.last).click();
 	await expect(checkIn(page, "History", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
 
 	await page.reload({ waitUntil: "load" });
 	await habitsTab(page).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	await expect(checkIn(page, "History", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	await expect(habitRow(page, "History")).toHaveCount(0);
-	await page.getByRole("button", { name: "Next month", exact: true }).click();
+	await page.getByRole("button", { name: "Next week", exact: true }).click();
 	await expect(habitRow(page, "History")).toBeVisible();
-	await page.getByRole("button", { name: "This month", exact: true }).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
-	await expect(page.getByRole("button", { name: "Next month", exact: true })).toBeDisabled();
+	await page.getByRole("button", { name: "This week", exact: true }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
+	await expect(page.getByRole("button", { name: "Next week", exact: true })).toBeDisabled();
 });
 
-test("leap February and December/January navigation render real calendars", async ({ page }) => {
+test("cross-month and cross-year weeks render seven real civil dates", async ({ page }) => {
 	await habitsTab(page).click();
 	await createHabit(page, "Long history", "2020-01-01");
-	const heading = page.locator("#habit-grid .month-nav h2");
-	for (let steps = 0; await heading.textContent() !== "Jan '25" && steps < 60; steps++) {
-		await previousMonth(page);
-	}
-	await expect(heading).toHaveText("Jan '25");
-	await expect(habitRow(page, "Long history").locator("td")).toHaveCount(31);
-	await page.getByRole("button", { name: /Previous month/ }).click();
-	await expect(heading).toHaveText("Dec '24");
-	await expect(habitRow(page, "Long history").locator("td")).toHaveCount(31);
-	for (let steps = 0; await heading.textContent() !== "Feb '24" && steps < 12; steps++) {
-		await previousMonth(page);
-	}
-	await expect(heading).toHaveText("Feb '24");
-	await expect(habitRow(page, "Long history").locator("td")).toHaveCount(29);
+	const targets = await page.evaluate(() => {
+		const key = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+		const sunday = new Date();
+		sunday.setHours(0, 0, 0, 0);
+		sunday.setDate(sunday.getDate() - sunday.getDay());
+		const find = (crosses) => {
+			const first = new Date(sunday);
+			for (let steps = 0; steps < 54; steps++) {
+				const last = new Date(first);
+				last.setDate(last.getDate() + 6);
+				if (crosses(first, last)) return { first: key(first), last: key(last) };
+				first.setDate(first.getDate() - 7);
+			}
+		};
+		return {
+			month: find((first, last) => first.getMonth() !== last.getMonth()),
+			year: find((first, last) => first.getFullYear() !== last.getFullYear()),
+		};
+	});
+	const heading = page.locator("#habit-grid .week-nav h2 time");
+	const visit = async (target) => {
+		for (let steps = 0; await heading.getAttribute("datetime") !== target.first && steps < 54; steps++) await previousWeek(page);
+		await expect(heading).toHaveAttribute("datetime", target.first);
+		await expect(habitRow(page, "Long history").locator("td")).toHaveCount(7);
+		await expect(page.locator("#habit-grid thead time").last()).toHaveAttribute("datetime", target.last);
+	};
+	await visit(targets.month);
+	await page.getByRole("button", { name: "This week", exact: true }).click();
+	await visit(targets.year);
 });
 
-test("different views keep their selected month during live corrections", async ({ page, context }) => {
+test("different views keep their selected week during live corrections", async ({ page, context }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "Across devices", calendar.previous.first);
@@ -257,50 +279,50 @@ test("different views keep their selected month during live corrections", async 
 	await other.goto(baseURL, { waitUntil: "load" });
 	await habitsTab(other).click();
 
-	await page.getByRole("button", { name: /Previous month/ }).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
+	await page.getByRole("button", { name: /Previous week/ }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
 	await checkIn(other, "Across devices", calendar.today).click();
 	await expect(checkIn(other, "Across devices", calendar.today)).toHaveAttribute("aria-pressed", "true");
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
 
 	await checkIn(page, "Across devices", calendar.previous.last).click();
 	await expect(checkIn(page, "Across devices", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
-	await expect(other.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	await expect(other.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 	await expect(checkIn(other, "Across devices", calendar.today)).toHaveAttribute("aria-pressed", "true");
 	await other.close();
 });
 
-test("rapid month requests cannot apply an older response", async ({ page }) => {
+test("rapid week requests cannot apply an older response", async ({ page }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "Rapid navigation", calendar.previous.first);
-	await page.getByRole("button", { name: /Previous month/ }).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
+	await page.getByRole("button", { name: /Previous week/ }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
 
 	let release;
 	const gate = new Promise((resolve) => { release = resolve; });
-	await page.route("**/habits/month*", async (route) => {
+	await page.route("**/habits/week*", async (route) => {
 		const signals = JSON.parse(new URL(route.request().url()).searchParams.get("datastar"));
-		if (signals.habitmonth === calendar.today.slice(0, 7)) await gate;
+		if (signals.habitweek === dateWeekKey(calendar.today)) await gate;
 		await route.continue();
 	});
 	const delayed = page.waitForRequest((request) => {
-		if (new URL(request.url()).pathname !== "/habits/month") return false;
-		return JSON.parse(new URL(request.url()).searchParams.get("datastar")).habitmonth === calendar.today.slice(0, 7);
+		if (new URL(request.url()).pathname !== "/habits/week") return false;
+		return JSON.parse(new URL(request.url()).searchParams.get("datastar")).habitweek === dateWeekKey(calendar.today);
 	});
-	await page.getByRole("button", { name: "Next month", exact: true }).click();
+	await page.getByRole("button", { name: "Next week", exact: true }).click();
 	await delayed;
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	release();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.beforePrevious);
-	await page.unroute("**/habits/month*");
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.beforePrevious);
+	await page.unroute("**/habits/week*");
 });
 
-test("an in-flight historical correction cannot replace the month navigated to", async ({ page }) => {
+test("an in-flight historical correction cannot replace the week navigated to", async ({ page }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "Slow history", calendar.previous.first);
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	let release;
 	const gate = new Promise((resolve) => { release = resolve; });
 	await page.route("**/habits/check-in", async (route) => {
@@ -309,14 +331,14 @@ test("an in-flight historical correction cannot replace the month navigated to",
 	});
 	await checkIn(page, "Slow history", calendar.previous.last).click();
 	await expect(checkIn(page, "Slow history", calendar.previous.last)).toHaveAttribute("aria-busy", "true");
-	await page.getByRole("button", { name: "This month", exact: true }).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	await page.getByRole("button", { name: "This week", exact: true }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 	const saved = page.waitForResponse((response) => new URL(response.url()).pathname === "/habits/check-in");
 	release();
 	expect((await saved).ok()).toBe(true);
 	await page.unroute("**/habits/check-in");
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	await expect(checkIn(page, "Slow history", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -366,7 +388,7 @@ test("check-ins wait for confirmation, survive reload, expose failure, and retry
 	await expect(button).toHaveAttribute("aria-pressed", "false");
 });
 
-test("live check-ins converge while preserving focused date and horizontal scroll", async ({ page, context }) => {
+test("live check-ins converge while preserving focused date and available horizontal scroll", async ({ page, context }) => {
 	await habitsTab(page).click();
 	const { today } = await localCalendar(page);
 	await createHabit(page, "Stretch", `${today.slice(0, 8)}01`);
@@ -374,8 +396,8 @@ test("live check-ins converge while preserving focused date and horizontal scrol
 	const button = checkIn(page, "Stretch", today);
 	await button.focus();
 	await matrix.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
-	const scroll = await matrix.evaluate((element) => element.scrollLeft);
-	expect(scroll).toBeGreaterThan(0);
+	const scroll = await matrix.evaluate((element) => ({ left: element.scrollLeft, overflow: element.scrollWidth > element.clientWidth }));
+	if (scroll.overflow) expect(scroll.left).toBeGreaterThan(0);
 
 	const other = await context.newPage();
 	await other.goto(baseURL, { waitUntil: "load" });
@@ -383,14 +405,14 @@ test("live check-ins converge while preserving focused date and horizontal scrol
 	await checkIn(other, "Stretch", today).click();
 	await expect(button).toHaveAttribute("aria-pressed", "true");
 	await expect(button).toBeFocused();
-	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll)).toBeLessThan(2);
+	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll.left)).toBeLessThan(2);
 
 	// Activate without Playwright introducing a new scroll-to-click position.
 	await page.keyboard.press("Enter");
 	await expect(button).toHaveAttribute("aria-pressed", "false");
 	await expect(checkIn(other, "Stretch", today)).toHaveAttribute("aria-pressed", "false");
 	await expect(button).toBeFocused();
-	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll)).toBeLessThan(2);
+	expect(Math.abs(await matrix.evaluate((element) => element.scrollLeft) - scroll.left)).toBeLessThan(2);
 	await other.close();
 });
 
@@ -398,9 +420,9 @@ test("habit edits preserve history, drafts, and live state across views", async 
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "Editable", calendar.previous.first);
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	await checkIn(page, "Editable", calendar.previous.last).click();
-	await page.getByRole("button", { name: "This month", exact: true }).click();
+	await page.getByRole("button", { name: "This week", exact: true }).click();
 
 	await page.getByRole("button", { name: "Edit Editable", exact: true }).focus();
 	await page.keyboard.press("Enter");
@@ -433,7 +455,7 @@ test("habit edits preserve history, drafts, and live state across views", async 
 	await dialog.getByLabel("Start date", { exact: true }).press("Enter");
 	await expect(dialog).toBeHidden();
 	await expect(habitRow(page, "Edited everywhere")).toBeVisible();
-	await page.getByRole("button", { name: /Previous month/ }).click();
+	await page.getByRole("button", { name: /Previous week/ }).click();
 	await expect(checkIn(page, "Edited everywhere", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
 	await expect(habitRow(other, "Edited everywhere")).toBeVisible();
 	await other.close();
@@ -518,7 +540,7 @@ test("deletion requires native confirmation; Cancel and Escape restore keyboard 
 	expect(requests).toHaveLength(0);
 });
 
-test("deletion clears past and current months across views, restores remote focus, and never reuses history", async ({ page, context }) => {
+test("deletion clears past and current weeks across views, restores remote focus, and never reuses history", async ({ page, context }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "Fresh start", calendar.previous.first);
@@ -526,7 +548,7 @@ test("deletion clears past and current months across views, restores remote focu
 	expect(oldID).toMatch(/^habit-\d+$/);
 	await checkIn(page, "Fresh start", calendar.today).click();
 	await expect(checkIn(page, "Fresh start", calendar.today)).toHaveAttribute("aria-pressed", "true");
-	await previousMonth(page);
+	await previousWeek(page);
 	await checkIn(page, "Fresh start", calendar.previous.last).click();
 	await expect(checkIn(page, "Fresh start", calendar.previous.last)).toHaveAttribute("aria-pressed", "true");
 	const other = await context.newPage();
@@ -547,23 +569,23 @@ test("deletion clears past and current months across views, restores remote focu
 		await expect(view.locator("#habit-matrix")).toContainText(emptyHabits);
 		await expect(view.locator("#habit-matrix")).toBeFocused();
 	}
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
-	await expect(other.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
+	await expect(other.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 	for (const view of [page, other]) {
 		await view.reload({ waitUntil: "load" });
 		await habitsTab(view).click();
 		await expect(view.locator("#habit-matrix")).toContainText(emptyHabits);
-		await previousMonth(view);
+		await previousWeek(view);
 		await expect(view.locator("#habit-matrix")).toContainText(emptyHabits);
 	}
-	await page.getByRole("button", { name: "This month", exact: true }).click();
+	await page.getByRole("button", { name: "This week", exact: true }).click();
 	await createHabit(page, "Fresh start", calendar.previous.first);
 	const newID = await habitRow(page, "Fresh start").getAttribute("id");
 	expect(newID).toMatch(/^habit-\d+$/);
 	expect(newID).not.toBe(oldID);
 	await expect(checkIn(page, "Fresh start", calendar.today)).toHaveAttribute("aria-pressed", "false");
 	await expect(checkIn(other, "Fresh start", calendar.previous.last)).toHaveAttribute("aria-pressed", "false");
-	await previousMonth(page);
+	await previousWeek(page);
 	await expect(checkIn(page, "Fresh start", calendar.previous.last)).toHaveAttribute("aria-pressed", "false");
 	await expect(habitRow(page, "Fresh start").locator('[aria-pressed="true"]')).toHaveCount(0);
 	await page.reload({ waitUntil: "load" });
@@ -770,10 +792,10 @@ test("mobile Plan / Extras navigation keeps names visible while dates scroll", a
 	await expect(name).toBeInViewport();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	const calendar = await localCalendar(page);
-	await page.getByRole("button", { name: /Previous month/ }).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
-	await page.getByRole("button", { name: "This month", exact: true }).click();
-	await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+	await page.getByRole("button", { name: /Previous week/ }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
+	await page.getByRole("button", { name: "This week", exact: true }).click();
+	await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 
 	await mobilePanel(page, "Plan");
 	await expect(page.locator("#block-list")).toBeVisible();
@@ -785,35 +807,35 @@ test("mobile Plan / Extras navigation keeps names visible while dates scroll", a
 });
 
 for (const width of [1440, 390]) {
-	test(`month controls stay fixed while dates scroll at width ${width}`, async ({ page }) => {
+	test(`week controls stay fixed while dates scroll at width ${width}`, async ({ page }) => {
 		await page.setViewportSize({ width, height: 900 });
 		if (width < 832) await mobilePanel(page, "Extras");
 		await habitsTab(page).click();
 		await createHabit(page, "Scroll test");
-		const controls = page.locator(".month-nav button, .month-nav h2");
+		const controls = page.locator(".week-nav button, .week-nav h2");
 		const positions = () => controls.evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().x));
 		const before = await positions();
 		const scroll = await page.locator("#habit-grid table").evaluate((table) => {
 			let scroller = table.parentElement;
 			while (scroller && !["auto", "scroll"].includes(getComputedStyle(scroller).overflowX)) scroller = scroller.parentElement;
 			scroller.scrollLeft = scroller.scrollWidth;
-			return scroller.scrollLeft;
+			return { left: scroller.scrollLeft, overflow: scroller.scrollWidth > scroller.clientWidth };
 		});
-		expect(scroll).toBeGreaterThan(0);
+		if (scroll.overflow) expect(scroll.left).toBeGreaterThan(0);
 		await expect.poll(positions).toEqual(before);
 		for (const control of await controls.all()) await expect(control).toBeInViewport({ ratio: 1 });
 		for (const [feeling, icon] of [["cozy", "solar"], ["pixel", "pixel"], ["mono", "mono"]]) {
 			await page.locator("#theme-modal").getByRole("radio", { name: new RegExp(`^${feeling}$`, "i"), includeHidden: true }).evaluate((radio) => radio.click());
 			await expect(page.locator("html")).toHaveAttribute("data-feeling", feeling);
-			for (const id of ["habit-previous-month", "habit-next-month"]) {
+			for (const id of ["habit-previous-week", "habit-next-week"]) {
 				const button = page.locator(`#${id}`);
 				await expect(button).toHaveText("");
 				await expect(button.locator("svg:visible")).toHaveCount(1);
 				await expect(button.locator(`.icon-${icon}`)).toBeVisible();
 				const arrow = await button.boundingBox();
-				const thisMonth = await page.locator("#habit-this-month").boundingBox();
+				const thisWeek = await page.locator("#habit-this-week").boundingBox();
 				expect(Math.abs(arrow.width - arrow.height)).toBeLessThan(1);
-				expect(Math.abs(arrow.height - thisMonth.height)).toBeLessThan(1);
+				expect(Math.abs(arrow.height - thisWeek.height)).toBeLessThan(1);
 			}
 			for (const control of await controls.all()) await expect(control).toBeInViewport({ ratio: 1 });
 		}
@@ -878,10 +900,10 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		const calendar = await localCalendar(page);
 		await checkIn(page, "Keep notes safe", calendar.today).click();
 		await expect(checkIn(page, "Keep notes safe", calendar.today)).toHaveAttribute("aria-pressed", "true");
-		await page.getByRole("button", { name: /Previous month/ }).click();
-		await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.previous.month);
-		await page.getByRole("button", { name: "This month", exact: true }).click();
-		await expect(page.locator("#habit-grid .month-nav h2")).toHaveText(calendar.month);
+		await page.getByRole("button", { name: /Previous week/ }).click();
+		await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.previous.label);
+		await page.getByRole("button", { name: "This week", exact: true }).click();
+		await expect(page.locator("#habit-grid .week-nav h2")).toHaveText(calendar.label);
 		await deleteHabit(page, "Keep notes safe").click();
 		await confirmDelete(page).click();
 		await expect(deleteDialog(page)).toBeHidden();

@@ -5,7 +5,7 @@ import (
 	_ "time/tzdata" // Production's scratch image has no system zoneinfo.
 )
 
-type Month struct {
+type Week struct {
 	Today    string
 	Key      string
 	Label    string
@@ -15,29 +15,29 @@ type Month struct {
 	Current  bool
 }
 
-// Calendar returns the current civil month in the browser's IANA timezone.
-func Calendar(timezone string, now time.Time) (Month, error) {
+// CurrentWeek returns the Sunday-to-Saturday week in the browser's timezone.
+func CurrentWeek(timezone string, now time.Time) (Week, error) {
 	local, err := localTime(timezone, now)
 	if err != nil {
-		return Month{}, err
+		return Week{}, err
 	}
-	return calendarMonth(local, local.Format("2006-01")), nil
+	return calendarWeek(local, weekStart(local).Format(time.DateOnly)), nil
 }
 
-// CalendarMonth returns a selected month no later than the browser's local month.
-func CalendarMonth(timezone, key string, now time.Time) (Month, error) {
+// CalendarWeek returns a selected week no later than the browser's local week.
+func CalendarWeek(timezone, key string, now time.Time) (Week, error) {
 	local, err := localTime(timezone, now)
 	if err != nil {
-		return Month{}, err
+		return Week{}, err
 	}
-	selected, err := time.Parse("2006-01", key)
-	if err != nil || selected.Format("2006-01") != key {
-		return Month{}, rejection("Choose a valid month.")
+	selected, err := time.Parse(time.DateOnly, key)
+	if err != nil || selected.Format(time.DateOnly) != key || selected.Weekday() != time.Sunday {
+		return Week{}, rejection("Choose a valid week.")
 	}
-	if key > local.Format("2006-01") {
-		return Month{}, rejection("Cannot browse beyond the current month.")
+	if key > weekStart(local).Format(time.DateOnly) {
+		return Week{}, rejection("Cannot browse beyond the current week.")
 	}
-	return calendarMonth(local, key), nil
+	return calendarWeek(local, key), nil
 }
 
 // Canonical dates sort chronologically in SQLite and in the rendered calendar.
@@ -57,23 +57,38 @@ func localTime(timezone string, now time.Time) (time.Time, error) {
 	return now.In(loc), nil
 }
 
-func calendarMonth(local time.Time, key string) Month {
-	first, _ := time.Parse("2006-01", key)
-	currentKey := local.Format("2006-01")
-	m := Month{
+func weekStart(local time.Time) time.Time {
+	date := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
+	return date.AddDate(0, 0, -int(date.Weekday()))
+}
+
+func calendarWeek(local time.Time, key string) Week {
+	first, _ := time.Parse(time.DateOnly, key)
+	last := first.AddDate(0, 0, 6)
+	currentKey := weekStart(local).Format(time.DateOnly)
+	week := Week{
 		Today:    local.Format(time.DateOnly),
 		Key:      key,
-		Label:    first.Format("January 2006"),
-		Dates:    make([]string, 0, 31),
-		Previous: first.AddDate(0, -1, 0).Format("2006-01"),
+		Label:    weekLabel(first, last),
+		Dates:    make([]string, 0, 7),
+		Previous: first.AddDate(0, 0, -7).Format(time.DateOnly),
 		Current:  key == currentKey,
 	}
-	if !m.Current {
-		m.Next = first.AddDate(0, 1, 0).Format("2006-01")
+	if !week.Current {
+		week.Next = first.AddDate(0, 0, 7).Format(time.DateOnly)
 	}
-	// Enumerate in UTC so DST and skipped local midnights cannot shift civil dates.
-	for d := first; d.Month() == first.Month(); d = d.AddDate(0, 0, 1) {
-		m.Dates = append(m.Dates, d.Format(time.DateOnly))
+	for day := first; !day.After(last); day = day.AddDate(0, 0, 1) {
+		week.Dates = append(week.Dates, day.Format(time.DateOnly))
 	}
-	return m
+	return week
+}
+
+func weekLabel(first, last time.Time) string {
+	if first.Year() != last.Year() {
+		return first.Format("January 2, 2006") + "–" + last.Format("January 2, 2006")
+	}
+	if first.Month() != last.Month() {
+		return first.Format("January 2") + "–" + last.Format("January 2, 2006")
+	}
+	return first.Format("January 2") + "–" + last.Format("2, 2006")
 }

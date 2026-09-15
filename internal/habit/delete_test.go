@@ -347,7 +347,7 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 	}
 }
 
-func TestDeleteRemovesHabitAcrossMonths(t *testing.T) {
+func TestDeleteRemovesHabitAcrossWeeks(t *testing.T) {
 	db, _ := database(t)
 	ctx := context.Background()
 	s := habit.NewService(db, nil)
@@ -376,10 +376,10 @@ func TestDeleteRemovesHabitAcrossMonths(t *testing.T) {
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM habit_checkin WHERE habit_id = ?`, id).Scan(&checkins); err != nil || checkins != 0 {
 		t.Fatalf("persisted check-ins after deletion: %d %v", checkins, err)
 	}
-	for _, month := range []string{"2024-01", "2024-02", "2024-03"} {
-		got, err := s.MonthSnapshot(ctx, "alice", "UTC", month)
+	for _, week := range []string{"2024-01-28", "2024-02-25"} {
+		got, err := s.WeekSnapshot(ctx, "alice", "UTC", week)
 		if err != nil || len(got.Habits) != 0 {
-			t.Fatalf("deleted month %s: %+v %v", month, got, err)
+			t.Fatalf("deleted week %s: %+v %v", week, got, err)
 		}
 	}
 }
