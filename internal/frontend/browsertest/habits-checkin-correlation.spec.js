@@ -23,6 +23,26 @@ function latch() {
   return { promise, release };
 }
 
+function previousCrossMonthWeek() {
+  const now = new Date();
+  const current = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  current.setUTCDate(current.getUTCDate() - current.getUTCDay());
+  for (let weeksAgo = 1; weeksAgo <= 6; weeksAgo++) {
+    const first = new Date(current);
+    first.setUTCDate(first.getUTCDate() - weeksAgo * 7);
+    const last = new Date(first);
+    last.setUTCDate(last.getUTCDate() + 6);
+    if (first.getUTCMonth() !== last.getUTCMonth()) {
+      return {
+        weeksAgo,
+        first: first.toISOString().slice(0, 10),
+        last: last.toISOString().slice(0, 10),
+      };
+    }
+  }
+  throw new Error("no preceding cross-month week found");
+}
+
 test("a superseded check-in settles only after its post-commit authoritative read", async ({ context, page }) => {
   const { button, today, id } = await openHabit(context, page);
   const reads = latch();
@@ -53,6 +73,53 @@ test("a superseded check-in settles only after its post-commit authoritative rea
     await page.unroute("**/habits/week?*");
     await button.click();
     await expect(button).toHaveAttribute("aria-pressed", "true");
+    await expect(button).not.toHaveAttribute("aria-busy", "true");
+  } finally {
+    reads.release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
+test("a cross-month week's stale check-in settles from its own authoritative read", async ({ context, page }) => {
+  await signIn(context);
+  const week = previousCrossMonthWeek();
+  const created = await context.request.post(`${baseURL}/habits`, {
+    data: { habitname: "Read", habitstart: week.first, timezone: "UTC" },
+  });
+  expect(created.ok()).toBe(true);
+  await page.goto(baseURL, { waitUntil: "load" });
+  await page.getByRole("tab", { name: "Habits", exact: true }).click();
+  const heading = page.locator("#habit-grid .week-nav h2 time");
+  for (let i = 0; i < week.weeksAgo; i++) {
+    const selected = await heading.getAttribute("datetime");
+    await page.getByRole("button", { name: /Previous week/ }).click();
+    await expect(heading).not.toHaveAttribute("datetime", selected);
+  }
+  await expect(heading).toHaveAttribute("datetime", week.first);
+  const button = page.getByRole("button", { name: `Read on ${week.last}`, exact: true });
+  const id = Number((await button.getAttribute("id")).split("-")[1]);
+
+  const reads = latch();
+  const selectedWeeks = [];
+  await page.route("**/habits/week?*", async (route) => {
+    const signals = JSON.parse(new URL(route.request().url()).searchParams.get("datastar"));
+    selectedWeeks.push(signals.habitweek);
+    await reads.promise;
+    await route.continue();
+  });
+  try {
+    const posted = page.waitForResponse((response) => response.url().endsWith("/habits/check-in") && response.request().method() === "POST");
+    await button.click();
+    await (await posted).finished();
+    await expect.poll(() => selectedWeeks.length).toBeGreaterThan(0);
+    expect(selectedWeeks.every((selected) => selected === week.first)).toBe(true);
+
+    const superseded = await context.request.post(`${baseURL}/habits/check-in`, {
+      data: { habitid: id, habitdate: week.last, habitchecked: false, timezone: "UTC" },
+    });
+    expect(superseded.ok()).toBe(true);
+    reads.release();
+    await expect(button).toHaveAttribute("aria-pressed", "false");
     await expect(button).not.toHaveAttribute("aria-busy", "true");
   } finally {
     reads.release();
