@@ -21,7 +21,7 @@ func CurrentWeek(timezone string, now time.Time) (Week, error) {
 	if err != nil {
 		return Week{}, err
 	}
-	return calendarWeek(local, weekStart(local).Format(time.DateOnly)), nil
+	return calendarWeek(local, WeekKey(local)), nil
 }
 
 // CalendarWeek returns a selected week no later than the browser's local week.
@@ -34,7 +34,7 @@ func CalendarWeek(timezone, key string, now time.Time) (Week, error) {
 	if err != nil || selected.Format(time.DateOnly) != key || selected.Weekday() != time.Sunday {
 		return Week{}, rejection("Choose a valid week.")
 	}
-	if key > weekStart(local).Format(time.DateOnly) {
+	if key > WeekKey(local) {
 		return Week{}, rejection("Cannot browse beyond the current week.")
 	}
 	return calendarWeek(local, key), nil
@@ -57,15 +57,16 @@ func localTime(timezone string, now time.Time) (time.Time, error) {
 	return now.In(loc), nil
 }
 
-func weekStart(local time.Time) time.Time {
-	date := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
-	return date.AddDate(0, 0, -int(date.Weekday()))
+// WeekKey returns the canonical Sunday key containing a civil date.
+func WeekKey(date time.Time) string {
+	civil := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	return civil.AddDate(0, 0, -int(civil.Weekday())).Format(time.DateOnly)
 }
 
 func calendarWeek(local time.Time, key string) Week {
 	first, _ := time.Parse(time.DateOnly, key)
 	last := first.AddDate(0, 0, 6)
-	currentKey := weekStart(local).Format(time.DateOnly)
+	currentKey := WeekKey(local)
 	week := Week{
 		Today:    local.Format(time.DateOnly),
 		Key:      key,

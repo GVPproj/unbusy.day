@@ -7,6 +7,18 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/habit"
 )
 
+func TestWeekKeyUsesTheContainingSundayAcrossMonthAndYearBoundaries(t *testing.T) {
+	for date, want := range map[time.Time]string{
+		time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC):  "2024-02-25",
+		time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC):  "2024-12-29",
+		time.Date(2024, 2, 25, 0, 0, 0, 0, time.UTC): "2024-02-25",
+	} {
+		if got := habit.WeekKey(date); got != want {
+			t.Errorf("WeekKey(%s) = %q, want %q", date.Format(time.DateOnly), got, want)
+		}
+	}
+}
+
 func TestCurrentWeekRemainsAvailableWithoutHabitStorage(t *testing.T) {
 	db, _ := database(t)
 	now := time.Date(2024, 3, 1, 0, 30, 0, 0, time.UTC)

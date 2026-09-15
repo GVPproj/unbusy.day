@@ -164,7 +164,7 @@ func patchHabitCheckInFeedback(sse *datastar.ServerSentEventGenerator, message, 
 	if validHabitRefresh(refresh) {
 		week := ""
 		if parsed, err := time.Parse(time.DateOnly, date); err == nil && parsed.Format(time.DateOnly) == date {
-			week = parsed.AddDate(0, 0, -int(parsed.Weekday())).Format(time.DateOnly)
+			week = habit.WeekKey(parsed)
 		}
 		correlation := components.HabitView{Refresh: refresh, View: view}
 		opts = append(opts, datastar.WithSelector(correlation.GridSelector(week)+` #habit-checkin-feedback`))
