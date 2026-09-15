@@ -35,6 +35,8 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 			@modals.GuideModal()
 			@modals.ShortcutsModal()
 			@modals.DialogInit()
+			<div id="sr-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+			<div id="habit-reorder-instructions" class="sr-only">Hold Alt and press the Up or Down arrow key to move this habit, or Alt with Home or End to move it to the top or bottom.</div>
 			// .shell/.panels/.column geometry lives in app.css's layout layer.
 			// Both panels stay in the DOM at every width — below 52rem CSS hides
 			// one, so switching is instant and the Jotpad keeps its text,
@@ -43,9 +45,7 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 				<main class="column">
 					@components.DateHeading()
 					@components.BlockColumn(cs, b)
-					// Keyboard-a11y scaffolding, kept OUTSIDE #block-list so SSE morphs
-					// leave it intact.
-					<div id="sr-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+					// Keyboard instructions stay outside #block-list so SSE morphs leave them intact.
 					<div id="dnd-instructions" class="sr-only">Press Space or Enter to grab this block, then the Up and Down arrow keys (or j and k) to move it, and Space or Enter again to drop it. Press r or F2 to rename, or Delete to remove it. Tab to the resize handle to change its length. Press question mark for the full list of keyboard shortcuts.</div>
 					// Block gestures live behind one init seam (blocks/gestures.js): pass the
 					// list element and an announce *function* (the #sr-announce null-guard

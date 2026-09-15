@@ -15,17 +15,26 @@ type rejection string
 
 func (e rejection) Error() string { return string(e) }
 
+var ErrNotSameHabits = errors.New("order is not the owner's current habit set")
+var ErrForeignHabit = errors.New("habit is not owned by the user")
+
 // IsRejection distinguishes invalid input from infrastructure failures.
 func IsRejection(err error) bool {
 	var target rejection
-	return errors.As(err, &target)
+	return errors.As(err, &target) || errors.Is(err, ErrNotSameHabits) || errors.Is(err, ErrForeignHabit)
 }
 
 type Habit struct {
 	ID           int64
 	Name         string
 	StartDate    string
+	SortOrder    int64 `json:"sort_order"`
 	CheckedDates []string
+}
+
+type HabitOrder struct {
+	ID        int64 `json:"id"`
+	SortOrder int64 `json:"sortOrder"`
 }
 
 // Event invalidates the owner's habit list; readers fetch current state.
@@ -76,12 +85,20 @@ func (s *Service) WeekSnapshot(ctx context.Context, owner, timezone, key string)
 }
 
 func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT h.id, h.name, h.start_date, c.date
+	return queryHabits(ctx, s.db, owner)
+}
+
+type querier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
+func queryHabits(ctx context.Context, q querier, owner string) ([]Habit, error) {
+	rows, err := q.QueryContext(ctx, `
+		SELECT h.id, h.name, h.start_date, h.sort_order, c.date
 		FROM habit h
 		LEFT JOIN habit_checkin c ON c.habit_id = h.id
 		WHERE h.owner_id = ?
-		ORDER BY h.id, c.date`, owner)
+		ORDER BY h.sort_order, h.id, c.date`, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +107,11 @@ func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
 
 func listHabitsInRange(ctx context.Context, db *sql.DB, owner, first, last string) ([]Habit, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT h.id, h.name, h.start_date, c.date
+		SELECT h.id, h.name, h.start_date, h.sort_order, c.date
 		FROM habit h
 		LEFT JOIN habit_checkin c ON c.habit_id = h.id AND c.date >= ? AND c.date <= ?
 		WHERE h.owner_id = ? AND h.start_date <= ?
-		ORDER BY h.id, c.date`, first, last, owner, last)
+		ORDER BY h.sort_order, h.id, c.date`, first, last, owner, last)
 	if err != nil {
 		return nil, err
 	}
@@ -105,18 +122,17 @@ func scanHabits(rows *sql.Rows) ([]Habit, error) {
 	defer rows.Close()
 	habits := make([]Habit, 0)
 	for rows.Next() {
-		var id int64
-		var name, startDate string
+		var h Habit
 		var checkedDate sql.NullString
-		if err := rows.Scan(&id, &name, &startDate, &checkedDate); err != nil {
+		if err := rows.Scan(&h.ID, &h.Name, &h.StartDate, &h.SortOrder, &checkedDate); err != nil {
 			return nil, err
 		}
-		if len(habits) == 0 || habits[len(habits)-1].ID != id {
-			habits = append(habits, Habit{ID: id, Name: name, StartDate: startDate})
+		if len(habits) == 0 || habits[len(habits)-1].ID != h.ID {
+			habits = append(habits, h)
 		}
 		if checkedDate.Valid {
-			h := &habits[len(habits)-1]
-			h.CheckedDates = append(h.CheckedDates, checkedDate.String)
+			stored := &habits[len(habits)-1]
+			stored.CheckedDates = append(stored.CheckedDates, checkedDate.String)
 		}
 	}
 	return habits, rows.Err()
@@ -216,7 +232,11 @@ func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone s
 	if err := tx.QueryRowContext(ctx, `UPDATE habit_id_allocator SET last_id = MAX(last_id, COALESCE((SELECT MAX(id) FROM habit), 0)) + 1 WHERE singleton = 1 RETURNING last_id`).Scan(&id); err != nil {
 		return err
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO habit (id,owner_id,name,name_key,start_date) VALUES (?,?,?,?,?) ON CONFLICT (owner_id,name_key) DO NOTHING`, id, owner, name, foldKey(name), startDate)
+	var sortOrder int64
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(sort_order), -1) + 1 FROM habit WHERE owner_id = ?`, owner).Scan(&sortOrder); err != nil {
+		return err
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO habit (id,owner_id,name,name_key,start_date,sort_order) VALUES (?,?,?,?,?,?) ON CONFLICT (owner_id,name_key) DO NOTHING`, id, owner, name, foldKey(name), startDate, sortOrder)
 	if err != nil {
 		return err
 	}
@@ -236,6 +256,75 @@ func (s *Service) Create(ctx context.Context, owner, name, startDate, timezone s
 	return nil
 }
 
+// SetOrder replaces the owner's complete habit order in one transaction.
+func (s *Service) SetOrder(ctx context.Context, owner string, order []HabitOrder) (*Snapshot, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	current, err := queryHabits(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if len(order) != len(current) {
+		return nil, ErrNotSameHabits
+	}
+	owned := make(map[int64]struct{}, len(current))
+	for _, h := range current {
+		owned[h.ID] = struct{}{}
+	}
+	seen := make(map[int64]struct{}, len(order))
+	unchanged := true
+	for i, proposed := range order {
+		if _, duplicate := seen[proposed.ID]; duplicate {
+			return nil, ErrNotSameHabits
+		}
+		seen[proposed.ID] = struct{}{}
+		if _, ok := owned[proposed.ID]; !ok {
+			return nil, ErrForeignHabit
+		}
+		if proposed.SortOrder != int64(i) {
+			return nil, ErrNotSameHabits
+		}
+		unchanged = unchanged && current[i].ID == proposed.ID && current[i].SortOrder == proposed.SortOrder
+	}
+	if unchanged {
+		return &Snapshot{Habits: current}, nil
+	}
+
+	if len(order) > 0 {
+		var b strings.Builder
+		b.WriteString(`WITH proposed(id, sort_order) AS (VALUES `)
+		args := make([]any, 0, len(order)*2+1)
+		for i, h := range order {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString("(?, ?)")
+			args = append(args, h.ID, h.SortOrder)
+		}
+		b.WriteString(`) UPDATE habit AS h SET sort_order = proposed.sort_order FROM proposed WHERE h.id = proposed.id AND h.owner_id = ?`)
+		args = append(args, owner)
+		if _, err := tx.ExecContext(ctx, b.String(), args...); err != nil {
+			return nil, err
+		}
+	}
+
+	habits, err := queryHabits(ctx, tx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.pub != nil {
+		s.pub.PublishHabit(Event{Owner: owner})
+	}
+	return &Snapshot{Habits: habits}, nil
+}
+
 // Delete permanently removes an owned habit and its check-ins, including on retries.
 func (s *Service) Delete(ctx context.Context, owner string, id int64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -244,6 +333,15 @@ func (s *Service) Delete(ctx context.Context, owner string, id int64) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, `DELETE FROM habit WHERE id = ? AND owner_id = ?`, id, owner); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		WITH ranked AS (
+			SELECT id, ROW_NUMBER() OVER (ORDER BY sort_order, id) - 1 AS sort_order
+			FROM habit WHERE owner_id = ?
+		)
+		UPDATE habit SET sort_order = ranked.sort_order
+		FROM ranked WHERE habit.id = ranked.id AND habit.owner_id = ?`, owner, owner); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {

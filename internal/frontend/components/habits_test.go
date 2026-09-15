@@ -26,6 +26,56 @@ func TestHabitWeekHeadersRunSundayThroughSaturday(t *testing.T) {
 	}
 }
 
+func TestHabitGridExposesTheReorderContract(t *testing.T) {
+	week, err := habit.CalendarWeek("UTC", "2026-05-31", time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var grid strings.Builder
+	if err := components.HabitGrid([]habit.Habit{{ID: 7, Name: "Read", StartDate: "2020-01-01", SortOrder: 3}}, week, components.HabitView{}).Render(context.Background(), &grid); err != nil {
+		t.Fatal(err)
+	}
+	body := html.UnescapeString(grid.String())
+	for _, want := range []string{`id="habit-7" data-sort-order="3" tabindex="0"`, `data-on:pointerdown="evt.stopPropagation()"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("grid missing reorder hook %q: %s", want, body)
+		}
+	}
+
+	historical, err := habit.CalendarWeek("UTC", "2026-05-24", time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var oldGrid strings.Builder
+	if err := components.HabitGrid([]habit.Habit{{ID: 7, Name: "Read", StartDate: "2020-01-01"}}, historical, components.HabitView{}).Render(context.Background(), &oldGrid); err != nil {
+		t.Fatal(err)
+	}
+	historicalBody := oldGrid.String()
+	start := strings.Index(historicalBody, `id="habit-7"`)
+	if start < 0 {
+		t.Fatalf("historical habit row missing: %s", historicalBody)
+	}
+	end := strings.Index(historicalBody[start:], ">")
+	if end < 0 {
+		t.Fatalf("historical habit row is malformed: %s", historicalBody)
+	}
+	rowTag := historicalBody[start : start+end]
+	if strings.Contains(rowTag, `tabindex="0"`) || strings.Contains(rowTag, `aria-describedby="habit-reorder-instructions"`) {
+		t.Errorf("historical row exposes disabled reorder controls: %s", rowTag)
+	}
+
+	var matrix strings.Builder
+	if err := components.Habits().Render(context.Background(), &matrix); err != nil {
+		t.Fatal(err)
+	}
+	body = html.UnescapeString(matrix.String())
+	for _, want := range []string{`data-signals:habitorder="[]"`, `data-on:reorder="$habitorder = evt.detail.order; @post('/habits/reorder')"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("matrix missing reorder hook %q: %s", want, body)
+		}
+	}
+}
+
 func TestHabitWeekHeading(t *testing.T) {
 	for _, tc := range []struct{ key, short string }{
 		{"2026-01-04", "Jan 4–10 '26"},

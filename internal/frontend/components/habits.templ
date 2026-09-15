@@ -41,6 +41,8 @@ templ Habits() {
 		data-signals:_habitcheckinack="''"
 		data-signals:habitread="0"
 		data-on:habit-checkin-read="$habitread = evt.detail.read"
+		data-signals:habitorder="[]"
+		data-on:reorder="$habitorder = evt.detail.order; @post('/habits/reorder')"
 		data-signals:habitweek="''"
 		data-signals:habitview="0"
 		data-signals:_habitcurrentweek="''"
@@ -57,7 +59,7 @@ templ Habits() {
 // HabitGrid is shared by initial rendering and every authoritative week patch.
 // The rendered read is immutable; only the selector's request key follows signals.
 templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
-	<div id="habit-grid" data-week={ week.Key } data-refresh={ view.Refresh } data-view={ strconv.FormatUint(view.View, 10) } data-read={ strconv.FormatUint(view.Read, 10) } data-read-request={ strconv.FormatUint(view.Read, 10) } data-attr:data-week="$habitweek" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
+	<div id="habit-grid" data-week={ week.Key } data-reorderable={ strconv.FormatBool(week.Current) } data-refresh={ view.Refresh } data-view={ strconv.FormatUint(view.View, 10) } data-read={ strconv.FormatUint(view.Read, 10) } data-read-request={ strconv.FormatUint(view.Read, 10) } data-attr:data-week="$habitweek" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
 		if week.Today == "" {
 			<p>Loading your current week…</p>
 		} else {
@@ -92,7 +94,10 @@ templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
 						</thead>
 						<tbody>
 							for _, h := range habits {
-								<tr id={ "habit-" + strconv.FormatInt(h.ID, 10) }>
+								<tr id={ "habit-" + strconv.FormatInt(h.ID, 10) } data-sort-order={ strconv.FormatInt(h.SortOrder, 10) } if week.Current {
+					tabindex="0"
+					aria-describedby="habit-reorder-instructions"
+				}>
 									<th scope="row" aria-label={ h.Name }>
 										<div class="habit-heading">
 											<span class="habit-name" title={ h.Name }>{ h.Name }</span>
@@ -102,6 +107,7 @@ templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
 												type="button"
 												commandfor="habit-edit"
 												command="show-modal"
+												data-on:pointerdown="evt.stopPropagation()"
 												data-on:click={ openHabitEditor(h) }
 												aria-label={ "Edit " + h.Name }
 												title="Edit habit"
@@ -114,6 +120,7 @@ templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
 												type="button"
 												commandfor="habit-delete"
 												command="show-modal"
+												data-on:pointerdown="evt.stopPropagation()"
 												data-on:click={ openHabitDelete(h) }
 												aria-label={ "Delete " + h.Name }
 												title="Delete habit"
@@ -152,8 +159,13 @@ templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
 				</div>
 			}
 			@HabitCheckInFeedback("", "")
+			@HabitReorderFeedback("")
 		}
 	</div>
+}
+
+templ HabitReorderFeedback(message string) {
+	<output id="habit-reorder-feedback" aria-live="polite">{ message }</output>
 }
 
 templ HabitCheckInFeedback(message, result string) {

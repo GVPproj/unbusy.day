@@ -323,7 +323,9 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := s.List(ctx, "alice")
-	if err != nil || !reflect.DeepEqual(got, hs[1:]) {
+	wantHabit := hs[1]
+	wantHabit.SortOrder = 0
+	if err != nil || !reflect.DeepEqual(got, []habit.Habit{wantHabit}) {
 		t.Fatalf("other habit changed: %+v %v", got, err)
 	}
 	gotPlan, err := plans.List(ctx, "alice")
@@ -342,7 +344,7 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = s.List(ctx, "alice")
-	if err != nil || !reflect.DeepEqual(got, hs[1:]) {
+	if err != nil || !reflect.DeepEqual(got, []habit.Habit{wantHabit}) {
 		t.Fatalf("plan clear changed habits: %+v %v", got, err)
 	}
 }

@@ -62,6 +62,7 @@ func TestRouterSessionGating(t *testing.T) {
 		{"GET", "/habits/week", http.StatusUnauthorized},
 		{"POST", "/habits", http.StatusUnauthorized},
 		{"POST", "/habits/edit", http.StatusUnauthorized},
+		{"POST", "/habits/reorder", http.StatusUnauthorized},
 		{"POST", "/habits/delete", http.StatusUnauthorized},
 		{"POST", "/habits/check-in", http.StatusUnauthorized},
 		// Ungated.

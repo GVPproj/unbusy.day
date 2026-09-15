@@ -53,6 +53,7 @@ func newRouter(authSvc *auth.Service, blockSvc *block.Service, jotSvc *jot.Servi
 	mux.Handle("GET /habits/week", web.RequireSession(authSvc, frontend.HabitWeekHandler(habitSvc)))
 	mux.Handle("POST /habits", web.RequireSession(authSvc, frontend.HabitCreateHandler(habitSvc)))
 	mux.Handle("POST /habits/edit", web.RequireSession(authSvc, frontend.HabitEditHandler(habitSvc)))
+	mux.Handle("POST /habits/reorder", web.RequireSession(authSvc, frontend.HabitReorderHandler(habitSvc)))
 	mux.Handle("POST /habits/delete", web.RequireSession(authSvc, frontend.HabitDeleteHandler(habitSvc)))
 	mux.Handle("POST /habits/check-in", web.RequireSession(authSvc, frontend.HabitCheckInHandler(habitSvc)))
 

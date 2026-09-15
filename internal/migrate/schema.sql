@@ -65,7 +65,7 @@ CREATE TABLE habit (
   owner_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   name_key TEXT NOT NULL,
-  start_date TEXT NOT NULL,
+  start_date TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0,
   UNIQUE (owner_id, name_key)
 );
 
@@ -81,4 +81,6 @@ CREATE TABLE habit_id_allocator (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
   last_id INTEGER NOT NULL CHECK (typeof(last_id) = 'integer' AND last_id >= 0)
 );
+
+CREATE INDEX habit_owner_sort_order_idx ON habit (owner_id, sort_order);
 

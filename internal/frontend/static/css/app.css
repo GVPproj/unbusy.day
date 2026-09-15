@@ -2663,7 +2663,11 @@
     }
 
     .habit-scroll {
+      --habit-lift-bleed: 0.75rem;
       overflow-x: auto;
+      /* Give scaled rows room outside the resting table without moving it. */
+      margin: calc(-1 * var(--habit-lift-bleed));
+      padding: var(--habit-lift-bleed);
     }
 
     .week-nav {
@@ -2737,6 +2741,40 @@
       border-right: 2px solid var(--rail-border);
     }
 
+    :where(#habit-grid)[data-reorderable="true"] tbody th:first-child {
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    :scope.reordering,
+    :scope.reordering #habit-grid * {
+      cursor: grabbing;
+    }
+
+    tbody tr:focus-visible th:first-child {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    :where(#habit-grid)[data-reorderable="true"] tbody tr {
+      transform-origin: left center;
+      transition:
+        opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1),
+        scale 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    tbody tr.dragging {
+      position: relative;
+      z-index: 2;
+      scale: 1.015;
+      opacity: 0.92;
+
+      .habit-action {
+        opacity: 0;
+      }
+    }
+
     thead th span {
       display: block;
       color: var(--ink-muted);
@@ -2783,6 +2821,7 @@
       border-radius: var(--radius);
       color: var(--ink-muted);
       cursor: pointer;
+      transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 
       &:hover, &:focus-visible {
         color: var(--accent);

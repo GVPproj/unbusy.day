@@ -20,26 +20,28 @@ type HabitService interface {
 	Create(ctx context.Context, owner, name, startDate, timezone string) error
 	Edit(ctx context.Context, owner string, habitID int64, name, startDate, timezone string) error
 	Delete(ctx context.Context, owner string, habitID int64) error
+	SetOrder(ctx context.Context, owner string, order []habit.HabitOrder) (*habit.Snapshot, error)
 	SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) error
 }
 
 type habitSignals struct {
-	Name       string `json:"habitname"`
-	Start      string `json:"habitstart"`
-	CreateView uint64 `json:"habitcreateview"`
-	Timezone   string `json:"timezone"`
-	Week       string `json:"habitweek"`
-	Refresh    string `json:"habitrefresh"`
-	View       uint64 `json:"habitview"`
-	HabitID    int64  `json:"habitid"`
-	EditID     int64  `json:"habiteditid"`
-	EditName   string `json:"habiteditname"`
-	EditStart  string `json:"habiteditstart"`
-	EditView   uint64 `json:"habiteditview"`
-	DeleteID   int64  `json:"habitdeleteid"`
-	DeleteView uint64 `json:"habitdeleteview"`
-	Date       string `json:"habitdate"`
-	Checked    *bool  `json:"habitchecked"`
+	Name       string             `json:"habitname"`
+	Start      string             `json:"habitstart"`
+	CreateView uint64             `json:"habitcreateview"`
+	Timezone   string             `json:"timezone"`
+	Week       string             `json:"habitweek"`
+	Refresh    string             `json:"habitrefresh"`
+	View       uint64             `json:"habitview"`
+	HabitID    int64              `json:"habitid"`
+	EditID     int64              `json:"habiteditid"`
+	EditName   string             `json:"habiteditname"`
+	EditStart  string             `json:"habiteditstart"`
+	EditView   uint64             `json:"habiteditview"`
+	DeleteID   int64              `json:"habitdeleteid"`
+	DeleteView uint64             `json:"habitdeleteview"`
+	Date       string             `json:"habitdate"`
+	Checked    *bool              `json:"habitchecked"`
+	Order      []habit.HabitOrder `json:"habitorder"`
 
 	CheckInAttempt uint64 `json:"habitcheckinattempt"`
 	Read           uint64 `json:"habitread"`
@@ -135,6 +137,73 @@ func respondHabitForm(w http.ResponseWriter, r *http.Request, action string, vie
 	if err := sse.MarshalAndPatchSignals(map[string]uint64{prefix + "savedview": view}); err != nil {
 		log.Printf("habit %s acknowledgement: %v", action, err)
 	}
+}
+
+func HabitReorderHandler(svc HabitService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var sig habitSignals
+		if err := datastar.ReadSignals(r, &sig); err != nil {
+			http.Error(w, "invalid signals body", http.StatusBadRequest)
+			return
+		}
+		if !validHabitRefresh(sig.Refresh) {
+			http.Error(w, "invalid refresh token", http.StatusBadRequest)
+			return
+		}
+		owner := web.OwnerFrom(r.Context())
+		selected, err := svc.WeekSnapshot(r.Context(), owner, sig.Timezone, sig.Week)
+		if err != nil {
+			if habit.IsRejection(err) {
+				http.Error(w, "invalid habit view", http.StatusBadRequest)
+				return
+			}
+			log.Printf("habit reorder view: %v", err)
+			http.Error(w, "Unable to reorder habits. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		view := components.HabitView{Refresh: sig.Refresh, View: sig.View, Read: sig.Read}
+		feedback := func(message string) {
+			snap, err := svc.WeekSnapshot(r.Context(), owner, sig.Timezone, sig.Week)
+			if err != nil {
+				log.Printf("habit reorder rejection read: %v", err)
+				http.Error(w, "Unable to load habits. Please try again.", http.StatusInternalServerError)
+				return
+			}
+			sse := datastar.NewSSE(w, r)
+			// Rejected optimistic moves must return to the stored order.
+			if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Week, view), datastar.WithSelector(view.ReadSelector(snap.Week.Key))); err != nil {
+				log.Printf("habit reorder rejection patch: %v", err)
+				return
+			}
+			selector := view.ReadSelector(sig.Week) + ` #habit-reorder-feedback`
+			if patchErr := sse.PatchElementTempl(components.HabitReorderFeedback(message), datastar.WithSelector(selector)); patchErr != nil {
+				log.Printf("habit reorder feedback: %v", patchErr)
+			}
+		}
+		if !selected.Week.Current {
+			feedback("Return to this week to reorder habits.")
+			return
+		}
+		if _, err := svc.SetOrder(r.Context(), owner, sig.Order); err != nil {
+			if habit.IsRejection(err) {
+				feedback(err.Error())
+				return
+			}
+			log.Printf("habit reorder: %v", err)
+			http.Error(w, "Unable to reorder habits. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		snap, err := svc.WeekSnapshot(r.Context(), owner, sig.Timezone, sig.Week)
+		if err != nil {
+			log.Printf("habit reorder read: %v", err)
+			http.Error(w, "Unable to load habits. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		sse := datastar.NewSSE(w, r)
+		if err := sse.PatchElementTempl(components.HabitGrid(snap.Habits, snap.Week, view), datastar.WithSelector(view.ReadSelector(snap.Week.Key))); err != nil {
+			log.Printf("habit reorder patch: %v", err)
+		}
+	})
 }
 
 func HabitDeleteHandler(svc HabitService) http.Handler {

@@ -55,7 +55,7 @@ func TestPageRendersLiveRegionAndInstructionsOutsidePatchTarget(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 	list := blockListElement(t, body)
 
-	for _, want := range []string{`id="sr-announce"`, `aria-live="assertive"`, `id="dnd-instructions"`} {
+	for _, want := range []string{`id="sr-announce"`, `aria-live="assertive"`, `id="dnd-instructions"`, `id="habit-reorder-instructions"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page missing %q; body:\n%s", want, body)
 		}
