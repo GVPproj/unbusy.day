@@ -34,10 +34,14 @@ func TestHabitCheckInReceiptFencesAnAuthoritativeReadAfterSupersession(t *testin
 		t.Fatal(err)
 	}
 	read := httptest.NewRecorder()
-	signals := fmt.Sprintf(`{"habitmonth":%q,"habitrefresh":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","habitview":3,"habitread":8,"timezone":"UTC"}`, today[:7])
-	HabitMonthHandler(svc).ServeHTTP(read, authedRequest(http.MethodGet, "/habits/month?datastar="+url.QueryEscape(signals), ""))
+	current, err := svc.CurrentWeek("UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	signals := fmt.Sprintf(`{"habitweek":%q,"habitrefresh":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","habitview":3,"habitread":8,"timezone":"UTC"}`, current.Key)
+	HabitWeekHandler(svc).ServeHTTP(read, authedRequest(http.MethodGet, "/habits/week?datastar="+url.QueryEscape(signals), ""))
 	for _, want := range []string{
-		`selector #habit-grid[data-month="` + today[:7] + `"][data-refresh="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"][data-view="3"][data-read-request="8"]`,
+		`selector #habit-grid[data-week="` + current.Key + `"][data-refresh="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"][data-view="3"][data-read-request="8"]`,
 		`data-read="8"`, `aria-pressed="false"`,
 	} {
 		if !strings.Contains(read.Body.String(), want) {

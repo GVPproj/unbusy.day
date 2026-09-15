@@ -1,4 +1,4 @@
-// Package habit stores a user's perpetual habits, independent of the displayed month.
+// Package habit stores a user's perpetual habits, independent of the displayed week.
 package habit
 
 import (
@@ -54,25 +54,25 @@ func NewService(db *sql.DB, pub Publisher, opts ...Option) *Service {
 
 type Snapshot struct {
 	Habits []Habit
-	Month  Month
+	Week   Week
 }
 
-// CurrentCalendar uses the service clock and browser timezone, without storage reads.
-func (s *Service) CurrentCalendar(timezone string) (Month, error) {
-	return Calendar(timezone, s.now())
+// CurrentWeek uses the service clock and browser timezone, without storage reads.
+func (s *Service) CurrentWeek(timezone string) (Week, error) {
+	return CurrentWeek(timezone, s.now())
 }
 
-// MonthSnapshot reads one view-selected month without storing that selection.
-func (s *Service) MonthSnapshot(ctx context.Context, owner, timezone, key string) (*Snapshot, error) {
-	month, err := CalendarMonth(timezone, key, s.now())
+// WeekSnapshot reads one view-selected week without storing that selection.
+func (s *Service) WeekSnapshot(ctx context.Context, owner, timezone, key string) (*Snapshot, error) {
+	week, err := CalendarWeek(timezone, key, s.now())
 	if err != nil {
 		return nil, err
 	}
-	habits, err := listMonth(ctx, s.db, owner, month)
+	habits, err := listHabitsInRange(ctx, s.db, owner, week.Dates[0], week.Dates[len(week.Dates)-1])
 	if err != nil {
 		return nil, err
 	}
-	return &Snapshot{Habits: habits, Month: month}, nil
+	return &Snapshot{Habits: habits, Week: week}, nil
 }
 
 func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
@@ -88,8 +88,7 @@ func (s *Service) List(ctx context.Context, owner string) ([]Habit, error) {
 	return scanHabits(rows)
 }
 
-func listMonth(ctx context.Context, db *sql.DB, owner string, month Month) ([]Habit, error) {
-	first, last := month.Dates[0], month.Dates[len(month.Dates)-1]
+func listHabitsInRange(ctx context.Context, db *sql.DB, owner, first, last string) ([]Habit, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT h.id, h.name, h.start_date, c.date
 		FROM habit h
@@ -138,7 +137,7 @@ func foldKey(name string) string {
 
 // SetCheckIn records an explicit checked state for one owned habit and civil date.
 func (s *Service) SetCheckIn(ctx context.Context, owner string, habitID int64, date string, checked bool, timezone string) error {
-	current, err := s.CurrentCalendar(timezone)
+	current, err := s.CurrentWeek(timezone)
 	if err != nil {
 		return err
 	}
@@ -189,14 +188,14 @@ func (s *Service) validateDefinition(name, startDate, timezone string) (string, 
 	if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 80 {
 		return "", rejection("Habit names must contain at most 80 Unicode characters.")
 	}
-	month, err := s.CurrentCalendar(timezone)
+	week, err := s.CurrentWeek(timezone)
 	if err != nil {
 		return "", err
 	}
 	if !validCivilDate(startDate) {
 		return "", rejection("Enter a valid start date (yyyy-mm-dd).")
 	}
-	if startDate > month.Today {
+	if startDate > week.Today {
 		return "", rejection("Start date cannot be after today.")
 	}
 	return name, nil

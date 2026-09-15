@@ -1,43 +1,45 @@
 package habit
 
 import (
+	"strings"
 	"time"
 	_ "time/tzdata" // Production's scratch image has no system zoneinfo.
 )
 
-type Month struct {
-	Today    string
-	Key      string
-	Label    string
-	Dates    []string
-	Previous string
-	Next     string
-	Current  bool
+type Week struct {
+	Today      string
+	Key        string
+	Label      string
+	ShortLabel string
+	Dates      []string
+	Previous   string
+	Next       string
+	Current    bool
 }
 
-// Calendar returns the current civil month in the browser's IANA timezone.
-func Calendar(timezone string, now time.Time) (Month, error) {
+// CurrentWeek returns the Sunday-to-Saturday week in the browser's timezone.
+func CurrentWeek(timezone string, now time.Time) (Week, error) {
 	local, err := localTime(timezone, now)
 	if err != nil {
-		return Month{}, err
+		return Week{}, err
 	}
-	return calendarMonth(local, local.Format("2006-01")), nil
+	return calendarWeek(local, WeekKey(local)), nil
 }
 
-// CalendarMonth returns a selected month no later than the browser's local month.
-func CalendarMonth(timezone, key string, now time.Time) (Month, error) {
+// CalendarWeek returns a selected week no later than the browser's local week.
+func CalendarWeek(timezone, key string, now time.Time) (Week, error) {
 	local, err := localTime(timezone, now)
 	if err != nil {
-		return Month{}, err
+		return Week{}, err
 	}
-	selected, err := time.Parse("2006-01", key)
-	if err != nil || selected.Format("2006-01") != key {
-		return Month{}, rejection("Choose a valid month.")
+	selected, err := time.Parse(time.DateOnly, key)
+	if err != nil || selected.Format(time.DateOnly) != key || selected.Weekday() != time.Sunday {
+		return Week{}, rejection("Choose a valid week.")
 	}
-	if key > local.Format("2006-01") {
-		return Month{}, rejection("Cannot browse beyond the current month.")
+	if key > WeekKey(local) {
+		return Week{}, rejection("Cannot browse beyond the current week.")
 	}
-	return calendarMonth(local, key), nil
+	return calendarWeek(local, key), nil
 }
 
 // Canonical dates sort chronologically in SQLite and in the rendered calendar.
@@ -57,23 +59,42 @@ func localTime(timezone string, now time.Time) (time.Time, error) {
 	return now.In(loc), nil
 }
 
-func calendarMonth(local time.Time, key string) Month {
-	first, _ := time.Parse("2006-01", key)
-	currentKey := local.Format("2006-01")
-	m := Month{
-		Today:    local.Format(time.DateOnly),
-		Key:      key,
-		Label:    first.Format("January 2006"),
-		Dates:    make([]string, 0, 31),
-		Previous: first.AddDate(0, -1, 0).Format("2006-01"),
-		Current:  key == currentKey,
+// WeekKey returns the canonical Sunday key containing a civil date.
+func WeekKey(date time.Time) string {
+	civil := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	return civil.AddDate(0, 0, -int(civil.Weekday())).Format(time.DateOnly)
+}
+
+func calendarWeek(local time.Time, key string) Week {
+	first, _ := time.Parse(time.DateOnly, key)
+	last := first.AddDate(0, 0, 6)
+	currentKey := WeekKey(local)
+	week := Week{
+		Today:      local.Format(time.DateOnly),
+		Key:        key,
+		Label:      weekLabel(first, last, "January", ", 2006"),
+		ShortLabel: strings.ReplaceAll(weekLabel(first, last, "Jan", " '06"), "Sep ", "Sept "),
+		Dates:      make([]string, 0, 7),
+		Previous:   first.AddDate(0, 0, -7).Format(time.DateOnly),
+		Current:    key == currentKey,
 	}
-	if !m.Current {
-		m.Next = first.AddDate(0, 1, 0).Format("2006-01")
+	if !week.Current {
+		week.Next = first.AddDate(0, 0, 7).Format(time.DateOnly)
 	}
-	// Enumerate in UTC so DST and skipped local midnights cannot shift civil dates.
-	for d := first; d.Month() == first.Month(); d = d.AddDate(0, 0, 1) {
-		m.Dates = append(m.Dates, d.Format(time.DateOnly))
+	for day := first; !day.After(last); day = day.AddDate(0, 0, 1) {
+		week.Dates = append(week.Dates, day.Format(time.DateOnly))
 	}
-	return m
+	return week
+}
+
+func weekLabel(first, last time.Time, monthLayout, yearLayout string) string {
+	monthDay := monthLayout + " 2"
+	fullDate := monthDay + yearLayout
+	if first.Year() != last.Year() {
+		return first.Format(fullDate) + "–" + last.Format(fullDate)
+	}
+	if first.Month() != last.Month() {
+		return first.Format(monthDay) + "–" + last.Format(fullDate)
+	}
+	return first.Format(monthDay) + "–" + last.Format("2"+yearLayout)
 }

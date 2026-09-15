@@ -3,7 +3,6 @@ package components
 import (
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/habit"
@@ -14,26 +13,26 @@ func checkInAction(habitID int64, date string) string {
 	return "if (el.getAttribute('aria-busy') !== 'true') { " + request + " }"
 }
 
-func shortHabitMonth(key string) string {
-	month, err := time.Parse("2006-01", key)
+func habitWeekday(date string) string {
+	day, err := time.Parse(time.DateOnly, date)
 	if err != nil {
-		return key
+		return ""
 	}
-	return strings.Replace(month.Format("Jan '06"), "Sep ", "Sept ", 1)
+	return day.Format("Mon")
 }
 
-func selectHabitMonth(month string) string {
-	return "$habitview++; $_habitfollowing = false; $habitmonth = '" + month + "'"
+func selectHabitWeek(week string) string {
+	return "$habitview++; $_habitfollowing = false; $habitweek = '" + week + "'"
 }
 
-// View-owned month signals and dialogs stay mounted while the grid morphs.
+// View-owned week signals and dialogs stay mounted while the grid morphs.
 templ Habits() {
 	<div
 		id="habit-matrix"
 		class="habits-matrix"
 		tabindex="0"
 		role="region"
-		aria-label="Monthly habits"
+		aria-label="Weekly habits"
 		data-on:close__capture="if (document.activeElement === document.body || evt.target.contains(document.activeElement)) el.focus()"
 		data-signals:habitid="0"
 		data-signals:habitdate="''"
@@ -42,48 +41,49 @@ templ Habits() {
 		data-signals:_habitcheckinack="''"
 		data-signals:habitread="0"
 		data-on:habit-checkin-read="$habitread = evt.detail.read"
-		data-signals:habitmonth="''"
+		data-signals:habitweek="''"
 		data-signals:habitview="0"
-		data-signals:_habitcurrent="''"
+		data-signals:_habitcurrentweek="''"
 		data-signals:_habitfollowing="true"
 		data-signals:habitrefresh="''"
-		data-effect="if ($_habitfollowing && $_habitcurrent && $habitmonth !== $_habitcurrent) $habitmonth = $_habitcurrent; if ($timezone && $habitmonth) { $habitrefresh; $habitread; @get('/habits/month', {filterSignals: {include: /^(habitmonth|habitview|timezone|habitrefresh|habitread)$/}}) }"
+		data-effect="if ($_habitfollowing && $_habitcurrentweek && $habitweek !== $_habitcurrentweek) $habitweek = $_habitcurrentweek; if ($timezone && $habitweek) { $habitrefresh; $habitread; @get('/habits/week', {filterSignals: {include: /^(habitweek|habitview|timezone|habitrefresh|habitread)$/}}) }"
 	>
-		@HabitGrid(nil, habit.Month{}, HabitView{})
+		@HabitGrid(nil, habit.Week{}, HabitView{})
 		@HabitEditDialog()
 		@HabitDeleteDialog()
 	</div>
 }
 
-// HabitGrid is shared by initial rendering and every authoritative month patch.
+// HabitGrid is shared by initial rendering and every authoritative week patch.
 // The rendered read is immutable; only the selector's request key follows signals.
-templ HabitGrid(habits []habit.Habit, month habit.Month, view HabitView) {
-	<div id="habit-grid" data-month={ month.Key } data-refresh={ view.Refresh } data-view={ strconv.FormatUint(view.View, 10) } data-read={ strconv.FormatUint(view.Read, 10) } data-read-request={ strconv.FormatUint(view.Read, 10) } data-attr:data-month="$habitmonth" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
-		if month.Today == "" {
-			<p>Loading your current month…</p>
+templ HabitGrid(habits []habit.Habit, week habit.Week, view HabitView) {
+	<div id="habit-grid" data-week={ week.Key } data-refresh={ view.Refresh } data-view={ strconv.FormatUint(view.View, 10) } data-read={ strconv.FormatUint(view.Read, 10) } data-read-request={ strconv.FormatUint(view.Read, 10) } data-attr:data-week="$habitweek" data-attr:data-refresh="$habitrefresh" data-attr:data-view="$habitview" data-attr:data-read-request="$habitread">
+		if week.Today == "" {
+			<p>Loading your current week…</p>
 		} else {
-			<nav class="month-nav" aria-label="Habit month">
-				<h2 aria-live="polite"><time datetime={ month.Key } aria-label={ month.Label }>{ shortHabitMonth(month.Key) }</time></h2>
-				<button id="habit-previous-month" class="btn" type="button" data-on:click={ selectHabitMonth(month.Previous) } aria-label={ "Previous month, " + month.Previous }>
+			<nav class="week-nav" aria-label="Habit week">
+				<h2 aria-live="polite"><time datetime={ week.Key } aria-label={ week.Label }>{ week.ShortLabel }</time></h2>
+				<button id="habit-previous-week" class="btn" type="button" data-on:click={ selectHabitWeek(week.Previous) } aria-label={ "Previous week, " + week.Previous }>
 					@IconChevronLeft()
 				</button>
-				<button id="habit-next-month" class="btn" type="button" disabled?={ month.Current } data-on:click={ selectHabitMonth(month.Next) } aria-label={ "Next month" }>
+				<button id="habit-next-week" class="btn" type="button" disabled?={ week.Current } data-on:click={ selectHabitWeek(week.Next) } aria-label={ "Next week" }>
 					@IconChevronRight()
 				</button>
-				<button id="habit-this-month" class="btn" type="button" data-attr:disabled="$_habitfollowing && $habitmonth === $_habitcurrent" data-on:click="$habitview++; $_habitfollowing = true; $habitmonth = $_habitcurrent">This month</button>
+				<button id="habit-this-week" class="btn" type="button" data-attr:disabled="$_habitfollowing && $habitweek === $_habitcurrentweek" data-on:click="$habitview++; $_habitfollowing = true; $habitweek = $_habitcurrentweek">This week</button>
 			</nav>
 			if len(habits) == 0 {
-				<p>No habits yet in this month. Create a habit to begin.</p>
+				<p>No habits yet in this week. Create a habit to begin.</p>
 			} else {
 				<div id="habit-scroll" class="habit-scroll" tabindex="0" role="region" aria-label="Habit check-ins, scroll for more dates">
 					<table>
-						<caption class="sr-only">{ month.Label } habit check-ins</caption>
+						<caption class="sr-only">{ week.Label } habit check-ins</caption>
 						<thead>
 							<tr>
 								<th scope="col">Habit</th>
-								for _, date := range month.Dates {
-									<th scope="col" class={ templ.KV("today", date == month.Today) }>
-										<time datetime={ date } if date == month.Today {
+								for _, date := range week.Dates {
+									<th scope="col" class={ templ.KV("today", date == week.Today) }>
+										<span>{ habitWeekday(date) }</span>
+										<time datetime={ date } if date == week.Today {
 											aria-current="date"
 										}>{ date[8:] }</time>
 									</th>
@@ -122,9 +122,9 @@ templ HabitGrid(habits []habit.Habit, month habit.Month, view HabitView) {
 											</button>
 										</div>
 									</th>
-									for _, date := range month.Dates {
-										<td class={ templ.KV("today", date == month.Today), templ.KV("unavailable", date < h.StartDate || date > month.Today) }>
-											if date < h.StartDate || date > month.Today {
+									for _, date := range week.Dates {
+										<td class={ templ.KV("today", date == week.Today), templ.KV("unavailable", date < h.StartDate || date > week.Today) }>
+											if date < h.StartDate || date > week.Today {
 												<span aria-label={ date + ": unavailable" }>—</span>
 											} else {
 												{{ checked := slices.Contains(h.CheckedDates, date) }}

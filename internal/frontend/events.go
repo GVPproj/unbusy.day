@@ -27,18 +27,18 @@ func newHabitRefresh() (string, error) {
 	return hex.EncodeToString(token[:]), nil
 }
 
-func patchHabitRefresh(sse *datastar.ServerSentEventGenerator, currentMonth string) error {
+func patchHabitRefresh(sse *datastar.ServerSentEventGenerator, currentWeek string) error {
 	refresh, err := newHabitRefresh()
 	if err != nil {
 		return err
 	}
 	return sse.MarshalAndPatchSignals(struct {
-		Current string `json:"_habitcurrent"`
+		Current string `json:"_habitcurrentweek"`
 		Refresh string `json:"habitrefresh"`
-	}{currentMonth, refresh})
+	}{currentWeek, refresh})
 }
 
-// EventsHandler reconnects the plan and Jotpad, then invalidates the view-owned habit month.
+// EventsHandler reconnects the plan and Jotpad, then invalidates the view-owned habit week.
 // Jotpad state rides as signals; element patches never touch its editor.
 func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, habits HabitService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 		// Subscribe before every snapshot so a concurrent commit is queued.
 		sub := broker.Subscribe(owner)
 		defer sub.Close()
-		month, err := habits.CurrentCalendar(sig.Timezone)
+		week, err := habits.CurrentWeek(sig.Timezone)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -82,7 +82,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 			return
 		}
 
-		if err := patchHabitRefresh(sse, month.Key); err != nil {
+		if err := patchHabitRefresh(sse, week.Key); err != nil {
 			log.Printf("events habits: %v", err)
 			return
 		}
@@ -102,7 +102,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 					return
 				}
 			case <-sub.Habits:
-				current, err := habits.CurrentCalendar(sig.Timezone)
+				current, err := habits.CurrentWeek(sig.Timezone)
 				if err != nil {
 					log.Printf("events habits: %v", err)
 					return
@@ -111,19 +111,19 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 					log.Printf("events habits: %v", err)
 					return
 				}
-				month = current
+				week = current
 			case <-ticker.C:
 				// An open tab follows local midnight too, without touching form drafts.
-				current, err := habits.CurrentCalendar(sig.Timezone)
+				current, err := habits.CurrentWeek(sig.Timezone)
 				if err != nil {
 					return
 				}
-				if current.Today != month.Today {
+				if current.Today != week.Today {
 					if err := patchHabitRefresh(sse, current.Key); err != nil {
 						log.Printf("events habits: %v", err)
 						return
 					}
-					month = current
+					week = current
 				}
 				if _, err := io.WriteString(w, ":keepalive\n\n"); err != nil {
 					return
