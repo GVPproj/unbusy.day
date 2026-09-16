@@ -89,15 +89,12 @@ func VerifyCodeHandler(a AuthService, secureCookies bool) http.Handler {
 		}
 
 		sess, err := a.VerifyCode(r.Context(), sig.Email, sig.Code)
+		if errors.Is(err, auth.ErrCodeLocked) {
+			patchVerifyRejection(w, r, components.LoginCodeLocked(auth.CodeRecoveryWindow))
+			return
+		}
 		if errors.Is(err, auth.ErrInvalidCode) {
-			sse := datastar.NewSSE(w, r)
-			if err := sse.MarshalAndPatchSignals(map[string]string{"code": ""}); err != nil {
-				log.Printf("ds verify code reset: %v", err)
-				return
-			}
-			if err := sse.PatchElementTempl(components.LoginCodeForm("That code didn't work — check it or request a new one.")); err != nil {
-				log.Printf("ds verify patch: %v", err)
-			}
+			patchVerifyRejection(w, r, components.LoginCodeForm("That code didn't work — check the most recent email and try again."))
 			return
 		}
 		if err != nil {
@@ -113,6 +110,17 @@ func VerifyCodeHandler(a AuthService, secureCookies bool) http.Handler {
 			log.Printf("ds login redirect: %v", err)
 		}
 	})
+}
+
+func patchVerifyRejection(w http.ResponseWriter, r *http.Request, form datastar.TemplComponent) {
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]string{"code": ""}); err != nil {
+		log.Printf("ds verify code reset: %v", err)
+		return
+	}
+	if err := sse.PatchElementTempl(form); err != nil {
+		log.Printf("ds verify rejection patch: %v", err)
+	}
 }
 
 // LogoutHandler revokes the session row, expires the cookie, and redirects to

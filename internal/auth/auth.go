@@ -26,14 +26,17 @@ const (
 	codeTTL         = 10 * time.Minute
 	maxAttempts     = 5
 	requestThrottle = 60 * time.Second
-	// recoveryWindow decays the carried-forward attempt budget so an honest
-	// user who exhausts their guesses recovers after a cooldown.
-	recoveryWindow = 10 * time.Minute
+	// CodeRecoveryWindow decays the carried-forward attempt budget so an
+	// honest user who exhausts their guesses recovers after a cooldown.
+	CodeRecoveryWindow = 10 * time.Minute
 )
 
-// ErrInvalidCode covers every verify failure — one error so responses can't
-// enumerate accounts.
+// ErrInvalidCode covers verification failures that must remain indistinguishable.
 var ErrInvalidCode = errors.New("invalid or expired code")
+
+// ErrCodeLocked is also an invalid-code failure, but lets the first-party UI
+// stop futile retries after the attempt budget is exhausted.
+var ErrCodeLocked = fmt.Errorf("code attempts exhausted: %w", ErrInvalidCode)
 
 var ErrNoSession = errors.New("no valid session")
 
@@ -113,11 +116,11 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 	nowStr := formatTime(now)
 	expiresAt := formatTime(now.Add(codeTTL))
 	throttleCutoff := formatTime(now.Add(-requestThrottle))
-	recoveryCutoff := formatTime(now.Add(-recoveryWindow))
+	recoveryCutoff := formatTime(now.Add(-CodeRecoveryWindow))
 
-	// One active code per email; the WHERE guard is the request throttle (zero
-	// rows = throttled). attempts carries forward on re-issue, decaying by
-	// attempts_since — not created_at, which re-issues rewrite.
+	// One active code per email; the WHERE guard suppresses throttled and locked
+	// requests. Attempts carry forward on re-issue, decaying by attempts_since —
+	// not created_at, which re-issues rewrite.
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO login_code (email, user_id, code_hash, attempts, attempts_since, expires_at, created_at)
 		VALUES (?, ?, ?, 0, ?, ?, ?)
@@ -126,15 +129,17 @@ func (s *Service) RequestCode(ctx context.Context, email string) error {
 		    attempts = CASE WHEN login_code.attempts_since < ? THEN 0 ELSE login_code.attempts END,
 		    attempts_since = CASE WHEN login_code.attempts_since < ? THEN excluded.attempts_since ELSE login_code.attempts_since END,
 		    expires_at = excluded.expires_at, created_at = excluded.created_at
-		WHERE login_code.created_at < ?`,
-		email, userID, hashCode(code), nowStr, expiresAt, nowStr, recoveryCutoff, recoveryCutoff, throttleCutoff)
+		WHERE login_code.created_at < ?
+		  AND (login_code.attempts < ? OR login_code.attempts_since < ?)`,
+		email, userID, hashCode(code), nowStr, expiresAt, nowStr,
+		recoveryCutoff, recoveryCutoff, throttleCutoff, maxAttempts, recoveryCutoff)
 	if err != nil {
 		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
 		return err
 	} else if n == 0 {
-		log.Printf("auth: request throttled for %s", email)
+		log.Printf("auth: request suppressed for %s", email)
 		return nil
 	}
 
@@ -175,8 +180,11 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 	if err != nil {
 		return nil, err
 	}
-	if expired != 0 || attempts >= maxAttempts {
+	if expired != 0 {
 		return nil, ErrInvalidCode
+	}
+	if attempts >= maxAttempts {
+		return nil, ErrCodeLocked
 	}
 
 	if subtle.ConstantTimeCompare([]byte(hashCode(strings.TrimSpace(code))), []byte(codeHash)) != 1 {
@@ -185,6 +193,9 @@ func (s *Service) VerifyCode(ctx context.Context, email, code string) (*Session,
 		}
 		if err := tx.Commit(); err != nil {
 			return nil, err
+		}
+		if attempts+1 >= maxAttempts {
+			return nil, ErrCodeLocked
 		}
 		return nil, ErrInvalidCode
 	}

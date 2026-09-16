@@ -1,6 +1,9 @@
 package components
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Styles live in static/css/app.css under @scope (.login-main).
 
@@ -121,6 +124,17 @@ templ LoginCodeForm(errMsg string) {
 		}
 		@otpInput()
 		<button type="submit">Verify</button>
+	</form>
+}
+
+// LoginCodeLocked replaces code entry once no further verification can succeed.
+templ LoginCodeLocked(recoveryWindow time.Duration) {
+	<form id="login-form" action="/login" method="get">
+		<p role="alert">
+			<strong>Too many attempts.</strong>
+			{ fmt.Sprintf("Wait until %d minutes after your first code request, then start over for a new code.", int(recoveryWindow/time.Minute)) }
+		</p>
+		<button type="submit">Start over</button>
 	</form>
 }
 

@@ -366,14 +366,15 @@ func TestRequestCodeCarriesAttemptsForward(t *testing.T) {
 	fresh := mailer.codes[1]
 
 	// Only 2 guesses remain on the carried-forward budget.
-	for i := range 2 {
-		if _, err := svc.VerifyCode(ctx, email, "wrong!"); !errors.Is(err, auth.ErrInvalidCode) {
-			t.Fatalf("post-reissue attempt %d: want ErrInvalidCode, got %v", i, err)
-		}
+	if _, err := svc.VerifyCode(ctx, email, "wrong!"); !errors.Is(err, auth.ErrInvalidCode) {
+		t.Fatalf("fourth attempt: want ErrInvalidCode, got %v", err)
+	}
+	if _, err := svc.VerifyCode(ctx, email, "wrong!"); !errors.Is(err, auth.ErrCodeLocked) {
+		t.Fatalf("fifth attempt after reissue: want ErrCodeLocked, got %v", err)
 	}
 	// Budget exhausted: even the fresh, correct code is dead.
-	if _, err := svc.VerifyCode(ctx, email, fresh); !errors.Is(err, auth.ErrInvalidCode) {
-		t.Fatalf("re-request must not reset attempts; fresh code should fail, got %v", err)
+	if _, err := svc.VerifyCode(ctx, email, fresh); !errors.Is(err, auth.ErrCodeLocked) {
+		t.Fatalf("re-request must not reset attempts: want ErrCodeLocked, got %v", err)
 	}
 }
 
@@ -407,10 +408,9 @@ func TestRequestCodeAttemptsDecayAfterRecoveryWindow(t *testing.T) {
 	}
 }
 
-// A re-issue rewrites created_at (the throttle clock) but must NOT reset
-// attempts_since — decay keys on when the budget began, or a retrying user
-// stays locked indefinitely.
-func TestRequestCodeReissueDoesNotResetRecoveryClock(t *testing.T) {
+// A request during lockout sends no unusable code and does not postpone
+// recovery; once the original recovery window passes, a fresh code is sent.
+func TestRequestCodeSuppressesMailUntilAttemptBudgetRecovers(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
 	svc := newSvc(db, mailer)
@@ -427,25 +427,29 @@ func TestRequestCodeReissueDoesNotResetRecoveryClock(t *testing.T) {
 		}
 	}
 
-	// 5 min pass, then re-issue: attempts_since must stay 5 min old, not reset.
+	// Five minutes into the recovery window, another request is a silent no-op.
 	backdateCode(t, db, email, "created_at", 5*time.Minute)
 	backdateCode(t, db, email, "attempts_since", 5*time.Minute)
 	if err := svc.RequestCode(ctx, email); err != nil {
-		t.Fatalf("re-issue: %v", err)
+		t.Fatalf("locked request: %v", err)
 	}
-	// Still locked: the fresh code is dead on the carried-forward budget.
-	if _, err := svc.VerifyCode(ctx, email, mailer.codes[len(mailer.codes)-1]); !errors.Is(err, auth.ErrInvalidCode) {
-		t.Fatalf("re-issue must not reset the budget; fresh code should fail, got %v", err)
+	if len(mailer.codes) != 1 {
+		t.Fatalf("locked request mailed an unusable code; got %d sends", len(mailer.codes))
+	}
+	if _, err := svc.VerifyCode(ctx, email, mailer.codes[0]); !errors.Is(err, auth.ErrCodeLocked) {
+		t.Fatalf("locked budget: want ErrCodeLocked, got %v", err)
 	}
 
-	// 6 more min (budget ~11 min old, past recoveryWindow). Had the re-issue
-	// reset attempts_since, the budget would read ~6 min old and stay locked.
-	backdateCode(t, db, email, "created_at", 61*time.Second)
+	// Six more minutes puts the original budget past the recovery window.
+	backdateCode(t, db, email, "created_at", 6*time.Minute)
 	backdateCode(t, db, email, "attempts_since", 6*time.Minute)
 	if err := svc.RequestCode(ctx, email); err != nil {
-		t.Fatalf("recovery re-issue: %v", err)
+		t.Fatalf("recovery request: %v", err)
 	}
-	if _, err := svc.VerifyCode(ctx, email, mailer.codes[len(mailer.codes)-1]); err != nil {
+	if len(mailer.codes) != 2 {
+		t.Fatalf("recovery request: want 2 total sends, got %d", len(mailer.codes))
+	}
+	if _, err := svc.VerifyCode(ctx, email, mailer.codes[1]); err != nil {
 		t.Fatalf("budget must recover once attempts_since passes the window; got %v", err)
 	}
 }
@@ -581,7 +585,8 @@ func TestVerifyCodeWrongCodeCreatesNoAccount(t *testing.T) {
 	}
 }
 
-// After 5 failed attempts even the right code is dead.
+// The fifth failed attempt exhausts the budget immediately, and even the
+// right code is locked out afterward.
 func TestVerifyCodeAttemptLimit(t *testing.T) {
 	db := newDB(t)
 	mailer := &captureMailer{}
@@ -594,12 +599,47 @@ func TestVerifyCodeAttemptLimit(t *testing.T) {
 	}
 	code := mailer.codes[0]
 
-	for i := range 5 {
+	for i := range 4 {
 		if _, err := svc.VerifyCode(ctx, email, "wrong!"); !errors.Is(err, auth.ErrInvalidCode) {
-			t.Fatalf("attempt %d: want ErrInvalidCode, got %v", i, err)
+			t.Fatalf("attempt %d: want ErrInvalidCode, got %v", i+1, err)
 		}
 	}
-	if _, err := svc.VerifyCode(ctx, email, code); !errors.Is(err, auth.ErrInvalidCode) {
-		t.Fatalf("after attempt limit, right code must fail; got %v", err)
+	if _, err := svc.VerifyCode(ctx, email, "wrong!"); !errors.Is(err, auth.ErrCodeLocked) {
+		t.Fatalf("fifth attempt: want ErrCodeLocked, got %v", err)
+	}
+	if _, err := svc.VerifyCode(ctx, email, code); !errors.Is(err, auth.ErrCodeLocked) {
+		t.Fatalf("after attempt limit: want ErrCodeLocked, got %v", err)
+	}
+}
+
+func TestVerifyCodeExpiredLockoutRemainsGeneric(t *testing.T) {
+	db := newDB(t)
+	mailer := &captureMailer{}
+	svc := newSvc(db, mailer)
+	ctx := context.Background()
+	email := newUser(t, db)
+
+	if err := svc.RequestCode(ctx, email); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	for range 5 {
+		_, _ = svc.VerifyCode(ctx, email, "wrong!")
+	}
+	backdateCode(t, db, email, "expires_at", 11*time.Minute)
+
+	_, err := svc.VerifyCode(ctx, email, mailer.codes[0])
+	if !errors.Is(err, auth.ErrInvalidCode) || errors.Is(err, auth.ErrCodeLocked) {
+		t.Fatalf("expired exhausted code: want only ErrInvalidCode, got %v", err)
+	}
+}
+
+func TestVerifyCodeWithoutRequestedCodeRemainsGeneric(t *testing.T) {
+	svc := newSvc(newDB(t), &captureMailer{})
+
+	for attempt := range 5 {
+		_, err := svc.VerifyCode(context.Background(), "missing@example.test", "000000")
+		if !errors.Is(err, auth.ErrInvalidCode) || errors.Is(err, auth.ErrCodeLocked) {
+			t.Fatalf("attempt %d: want only ErrInvalidCode, got %v", attempt+1, err)
+		}
 	}
 }

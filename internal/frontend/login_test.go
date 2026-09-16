@@ -88,6 +88,40 @@ func TestVerifyCodeSetsCookieAndRedirects(t *testing.T) {
 	}
 }
 
+func TestVerifyCodeLockoutStopsRetriesAndExplainsRecovery(t *testing.T) {
+	a := &fakeAuth{verifyErr: auth.ErrCodeLocked}
+	req := httptest.NewRequest(http.MethodPost, "/login/verify",
+		strings.NewReader(`{"email":"x@example.test","code":"000000"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	VerifyCodeHandler(a, false).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`signals {"code":""}`,
+		`id="login-form"`,
+		`role="alert"`,
+		`Too many attempts`,
+		`Wait until 10 minutes after your first code request, then start over for a new code.`,
+		`action="/login"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("lockout response missing %q; body:\n%s", want, body)
+		}
+	}
+	for _, unwanted := range []string{`autocomplete="one-time-code"`, `>Verify</button>`} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("lockout response contains retry control %q; body:\n%s", unwanted, body)
+		}
+	}
+	if len(rec.Result().Cookies()) != 0 {
+		t.Errorf("locked verify must not set a cookie")
+	}
+}
+
 func TestVerifyCodeRejectionClearsCodeAndRepatchesForm(t *testing.T) {
 	a := &fakeAuth{verifyErr: auth.ErrInvalidCode}
 	req := httptest.NewRequest(http.MethodPost, "/login/verify",
