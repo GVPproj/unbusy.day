@@ -1,99 +1,57 @@
 # 003 — Harden `/login/code` before enabling open signup
 
-Status: backlog (partially addressed — see Progress)
+Status: complete (operational alerting remains optional follow-up)
 Date: 2026-06-15
+Completed: 2026-06-30
 
-## Progress
+## Threat
 
-- **2026-06-30 — per-IP + global rate limit landed** (item 1). `POST /login/code`
-  is now wrapped by `frontend.LoginRateLimiter` (`internal/frontend/ratelimit.go`,
-  `golang.org/x/time/rate`): a per-source-IP token bucket (~1 req/6s, burst 5)
-  against the spam cannon, plus a process-wide bucket (~10 req/min, burst 20) as
-  the cross-IP blast-radius ceiling. Over-limit requests get a bare 429 (no
-  enumeration — the gate is IP-based). The source key is `Fly-Client-IP`, trusted
-  only when `SECURE_COOKIES=1` (behind Fly's proxy) so a local attacker can't
-  spoof it; an idle-bucket sweeper bounds the per-IP map. In-process by design,
-  single-machine like the broker. **Still unbuilt:** human-presence check (2),
-  deferring user-row creation (3), the global send ceiling + circuit breaker
-  (rest of 4), syntactic + MX validation (5), and the brute-force attempt-carry
-  (6). Items 1+2+3 must all land before the allowlist is dropped.
-- **2026-06-23 — bounce/complaint suppression landed** (item 4, monitoring half;
-  ADR 0009). SES feedback arrives over SNS at `POST /webhooks/ses`, and
-  permanently-bounced / complaining addresses go on a `suppression` table that
-  `RequestCode` now consults — a suppressed address is silently skipped, so we
-  no longer keep mailing addresses SES has flagged. **Still unbuilt:** the
-  per-IP/global rate limit (1), human-presence check (2), deferring user-row
-  creation (3), the global send ceiling + circuit breaker (rest of 4), syntactic
-  + MX validation (5), and the brute-force attempt-carry (6). The core open-relay
-  risk remains until the rate limit + presence check land.
+Open signup lets an anonymous caller request an OTP for any address. A
+per-address throttle alone does not bound an attacker who spreads requests over
+many victims: the endpoint can become an email-bombing relay, damage sender
+reputation through bounces and complaints, and amplify cost. Re-requesting a
+code must also not reset the verification-attempt budget indefinitely.
 
-## Problem
+The launch gate was therefore broader than ordinary OTP correctness: bound the
+anonymous send path globally and by source, prove human presence, reject clearly
+undeliverable addresses, create no User before email control is proven, retain
+attempt pressure across re-issues, and stop mailing addresses SES has already
+flagged.
 
-Today the `user` table doubles as an allowlist: `RequestCode`
-(`internal/auth/auth.go`) only issues+sends a code if the email already exists,
-and unknown emails are a silent no-op. That single check is the only thing
-bounding email-bombing blast radius to people already in the system.
+## Implemented defenses
 
-Production will **not** have an allowlist (open signup). Removing the
-`user`-row gate makes `RequestCode` willing to email an OTP to **any address an
-anonymous attacker types into the form** — turning the login endpoint into an
-open email relay. This is a bigger risk than OTP brute force, and the two need
-to be addressed in the same change that drops the allowlist.
+- `internal/web/ratelimit.go` wraps `POST /login/code` with per-IP and
+  process-wide token buckets. `Fly-Client-IP` is trusted only behind the secure
+  production proxy configuration.
+- Cloudflare Turnstile gates code requests in production. A live mailer without
+  `TURNSTILE_SECRET` is rejected at boot unless the explicit insecure override
+  is set.
+- `auth.RequestCode` performs syntax and MX validation and silently skips
+  suppressed or undeliverable addresses.
+- `OTP_SEND_CEILING` adds a rolling process-wide outbound-mail circuit breaker.
+  A live mailer without the ceiling is rejected at boot unless explicitly
+  overridden.
+- Login Codes are keyed by email and may exist without a User. `VerifyCode`
+  creates the User only after a correct code proves control of the address.
+- Failed-attempt counts carry across code re-issues inside a recovery window,
+  preventing a request from resetting the five-attempt budget.
+- SES bounce/complaint feedback maintains the suppression list (ADR 0009).
 
-## Threat: email bombing / open relay
+All request outcomes remain non-committal to the caller, apart from the
+source-based HTTP rate limit, so the defenses do not create an account or
+suppression enumeration signal.
 
-1. **Spam/harassment cannon (primary).** An attacker scripts `POST /login/code`
-   with victim addresses they don't own; the server emails an OTP to each. The
-   ~60s throttle is **per-email** (`WHERE login_code.created_at < ?`,
-   `auth.go:94`) — there is **no aggregate or per-source cap**. Across N
-   addresses the outbound rate is N/min, unbounded. Classic "subscription
-   bombing": our form gets recruited to bury a third party's inbox.
-2. **Sender-reputation collapse (expensive consequence).** Blasting unverified
-   addresses drives bounces + spam complaints; SES/Postmark/Resend suspend
-   sending past their thresholds, and the domain can land on blocklists.
-   Legitimate login mail then stops being delivered — harder to reverse than any
-   brute force.
-3. **Cost.** Per-email pricing × attacker-controlled volume = billing-
-   amplification DoS.
+## Residual operations work
 
-Removing the allowlist also removes the natural gate on the send path entirely,
-so the rate limit + human-presence check below become the *only* thing standing
-there.
-
-## Secondary: OTP brute force across re-requested codes
-
-Lower priority but related. Each `RequestCode` resets `attempts` to 0 and
-installs a fresh code, so an attacker targeting a known email can burn 5 guesses
-(`maxAttempts`), re-request, and repeat — ~5 guesses/60s ≈ 7,200/day against the
-1M 6-digit space (~50% hit in ~2 weeks of sustained attack). There is no global
-cap on total verify attempts or codes issued per user over a long window, and no
-IP-level rate limit at the HTTP layer.
-
-## Path forward when resumed
-
-In rough priority:
-
-1. **Per-IP / global rate limits on `/login/code`.** The per-email throttle does
-   nothing against the spread-across-many-addresses pattern; cap the aggregate
-   and per-source send rate. This is the missing layer.
-2. **Human-presence check on the request form** — CAPTCHA (e.g. Cloudflare
-   Turnstile) or proof-of-work. Standard defense against automated
-   signup/bombing.
-3. **Defer `user`-row creation until after `VerifyCode` succeeds**, so an
-   unverified request can't pollute the user table with addresses the requester
-   doesn't control. Keep row creation gated on proven email control.
-4. **Global send ceiling + bounce/complaint monitoring** — a circuit breaker
-   that trips a cap (with alerting) instead of torching domain reputation.
-5. **Syntactic + MX validation** before sending, to shed obviously-bogus
-   addresses.
-6. **(Brute force) Don't reset `attempts` on re-request within a code's life** —
-   carry attempts forward or cap total attempts per user per rolling window.
-   Optionally widen the code to 8 digits (ADR 0001 rests security on
-   expiry+attempt limits, not entropy — revisit there).
+Tripping the global send ceiling currently writes a high-signal log entry; it
+does not page or notify an operator. Add log-based alerting if OTP volume makes
+manual log monitoring inadequate. This is operational hardening, not an
+open-signup launch blocker.
 
 ## Related
 
-- ADR 0001 / 0002 — passwordless email-OTP auth and DB-backed sessions.
-- ADR 0009 — SES bounce/complaint suppression (the monitoring half, now built).
-- `internal/auth/auth.go` (`RequestCode`, `VerifyCode`),
-  `internal/frontend/login.go` (handlers — currently no throttle middleware).
+- ADR 0001 — passwordless email OTP and deferred User creation.
+- ADR 0009 — SES bounce/complaint suppression.
+- `internal/auth/auth.go`, `internal/auth/validate.go`,
+  `internal/auth/ceiling.go`, `internal/auth/presence.go`.
+- `internal/web/ratelimit.go`, `cmd/unbusy/auth.go`, `cmd/unbusy/router.go`.

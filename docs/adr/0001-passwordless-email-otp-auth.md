@@ -22,9 +22,11 @@ password reset needs email anyway).
   required to run the app**. Production swaps in a real provider (Resend /
   Postmark / SES) without touching `auth/`.
 - Security of a 6-digit code rests on **expiry + attempt limits**, not entropy:
-  10-min single-use codes, one active code per user, 5 verify attempts, ~60s
-  request throttle, stored hashed.
-- **Allowlist = the `user` table.** A code is issued only for an email that
-  already has a User row; unknown emails get an identical no-op response (no
-  account enumeration). At public launch this flips to auto-provision: requesting
-  a code upserts the User, and the allowlist behavior disappears.
+  10-min single-use codes, one active code per email, 5 verify attempts carried
+  across re-issues within the recovery window, ~60s request throttle, stored
+  hashed.
+- Signup is open. A deliverable email can receive a code before it has a User;
+  the User row is created only when that code is verified successfully. The old
+  `user`-table allowlist was retired after the send path gained layered defenses:
+  suppression, syntax/MX validation, Turnstile, per-IP/global rate limiting, and
+  a global send ceiling.

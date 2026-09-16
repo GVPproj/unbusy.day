@@ -3,7 +3,7 @@
 Status: accepted
 
 Component styling moves from Tailwind v4 utilities in the markup (ADR 0008)
-back to plain CSS: a single committed `internal/frontend/static/app.css`,
+back to plain CSS: a single committed `internal/frontend/static/css/app.css`,
 `go:embed`-served as the one render-blocking `<link>`. This supersedes ADR
 0008 and removes the CSS build step entirely — a clean checkout needs only
 `templ generate`. The decision originally lived in a working PRD
@@ -35,9 +35,11 @@ expressible in plain, Baseline CSS: cascade layers, `@scope`, nesting,
 
 ## The design
 
-- **One file.** All CSS lives in `app.css`; SSE patches never re-ship CSS
-  (unchanged invariant). `task dev` serves it from disk (TEMPL_DEV_MODE), so
-  edits land on reload with no build.
+- **One app stylesheet.** Authored application styling lives in `app.css`; SSE
+  patches never re-ship it (unchanged invariant). `task dev` serves it from disk
+  (TEMPL_DEV_MODE), so edits land on reload with no build. Self-contained logo
+  animation styles and CodeMirror's runtime theme are narrow exceptions; neither
+  is part of a patched fragment.
 - **Cascade layers own ordering**: `@layer reset, tokens, base, layout,
   components;`. `reset` is a deliberate ~30-line preflight replacement the
   markup assumes; `tokens` holds `@font-face`, feeling fonts, colorscheme
@@ -47,16 +49,15 @@ expressible in plain, Baseline CSS: cascade layers, `@scope`, nesting,
   else.
 - **`components` has two tiers**: a deliberately small closed set of shared
   classes (`.btn`, `.btn-secondary`, `.btn-danger`, `.field`, `.option-row`)
-  — the ADR 0006 countermeasure — and one `@scope` block per leaf component
-  (`.login-main`, `.app-dialog`, `.sidenav`, `.blocks`), bare element
-  selectors inside, each section comment naming the templ file it styles.
-  Leaf-only scoping; never scope the page wrapper.
+  — the ADR 0006 countermeasure — and one `@scope` block per leaf component,
+  with bare element selectors inside and a section comment naming the templ file
+  it styles. Leaf-only scoping; never scope the page wrapper.
 - **Markup carries semantic hooks only.** The JS hook classes (`.block-item`,
   `.grip`, `.slot-add`, `.open`, `.dragging`, …) double as styling anchors;
   conditional classes use `templ.KV`. No templ `css` blocks (flat-only,
   body-injected — rejected in ADR 0006).
 - **Key idiom translations** from the utility era: `data-[type=…]` →
-  `&[data-type="…"]`; responsive prefixes → nested `@media (width < 40rem)`
+  `&[data-type="…"]`; responsive prefixes → nested `@media (width < 52rem)`
   range syntax; `pointer-coarse:` → `@media (pointer: coarse)`;
   `group-*`/`peer-*` → descendant/sibling selectors and `:has()`;
   `line-clamp-(--span)` → `-webkit-box` clamp with `var(--span)` (unprefixed
@@ -75,9 +76,9 @@ expressible in plain, Baseline CSS: cascade layers, `@scope`, nesting,
   Cross-component chrome goes in the shared tier — growing that tier is a
   deliberate act, not a default (the ADR 0006 lesson: scoped leaf CSS works
   *only* alongside an explicit reuse tier).
-- Theme/feeling swap, one-cached-stylesheet, and head-only CSS all carry
-  over unchanged. The migration was verified pixel-identical per phase
-  (the one deliberate change: `.past` blocks now render struck through,
-  matching now-pill.js's documented intent).
+- Theme/feeling swap and the one cached application stylesheet carry over
+  unchanged. The migration was verified pixel-identical per phase (the one
+  deliberate change: `.past` blocks now render struck through, matching
+  `js/now.js`'s documented intent).
 - ADR 0006's status updates to "revived by ADR 0011 in amended form";
   ADR 0008 is superseded.

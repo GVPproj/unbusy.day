@@ -68,10 +68,12 @@ One 30-minute interval within a Day Plan, identified by the time it begins. A
 Slot is either empty or covered by exactly one Block — Blocks never overlap.
 
 ## Push
-What happens when a Block is placed (moved or grown) onto occupied Slots: each
-overlapped Block is pushed *down* (later in the day) by the minimum distance
-that clears the overlap, consuming empty Slots before displacing further
-Blocks. A placement whose push would force any Block past the end of the Day
+What happens when a Block is moved or grown onto occupied Slots. A move sends
+displaced Blocks toward the Slots it vacated: moving earlier pushes them later;
+moving later pulls them earlier. Empty Slots absorb displacement before it
+reaches another Block. Growing pushes later Blocks down; if they cannot fit,
+the nearest later Blocks shorten toward their one-Slot minimum before the grow
+is rejected. Any placement with no legal, non-overlapping result inside the Day
 Plan is rejected whole — nothing moves.
 
 ## Allowlist (retired)
@@ -83,9 +85,10 @@ defenses (per-email throttle, suppression list, MX check, Turnstile presence
 check, per-IP/global rate limit, global send ceiling) rather than an allowlist.
 
 ## Login Code
-A short-lived, single-use numeric code emailed to a User to prove control of
-their email address. Verifying a valid Login Code establishes a Session. (Also
-called OTP — one-time passcode.)
+A short-lived, single-use numeric code emailed to an address to prove control of
+it. Verifying a valid Login Code establishes a Session and, when the address is
+new, creates the User identified by that address. (Also called OTP — one-time
+passcode.)
 
 ## Session
 Proof that a request comes from a logged-in User. Established by verifying a

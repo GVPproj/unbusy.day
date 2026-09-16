@@ -2247,7 +2247,7 @@
       }
     }
 
-    /* Live "now" marker: a zero-height full-width row now-pill.js
+    /* Live "now" marker: a zero-height full-width row now.js
 		   positions; the time chip hangs in the gutter. */
     #now-pill {
       grid-column: 1 / -1;

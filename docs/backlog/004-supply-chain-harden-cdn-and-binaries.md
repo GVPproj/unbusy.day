@@ -1,99 +1,92 @@
-# 004 — Harden the supply-chain surface (CDN scripts + downloaded binaries)
+# 004 — Harden the supply-chain surface
 
-Status: backlog (Exposure 1 only — Exposure 2 resolved by ADR 0011, 2026-07-07)
+Status: backlog (runtime scripts and build/CI provenance)
 Date: 2026-06-16
 
 ## Why this is worth doing
 
-The stack is already well-positioned against the npm class of supply-chain
-attack: Go has **no install-time script execution** (no `postinstall`), the
-dependency set is deliberately tiny (templ, modernc.org/sqlite, goose,
-datastar-go), every Go module is hash-pinned in `go.sum` against the
-transparency-logged checksum DB, and there is **no Node build step** — Tailwind
-is a standalone binary (ADR 0008). MVS means a freshly-published malicious
-version isn't auto-pulled the way npm's `^`/`~` ranges grab new releases.
+The application is already well-positioned against the npm install-script class
+of attack: production code is built with Go, direct dependencies are few, and Go
+modules are hash-pinned in `go.sum` against the checksum database. There is no
+Node or CSS production build step; Node is used for JavaScript and browser
+tests.
 
-That removes the three legs the recent npm attacks stand on. The **residual**
-exposure is a short, enumerable list of things fetched over the network that sit
-*outside* `go.sum`'s protection: runtime CDN scripts and downloaded build
-binaries. None are hash-verified today. This doc captures hardening them.
+The remaining inputs outside `go.sum` are a short, reviewable list: runtime
+third-party scripts, the Docker base/tool packages, and CI actions. The old
+Tailwind-binary and Motion exposures were resolved by removing them.
 
-## Exposure 1 — runtime CDN `<script>`s with no SRI (highest priority)
+## Exposure 1 — runtime third-party scripts
 
-> **Partially resolved 2026-09-11 by removal**: Motion and its transitive graph
-> were replaced by CSS transitions. Planner pages no longer request that
-> runtime; the remaining exposure is Datastar only.
+Motion and its transitive graph were removed by UNB-49. Datastar remains on
+every page, and production login loads Cloudflare Turnstile when the presence
+gate is configured.
 
-Every production page load pulls the Datastar SDK from jsdelivr with **no
-Subresource Integrity hash**. A jsdelivr compromise, or a compromise of the
-upstream package/tag, injects arbitrary JS into every authenticated session —
-full DOM/cookie/keystroke access on the live app.
-
-- `internal/frontend/layouts/layout.templ:46` — Datastar SDK
+- `internal/frontend/layouts/layout.templ` — Datastar SDK
   `cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js`.
-  **Production, every page.**
-- `internal/frontend/smoke.templ:14` — Datastar from jsdelivr. Lower stakes
-  (wiring canary, not on the auth path) but same gap.
+- `internal/frontend/smoke.templ` — the same Datastar bundle in the wiring
+  canary.
+- `internal/frontend/components/login.templ` — Cloudflare Turnstile's runtime
+  when a site key is configured.
 
-The Datastar version tag is a version pin, not a content pin — a retagged or
-compromised artifact at that version is served transparently.
-
-### Options (rough priority)
-
-1. **Self-host under `internal/frontend/static/`** (the existing `go:embed`
-   folder) and serve from `/static/` like `drag.js` already is. This brings the
-   bytes into the repo, under review and immutable per deploy — the strongest
-   option, and it matches the "no runtime third-party" posture. The `+esm`
-   Motion bundle and the Datastar bundle would be vendored as pinned files.
-   Tradeoff: manual bump step, and Motion's `+esm` form needs a resolved bundle.
-2. **Add SRI** — `integrity="sha384-…" crossorigin="anonymous"` on each
-   `<script>`. Cheaper than vendoring, keeps the CDN, and makes a swapped
-   artifact fail closed. Doesn't help the ESM `import` in `drag.js` (no SRI for
-   bare module imports) — that one effectively *needs* vendoring (option 1).
-3. Either way, do `smoke.templ` too so the canary doesn't model the unsafe
-   pattern.
-
-Recommendation: **vendor the Datastar bundle into `static/`** so the remaining
-runtime dependency is reviewable and immutable per deploy.
-
-## Exposure 2 — Tailwind binary downloaded without checksum verification
-
-> **Resolved 2026-07-07 by removal, not hardening**: the plain-CSS migration
-> (ADR 0011) deleted the Tailwind toolchain entirely — no downloaded build
-> binary remains anywhere in dev, CI, or the Docker build. The section below
-> is kept for the record.
-
-The Tailwind v4 standalone binary is version-pinned in three places
-(Taskfile.yml `TAILWIND_VERSION`, Dockerfile `ARG TAILWIND_VERSION`, CI) but
-each just `curl`/`wget`s the release artifact and `chmod +x` — **no SHA256
-verification**. A compromised release asset would execute in the dev machine,
-the Docker build, and CI.
-
-- `Taskfile.yml` `tailwind:install` — `curl -sL` then `chmod +x`.
-- `Dockerfile` — `wget -qO` then `chmod +x`.
-- `.github/workflows/ci.yml` "Generate CSS (Tailwind)" — `curl -sL` then
-  `chmod +x`.
+The Datastar version tag is a version pin, not a content pin. A CDN or
+upstream-tag compromise could inject JavaScript into an authenticated page,
+read its DOM and keystrokes, and perform same-origin actions as the User. The
+session cookie remains unreadable because it is `HttpOnly`.
 
 ### Path forward
 
-Pin the **SHA256 per (os, arch)** alongside `TAILWIND_VERSION` and verify after
-download (`sha256sum -c` / `shasum -a 256 -c`), failing the build on mismatch.
-Keep the checksums next to the version pin so the "bump all three together"
-rule (CLAUDE.md / ADR 0008) extends to "bump version **and** checksums". Pull
-the published checksums from the Tailwind release page when bumping.
+1. **Vendor Datastar under `internal/frontend/static/`** and serve it locally,
+   matching the content-locked CodeMirror precedent. This is preferred over SRI
+   because the reviewed bytes become part of the repository and deploy.
+2. Alternatively, add `integrity="sha384-…" crossorigin="anonymous"` so swapped
+   Datastar bytes fail closed while retaining the CDN.
+3. Update `smoke.templ` with the same loading pattern.
+4. Treat Turnstile as a deliberate auth-provider dependency. Its hosted client
+   is part of the provider integration rather than an app library to vendor;
+   keep it isolated to the unauthenticated login surface.
 
-## Not a gap (for the record)
+## Exposure 2 — mutable build and CI inputs
 
-- `templ` is installed via `go install …/templ@v0.3.1020` in the Dockerfile/CI
-  — `go install pkg@version` resolves through the module checksum DB, so it's
-  already content-verified like any other Go dependency. No action.
-- Go module deps are covered by `go.sum`. Keep upgrades deliberate (never a
-  blanket `go get -u ./...`) to preserve the MVS benefit.
+The application binary is content-pinned at the module layer, but the environment
+that builds and deploys it is not fully immutable:
+
+- `Dockerfile` uses the mutable `golang:1.26-alpine` tag and installs unversioned
+  `git` from the current Alpine repository. A compromised or changed build image
+  can alter the resulting binary even though the final runtime image is
+  `scratch`.
+- GitHub Actions uses moving major tags such as `actions/checkout@v4` and
+  `actions/setup-go@v5`; Fly setup is broader still at
+  `superfly/flyctl-actions/setup-flyctl@master`.
+- `# syntax=docker/dockerfile:1.7` selects a version tag rather than an immutable
+  frontend digest.
+
+### Path forward
+
+1. Pin the Docker build image and Dockerfile frontend by digest, with a documented
+   update command so security patches remain deliberate rather than forgotten.
+2. Pin third-party GitHub Actions to reviewed commit SHAs, especially the Fly
+   action currently tracking `master`; keep the human-readable release tag in a
+   comment or dependency-update configuration.
+3. Decide whether to pin Alpine package repository/snapshot inputs or replace
+   the build-time `git` requirement. Record any intentionally mutable package
+   channel as an accepted patch-ingestion trade-off.
+4. Keep Playwright/npm integrity under the committed lockfile and continue using
+   `npm ci --ignore-scripts`.
+
+## Resolved exposures
+
+- **Tailwind standalone binary:** removed by ADR 0011 along with all download and
+  CSS-build wiring. ADR 0008 preserves the historical decision.
+- **Motion runtime CDN graph:** removed by UNB-49; see research 004.
+- **CodeMirror CDN graph:** replaced by the local content-locked vendor manifest
+  and reproducible `vendorcodemirror` workflow.
+- **templ CLI:** installed in Docker/CI at the version selected from `go.mod` via
+  `go install pkg@version`, covered by the Go checksum database.
 
 ## Related
 
-- ADR 0008 — Tailwind standalone binary (the no-Node decision).
-- CLAUDE.md "Conventions & deploy" — the three-places pin rule these checksums
-  would extend.
-- `internal/frontend/layouts/layout.templ` and `internal/frontend/smoke.templ`
-  — the remaining CDN call sites.
+- ADR 0011 — removal of the Tailwind toolchain.
+- `docs/research/004-replacing-motion-with-browser-animation.md` — Motion
+  removal outcome.
+- `docs/agents/codemirror.md` — current browser-module vendoring workflow.
+- `AGENTS.md` "Conventions & deploy" — version-source conventions.

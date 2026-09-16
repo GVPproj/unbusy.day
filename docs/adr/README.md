@@ -9,7 +9,7 @@ are kept as history, never rewritten.
 | [0001](0001-passwordless-email-otp-auth.md) | Passwordless authentication via email one-time codes | accepted |
 | [0002](0002-db-backed-sessions.md) | Server-side sessions in the database, not stateless cookies | accepted |
 | [0003](0003-per-user-tenancy-keyed-broker.md) | Per-user Day Plans: owner-scoped blocks and a user-keyed broker | accepted |
-| [0004](0004-goose-run-once-migrations.md) | Run-once migrations via goose | accepted |
+| [0004](0004-goose-run-once-migrations.md) | Run-once migrations via goose | accepted (deployment details amended by 0007) |
 | [0005](0005-client-computed-push-server-enforced-invariants.md) | Client-computed Push, server-enforced invariants | accepted |
 | [0006](0006-scoped-component-css-via-at-scope.md) | Component CSS scoped per leaf via native `@scope` | superseded by 0008 (revived in amended form by 0011) |
 | [0007](0007-sqlite-litestream-storage.md) | Colocated SQLite replaces Neon Postgres | accepted (streaming backup deferred — [docs/backlog/002](../backlog/002-litestream-streaming-backup.md)) |

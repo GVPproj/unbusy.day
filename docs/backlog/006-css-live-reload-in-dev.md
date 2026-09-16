@@ -32,23 +32,24 @@ step (ADR 0011).
 ## Path forward when resumed
 
 1. Add a dev-only watcher `cmd/cssreload/main.go` that watches
-   `internal/frontend/static` for `*.css` changes (debounce ~80ms — one save
-   fans out into several fs events) and POSTs the proxy reload endpoint. Read
-   the proxy port from `PROXYPORT` (default 7331) to mirror `task dev`.
+   `internal/frontend/static/css` for `*.css` changes (debounce ~80ms — one save
+   fans out into several fs events) and POSTs the proxy reload endpoint on
+   port 7331. If the proxy port later becomes configurable, pass one shared
+   value to both templ's `--proxyport` flag and the watcher.
 2. Wire it into the `dev` task: `go run ./cmd/cssreload &` alongside the templ
    watch, with `trap 'kill $! 2>/dev/null' EXIT` so it dies on Ctrl-C.
 3. **Dependency decision (the one real call):** fsnotify (`github.com/fsnotify/
-   fsnotify`) is *not* in our module graph today — templ ships its own copy but
-   it's a separate installed binary, so its deps aren't ours. Adding it lands a
-   new direct dep in `go.mod`/`go.sum` (per-module, so it hits the production
-   set even for a dev-only tool), which cuts against "prefer the stdlib; don't
-   add a dep until demonstrably necessary" (and the ask-before-`go get` rule).
-   - **Recommended:** a zero-dep stdlib poll loop — for one directory of CSS
-     files, stat mtimes every ~300ms and POST on change. Same UX, no `go.mod`
+   fsnotify`) is already transitive through templ, but importing it would make it
+   an explicit dependency of this module for a dev-only command. That still cuts
+   against "prefer the stdlib; don't add a dependency until demonstrably
+   necessary."
+   - **Recommended:** a zero-dep stdlib poll loop over `static/css` — stat CSS
+     mtimes every ~300ms and POST on change. Same UX, no `go.mod`
      churn, no ADR-0011 tension. Skip the initial cold-start scan so boot
      doesn't fire a reload.
    - **Alternative:** fsnotify — crisper, event-driven, no 300ms latency, but
-     needs the new dep. Watch the *directory*, not each file: editors save
+     promotes a transitive module to an explicit dependency. Watch the
+     *directory*, not each file: editors save
      atomically (rename), which drops a per-file watch.
 
 ## Related
@@ -58,5 +59,3 @@ step (ADR 0011).
 - `Taskfile.yml` `dev` task — where the watcher would be wired in; its comment
   already notes `TEMPL_DEV_MODE` serves `static/` from disk so CSS edits land
   live without a rebuild.
-</content>
-</invoke>

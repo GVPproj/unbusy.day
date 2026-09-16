@@ -38,20 +38,19 @@ single-machine-by-design constraint rather than fighting it.
   `busy_timeout`), a stronger guarantee than row-level locking.
 - Auth's Postgres interval/`now()` arithmetic moves into Go: code TTL, request
   throttle cutoff, and session expiry are concrete `time.Time` values passed as
-  parameters. Timestamps are stored as RFC3339 TEXT (string-sortable for
-  `expires_at`).
+  parameters. Auth timestamps used in ordered comparisons are stored as
+  RFC3339 TEXT; other audit timestamps may use SQLite's `datetime('now')`.
 - Migrations are a single fresh SQLite baseline (the Postgres files are
   history); goose runs with `DialectSQLite3` and applies on boot in the app
   machine that mounts the volume, replacing the Fly release-machine step (which
   cannot see the volume).
 - **Lost: the `btree_gist` `EXCLUDE` overlap constraint
   (`block_owner_slots_excl`).** SQLite has no equivalent, and reproducing it via
-  triggers is out of scope. This was defense-in-depth *behind* `ValidateLayout`,
-  which remains the primary overlap guard and runs first on every mutation
-  (ADR 0005). A service-layer regression test now asserts overlap rejection
-  directly, since `ValidateLayout` is the sole guard. The accepted risk: a bug
-  in `ValidateLayout` could commit an overlap that the database would previously
-  have refused.
+  triggers is out of scope. `SetLayout` now relies solely on `ValidateLayout` for
+  whole-layout overlap rejection (ADR 0005); `Create` performs its own targeted
+  occupied-slot check. Delete, clear, and rename cannot introduce overlap. The
+  accepted risk is that a regression in these service guards could commit a
+  state the database would previously have refused.
 - Self-hosting becomes "run one Go binary pointed at a local `.db` file" — the
   Plausible/Pocketbase/Miniflux model.
 - Local dev drops the Compose Postgres entirely: `task dev` points at a local

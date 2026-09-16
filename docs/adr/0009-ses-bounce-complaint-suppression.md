@@ -30,7 +30,7 @@ durable defense is to stop mailing addresses SES has already told us are bad.
   so dev and any non-SES deploy never expose it. An empty expected ARN rejects
   everything — misconfiguration fails closed.
 - **Every message is verified before it does anything**
-  (`internal/frontend/seswebhook.go`): the `TopicArn` must equal our configured
+  (`internal/auth/seswebhook.go`): the `TopicArn` must equal our configured
   ARN, the SNS RSA signature is checked against the signing cert
   (`SignatureVersion` 1 → SHA1, 2 → SHA256), and the cert/confirm URLs are
   constrained to `*.amazonaws.com` over HTTPS so a forged message can't point us
@@ -42,20 +42,19 @@ durable defense is to stop mailing addresses SES has already told us are bad.
   ignored — they may deliver on retry. Suppression is keyed by lowercased email
   in the `suppression` table (`reason` ∈ {`bounce`,`complaint`}), upserted so
   repeat feedback is idempotent.
-- **`RequestCode` skips suppressed addresses silently** — same no-op,
-  no-enumeration response as an unknown email (ADR 0001), so the suppression
-  state doesn't leak.
+- **`RequestCode` skips suppressed addresses silently** — the same
+  non-committal response as throttled or undeliverable addresses, so suppression
+  state does not leak.
 - **Suppression is forward-only and manual to lift**: there is no un-suppress UI;
-  an address comes off the list only by a manual `DELETE`. Acceptable while the
-  `user` table is still an allowlist (ADR 0001) and volume is tiny.
-- This implements the **bounce/complaint-monitoring** half of backlog 003's
-  path-forward; the open-relay / rate-limit defenses there remain unbuilt.
+  an address comes off the list only by a manual `DELETE`.
+- The broader open-signup hardening that followed this decision is now complete:
+  syntax/MX validation, Turnstile, per-IP/global HTTP limiting, a global send
+  ceiling, deferred User creation, and attempt carry-forward all protect the
+  anonymous send path.
 
 ## Related
 
-- ADR 0001 — passwordless email-OTP auth (the `Mailer` seam, allowlist,
+- ADR 0001 — passwordless email-OTP auth (the `Mailer` seam and
   no-enumeration responses).
-- docs/backlog/003 — harden `/login/code` before open signup (the broader
-  email-bombing threat this partially addresses).
-- `internal/frontend/seswebhook.go`, `internal/auth/suppression.go`,
+- `internal/auth/seswebhook.go`, `internal/auth/suppression.go`,
   migration `internal/migrate/migrations/20260623120000_suppression.sql`.

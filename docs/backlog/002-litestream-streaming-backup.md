@@ -45,9 +45,11 @@ than block the migration.
    `client.RequireContentMD5 = false` set explicitly (or switch to litestream's
    URL/DSN-parse constructor so provider defaults apply automatically — likely
    the more durable choice than hand-building the client).
-2. Start from clean state: fresh (empty) volume **and** empty bucket so no
-   pre-fix corrupt LTX poisons the first snapshot. Greenfield, so a destroy +
-   recreate of both is fine.
+2. Clear only the corrupt replica state: preserve the production database,
+   take and verify a fresh volume snapshot, stop the writer, remove the
+   `.unbusy.db-litestream/` sidecar through a temporary maintenance machine (the
+   scratch app image has no shell), and empty the replica bucket. Never replace
+   the source volume merely to reset Litestream.
 3. Consider enabling litestream auto-recover (if exposed in the pinned version)
    so transient LTX corruption self-heals instead of wedging.
 4. Verify a clean object lands in the bucket and `sync`/`compaction` log no
@@ -61,6 +63,5 @@ than block the migration.
 - ADR 0007 (SQLite replaces Neon) — records the storage swap; its Litestream
   section was trimmed to a "deferred" note pointing here.
 - Fly volume scheduled snapshots are the interim durability story (`fly volumes
-  snapshots list`). Coarser RPO than Litestream; acceptable while greenfield.
-</content>
-</invoke>
+  snapshots list`). They have a coarser RPO than Litestream and should remain
+  enabled until streaming backup is verified in production.

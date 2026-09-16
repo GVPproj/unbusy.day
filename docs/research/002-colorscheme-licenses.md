@@ -1,28 +1,37 @@
 # 002 — Colorscheme licenses and "using them by name" in a commercial app
 
-Status: research (no code committed)
-Date: 2026-07-15
+Status: complete — recommendation implemented
+Research date: 2026-07-15
+Outcome: approved for commercial use; original notices recorded in `THIRD_PARTY_LICENSES.md`
 
-The app ships three colorschemes, selected via `data-colorscheme` and defined
-in `internal/frontend/static/app.css` + `internal/frontend/components/modals/theme.templ`:
+The current theme model has two independent color axes, implemented in
+`internal/frontend/static/css/app.css` and selected in
+`internal/frontend/components/modals/theme.templ`:
 
-1. `solarized-light`
-2. `solarized-osaka` (Solarized Dark Osaka)
-3. `catppuccin-mocha`
+- `data-colorscheme` selects the family: `catppuccin`, `solarized`, or `nord`.
+- `data-colormode` selects `light` or `dark` within that family.
 
-The question is twofold: (a) what licenses govern them, and (b) what is the
-situation around **using them by name** in a quasi-commercial product. The
-short answer: all three are **permissive, commercial-use-friendly** licenses
-(MIT ×2, Apache-2.0 ×1), and the names carry **no registered trademark
-restriction** — using them by name to identify which palette you're offering is
-exactly the intended use. The one real obligation is **attribution**.
+That produces Catppuccin Latte/Mocha, Solarized Light/Solarized Dark Osaka,
+and light/dark Nord variants based on One Nord and Nord. Catppuccin and Nord
+therefore coexist; neither replaces the other.
+
+The original point-in-time research covered Solarized Light, Solarized Dark
+Osaka, and Catppuccin Mocha. Its question was twofold: (a) what licenses govern
+them, and (b) whether their names can be used in a commercial product. The
+answer remains that the palette sources use permissive, commercial-use-friendly
+licenses and that the originally reviewed names can be used descriptively to
+identify the selected palette. Nord's MIT licensing is recorded below; this
+update did not repeat the original trademark-policy search for Nord/One Nord.
+The implemented outcome was to keep the recognizable names and add a root
+`THIRD_PARTY_LICENSES.md` notice file.
 
 ---
 
 ## A. The licenses (verified from primary sources)
 
-Every claim below is from the upstream repo's own LICENSE/README, fetched
-2026-07-15.
+Sections 1–3 preserve the upstream LICENSE/README findings fetched on
+2026-07-15. Section 4 records the MIT licensing relevant to the subsequently
+added Nord family.
 
 ### 1. Solarized — MIT
 
@@ -52,10 +61,21 @@ Every claim below is from the upstream repo's own LICENSE/README, fetched
   "Commercial use"** first — a deliberate, written confirmation that commercial
   use is intended and allowed.
 
-All three are **OSI-approved permissive** licenses: no copyleft, no
-non-commercial clause, no field-of-use restriction, no revenue cap. None has an
-attached NOTICE file, so Apache-2.0 §4(d) adds nothing beyond MIT-style
-attribution.
+### 4. Nord / One Nord — MIT
+
+The current Nord family draws from two permissively licensed sources:
+
+- `github.com/rmehri01/onenord.nvim` — MIT, copyright 2021 Ryan Mehri. The
+  light palette is based on its `onenordlight` palette, and the dark palette
+  uses its accents.
+- `github.com/nordtheme/nord` — MIT, copyright 2016–present Sven Greb. Its
+  Polar Night colors inform the dark palette.
+
+All of these are **OSI-approved permissive** licenses: no copyleft,
+non-commercial clause, field-of-use restriction, or revenue cap. The original
+three projects had no attached NOTICE file, so Apache-2.0 §4(d) added nothing
+beyond retaining the applicable license and attribution notices when
+redistributing covered material.
 
 ---
 
@@ -72,15 +92,17 @@ projects is the **specific code/implementation** — the vim color files, the
 Lua plugin, the generated CSS — not the 16 hex values.
 
 Concretely: unbusy.day does **not** copy any upstream code file. It re-expresses
-each palette as hand-written CSS custom properties with our own HSL values
-(`app.css` `:root[data-colorscheme=...]` blocks). Even in the absence of any
-license, copying a palette's color values is not copyright infringement. The
-licenses matter for courtesy/attribution and for the (small) implementation we
-did inherit conceptually, not because the palette values are owned.
+each palette as hand-written CSS custom properties with HSL values in
+`internal/frontend/static/css/app.css`
+(`:root[data-colorscheme=...][data-colormode=...]` blocks). Even in the absence
+of any license, copying a palette's color values is not copyright infringement.
+The licenses matter for provenance and courtesy attribution, not because the
+palette values themselves are owned.
 
-### B2. Trademark — neither name is restricted
+### B2. Trademark — no naming restriction was found
 
-I found **no trademark policy or assertion** for either name:
+The 2026-07-15 review found **no trademark policy or assertion** for Solarized
+or Catppuccin:
 
 - No `TRADEMARK.md` / `.github/TRADEMARK.md` / trademark page in
   `catppuccin/catppuccin` or the catppuccin `.github` org profile; the
@@ -98,10 +120,11 @@ the name**:
   "Catppuccin for X"; using the name to identify the palette is the intended
   and universal pattern.
 
-So displaying the labels "Solarized Light", "Solarized Dark Osaka", and
-"Catppuccin Mocha" in the theme picker is **nominative/descriptive use** —
-identifying the palette the user is selecting — which is both the accepted
-community norm and squarely protected (and in any event unchallenged here).
+The current picker uses the family labels "Catppuccin", "Solarized", and
+"Nord", with a separate Light/Dark choice. They are descriptive labels for the
+selected palette family. The detailed policy search above covers Solarized and
+Catppuccin; make an equivalent Nord/One Nord check before treating the absence
+of a Nord naming restriction as independently verified by this document.
 
 > Standard disclaimer: this is engineering research, not legal advice. If a
 > registered word mark turned up later, descriptive use of a name to identify a
@@ -122,39 +145,29 @@ Both licenses are unambiguously commercial-use-friendly; there is nothing
   file, "cause … modified files to carry prominent notices stating that You
   changed the files." (No NOTICE file exists upstream, so §4(d) adds nothing.)
 
-Because we are not redistributing their source files verbatim, the clean way to
-satisfy attribution is a **THIRD_PARTY_LICENSES** (a.k.a. "open-source
-notices" / credits) file — and optionally an in-app "About / Credits" entry —
-reproducing each project's copyright line and license. Apache-2.0 in particular
-also gently wants modified-file notices if you ever did ship their files, which
-we don't.
+Because no upstream palette source files are redistributed verbatim, the clean
+way to record provenance and conservatively satisfy any applicable attribution
+is a **THIRD_PARTY_LICENSES** (a.k.a. "open-source notices" / credits) file.
+That file now exists at the repository root and includes the notices from the
+original research. Apache-2.0 would additionally require modified-file notices
+if the app shipped modified Solarized Osaka files, which it does not.
 
 ---
 
-## D. Recommendation (concrete)
+## D. Recommendation — completed
 
-1. **Add `THIRD_PARTY_LICENSES.md`** at the repo root (or link it from an
-   About modal) reproducing verbatim:
+1. **Create `THIRD_PARTY_LICENSES.md` at the repository root.** Done. It records
+   the original Solarized, Solarized Osaka, and Catppuccin copyright and license
+   notices and links to their upstream repositories.
+2. **Keep recognizable, human-readable palette names.** Done. The picker now
+   presents Catppuccin, Solarized, and Nord as families, with Light/Dark as an
+   independent choice.
+3. **Do not rename, dual-license, or restrict the palettes for commercial use.**
+   Done. The current palette sources are MIT or Apache-2.0 licensed and have no
+   non-commercial or field-of-use condition.
 
-   - Solarized — "Copyright (c) 2011 Ethan Schoonover" + MIT text.
-   - Solarized Osaka — "Copyright 2024 Takuya Matsuyama" + Apache-2.0 text.
-   - Catppuccin — "Copyright (c) 2021 Catppuccin" + MIT text.
-
-   Link each to its upstream repo. This single step satisfies every license
-   obligation above.
-
-2. **Keep the human-readable names** "Solarized Light", "Solarized Dark Osaka",
-   "Catppuccin Mocha" in the theme picker — they're descriptive/nominative use
-   of unasserted names, consistent with both projects' ecosystems. No change
-   needed.
-
-3. **No need to rename, dual-license, or restrict** any colorscheme for the
-   commercial path. None of the three has a non-commercial, branding, or
-   field-of-use string attached.
-
-4. (Optional belt-and-suspenders) A one-time USPTO TESS search for "Solarized"
-   and "Catppuccin" in class 9 to confirm no surprise registration. Expected
-   result: none of concern.
+The optional trademark search noted in the original recommendation was a
+belt-and-suspenders check, not a blocker to implementation.
 
 ---
 
@@ -166,18 +179,17 @@ we don't.
 - Solarized Osaka README — https://raw.githubusercontent.com/craftzdog/solarized-osaka.nvim/main/README.md
 - Catppuccin LICENSE — https://raw.githubusercontent.com/catppuccin/catppuccin/main/LICENSE
 - Catppuccin README (commercial-use confirmation) — https://raw.githubusercontent.com/catppuccin/catppuccin/main/README.md
+- One Nord LICENSE — https://raw.githubusercontent.com/rmehri01/onenord.nvim/main/LICENSE
+- Nord LICENSE — https://raw.githubusercontent.com/nordtheme/nord/develop/license
 - US Copyright Office, Compendium of Practices §313.4(K) (colors not copyrightable) — https://www.copyright.gov/comp3/chap300/ch300-copyrightable-authorship.pdf
 
 ---
 
-## Addendum (2026-08-14): Catppuccin replaced by Nord / One Nord
+## Implementation update
 
-The `catppuccin` family was replaced by a `nord` family whose palettes come
-from `rmehri01/onenord.nvim` (a One Dark / Nord blend). Same conclusion as
-above — permissive, commercial-use-friendly, attribution is the only
-obligation:
-
-- **onenord.nvim — MIT** (`api.github.com/repos/rmehri01/onenord.nvim`
-  reports `spdx_id = "MIT"`).
-- **Nord (upstream, `nordtheme/nord`) — MIT** (repo metadata
-  `spdx_id = "MIT"`), relevant because One Nord derives from it.
+Nord / One Nord was added after the original research and was briefly described
+as a replacement for Catppuccin. That description is no longer true. The
+current picker and stylesheet ship **all three** families — Catppuccin,
+Solarized, and Nord — and apply the independent `light` / `dark` colormode to
+each. One Nord and upstream Nord are both MIT licensed, so adding Nord does not
+change the original commercial-use conclusion.

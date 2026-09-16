@@ -1,11 +1,12 @@
 # 001 — Cal Newport time-blocking (sourced) and the unbusy.day column as a time-blocking tool
 
-Status: research (input for a "Guide" modal — no code committed)
+Status: research (source input for the implemented Guide modal)
 Date: 2026-07-10
 
-Research for a Guide modal that (1) explains the why/how of time-block planning
-grounded in Cal Newport's own writing, and (2) teaches the app's day-planner
-column as a concrete time-blocking tool. Part A is sourced against
+Research behind the Guide modal at
+`internal/frontend/components/modals/guide.templ`: (1) the why/how of
+time-block planning grounded in Cal Newport's own writing, and (2) the app's
+day-planner column as a concrete time-blocking tool. Part A is sourced against
 calnewport.com and his books; Part B is drawn from the codebase. Every
 substantive Part A claim carries its source inline; full URL list at the end.
 
@@ -84,9 +85,11 @@ blocks you can defend multi-hour stretches for depth instead of letting shallow
 reactivity fragment the day. Weekly planning explicitly reserves depth — e.g.
 "three hours a day for deep work"
 ([Deep Habits: Plan Your Week in Advance](https://calnewport.com/deep-habits-plan-your-week-in-advance/)).
-The app's third type, **break**, is not a Newport term of art but sits naturally
-alongside: rest is a legitimate thing to block, and Newport writes about
-deliberate breaks (e.g. [On Deep Breaks](https://calnewport.com/on-deep-breaks/)).
+The app's **break** and **appointment** types are not grades on Newport's
+deep/shallow axis. Break sits naturally alongside it: rest is a legitimate
+thing to block, and Newport writes about deliberate breaks (e.g.
+[On Deep Breaks](https://calnewport.com/on-deep-breaks/)). Appointment represents
+a fixed-time commitment around which the rest of the day is planned.
 
 ### Related rituals he ties in
 
@@ -152,8 +155,10 @@ summary.
 
 Sourced from the code: `internal/block/{block.go,layout.go}`, `CONTEXT.md`,
 `internal/frontend/components/{column.templ,column_block.templ,nav.templ}`,
-`internal/frontend/components/modals/{create,clear,hours}.templ`,
-`internal/frontend/static/drag.js`, and ADRs 0005 / 0011.
+`internal/frontend/components/modals/{create,clear,guide,hours}.templ`,
+`internal/frontend/static/css/app.css`,
+`internal/frontend/static/js/blocks/{gestures,pointer,push}.js`,
+`internal/frontend/static/js/now.js`, and ADRs 0005 / 0011.
 
 ### The surface: one rolling day of 30-minute slots
 
@@ -166,9 +171,9 @@ Sourced from the code: `internal/block/{block.go,layout.go}`, `CONTEXT.md`,
   `DefaultDayEnd = 34`). No midnight wrap.
 - A **Slot is either empty or covered by exactly one Block — blocks never overlap**
   (`CONTEXT.md`, "Slot"). This no-overlap rule is the app's spine.
-- The current time of day is shown live on the plan (the "now pill," revealed
-  client-side; the server can't know the viewer's clock — `column.templ`,
-  `now-pill.js`).
+- The current time of day is shown live on the plan (the "now pill," positioned
+  client-side because the server can't know the viewer's clock — `column.templ`,
+  `internal/frontend/static/js/now.js`).
 
 ### A Block: a named job pinned to a stretch of time
 
@@ -176,10 +181,11 @@ Sourced from the code: `internal/block/{block.go,layout.go}`, `CONTEXT.md`,
   ≥ 1), and a `Type` (`internal/block/block.go`, `Block` struct).
 - A block is **anchored to the clock, not to the top of the plan** — changing the
   day's bounds never moves a block's time (`CONTEXT.md`, "Block").
-- **Block Type** is chosen at creation and is a flat three-way tag: **deep**
-  (demanding, focused work), **shallow** (low-cognitive-demand work), or **break**
-  (rest). Every block has exactly one; it's color-coded on the plan and immutable
-  after creation (`CONTEXT.md`, "Block Type"; `block.go`, `BlockType`).
+- **Block Type** is chosen at creation and is a flat four-way tag: **deep**
+  (demanding, focused work), **shallow** (low-cognitive-demand work), **break**
+  (rest), or **appointment** (a fixed-time commitment). Every block has exactly
+  one; it's color-coded on the plan and immutable after creation (`CONTEXT.md`,
+  "Block Type"; `block.go`, `BlockType`).
 
 ### The user-facing actions and what each maps to
 
@@ -187,41 +193,44 @@ Sourced from the code: `internal/block/{block.go,layout.go}`, `CONTEXT.md`,
 |---|---|---|
 | **Set Hours** (bounds) | `SetBounds` sets day start/end on half-hour boundaries; a shrink that would strand a block is rejected whole (`block.go`, `SetBounds`; nav "Set Hours" → `HoursModal`). Options that would strand the first/last block disable reactively (`hours.templ`). | **Fixed-schedule productivity** — fix the container first; the day can only shrink into empty slots, so time is finite by construction. |
 | **Add a block** (the "+") | Every *free* slot renders a "+" that opens the New Block modal, pre-filling that slot; `Create` inserts a span-1 block, rejecting a blank label, an out-of-bounds slot, or an occupied slot (`column.templ` `slot`; `create.templ`; `block.go`, `Create`). | **Assign a named job to a stretch of time** — the atomic act of time blocking. Naming is required (no anonymous blocks), like Newport's "specific assignments." |
-| **Choose a type** | Radio swatch: shallow (default) / deep / break (`create.templ`). | **Deep vs shallow work** (plus break) — makes the depth of each block explicit and defendable. |
-| **Drag to move** | Pointer/keyboard move re-slots the block; the **push cascade** slides overlapped blocks toward the vacated slot, consuming gaps first (`drag.js`; `CONTEXT.md`, "Push"; ADR 0005). | **Re-block when the day changes** — rearranging the plan is cheap and expected. |
-| **Stretch to resize** | The grip grows/shrinks the span; growing pushes/compresses neighbors, clamped to day end (`drag.js` resize; `pushLayout … {compress:true}`). | **Right-sizing a block** — giving a job the time it actually needs. |
-| **Rename** | Tap/F2 inline edit → `Rename` (`drag.js` `enterEdit`; `block.go`, `Rename`). | Sharpening a block's assignment as the plan is revised (Newport's right-column elaboration). |
+| **Choose a type** | Radio swatch: deep (default) / shallow / break / appointment (`create.templ`). | **Deep vs shallow work**, with explicit rest and fixed commitments — makes the character of each block visible. |
+| **Drag to move** | Pointer/keyboard move re-slots the block; the **push cascade** moves displaced blocks toward the vacated slot, consuming gaps first (`blocks/gestures.js`, `blocks/pointer.js`, `blocks/push.js`; ADR 0005). | **Re-block when the day changes** — rearranging the plan is cheap and expected. |
+| **Stretch to resize** | The grip grows/shrinks the span; growth pushes blocks below and may compress them closest-first, never below one slot. The operation rejects if no legal result fits (`blocks/pointer.js`, `blocks/push.js`). | **Right-sizing a block** — giving a job the time it actually needs. |
+| **Rename** | Tap/F2 inline edit → `Rename` (`blocks/rename.js`; `block.go`, `Rename`). | Sharpening a block's assignment as the plan is revised (Newport's right-column elaboration). |
 | **Delete** (the "×") | Per-block delete → `Delete` (`column_block.templ`; `block.go`, `Delete`). | Dropping a job that no longer belongs. |
 | **Clear** | Nav "Clear" → confirm → `Clear` wipes all blocks, bounds untouched; disabled on an already-empty day (`clear.templ`; `nav.templ`; `block.go`, `Clear`). | Starting the next day's plan fresh. |
 
 ### The push cascade and "time is finite"
 
-Moving or growing a block onto occupied slots **pushes** each overlapped block
-*down* (later) by the minimum distance that clears the overlap, consuming empty
-slots before displacing further blocks (`CONTEXT.md`, "Push"). A placement whose
-push would force any block past the end of the day is **rejected whole — nothing
-moves** (`CONTEXT.md`; `layout.go`, `ValidateLayout`).
+Dragging a block onto occupied slots displaces blocks toward the slot it
+vacated: dragging down pushes displaced blocks up, while dragging up pushes them
+down. Empty gaps absorb displacement first. Growing a block pushes the blocks
+below it down; when a tight-packed stack would otherwise overflow, those blocks
+may be compressed closest-first, each only as far as its one-slot minimum. If no
+in-bounds, non-overlapping result is possible, the operation is rejected whole
+(`blocks/push.js`; ADR 0005).
 
-Architecturally the client computes the push for instant feel and the server
-enforces the invariants exactly once — **same block set, in bounds, no overlaps,
-span ≥ 1** (`layout.go`, `ValidateLayout`; ADR 0005). This is the single overlap
+Architecturally the client computes the push for instant feel and `SetLayout`
+validates the submitted whole layout — **same block set, in bounds, no overlaps,
+span ≥ 1** (`layout.go`, `ValidateLayout`; ADR 0005). Block creation has its own
+occupied-slot check; the gesture path relies on `ValidateLayout` as its overlap
 guard.
 
 This is the app's most important teaching moment: the plan physically cannot hold
-more than the day contains. When a move is illegal the optimistic change **snaps
-back** to the last legal layout — the app's error convention is 200 + a re-render
-of the authoritative column, so a rejected change visibly reverts (CLAUDE.md,
-"Error convention"). That snap-back is the system *enforcing that time is a finite
+more than the day contains. When an operation cannot produce a legal result it is
+rejected; a server-rejected optimistic change **snaps back** to the last legal
+layout through a 200 + re-render of the authoritative column (`AGENTS.md`, "Error
+convention"). That snap-back is the system *enforcing that time is a finite
 resource* — the exact discipline Newport's fixed-schedule and every-minute
 blocking are meant to impose.
 
 ### Notes for the guide author
 
-- There is **no task list on the side** and **no weekly/quarterly layer** in the
-  app today — it implements only Newport's **daily** time-block layer. The guide can
-  mention the weekly/quarterly context as the surrounding practice, but shouldn't
-  imply the app does it. (A reusable "Template" Day Plan is named as future work in
-  `CONTEXT.md` but is not built.)
+- There is **no task list on the side**. Habits is a Sunday-through-Saturday
+  check-in matrix, but it is not Newport-style weekly planning; the app still has
+  no weekly or quarterly planning layer. The guide can mention those horizons as
+  surrounding practice, but shouldn't imply the app implements them. (A reusable
+  "Template" Day Plan is named as future work in `CONTEXT.md` but is not built.)
 - The day is a **rolling today** with no history — so "start fresh" = Clear, not a
   new dated page.
 - Bounds are limited to 4:00–18:00 for now (`layout.go`), so the guide's examples
@@ -229,52 +238,31 @@ blocking are meant to impose.
 
 ---
 
-## Part C: suggested content outline for the Guide modal
+## Part C: the implemented Guide modal
 
-A short modal, ideally two panes: **the idea** then **using the app**. Each app
-feature ties back to a Newport concept.
+The Guide is implemented as a four-step walkthrough in
+`internal/frontend/components/modals/guide.templ`, with its presentation in
+`internal/frontend/static/css/app.css`:
 
-**1. Why time-block your day (the idea)**
-- One line: assign every stretch of your day to a specific job, instead of
-  reacting to whatever lands in front of you.
-- The payoff, in Newport's words: a time-blocked ~40-hour week does the work of a
-  60+ hour unstructured one — control your time like capital
-  ([Planning Every Minute](https://calnewport.com/deep-habits-the-importance-of-planning-every-minute-of-your-work-day/)).
-- The honest caveat up front: the plan *will* break — that's fine. The win is
-  intentionality, not rigid obedience; when the day shifts, you re-block
-  ([Three Recent Daily Plans](https://calnewport.com/deep-habits-three-recent-daily-plans/)).
+1. **What is this thing?** introduces time-blocking as giving each minute one job
+   rather than working reactively. This is the condensed version of Newport's
+   core rationale
+   ([Planning Every Minute](https://calnewport.com/deep-habits-the-importance-of-planning-every-minute-of-your-work-day/)).
+2. **Use working hours well** explains the rolling "today," recommends placing
+   timed commitments first, and demonstrates adding a block. It presents all four
+   types: Focus/deep (the default), Admin/shallow, Break, and Fixed/appointment.
+3. **Shape the day** teaches drag and stretch through an interactive, client-only
+   demo. This supports the re-blocking habit when reality changes rather than
+   treating the first plan as rigid
+   ([Three Recent Daily Plans](https://calnewport.com/deep-habits-three-recent-daily-plans/)).
+4. **Power User?** covers themes, keyboard shortcuts, and the Jotpad.
 
-**2. Set your hours** → fixed-schedule productivity
-- Fix the container first (Set Hours). Everything else has to fit inside it — the
-  day can only shrink into empty time.
-
-**3. Add blocks for your work** → assign named jobs; deep vs shallow
-- Tap "+" on any free slot, name the block, pick a type:
-  - **Deep** = distraction-free, cognitively demanding work you want to defend.
-  - **Shallow** = logistical/admin work.
-  - **Break** = deliberate rest.
-- Naming is required — a block is a *specific* assignment, not a category.
-
-**4. Shape the day** → right-size and rearrange
-- **Drag** to move a block; **stretch** the grip to resize. Neighbors push out of
-  the way (the push cascade). Rename inline; delete with "×".
-
-**5. When the day changes, re-block** → correct the plan, don't abandon it
-- Drag things around as reality intervenes; the plan is meant to be rewritten.
-  This is Newport's right-column rewrite, made physical.
-
-**6. Time is finite (why it snaps back)**
-- If a move would overflow the day, the whole move is rejected and snaps back —
-  the app won't let you pretend you have more hours than you do. That constraint is
-  the point.
-
-**7. Start fresh** → Clear
-- One rolling "today." Clear wipes the plan when you want to lay out a new day.
-
-*(Optional footer)* This app covers the **daily** layer of Newport's system;
-he also plans by week and season, and ends the day with a shutdown ritual
-([shutdown ritual](https://calnewport.com/drastically-reduce-stress-with-a-work-shutdown-ritual/),
-[weekly planning](https://calnewport.com/deep-habits-plan-your-week-in-advance/)).
+The modal is intentionally shorter than the full research above. Set Hours,
+Clear, finite-capacity rejection, shutdown rituals, and multi-scale planning
+remain useful source-backed context rather than claims about Guide coverage.
+The separate Habits weekly matrix records check-ins; it does not implement
+Newport's weekly planning layer
+([weekly planning](https://calnewport.com/deep-habits-plan-your-week-in-advance/)).
 
 ---
 
@@ -301,5 +289,9 @@ Codebase (Part B):
 - `CONTEXT.md` — domain glossary (Block, Block Type, Day Plan, Slot, Push).
 - `internal/frontend/components/column.templ`, `column_block.templ`, `nav.templ` — the grid, block item, and nav controls.
 - `internal/frontend/components/modals/create.templ`, `clear.templ`, `hours.templ` — add / clear / set-hours modals.
-- `internal/frontend/static/drag.js` — drag-to-move, stretch-to-resize, push-cascade preview.
+- `internal/frontend/components/modals/guide.templ` — the implemented four-step Guide.
+- `internal/frontend/static/css/app.css` — Guide and application presentation.
+- `internal/frontend/static/js/blocks/gestures.js` — block-gesture entry point; sibling `pointer.js`, `keyboard.js`, `push.js`, and `rename.js` implement move, resize, push, and rename behavior.
+- `internal/frontend/static/js/now.js` — viewer-local wall clock, now indicator, and active-block countdown.
 - `docs/adr/0005-client-computed-push-server-enforced-invariants.md`, `docs/adr/0011-plain-css-cascade-layers-and-scope.md`.
+- `AGENTS.md` — canonical repository instructions and rejection convention.

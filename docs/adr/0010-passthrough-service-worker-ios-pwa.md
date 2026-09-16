@@ -40,7 +40,7 @@ gives it the durable storage tier that keeps the auth cookie alive.
 ## Why this doesn't violate "no SPA / no client-side business logic"
 
 The architecture bans client-side *business logic* and SPA caching, not all JS
-(`drag.js` already exists). This service worker holds **zero** logic and
+(the block gesture modules already exist). This service worker holds **zero** logic and
 deliberately **no offline cache** — a cache would fight the "server render is the
 source of truth" invariant by serving stale state. It is purely an installability
 signal. Keeping it a strict passthrough is the load-bearing constraint: the moment

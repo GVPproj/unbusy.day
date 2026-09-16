@@ -1,6 +1,11 @@
 # Run-once Migrations via goose
 
-Status: accepted
+Status: accepted (deployment and baseline details amended by ADR 0007)
+
+> **Current state:** ADR 0007 replaced Postgres with SQLite, collapsed the old
+> Postgres history into one SQLite baseline, and moved migration execution from
+> a Fly release machine to application boot. The durable decision here is still
+> run-once, embedded, forward-only goose migrations.
 
 Migrations switch from "re-apply every file on every deploy, each file
 idempotent forever" to run-once version tracking with
@@ -35,17 +40,18 @@ blocking all deployment.
 
 ## Consequences
 
-- The deploy interface is unchanged: Fly's release command still runs the
-  binary's `migrate` subcommand; `task migrate` now invokes it too
-  (`go run . migrate`), dropping the local psql dependency.
+- The app applies migrations on boot after opening the volume-backed SQLite
+  database. `task migrate` invokes the same binary path explicitly with
+  `go run ./cmd/unbusy migrate` for ad hoc use; Fly has no release command
+  because a release machine cannot mount the app volume (ADR 0007).
 - goose runs as a library against `database/sql` over the `modernc.org/sqlite`
   driver (`DialectSQLite3`); the app's own DB access is untouched.
-- New migrations: plain DDL, timestamp-versioned filenames
-  (`goose create x sql`-style) so concurrent branches can't collide; 0001–0004
-  keep their names so history, ADRs, and incident notes still point at real
-  files. Once applied in prod, a file is history — editing it does nothing.
+- The retired Postgres files were collapsed into
+  `20260614000000_sqlite_baseline.sql`. New migrations are plain DDL with
+  timestamp-versioned filenames so concurrent branches cannot collide. Once
+  applied, a file is history — fix mistakes with a new forward migration.
 - Expand-then-deploy is preserved by **discipline** (additive DDL, explicit
   column lists in queries), no longer by re-runnability. The retired
   "additive + idempotent by construction" invariant must not be reintroduced.
-- Fly runs exactly one release machine, so goose's session locking is
-  unnecessary.
+- The app runs exactly one always-on machine, so concurrent cross-machine
+  migration execution is outside the deployment model.
