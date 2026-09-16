@@ -91,6 +91,10 @@ func VerifyCodeHandler(a AuthService, secureCookies bool) http.Handler {
 		sess, err := a.VerifyCode(r.Context(), sig.Email, sig.Code)
 		if errors.Is(err, auth.ErrInvalidCode) {
 			sse := datastar.NewSSE(w, r)
+			if err := sse.MarshalAndPatchSignals(map[string]string{"code": ""}); err != nil {
+				log.Printf("ds verify code reset: %v", err)
+				return
+			}
 			if err := sse.PatchElementTempl(components.LoginCodeForm("That code didn't work — check it or request a new one.")); err != nil {
 				log.Printf("ds verify patch: %v", err)
 			}

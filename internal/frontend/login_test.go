@@ -88,7 +88,7 @@ func TestVerifyCodeSetsCookieAndRedirects(t *testing.T) {
 	}
 }
 
-func TestVerifyCodeRejectionRepatchesForm(t *testing.T) {
+func TestVerifyCodeRejectionClearsCodeAndRepatchesForm(t *testing.T) {
 	a := &fakeAuth{verifyErr: auth.ErrInvalidCode}
 	req := httptest.NewRequest(http.MethodPost, "/login/verify",
 		strings.NewReader(`{"email":"x@example.test","code":"000000"}`))
@@ -102,7 +102,16 @@ func TestVerifyCodeRejectionRepatchesForm(t *testing.T) {
 	if len(rec.Result().Cookies()) != 0 {
 		t.Errorf("rejected verify must not set a cookie")
 	}
-	if body := rec.Body.String(); !strings.Contains(body, `id="login-form"`) {
-		t.Errorf("want #login-form re-patch; body:\n%s", body)
+	body := rec.Body.String()
+	codeReset := strings.Index(body, "event: datastar-patch-signals\ndata: signals {\"code\":\"\"}")
+	formPatch := strings.Index(body, "event: datastar-patch-elements")
+	if codeReset < 0 {
+		t.Errorf("want code signal reset; body:\n%s", body)
+	}
+	if formPatch < 0 || !strings.Contains(body, `id="login-form"`) {
+		t.Errorf("want #login-form element patch; body:\n%s", body)
+	}
+	if codeReset > formPatch {
+		t.Errorf("want code reset before form patch; body:\n%s", body)
 	}
 }
