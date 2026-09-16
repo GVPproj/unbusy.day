@@ -211,7 +211,7 @@ for (const mobile of [false, true]) {
 	});
 }
 
-test("historical check-ins survive reload and This week resumes the present", async ({ page }) => {
+test("historical check-ins survive reload and This week resumes the present", { tag: "@smoke" }, async ({ page }) => {
 	await habitsTab(page).click();
 	const calendar = await localCalendar(page);
 	await createHabit(page, "History", calendar.previous.first);
@@ -676,7 +676,7 @@ test("a delayed deletion ack cannot close a newer confirmation", async ({ page }
 	}
 });
 
-test("habit deletion works in the mobile companion panel", async ({ page }) => {
+test("habit deletion works in the mobile companion panel", { tag: "@smoke" }, async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await mobilePanel(page, "Extras");
 	await habitsTab(page).click();
@@ -842,7 +842,7 @@ for (const width of [1440, 390]) {
 	});
 }
 
-test("habits created in another tab arrive live without replacing an unfinished form", async ({ page, context }) => {
+test("habits created in another tab arrive live without replacing an unfinished form", { tag: "@smoke" }, async ({ page, context }) => {
 	await habitsTab(page).click();
 	await openCreateHabit(page);
 	await habitName(page).fill("Unfinished draft");

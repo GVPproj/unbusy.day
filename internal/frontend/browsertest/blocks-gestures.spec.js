@@ -55,7 +55,7 @@ async function expectClean(locator) {
 	}))).toEqual({ transform: "", height: "", transient: false });
 }
 
-test("drag previews push, settles to the grid, and cleans transient state", async ({ context, page }) => {
+test("drag previews push, settles to the grid, and cleans transient state", { tag: "@smoke" }, async ({ context, page }) => {
 	const ids = await fixture(context, page, [
 		{ label: "First", slot: 18, span: 1 },
 		{ label: "Second", slot: 19, span: 1 },
@@ -73,6 +73,9 @@ test("drag previews push, settles to the grid, and cleans transient state", asyn
 	expect(await placement(second)).toEqual({ ...ids.Second, slot: 18 });
 	await expectClean(first);
 	await expectClean(second);
+	await page.reload({ waitUntil: "load" });
+	expect(await placement(first)).toEqual({ ...ids.First, slot: 19 });
+	expect(await placement(second)).toEqual({ ...ids.Second, slot: 18 });
 });
 
 test("resize previews compression and pointer cancellation restores the snapshot", async ({ context, page }) => {

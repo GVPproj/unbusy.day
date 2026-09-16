@@ -11,13 +11,20 @@ scratch=$(mktemp -d)
 port=${BROWSER_SMOKE_PORT:-18199}
 server_pid=
 cleanup() {
-  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi
+  if [ -n "$server_pid" ]; then
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+  fi
   rm -rf "$scratch"
 }
 trap cleanup EXIT INT TERM
 
+cd "$root"
+go build -o "$scratch/sessionmint" ./internal/frontend/browsertest/sessionmint
+
 DATABASE_URL="file:$scratch/smoke.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate" \
-PORT="$port" "$root/tmp/unbusy" >"$scratch/server.log" 2>&1 &
+SMTP_HOST= TURNSTILE_SITEKEY= TURNSTILE_SECRET= SECURE_COOKIES=0 \
+HOST=127.0.0.1 PORT="$port" "$root/tmp/unbusy" >"$scratch/server.log" 2>&1 &
 server_pid=$!
 
 i=0
@@ -36,6 +43,7 @@ if ! kill -0 "$server_pid" 2>/dev/null; then
   exit 1
 fi
 
-cd "$root"
-# Real OTP sends share one rate budget; parallel scenarios can starve each other's login.
-BROWSER_SMOKE_URL="http://127.0.0.1:$port" BROWSER_SMOKE_LOG="$scratch/server.log" npm run test:browser -- --workers=1 "$@"
+# Default to serial execution; callers can override with --workers.
+BROWSER_SMOKE_URL="http://127.0.0.1:$port" BROWSER_SMOKE_LOG="$scratch/server.log" \
+BROWSER_SMOKE_SESSION_HELPER="$scratch/sessionmint" BROWSER_SMOKE_DB="$scratch/smoke.db" \
+npm run test:browser -- --workers=1 "$@"

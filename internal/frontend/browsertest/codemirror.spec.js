@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const baseURL = process.env.BROWSER_SMOKE_URL || "http://127.0.0.1:18199";
 
-test("the Jotpad mounts with local Markdown support", async ({ page }) => {
+test("the Jotpad mounts with local Markdown support", { tag: "@smoke" }, async ({ page }) => {
 	const browserErrors = [];
 	const failedRequests = [];
 	const externalRequests = [];

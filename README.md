@@ -46,3 +46,36 @@ cp .env.example .env
 # Day-to-day
 task dev                          # SQLite + templ watch + Go hot reload
 ```
+
+## Testing
+
+```bash
+task test                         # Go + fast JS unit tests
+task test:browser:smoke            # Critical Chromium deployment gate
+task test:browser                  # Full Chromium regression suite
+```
+
+Browser tasks require Node/npm and install pinned Playwright + Chromium. They
+build the app, so stop `task dev` before running them. With an existing build:
+
+```bash
+scripts/browser-smoke.sh --grep @smoke
+scripts/browser-smoke.sh internal/frontend/browsertest/jot-scroll.spec.js
+```
+
+Pushes and PRs run Go/JS tests plus the `@smoke` browser tests: login, Jotpad
+persistence and cross-tab updates, pending-save blur, block drag persistence,
+and habit persistence/live updates/mobile deletion. Keep this gate small
+(target: under two minutes of browser execution). Add exhaustive permutations
+to the full suite rather than tagging every regression as smoke.
+
+The full suite runs nightly at 03:23 UTC and via **Actions → CI/CD → Run
+workflow**, without deploying. Run it locally before risky frontend changes;
+nightly failures still need triage, even though they don't block deployment.
+Authenticated browser tests get fresh accounts/sessions in the runner's scratch
+SQLite file through a test-only Go helper; only the login smoke exercises real OTP.
+Production authentication and rate limits are unchanged.
+
+Browser output lists individual timings; CI retains the HTML report and failure
+traces/screenshots for seven days. Open a local report with
+`npx playwright show-report`.

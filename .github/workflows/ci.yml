@@ -5,10 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -70,8 +73,24 @@ jobs:
       - name: Build browser smoke binary
         run: go build -o tmp/unbusy ./cmd/unbusy
 
-      - name: Test Jotpad in Chromium
+      - name: Browser smoke (deployment gate)
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: scripts/browser-smoke.sh --grep @smoke
+
+      - name: Full browser regression suite
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: scripts/browser-smoke.sh
+
+      - name: Upload browser report and failure traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   deploy:
     name: Deploy (Fly)

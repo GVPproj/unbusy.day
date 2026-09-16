@@ -1,28 +1,24 @@
-import { readFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
-import { expect } from "@playwright/test";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 export const baseURL = process.env.BROWSER_SMOKE_URL || "http://127.0.0.1:18199";
+const run = promisify(execFile);
 
-// LogMailer is our inbox; real OTP and rate limiting remain enabled.
+// Each call creates a fresh owner; only the scratch runner provides this helper.
 export async function signIn(context) {
- const logPath = process.env.BROWSER_SMOKE_LOG;
- expect(logPath, "Expose the dev server log as BROWSER_SMOKE_LOG for OTP login").toBeTruthy();
- const email = `browser-${randomUUID()}@example.com`;
- let sent;
- await expect.poll(async () => {
-  sent = await context.request.post(`${baseURL}/login/code`, { data: { email, code: "" } });
-  return sent.status();
- }, { timeout: 30_000, intervals: [6000] }).not.toBe(429);
- expect(sent.ok(), `OTP send returned HTTP ${sent.status()}`).toBeTruthy();
- let code;
- await expect.poll(async () => {
-  const log = await readFile(logPath, "utf8");
-  code = log.match(new RegExp(`login code for ${email.replaceAll(".", "\\.")}: (\\d{6})`))?.[1];
-  return code;
- }).toMatch(/^\d{6}$/);
- const verified = await context.request.post(`${baseURL}/login/verify`, { data: { email, code } });
- expect(verified.ok()).toBeTruthy();
- expect((await context.cookies(baseURL)).some((cookie) => cookie.name === "session" && cookie.value !== ""),
-  "OTP verification must establish a session").toBe(true);
+ const helper = process.env.BROWSER_SMOKE_SESSION_HELPER;
+ const database = process.env.BROWSER_SMOKE_DB;
+ if (!helper || !database) {
+  throw new Error("Run scripts/browser-smoke.sh to provide scratch session authentication");
+ }
+ const url = new URL(baseURL);
+ if (url.protocol !== "http:" || url.hostname !== "127.0.0.1") {
+  throw new Error("Scratch sessions require the local HTTP smoke server");
+ }
+ const { stdout } = await run(helper, [database], { timeout: 15_000 });
+ const { token, expires } = JSON.parse(stdout);
+ await context.addCookies([{
+  name: "session", value: token, url: url.origin, expires,
+  httpOnly: true, secure: false, sameSite: "Lax",
+ }]);
 }

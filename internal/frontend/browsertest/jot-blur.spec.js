@@ -9,7 +9,7 @@ test.beforeEach(async ({ context, page }) => {
 	await expect(page.locator(".cm-editor")).toBeVisible();
 });
 
-test("Jotpad text survives blur during a pending save", async ({ page }) => {
+test("Jotpad text survives blur during a pending save", { tag: "@smoke" }, async ({ page }) => {
 	const content = page.locator(".cm-content");
 	const text = "Keep this note";
 	let releaseSave;

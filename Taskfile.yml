@@ -126,10 +126,16 @@ tasks:
       - npx playwright install chromium
 
   test:browser:
-    desc: "Build and test the planner, Jotpad, and Habits in Chromium"
+    desc: "Run the full Chromium regression suite (nightly/manual in CI)"
     deps: [build, browser:install]
     cmds:
       - scripts/browser-smoke.sh
+
+  test:browser:smoke:
+    desc: "Run the critical Chromium deployment gate"
+    deps: [build, browser:install]
+    cmds:
+      - scripts/browser-smoke.sh --grep @smoke
 
   fmt:
     desc: "Format Go code"
