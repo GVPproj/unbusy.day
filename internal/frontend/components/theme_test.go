@@ -14,9 +14,9 @@ func TestThemePickersRenderIndependentBoundRadioGroups(t *testing.T) {
 
 	groups := map[string]int{
 		"theme-feeling":      3,
-		"theme-colourscheme": 3,
+		"theme-colourscheme": 4,
 		"theme-colormode":    2,
-		"guide-colourscheme": 3,
+		"guide-colourscheme": 4,
 		"guide-colormode":    2,
 		"guide-feeling":      3,
 	}
@@ -26,9 +26,9 @@ func TestThemePickersRenderIndependentBoundRadioGroups(t *testing.T) {
 		}
 	}
 	for signal, want := range map[string]int{
-		"_colorscheme": 6,
-		"_colormode":    4,
-		"_feeling":      6,
+		"_colorscheme": 8,
+		"_colormode":   4,
+		"_feeling":     6,
 	} {
 		if got := strings.Count(body, `data-bind:`+signal); got != want {
 			t.Errorf("signal %q has %d bound radios, want %d", signal, got, want)
@@ -119,7 +119,7 @@ func TestThemePickerOffersSolarizedFamily(t *testing.T) {
 func TestThemePickerOffersFamiliesOnly(t *testing.T) {
 	body := renderPage(t, threeBlocks(), testBounds)
 
-	for _, family := range []string{"solarized", "nord", "catppuccin"} {
+	for _, family := range []string{"solarized", "nord", "catppuccin", "gruvbox"} {
 		if want := `data-bind:_colorscheme value="` + family + `"`; !strings.Contains(body, want) {
 			t.Errorf("page missing %s family binding %q", family, want)
 		}

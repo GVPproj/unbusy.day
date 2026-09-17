@@ -1065,6 +1065,12 @@
       gap: 0.4rem;
     }
 
+    /* Feeling packs two-up so the picker stays short; the odd third
+       option lands half-width on the second row. */
+    .theme-options.two-col {
+      grid-template-columns: 1fr 1fr;
+    }
+
     .theme-options legend {
       font-size: var(--text-sm);
       line-height: var(--text-sm--line-height);

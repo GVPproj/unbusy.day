@@ -11,6 +11,9 @@ const (
 	swatchSolarized = "linear-gradient(135deg, hsl(44, 86%, 94%) 50%, hsl(192, 100%, 10%) 50%)"
 	swatchNord      = "linear-gradient(135deg, hsl(220, 23%, 97%) 50%, hsl(216, 26%, 26%) 50%)"
 	swatchCatppuccin = "linear-gradient(135deg, hsl(220, 23%, 95%) 50%, hsl(237, 16%, 23%) 50%)"
+	// Gruvbox: its dark bg0 is neutral grey (#282828), which would read as the
+	// mode disc, so the dark half previews the warm bg1 surface instead.
+	swatchGruvbox = "linear-gradient(135deg, hsl(48, 87%, 88%) 50%, hsl(20, 5%, 22%) 50%)"
 
 	// The mode rows preview the axis itself, not a family: a neutral light and
 	// dark disc.
@@ -87,19 +90,20 @@ templ ThemeModal() {
 		aria-labelledby="theme-modal-title"
 	>
 		<h2 id="theme-modal-title">Theme</h2>
-		<fieldset class="theme-options">
+		<fieldset class="theme-options two-col">
 			<legend>Feeling</legend>
 			@feelingOption("cozy", "Cozy", feelingCozyFont, false, templ.Raw(glyphCozy))
 			@feelingOption("mono", "Mono", feelingMonoFont, false, templ.Raw(glyphMono))
 			@feelingOption("pixel", "Pixel", feelingPixelFont, true, templ.Raw(glyphPixel))
 		</fieldset>
-		<fieldset class="theme-options">
+		<fieldset class="theme-options two-col">
 			<legend>Colours</legend>
 			@themeOption("catppuccin", "Catppuccin", swatchCatppuccin)
 			@themeOption("solarized", "Solarized", swatchSolarized)
 			@themeOption("nord", "Nord", swatchNord)
+			@themeOption("gruvbox", "Gruvbox", swatchGruvbox)
 		</fieldset>
-		<fieldset class="theme-options">
+		<fieldset class="theme-options two-col">
 			<legend>Light / Dark</legend>
 			@modeOption("light", "Light", swatchLight)
 			@modeOption("dark", "Dark", swatchDark)
