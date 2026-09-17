@@ -3,6 +3,31 @@ import { baseURL, signIn } from "./session.js";
 
 test.use({ viewport: { width: 1200, height: 800 } });
 
+test("Gruvbox guide selection applies canonical light and dark palettes", async ({ page }) => {
+	await page.goto(`${baseURL}/login`, { waitUntil: "load" });
+	const guide = page.locator("#guide-modal");
+	await guide.evaluate((dialog) => dialog.showModal());
+	for (let step = 1; step < 4; step++) {
+		await guide.getByRole("button", { name: "Next", exact: true }).click();
+	}
+	await guide.getByRole("radio", { name: "Gruvbox", exact: true }).locator("..").click();
+	const root = page.locator("html");
+	await expect(root).toHaveAttribute("data-colorscheme", "gruvbox");
+	for (const [mode, bg, ink, surface] of [
+		["Light", "#fbf1c7", "#3c3836", "#fbf1c7"],
+		["Dark", "#282828", "#ebdbb2", "#3c3836"],
+	]) {
+		await guide.getByRole("radio", { name: mode, exact: true }).locator("..").click();
+		for (const [token, value] of Object.entries({ "--bg": bg, "--ink": ink, "--surface": surface })) {
+			await expect(root).toHaveCSS(token, value);
+		}
+	}
+	await page.reload({ waitUntil: "load" });
+	await expect(root).toHaveAttribute("data-colorscheme", "gruvbox");
+	await expect(root).toHaveAttribute("data-colormode", "dark");
+	await expect(root).toHaveCSS("--bg", "#282828");
+});
+
 test("theme radios support keyboard selection, synchronize, and persist", async ({ context, page }) => {
 	await signIn(context);
 	await page.goto(baseURL, { waitUntil: "load" });

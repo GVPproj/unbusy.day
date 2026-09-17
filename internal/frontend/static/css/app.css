@@ -438,6 +438,70 @@
     --type-appointment-ink: hsl(350, 65%, 77%);
   }
 
+  /* Gruvbox Light — canonical medium-contrast morhetz/gruvbox palette:
+     https://github.com/morhetz/gruvbox/blob/master/colors/gruvbox.vim */
+  :root[data-colorscheme="gruvbox"] {
+    --bg: #fbf1c7;
+    --ink: #3c3836;
+    --ink-muted: #665c54;
+    --ink-error: #9d0006;
+    --surface: #fbf1c7;
+    --column-bg: #ebdbb2;
+    --rail-border: #d5c4a1;
+    --nav-bg: #282828;
+    --nav-ink: #ebdbb2;
+    --nav-hover: rgba(235, 219, 178, 0.15);
+    --nav-icon: #fabd2f;
+    --gutter-ink: #3c3836;
+    --accent: #076678;
+    --danger: #9d0006;
+    --scrim: rgba(40, 40, 40, 0.35);
+    --hover-shift: #282828;
+    --shadow-rest: 0 1px 1px rgba(60, 56, 54, 0.25);
+    --shadow-lift: 0 4px 8px rgba(60, 56, 54, 0.25);
+
+    /* Canonical accent fills and neutral ink keep block types distinct. */
+    --type-deep: #83a598;
+    --type-deep-ink: #282828;
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: #b8bb26;
+    --type-break-ink: #282828;
+    --type-appointment: #fabd2f;
+    --type-appointment-ink: #282828;
+  }
+
+  /* Gruvbox Dark — bg0 page, bg1 surfaces, bright accents. */
+  :root[data-colorscheme="gruvbox"][data-colormode="dark"] {
+    --bg: #282828;
+    --ink: #ebdbb2;
+    --ink-muted: #bdae93;
+    --ink-error: #fb4934;
+    --surface: #3c3836;
+    --column-bg: #282828;
+    --rail-border: #504945;
+    --nav-bg: #1d2021;
+    --nav-ink: #ebdbb2;
+    --nav-hover: rgba(235, 219, 178, 0.12);
+    --nav-icon: #fabd2f;
+    --gutter-ink: var(--nav-icon);
+    --accent: #83a598;
+    --danger: #fb4934;
+    --scrim: rgba(29, 32, 33, 0.55);
+    --hover-shift: #fbf1c7;
+    --shadow-rest: 0 1px 1px rgba(29, 32, 33, 0.5);
+    --shadow-lift: 0 4px 8px rgba(29, 32, 33, 0.5);
+
+    --type-deep: #076678;
+    --type-deep-ink: #fbf1c7;
+    --type-shallow: var(--surface);
+    --type-shallow-ink: var(--ink);
+    --type-break: #427b58;
+    --type-break-ink: #fbf1c7;
+    --type-appointment: #af3a03;
+    --type-appointment-ink: #fbf1c7;
+  }
+
   /* Block-type fill, resolved once from whichever palette is active. Any
 	   element tagged data-type picks up the pair, so the five surfaces that
 	   paint a block type (block item, countdown pill, create + guide
