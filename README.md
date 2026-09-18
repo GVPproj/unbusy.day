@@ -7,7 +7,7 @@
 [![CI/CD](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml/badge.svg)](https://github.com/GVPproj/unbusy.day/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/github/go-mod/go-version/GVPproj/unbusy.day?logo=go&logoColor=white)](https://go.dev)
 
-Structured your days with a time-blocked schedule.  There's habit tracking and a little notepad too :)
+Structure your days with a time-blocked schedule.  There's habit tracking and a little notepad too :)
 
 ![A tilted day column with Deep Work, Email, and Coffee blocks beside the tagline: a less overwhelming approach to having a brain.](.github/readme-hero.png)
 
