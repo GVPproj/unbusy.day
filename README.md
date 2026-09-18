@@ -28,7 +28,7 @@ Every block gets one of four types:
   <img src=".github/readme-types.png" width="560" alt="The four block types: Focus — undistracted effort; Admin — chat, light tasks; Break — take regularly; Fixed — appointments, meetings.">
 </p>
 
-**Drag and stretch** blocks to arrange (and rearrange, as needed) them. Blocks won't overlap.
+**Drag and stretch** blocks to arrange (and rearrange, as needed) them.  It should be easy to get going!
 
 ## Quickstart
 
