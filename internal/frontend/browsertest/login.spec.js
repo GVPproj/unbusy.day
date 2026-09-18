@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { baseURL } from "./session.js";
 
-for (const mode of ["typed", "pasted"]) {
- test(`eight-digit OTP browser login establishes a session (${mode})`, { tag: "@smoke" }, async ({ page, context }) => {
+for (const [feeling, mode] of [["cozy", "pasted"], ["mono", "typed"], ["pixel", "typed"]]) {
+ test(`eight-digit OTP browser login establishes a session (${feeling}, ${mode})`, { tag: "@smoke" }, async ({ page, context }) => {
+  await page.addInitScript(feeling => localStorage.setItem("feeling", feeling), feeling);
   const logPath = process.env.BROWSER_SMOKE_LOG;
   expect(logPath, "Run through scripts/browser-smoke.sh for the LogMailer inbox").toBeTruthy();
   const email = `browser-${randomUUID()}@example.com`;
@@ -24,7 +25,18 @@ for (const mode of ["typed", "pasted"]) {
   const input = page.getByRole("textbox", { name: "One-time code" });
   await expect(page.getByText("An 8-digit code is on its way.", { exact: true })).toBeVisible();
   await expect(input).toHaveAttribute("maxlength", "8");
-  await expect(page.locator(".otp-box")).toHaveCount(8);
+  await expect(input).toHaveAttribute("inputmode", "numeric");
+  await expect(input).toHaveAttribute("autocomplete", "one-time-code");
+  await expect(input).toHaveAttribute("placeholder", "12345678");
+  await expect(input).toBeFocused();
+  await expect(input).toHaveCSS("opacity", "1");
+  await expect(input).toHaveCSS("text-align", "center");
+  expect(await input.evaluate(el => {
+   const bounds = el.getBoundingClientRect();
+   const button = el.form.querySelector('button[type="submit"]').getBoundingClientRect();
+   return bounds.left >= 0 && bounds.right <= window.innerWidth
+    && bounds.width === button.width && bounds.height >= 48;
+  })).toBe(true);
   const verifications = [];
   page.on("request", request => {
    if (request.url() === `${baseURL}/login/verify` && request.method() === "POST") {
@@ -32,13 +44,15 @@ for (const mode of ["typed", "pasted"]) {
    }
   });
   if (mode === "typed") {
+   await input.pressSequentially("001a2", { delay: 50 });
+   await expect(input).toHaveValue("0012");
+   await input.press("ArrowLeft");
+   await input.press("Backspace");
+   await expect(input).toHaveValue("002");
+   await input.fill("");
    await input.pressSequentially(code.slice(0, 7), { delay: 50 });
    await expect(input).toHaveValue(code.slice(0, 7));
-   await expect(page.locator(".otp-box")).toHaveText([...code.slice(0, 7), ""]);
-   expect(await page.locator(".otp-box").evaluateAll(boxes => boxes.every(box => {
-    const bounds = box.getBoundingClientRect();
-    return bounds.left >= 0 && bounds.right <= window.innerWidth && box.scrollWidth <= box.clientWidth;
-   }))).toBe(true);
+   expect(await input.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
    // Allow an erroneous early auto-submit to reach the browser's request listener.
    await page.waitForTimeout(250);
    expect(verifications).toHaveLength(0);

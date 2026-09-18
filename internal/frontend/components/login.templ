@@ -138,42 +138,24 @@ templ LoginCodeLocked(recoveryWindow time.Duration) {
 	</form>
 }
 
-// otpInput is eight display boxes mirroring $code, with one invisible real input
-// on top so autofill and paste keep working. The handler strips non-digits and
-// auto-submits at eight. data-init (not autofocus) takes the caret: this form
-// arrives as an SSE morph, past the document's one-shot autofocus flush.
+// data-init takes focus after the SSE morph, past the document's autofocus flush.
 templ otpInput() {
-	<div class="otp">
-		<input
-			data-init="el.focus()"
-			inputmode="numeric"
-			pattern="[0-9]*"
-			autocomplete="one-time-code"
-			aria-label="One-time code"
-			maxlength="8"
-			required
-			data-1p-ignore
-			data-bwignore
-			data-lpignore="true"
-			data-form-type="other"
-			data-bind:code
-			data-on:input="$code = $code.replace(/\D/g, '').slice(0, 8); $code.length === 8 && @post('/login/verify')"
-		/>
-		for i := range 8 {
-			if i > 0 {
-				<span class="otp-sep" aria-hidden="true">-</span>
-			}
-			@otpBox(i)
-		}
-	</div>
-}
-
-templ otpBox(i int) {
-	// active box (index === $code.length) accents via .otp:focus-within in CSS.
-	<span
-		class="otp-box"
-		aria-hidden="true"
-		data-text={ fmt.Sprintf("$code[%d] || ''", i) }
-		data-class:active={ fmt.Sprintf("$code.length === %d", i) }
-	></span>
+	<input
+		class="otp"
+		type="text"
+		data-init="el.focus()"
+		inputmode="numeric"
+		pattern="[0-9]*"
+		autocomplete="one-time-code"
+		aria-label="One-time code"
+		placeholder="12345678"
+		maxlength="8"
+		required
+		data-1p-ignore
+		data-bwignore
+		data-lpignore="true"
+		data-form-type="other"
+		data-bind:code
+		data-on:input="$code = $code.replace(/\D/g, '').slice(0, 8); $code.length === 8 && @post('/login/verify')"
+	/>
 }
