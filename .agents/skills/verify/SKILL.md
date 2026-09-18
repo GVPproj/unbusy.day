@@ -20,8 +20,8 @@ Never run `task templ` while `task dev` is up (check `pgrep -f templ` first).
 
 ```bash
 curl -s -X POST :8199/login/code -H 'Content-Type: application/json' -d '{"email":"verify@example.com","code":""}'
-grep "login code" $SCRATCH/server.log        # → 6-digit code
-curl -si -X POST :8199/login/verify -H 'Content-Type: application/json' -d '{"email":"...","code":"NNNNNN"}' | grep -i set-cookie
+grep "login code" $SCRATCH/server.log        # → 8-digit code
+curl -si -X POST :8199/login/verify -H 'Content-Type: application/json' -d '{"email":"...","code":"NNNNNNNN"}' | grep -i set-cookie
 ```
 
 Endpoints read Datastar signals as a JSON body, not form fields.

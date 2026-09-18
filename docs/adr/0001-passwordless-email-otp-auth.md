@@ -21,10 +21,14 @@ password reset needs email anyway).
   implementation logs the code to stdout, so **no external email service is
   required to run the app**. Production swaps in a real provider (Resend /
   Postmark / SES) without touching `auth/`.
-- Security of a 6-digit code rests on **expiry + attempt limits**, not entropy:
-  10-min single-use codes, one active code per email, 5 verify attempts carried
-  across re-issues within the recovery window, ~60s request throttle, stored
-  hashed.
+- Codes are uniformly sampled eight-digit strings, including leading zeros
+  (UNB-70). Entropy complements **expiry + attempt limits**: 10-min single-use
+  codes, one active code per email, 5 verify attempts carried across re-issues
+  within the 10-min attempt recovery window, ~60s request throttle, stored hashed.
+  We retained 10-min recovery rather than 15: eight digits provide the main
+  guessing-risk reduction without increasing legitimate-user lockout by 50%.
+  The ticket's pessimistic annual guessing estimate falls from 0.262% to 0.175%
+  with 15-min recovery; this is not measured production risk.
 - Signup is open. A deliverable email can receive a code before it has a User;
   the User row is created only when that code is verified successfully. The old
   `user`-table allowlist was retired after the send path gained layered defenses:

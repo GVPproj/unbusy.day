@@ -114,11 +114,11 @@ templ turnstileWidget(siteKey string) {
 	<div class="cf-turnstile" data-sitekey={ siteKey } data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-theme="auto" data-size="flexible" data-appearance="interaction-only"></div>
 }
 
-// LoginCodeForm is step 2, patched over #login-form. A complete 6-digit code
+// LoginCodeForm is step 2, patched over #login-form. A complete 8-digit code
 // verifies immediately; Enter/button are fallbacks.
 templ LoginCodeForm(errMsg string) {
 	<form id="login-form" data-on:submit="@post('/login/verify')">
-		<p>A 6-digit code is on its way.</p>
+		<p>An 8-digit code is on its way.</p>
 		if errMsg != "" {
 			<p role="alert">{ errMsg }</p>
 		}
@@ -138,9 +138,9 @@ templ LoginCodeLocked(recoveryWindow time.Duration) {
 	</form>
 }
 
-// otpInput is six display boxes mirroring $code, with one invisible real input
+// otpInput is eight display boxes mirroring $code, with one invisible real input
 // on top so autofill and paste keep working. The handler strips non-digits and
-// auto-submits at six. data-init (not autofocus) takes the caret: this form
+// auto-submits at eight. data-init (not autofocus) takes the caret: this form
 // arrives as an SSE morph, past the document's one-shot autofocus flush.
 templ otpInput() {
 	<div class="otp">
@@ -150,16 +150,16 @@ templ otpInput() {
 			pattern="[0-9]*"
 			autocomplete="one-time-code"
 			aria-label="One-time code"
-			maxlength="6"
+			maxlength="8"
 			required
 			data-1p-ignore
 			data-bwignore
 			data-lpignore="true"
 			data-form-type="other"
 			data-bind:code
-			data-on:input="$code = $code.replace(/\D/g, '').slice(0, 6); $code.length === 6 && @post('/login/verify')"
+			data-on:input="$code = $code.replace(/\D/g, '').slice(0, 8); $code.length === 8 && @post('/login/verify')"
 		/>
-		for i := range 6 {
+		for i := range 8 {
 			if i > 0 {
 				<span class="otp-sep" aria-hidden="true">-</span>
 			}

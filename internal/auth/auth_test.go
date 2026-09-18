@@ -2,9 +2,11 @@
 package auth_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"net"
@@ -65,6 +67,43 @@ func newUser(t *testing.T, db *sql.DB) string {
 		t.Fatalf("insert test user: %v", err)
 	}
 	return email
+}
+
+func TestRequestCodeEightDigits(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		entropy uint32
+		want    string
+	}{
+		{"zero", 0, "00000000"},
+		{"leading zero", 1_234_567, "01234567"},
+		{"upper bound", 99_999_999, "99999999"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mailer := &captureMailer{}
+			svc := newSvc(newDB(t), mailer)
+			ctx := context.Background()
+			const email = "digits@example.test"
+			var entropy [4]byte
+			binary.BigEndian.PutUint32(entropy[:], tc.entropy)
+			// Control entropy only during issuance; session tokens use the real reader.
+			err := func() error {
+				original := rand.Reader
+				defer func() { rand.Reader = original }()
+				rand.Reader = bytes.NewReader(entropy[:])
+				return svc.RequestCode(ctx, email)
+			}()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(mailer.codes) != 1 || mailer.codes[0] != tc.want {
+				t.Fatalf("mailed codes = %q, want [%q]", mailer.codes, tc.want)
+			}
+			if _, err := svc.VerifyCode(ctx, email, tc.want); err != nil {
+				t.Fatalf("redeem eight-digit code: %v", err)
+			}
+		})
+	}
 }
 
 // Happy path: request → mail → verify → session resolves → logout revokes.

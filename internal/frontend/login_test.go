@@ -61,7 +61,7 @@ func TestRequestCodePatchesCodeForm(t *testing.T) {
 func TestVerifyCodeSetsCookieAndRedirects(t *testing.T) {
 	a := &fakeAuth{}
 	req := httptest.NewRequest(http.MethodPost, "/login/verify",
-		strings.NewReader(`{"email":"x@example.test","code":"123456"}`))
+		strings.NewReader(`{"email":"x@example.test","code":"00123456"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	VerifyCodeHandler(a, false).ServeHTTP(rec, req)

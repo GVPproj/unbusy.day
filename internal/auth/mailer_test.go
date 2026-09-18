@@ -12,7 +12,7 @@ import (
 // Without a logo the OTP email is multipart/alternative (plain + html), no image part.
 func TestSMTPMailerMessageNoLogo(t *testing.T) {
 	m := NewSMTPMailer("smtp.example.com", "587", "user", "pass", "login@unbusy.day", nil)
-	raw := m.message("dev@example.com", "482913")
+	raw := m.message("dev@example.com", "00482913")
 
 	mediaType, params, body := topLevel(t, raw)
 	if mediaType != "multipart/alternative" {
@@ -20,8 +20,8 @@ func TestSMTPMailerMessageNoLogo(t *testing.T) {
 	}
 
 	parts := readParts(t, body, params["boundary"])
-	assertPart(t, parts, "text/plain", "482913")
-	assertPart(t, parts, "text/html", "482913")
+	assertPart(t, parts, "text/plain", "00482913")
+	assertPart(t, parts, "text/html", "00482913")
 	if _, ok := parts["image/png"]; ok {
 		t.Error("unexpected image/png part without a logo")
 	}
@@ -31,7 +31,7 @@ func TestSMTPMailerMessageNoLogo(t *testing.T) {
 // inline cid: image part the HTML references.
 func TestSMTPMailerMessageWithLogo(t *testing.T) {
 	m := NewSMTPMailer("smtp.example.com", "587", "user", "pass", "login@unbusy.day", []byte("\x89PNGfakebytes"))
-	raw := m.message("dev@example.com", "482913")
+	raw := m.message("dev@example.com", "00482913")
 
 	mediaType, params, body := topLevel(t, raw)
 	if mediaType != "multipart/related" {
@@ -50,7 +50,7 @@ func TestSMTPMailerMessageWithLogo(t *testing.T) {
 	if !strings.Contains(alt, "cid:"+logoCID) {
 		t.Errorf("HTML does not reference cid:%s", logoCID)
 	}
-	if !strings.Contains(alt, "482913") {
+	if !strings.Contains(alt, "00482913") {
 		t.Error("nested body missing code")
 	}
 }

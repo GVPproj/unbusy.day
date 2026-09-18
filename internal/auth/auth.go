@@ -264,14 +264,13 @@ func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// newCode returns a 6-digit OTP; security rests on expiry + attempt limits,
-// not entropy (ADR 0001).
+// newCode uniformly samples eight digits, retaining leading zeros.
 func newCode() (string, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
+	n, err := rand.Int(rand.Reader, big.NewInt(100_000_000))
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%06d", n.Int64()), nil
+	return fmt.Sprintf("%08d", n.Int64()), nil
 }
 
 func newUserID() (string, error) {
