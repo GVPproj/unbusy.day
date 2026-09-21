@@ -2715,9 +2715,9 @@
     .habit-scroll {
       --habit-lift-bleed: 0.75rem;
       overflow-x: auto;
-      /* Give scaled rows room outside the resting table without moving it. */
-      margin: calc(-1 * var(--habit-lift-bleed));
-      padding: var(--habit-lift-bleed);
+      /* Keep vertical lift room without widening the horizontal scroll viewport. */
+      margin-block: calc(-1 * var(--habit-lift-bleed));
+      padding-block: var(--habit-lift-bleed);
     }
 
     .week-nav {
