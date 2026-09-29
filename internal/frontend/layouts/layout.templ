@@ -3,7 +3,7 @@ package layouts
 // Layout is the document shell. All CSS is the single app.css <link> in
 // <head>, never inside a patched fragment, so SSE patches don't re-ship CSS.
 // streamInit is the body's `data-init` expression — not the RC-era
-// `data-on-load`, which is a silent no-op on v1.0.2.
+// `data-on-load`, which is a silent no-op on Datastar 1.x.
 //
 // Two theme axes persist to localStorage: _colorscheme (a family, e.g.
 // 'solarized') and _colormode (its Light/Dark variant). The pre-paint
@@ -86,7 +86,7 @@ templ Layout(title string, streamInit string) {
 					});
 				}
 			</script>
-			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
+			@Datastar()
 			// The single hand-authored stylesheet (ADR 0011).
 			<link rel="stylesheet" href="/static/css/app.css"/>
 		</head>

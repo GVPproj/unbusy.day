@@ -50,7 +50,7 @@ tasks:
         task dev
 
   check:versions:
-    desc: "Compare pinned tool/CDN versions against latest upstream releases"
+    desc: "Compare pinned tool/browser dependency versions against latest upstream releases"
     cmds:
       - |
         set -eu
@@ -68,11 +68,14 @@ tasks:
         rc=0; drifted=''
         report templ "$(go list -m github.com/a-h/templ | awk '{print $2}' | sed 's/^v//')" "$(gh_latest a-h/templ)"
         report ds-sdk "$(go list -m github.com/starfederation/datastar-go | awk '{print $2}' | sed 's/^v//')" "$(gh_tag starfederation/datastar-go)"
-        # Datastar client bundle: a CDN tag in the templ shells (both must agree).
-        ds_client=$(grep -rhoE 'datastar@v[0-9.]+' internal/frontend/smoke.templ internal/frontend/layouts/layout.templ | sed 's/.*@v//' | sort -u)
-        if [ "$(printf '%s' "$ds_client" | grep -c .)" -gt 1 ]; then
-          printf '  ✗ %-11s tags disagree across templ files: %s\n' ds-client "$(echo $ds_client)"; rc=1
-        else report ds-client "$ds_client" "$(gh_latest starfederation/datastar)"; fi
+        # Datastar client: the shared script component pins the local artifact.
+        ds_client=$(sed -nE 's#.*src="/static/vendor/datastar/datastar-([0-9.]+)\.js".*#\1#p' internal/frontend/layouts/datastar.templ)
+        test -n "$ds_client"
+        test -f "internal/frontend/static/vendor/datastar/datastar-$ds_client.js"
+        (cd internal/frontend/static/vendor/datastar &&
+          if command -v sha256sum >/dev/null; then sha256sum -c SHA256SUMS;
+          else shasum -a 256 -c SHA256SUMS; fi)
+        report ds-client "$ds_client" "$(gh_latest starfederation/datastar)"
         # CodeMirror graph: deployed package versions in the generated lock manifest.
         for pin in $(jq -r '.modules[] | select(.version != "builtin") | "\(.package)@\(.version)"' internal/frontend/static/vendor/codemirror/manifest.json | sort -u); do
           report "${pin%@*}" "${pin##*@}" "$(npm_latest "${pin%@*}")"
