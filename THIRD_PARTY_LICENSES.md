@@ -1,5 +1,12 @@
 # Third-party open-source licenses
 
+## Datastar (self-hosted, redistributed to the browser)
+
+The Datastar runtime and source map are served from
+`internal/frontend/static/vendor/datastar/`. The unmodified upstream MIT license
+and copyright notice are included in that directory's `LICENSE.md`; provenance,
+upgrade instructions, and artifact hashes are recorded alongside it.
+
 ## CodeMirror editor modules (self-hosted, redistributed to the browser)
 
 The Jotpad serves the resolved modules under

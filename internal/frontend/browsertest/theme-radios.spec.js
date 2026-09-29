@@ -77,6 +77,8 @@ test("theme radios support keyboard selection, synchronize, and persist", async 
 
 	await guideNord.focus();
 	await page.keyboard.press("ArrowRight");
+	await expect(root).toHaveAttribute("data-colorscheme", "gruvbox");
+	await page.keyboard.press("ArrowRight");
 	await expect(root).toHaveAttribute("data-colorscheme", "catppuccin");
 	await guideDark.focus();
 	await page.keyboard.press("ArrowRight");

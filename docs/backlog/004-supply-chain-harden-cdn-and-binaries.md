@@ -17,33 +17,15 @@ Tailwind-binary and Motion exposures were resolved by removing them.
 
 ## Exposure 1 — runtime third-party scripts
 
-Motion and its transitive graph were removed by UNB-49. Datastar remains on
-every page, and production login loads Cloudflare Turnstile when the presence
-gate is configured.
+Motion and its transitive graph were removed by UNB-49. Datastar is now
+self-hosted by UNB-74: the app and wiring canary share one local script component,
+with reviewed bundle bytes, source map, license, and SHA-256 checksums committed
+under `internal/frontend/static/vendor/datastar/`.
 
-- `internal/frontend/layouts/layout.templ` — Datastar SDK
-  `cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js`.
-- `internal/frontend/smoke.templ` — the same Datastar bundle in the wiring
-  canary.
-- `internal/frontend/components/login.templ` — Cloudflare Turnstile's runtime
-  when a site key is configured.
-
-The Datastar version tag is a version pin, not a content pin. A CDN or
-upstream-tag compromise could inject JavaScript into an authenticated page,
-read its DOM and keystrokes, and perform same-origin actions as the User. The
-session cookie remains unreadable because it is `HttpOnly`.
-
-### Path forward
-
-1. **Vendor Datastar under `internal/frontend/static/`** and serve it locally,
-   matching the content-locked CodeMirror precedent. This is preferred over SRI
-   because the reviewed bytes become part of the repository and deploy.
-2. Alternatively, add `integrity="sha384-…" crossorigin="anonymous"` so swapped
-   Datastar bytes fail closed while retaining the CDN.
-3. Update `smoke.templ` with the same loading pattern.
-4. Treat Turnstile as a deliberate auth-provider dependency. Its hosted client
-   is part of the provider integration rather than an app library to vendor;
-   keep it isolated to the unauthenticated login surface.
+Production login still loads Cloudflare Turnstile from
+`internal/frontend/components/login.templ` when a site key is configured.
+Treat it as a deliberate auth-provider dependency rather than an app library
+to vendor; keep it isolated to the unauthenticated login surface.
 
 ## Exposure 2 — mutable build and CI inputs
 
@@ -78,6 +60,8 @@ that builds and deploys it is not fully immutable:
 - **Tailwind standalone binary:** removed by ADR 0011 along with all download and
   CSS-build wiring. ADR 0008 preserves the historical decision.
 - **Motion runtime CDN graph:** removed by UNB-49; see research 004.
+- **Datastar CDN bundle:** vendored by UNB-74; upgrade instructions and integrity
+  records live in `internal/frontend/static/vendor/datastar/`.
 - **CodeMirror CDN graph:** replaced by the local content-locked vendor manifest
   and reproducible `vendorcodemirror` workflow.
 - **templ CLI:** installed in Docker/CI at the version selected from `go.mod` via

@@ -267,7 +267,9 @@ test("cross-month and cross-year weeks render seven real civil dates", async ({ 
 		await expect(page.locator("#habit-grid thead time").last()).toHaveAttribute("datetime", target.last);
 	};
 	await visit(targets.month);
-	await page.getByRole("button", { name: "This week", exact: true }).click();
+	const thisWeek = page.getByRole("button", { name: "This week", exact: true });
+	// The current week may already cross a month boundary, leaving reset disabled.
+	if (await thisWeek.isEnabled()) await thisWeek.click();
 	await visit(targets.year);
 });
 

@@ -60,7 +60,7 @@ Key invariant: **page render and patch render share one templ component** (`comp
 ## Conventions & deploy
 
 - Open an issue before non-trivial work.
-- **Tool versions have one source each**: templ in `go.mod` (CLI installed via `go list -m`), Datastar as an exact CDN tag in its call sites, and CodeMirror's direct upgrade inputs in `internal/frontend/vendorcodemirror/main.go`. Its generated manifest records the complete deployed graph; `task check:versions` reads that lock state to flag deployed version drift. For CodeMirror upgrades, read `docs/agents/codemirror.md`.
+- **Tool versions have one source each**: templ in `go.mod` (CLI installed via `go list -m`), Datastar as a versioned local URL in `internal/frontend/layouts/datastar.templ` (for upgrades, read `internal/frontend/static/vendor/datastar/README.md`), and CodeMirror's direct upgrade inputs in `internal/frontend/vendorcodemirror/main.go`. Its generated manifest records the complete deployed graph; `task check:versions` reads that lock state to flag deployed version drift. For CodeMirror upgrades, read `docs/agents/codemirror.md`.
 - `DATABASE_URL` is a SQLite DSN in `.env` — copy `.env.example`.
 - Deploy is Fly via **`fly.app.toml`**: `flyctl deploy --config fly.app.toml`; CI auto-deploys on push to `main`. Production data is a SQLite file on a Fly volume backed up by scheduled volume snapshots. The app runs **exactly one always-on machine** — never scale to >1 or enable auto-stop (in-process pub/sub, single-writer SQLite).
 - `/healthz` is an in-process 200 only — a liveness probe, never a DB readiness check.

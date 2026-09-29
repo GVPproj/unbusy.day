@@ -1,5 +1,7 @@
 package frontend
 
+import "github.com/GVPproj/unbusy.day/internal/frontend/layouts"
+
 // SmokePage is the verify-and-pin smoke target. It mounts a stable
 // #smoke-target for Datastar's default outer-morph and opens an SSE stream to
 // /_smoke/events on load, proving the pinned Datastar runtime applies a wire
@@ -15,7 +17,7 @@ templ SmokePage() {
 		<head>
 			<meta charset="utf-8"/>
 			<title>ds smoke</title>
-			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
+			@layouts.Datastar()
 		</head>
 		<body data-init="@get('/_smoke/events')" data-signals:_smokesig="''">
 			<main>
