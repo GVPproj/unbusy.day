@@ -95,14 +95,7 @@ templ Layout(title string, streamInit string) {
 				data-init={ streamInit }
 			}
 		>
-			if streamInit != "" {
-				@loading()
-				<div id="app-content" inert aria-busy="true">
-					{ children... }
-				</div>
-			} else {
-				{ children... }
-			}
+			{ children... }
 		</body>
 	</html>
 }

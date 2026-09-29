@@ -661,33 +661,6 @@
    2. one @scope block per leaf component. Every SECTION banner below names
       the templ file it styles — greppable from either side. */
 @layer components {
-  /* layouts/loading.templ — visible before any module has downloaded. */
-  #app-content { display: contents; }
-
-  @scope (.app-loading) {
-    :scope {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      display: grid;
-      place-items: center;
-      padding: 1.5rem;
-      background: color-mix(in srgb, var(--bg) 80%, transparent);
-      color: var(--ink);
-    }
-
-    :scope > div {
-      max-width: 24rem;
-      padding: 1.5rem;
-      border-radius: 1rem;
-      background: var(--surface);
-      text-align: center;
-    }
-
-    p { margin-bottom: 1rem; }
-    noscript { display: block; margin-top: 1rem; }
-  }
-
   /* SECTION: (shared tier) → .btn, .field, .option-row, kbd
      Cross-component chrome: buttons, form fields, picker rows, key caps. A
      deliberately small closed set — the ADR 0006 countermeasure. Growing it
