@@ -1,0 +1,45 @@
+package layouts
+
+// Inline startup code must run before deferred modules, without another network request.
+templ loading() {
+	<div id="app-loading" class="app-loading">
+		<div>
+			<p id="app-loading-message" role="status">Loading your day…</p>
+			<a href="" class="btn">Reload app</a>
+			<noscript>JavaScript is required to use the planner.</noscript>
+		</div>
+	</div>
+	<script>
+		(() => {
+			let datastarReady = false;
+			let modulesReady = false;
+			let failed = false;
+			const overlay = document.getElementById("app-loading");
+			const onError = (event) => {
+				if (event instanceof ErrorEvent || event.target instanceof HTMLScriptElement) failed = true;
+			};
+			const finish = () => {
+				if (!datastarReady || !modulesReady || failed) return;
+				clearTimeout(timeout);
+				window.removeEventListener("error", onError, true);
+				const content = document.getElementById("app-content");
+				content.inert = false;
+				content.removeAttribute("aria-busy");
+				overlay.remove();
+			};
+			const timeout = setTimeout(() => {
+				document.getElementById("app-loading-message").textContent = "Loading is taking longer than usual. Try reloading the app.";
+			}, 12000);
+			window.addEventListener("error", onError, true);
+			document.addEventListener("datastar-ready", () => {
+				datastarReady = true;
+				finish();
+			}, { once: true });
+			// DOMContentLoaded waits for page module graphs, not the long-lived SSE stream.
+			document.addEventListener("DOMContentLoaded", () => {
+				modulesReady = true;
+				finish();
+			}, { once: true });
+		})();
+	</script>
+}
