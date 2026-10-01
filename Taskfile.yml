@@ -30,6 +30,15 @@ tasks:
         (i=0; until curl -sf -o /dev/null http://127.0.0.1:7331/ || [ $i -ge 100 ]; do i=$((i+1)); sleep 0.2; done; $detach "$opener" "http://127.0.0.1:7331/" >/dev/null 2>&1 </dev/null) &
         templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
 
+  prototype:landing:
+    desc: "Throwaway landing study — browse http://localhost:7331/login?variant=A (UNB-77)"
+    env:
+      LANDING_PROTOTYPE: "1"
+      DATABASE_URL: "file:tmp/PROTOTYPE-wipe-me-landing.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate"
+    cmds:
+      - mkdir -p tmp
+      - templ generate --watch --proxy="http://localhost:${PORT:-8080}" --open-browser=false --cmd="go run ./cmd/unbusy"
+
   dev:tailscale:
     desc: "Like `dev`, but also serves :7331 over Tailscale (HTTPS) for phone testing"
     cmds:

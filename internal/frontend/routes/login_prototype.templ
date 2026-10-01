@@ -1,0 +1,169 @@
+package routes
+
+import (
+	"github.com/GVPproj/unbusy.day/internal/frontend/components"
+	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
+	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
+)
+
+// Throwaway: three scroll-down landing directions on /login?variant=A|B|C (UNB-77).
+templ LoginPrototype(variant string) {
+	@layouts.Layout("unbusy.day — landing study", "") {
+		<main class="landing-prototype" data-variant={ variant }>
+			switch variant {
+				case "B":
+					@LandingEditorial()
+				case "C":
+					@LandingFieldGuide()
+				default:
+					@LandingQuietReveal()
+			}
+			<footer class="lp-footer">
+				@components.UBLogo("92", "40")
+				<p>It's always today.</p>
+				<a href="#start">Back to the start ↑</a>
+			</footer>
+		</main>
+		@components.PrototypeSwitcher(variant)
+		<script type="module" src="/static/js/guide/demo.js"></script>
+	}
+}
+
+templ LandingQuietReveal() {
+	<section class="lp-hero lp-quiet" id="start">
+		<div class="lp-blob" aria-hidden="true"></div>
+		<div class="lp-quiet-login">
+			<h1><span class="sr-only">unbusy.day</span>@components.UBLogo("153", "66")</h1>
+			<p class="lp-tagline">A less overwhelming approach<br/>to having a brain.</p>
+			@prototypeLogin()
+		</div>
+		@prototypeScroll("A little more about unbusy", "#discover")
+	</section>
+	<div class="lp-quiet-story" id="discover">
+		<section class="lp-feature">
+			<div class="lp-copy">
+				<span class="lp-eyebrow">01 / A plan for today</span>
+				<h2>Give every minute<br/><em>one job.</em></h2>
+				<p>Start your day with a clean slate. Add your timed commitments, then build out the rest — prioritizing <strong>Deep Work.</strong></p>
+			</div>
+			<div class="lp-paper lp-tilt">@modals.PrototypePlan(false)</div>
+		</section>
+		@prototypeTypes()
+		<section class="lp-feature lp-reverse">
+			<div class="lp-copy">
+				<span class="lp-eyebrow">02 / Room to rearrange</span>
+				<h2>Things come up.<br/><em>Shape the day.</em></h2>
+				<p>Drag blocks to rearrange them; stretch using the grip at the bottom. Things shift naturally into place.</p>
+				<span class="lp-caption">Try it — this little plan is yours to move.</span>
+			</div>
+			<div class="lp-paper">@modals.PrototypePlan(true)</div>
+		</section>
+		<section class="lp-extras">
+			<div class="lp-copy">
+				<span class="lp-eyebrow">03 / Beside the plan</span>
+				<h2>A little space<br/><em>{ "for the rest." }</em></h2>
+				<p>There's habit tracking and a little notepad too :)</p>
+			</div>
+			<div class="lp-extra-pair">@prototypeJot() @prototypeHabits()</div>
+		</section>
+	</div>
+}
+
+templ LandingEditorial() {
+	<section class="lp-hero lp-editorial" id="start">
+		<header class="lp-masthead">@components.UBLogo("100", "44")<span>A time-block planning app</span></header>
+		<div class="lp-editorial-title">
+			<span class="lp-eyebrow">For your work day.</span>
+			<h1>A less overwhelming<br/>approach to<br/><em>having a brain.</em></h1>
+		</div>
+		<div class="lp-editorial-art lp-paper lp-tilt" aria-label="An example day plan">@modals.PrototypePlan(false)</div>
+		<div class="lp-editorial-login">@prototypeLogin()</div>
+		@prototypeScroll("Give every minute one job", "#discover")
+	</section>
+	<div class="lp-editorial-story" id="discover">
+		<section class="lp-type-poster">
+			<span class="lp-eyebrow">A day, in four types.</span>
+			@prototypeTypes()
+		</section>
+		<section class="lp-workbench">
+			<div class="lp-workbench-heading"><span class="lp-eyebrow">Not set in stone.</span><h2>Shape<br/><em>the day.</em></h2></div>
+			<div class="lp-paper">@modals.PrototypePlan(true)<span class="lp-caption">↕ Drag a block. Stretch its bottom edge.</span></div>
+			<p>Things come up as the day goes by? Rearrange or shorten other blocks. They won't overlap.</p>
+		</section>
+		<section class="lp-editorial-extras">
+			<div><span class="lp-eyebrow">And a little room for everything else.</span><h2>Off the clock.<br/><em>Out of your head.</em></h2></div>
+			@prototypeJot()
+			@prototypeHabits()
+		</section>
+	</div>
+}
+
+templ LandingFieldGuide() {
+	<section class="lp-hero lp-field" id="start">
+		<header class="lp-masthead">@components.UBLogo("100", "44")<a href="#discover">A small field guide ↘</a></header>
+		<div class="lp-field-intro">
+			<span class="lp-eyebrow">Less frantic. More focused.</span>
+			<h1>It's always<br/><em>today.</em></h1>
+			<p>Structure your days with a time-blocked schedule.</p>
+			@prototypeLogin()
+		</div>
+		<div class="lp-field-preview">
+			<div class="lp-preview-heading"><span>YOUR DAY PLAN</span><span>09:00 — 12:30</span></div>
+			@modals.PrototypePlan(true)
+			<p class="lp-caption">Try it: drag & stretch. Nothing saved.</p>
+		</div>
+		@prototypeScroll("How it fits together", "#discover")
+	</section>
+	<div class="lp-field-story" id="discover">
+		<aside class="lp-index"><span class="lp-eyebrow">The short version</span><h2>Use working<br/>hours <em>well.</em></h2><nav aria-label="Features"><a href="#plan">01 — Plan</a><a href="#jot">02 — Jot</a><a href="#habits">03 — Repeat</a></nav></aside>
+		<div class="lp-chapters">
+			<section id="plan"><span class="lp-chapter-number">01</span><h2>One job at a time.</h2><p>Add timed commitments first. Then build out your day, prioritizing focused deep work.</p>@prototypeTypes()</section>
+			<section id="jot"><span class="lp-chapter-number">02</span><h2>Everything that isn't a block.</h2><p>The Jotpad keeps what you type and never resets.</p>@prototypeJot()</section>
+			<section id="habits"><span class="lp-chapter-number">03</span><h2>The things you keep coming back to.</h2><p>A little habit tracking beside your plan.</p>@prototypeHabits()</section>
+		</div>
+	</div>
+}
+
+templ prototypeLogin() {
+	<form id="prototype-login" class="lp-login">
+		<label for="prototype-email">We'll email you a one-time code.</label>
+		<div class="lp-login-fields"><input id="prototype-email" type="email" placeholder="you@example.com" autocomplete="off" required/><button type="button" data-prototype-send>Send code <span aria-hidden="true">↗</span></button></div>
+		<p id="prototype-login-status" role="status">Preview only — no email sent.</p>
+	</form>
+}
+
+templ prototypeScroll(label string, target string) {
+	<a class="lp-scroll" href={ templ.SafeURL(target) }><span>{ label }</span><span aria-hidden="true">↓</span></a>
+}
+
+templ prototypeTypes() {
+	<ul class="lp-types" aria-label="Four block types">
+		<li data-type="deep"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Focus</strong><span>Undistracted effort</span></div></li>
+		<li data-type="shallow"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Admin</strong><span>Chat, light tasks</span></div></li>
+		<li data-type="break"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Break</strong><span>Take regularly</span></div></li>
+		<li data-type="appointment"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Fixed</strong><span>Appointments, meetings</span></div></li>
+	</ul>
+}
+
+templ prototypeJot() {
+	<div class="lp-jot">
+		<div class="lp-mini-heading"><span>Jotpad</span><span aria-hidden="true">↙</span></div>
+		<textarea aria-label="Try the Jotpad (not saved)" data-prototype-note spellcheck="false">{ "A few things on my mind…\n\nAn idea for later\nA book to look up\nSomething I don't want to forget" }</textarea>
+		<span class="lp-caption">A scratchpad for everything that isn't a block.</span>
+	</div>
+}
+
+templ prototypeHabits() {
+	<div class="lp-habits">
+		<div class="lp-mini-heading"><span>Habits</span><span>This week</span></div>
+		<div class="lp-habit-week" aria-hidden="true"><span></span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span></div>
+		for _, habit := range []string{"Read", "Walk", "Make time"} {
+			<div class="lp-habit-row"><span>{ habit }</span>
+				for i, day := range []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"} {
+					<button type="button" data-prototype-habit aria-label={ habit + " on " + day } aria-pressed={ map[bool]string{true: "true", false: "false"}[i < 2] }><span aria-hidden="true">✓</span></button>
+				}
+			</div>
+		}
+		<span class="lp-caption">Little things, a little more often.</span>
+	</div>
+}
