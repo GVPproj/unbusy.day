@@ -64,11 +64,18 @@ Pushes and PRs run Go/JS tests plus the `@smoke` browser tests: login, Jotpad
 persistence and cross-tab updates, pending-save blur, block drag persistence,
 and habit persistence/live updates/mobile deletion.
 
-The full suite runs nightly at 03:23 UTC and via **Actions → CI/CD → Run
-workflow**, without deploying. Authenticated browser tests get fresh accounts/sessions in the runner's scratch
+The full suite also runs on vendor-update PRs, nightly at 03:23 UTC, and via
+**Actions → CI/CD → Run workflow**, without deploying. Authenticated browser tests get fresh accounts/sessions in the runner's scratch
 SQLite file through a test-only Go helper; only the login smoke exercises real OTP.
 Production authentication and rate limits are unchanged.
 
 Browser output lists individual timings; CI retains the HTML report and failure
 traces/screenshots for seven days. Open a local report with
 `npx playwright show-report`.
+
+## Dependency security
+
+CI verifies committed browser dependency hashes offline. A separate scheduled
+workflow checks known advisories daily and version freshness weekly; it never
+updates dependencies automatically. See [SECURITY.md](SECURITY.md) for coverage,
+triage ownership, response targets, and the reviewed upgrade process.

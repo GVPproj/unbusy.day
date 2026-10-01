@@ -26,6 +26,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect vendor-update PR
+        if: github.event_name == 'pull_request'
+        id: vendor
+        run: |
+          git diff --name-only HEAD^ HEAD > "$RUNNER_TEMP/pr-changes"
+          if grep -Eq '^(internal/frontend/(static/vendor/|vendorcodemirror/|layouts/datastar\.templ$)|docs/agents/codemirror\.md$)' "$RUNNER_TEMP/pr-changes"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create db dir
         run: mkdir -p tmp
@@ -35,6 +46,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Verify committed browser dependency integrity (offline)
+        run: go run ./internal/dependencysecurity -mode integrity
 
       # CLI version derived from the go.mod runtime (single source of truth) —
       # a CLI/runtime mismatch can't happen (same approach as the Dockerfile).
@@ -78,7 +92,7 @@ jobs:
         run: scripts/browser-smoke.sh --grep @smoke
 
       - name: Full browser regression suite
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.vendor.outputs.changed == 'true'
         run: scripts/browser-smoke.sh
 
       - name: Upload browser report and failure traces

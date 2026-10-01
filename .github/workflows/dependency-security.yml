@@ -1,0 +1,53 @@
+name: Dependency security
+
+on:
+  schedule:
+    - cron: '41 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-security
+  cancel-in-progress: false
+
+jobs:
+  advisories:
+    name: Deployed browser dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check deployed inventory against OSV and Datastar advisories
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: go run ./internal/dependencysecurity -mode advisories
+
+  freshness:
+    name: Weekly version freshness (not a vulnerability verdict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Select weekly or manual run
+        id: cadence
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ] || [ "$(date -u +%u)" = 1 ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.cadence.outputs.run == 'true'
+      - uses: actions/setup-go@v5
+        if: steps.cadence.outputs.run == 'true'
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Compare deployed versions with upstream releases
+        if: steps.cadence.outputs.run == 'true'
+        run: go run github.com/go-task/task/v3/cmd/task@v3.52.0 check:versions
