@@ -6,16 +6,13 @@ templ loginLanding() {
 	<div class="lp-quiet-story" id="discover">
 		<section class="lp-feature">
 			<div class="lp-copy">
-				<span class="lp-eyebrow">01 / A plan for today</span>
 				<h2>Give every minute<br/><em>one job.</em></h2>
 				<p>Start your day with a clean slate. Add your timed commitments, then build out the rest — prioritizing <strong>Deep Work.</strong></p>
 			</div>
-			<div class="lp-paper lp-tilt">@modals.LandingPlan(false)</div>
+			@landingTypes()
 		</section>
-		@landingTypes()
 		<section class="lp-feature lp-reverse">
 			<div class="lp-copy">
-				<span class="lp-eyebrow">02 / Room to rearrange</span>
 				<h2>Things come up.<br/><em>Shape the day.</em></h2>
 				<p>Drag blocks to rearrange them; stretch using the grip at the bottom. Things shift naturally into place.</p>
 				<span class="lp-caption">Try it — this little plan is yours to move.</span>
@@ -24,7 +21,6 @@ templ loginLanding() {
 		</section>
 		<section class="lp-extras">
 			<div class="lp-copy">
-				<span class="lp-eyebrow">03 / Beside the plan</span>
 				<h2>A little space<br/><em>{ "for the rest." }</em></h2>
 				<p>There's habit tracking and a little notepad too :)</p>
 			</div>
@@ -35,10 +31,10 @@ templ loginLanding() {
 
 templ landingTypes() {
 	<ul class="lp-types" aria-label="Four block types">
-		<li data-type="deep"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Focus</strong><span>Undistracted effort</span></div></li>
-		<li data-type="shallow"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Admin</strong><span>Chat, light tasks</span></div></li>
-		<li data-type="break"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Break</strong><span>Take regularly</span></div></li>
-		<li data-type="appointment"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Fixed</strong><span>Appointments, meetings</span></div></li>
+		<li data-type="deep"><div><strong>Focus</strong><span>Undistracted effort</span></div></li>
+		<li data-type="shallow"><div><strong>Admin</strong><span>Chat, light tasks</span></div></li>
+		<li data-type="break"><div><strong>Break</strong><span>Take regularly</span></div></li>
+		<li data-type="appointment"><div><strong>Fixed</strong><span>Appointments, meetings</span></div></li>
 	</ul>
 }
 

@@ -3110,16 +3110,14 @@
     .lp-scroll:hover > span:last-child { translate: 0 4px; }
     .lp-paper { padding: 1.8rem; background: var(--column-bg); border: 1px solid var(--rail-border); border-radius: 1.25rem; box-shadow: var(--shadow-lift); }
     .lp-paper { min-width: 0; }
-    .lp-tilt { rotate: -4deg; }
     .lp-copy { display: grid; gap: 1.4rem; align-content: center; }
     .lp-copy .lp-eyebrow { margin: 0; }
     .lp-copy p { max-width: 35ch; }
-    .lp-types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-    .lp-types li { display: flex; align-items: center; gap: 0.8rem; }
-    .lp-type-mark { width: 2rem; height: 3rem; border-radius: var(--radius); background: var(--type-bg); box-shadow: var(--type-edge, inset 0 0 0 1px var(--rail-border)); flex-shrink: 0; }
+    .lp-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; min-width: 0; }
+    .lp-types li { display: flex; align-items: flex-end; min-height: 11rem; padding: 1.3rem; border: 1px solid var(--rail-border); border-radius: var(--radius); background: var(--type-bg); color: var(--type-ink); }
     .lp-types strong, .lp-types div > span { display: block; }
-    .lp-types strong { font-size: 1.05rem; font-weight: 600; }
-    .lp-types div > span { font-size: 0.75rem; color: var(--ink-muted); margin-top: 0.25rem; }
+    .lp-types strong { font-size: 1.35rem; font-weight: 600; }
+    .lp-types div > span { font-size: 0.85rem; line-height: 1.5; margin-top: 0.25rem; }
     .lp-jot, .lp-habits { padding: 1.5rem; border: 1px solid var(--rail-border); border-radius: var(--radius); min-width: 0; background: var(--surface); }
     .lp-mini-heading { display: flex; justify-content: space-between; gap: 1rem; color: var(--accent); margin-bottom: 1.5rem; font-weight: 600; }
     .lp-mini-heading > span + span { font-size: 0.8rem; color: var(--ink-muted); }
@@ -3137,7 +3135,6 @@
     .lp-quiet-story { max-width: 1120px; margin: auto; padding: 0 3rem; }
     .lp-feature { min-height: 80svh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6rem; padding-block: 7rem; }
     .lp-reverse > .lp-copy { order: 2; }
-    .lp-quiet-story > .lp-types { border-block: 1px solid var(--rail-border); padding-block: 2.5rem; }
     .lp-extras { padding: 5rem 0 7rem; }
     .lp-extra-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; }
 
@@ -3146,7 +3143,6 @@
       .lp-feature { min-height: auto; padding-block: 5rem; }
       .lp-reverse > .lp-copy { order: 0; }
       .lp-quiet-story { padding-inline: 1.5rem; }
-      .lp-types { grid-template-columns: 1fr 1fr; gap: 1.5rem 1rem; }
       .lp-paper { padding: 1rem; }
       .lp-footer { flex-wrap: wrap; }
       .lp-footer p { display: none; }
