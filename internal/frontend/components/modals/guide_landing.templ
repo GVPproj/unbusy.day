@@ -2,9 +2,9 @@ package modals
 
 import "github.com/GVPproj/unbusy.day/internal/frontend/components"
 
-// Throwaway landing study: reuse the guide's miniature and in-memory gestures.
-templ PrototypePlan(interactive bool) {
-	<div class="prototype-guide-figure">
+// LandingPlan reuses the guide's miniature and in-memory gestures.
+templ LandingPlan(interactive bool) {
+	<div class="landing-guide-figure">
 		@guideColumn(interactive, 7) {
 			<span class="gc-add" style="grid-row:1">@components.IconPlus()</span>
 			<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="2" data-span="2" style="grid-row:2 / span 2">

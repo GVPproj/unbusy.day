@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/GVPproj/unbusy.day/internal/auth"
@@ -29,15 +28,7 @@ func LoginPageHandler(turnstileSiteKey string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		page := routes.LoginPage(turnstileSiteKey)
-		// Throwaway UNB-77 study; ordinary login and production stay unchanged.
-		if os.Getenv("LANDING_PROTOTYPE") == "1" && os.Getenv("TEMPL_DEV_MODE") != "" {
-			switch variant := r.URL.Query().Get("variant"); variant {
-			case "A", "B", "C":
-				page = routes.LoginPrototype(variant)
-			}
-		}
-		if err := page.Render(r.Context(), w); err != nil {
+		if err := routes.LoginPage(turnstileSiteKey).Render(r.Context(), w); err != nil {
 			http.Error(w, "render login page", http.StatusInternalServerError)
 		}
 	})

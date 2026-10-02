@@ -1,0 +1,66 @@
+package routes
+
+import "github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
+
+templ loginLanding() {
+	<div class="lp-quiet-story" id="discover">
+		<section class="lp-feature">
+			<div class="lp-copy">
+				<span class="lp-eyebrow">01 / A plan for today</span>
+				<h2>Give every minute<br/><em>one job.</em></h2>
+				<p>Start your day with a clean slate. Add your timed commitments, then build out the rest — prioritizing <strong>Deep Work.</strong></p>
+			</div>
+			<div class="lp-paper lp-tilt">@modals.LandingPlan(false)</div>
+		</section>
+		@landingTypes()
+		<section class="lp-feature lp-reverse">
+			<div class="lp-copy">
+				<span class="lp-eyebrow">02 / Room to rearrange</span>
+				<h2>Things come up.<br/><em>Shape the day.</em></h2>
+				<p>Drag blocks to rearrange them; stretch using the grip at the bottom. Things shift naturally into place.</p>
+				<span class="lp-caption">Try it — this little plan is yours to move.</span>
+			</div>
+			<div class="lp-paper">@modals.LandingPlan(true)</div>
+		</section>
+		<section class="lp-extras">
+			<div class="lp-copy">
+				<span class="lp-eyebrow">03 / Beside the plan</span>
+				<h2>A little space<br/><em>{ "for the rest." }</em></h2>
+				<p>There's habit tracking and a little notepad too :)</p>
+			</div>
+			<div class="lp-extra-pair">@landingJot() @landingHabits()</div>
+		</section>
+	</div>
+}
+
+templ landingTypes() {
+	<ul class="lp-types" aria-label="Four block types">
+		<li data-type="deep"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Focus</strong><span>Undistracted effort</span></div></li>
+		<li data-type="shallow"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Admin</strong><span>Chat, light tasks</span></div></li>
+		<li data-type="break"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Break</strong><span>Take regularly</span></div></li>
+		<li data-type="appointment"><span class="lp-type-mark" aria-hidden="true"></span><div><strong>Fixed</strong><span>Appointments, meetings</span></div></li>
+	</ul>
+}
+
+templ landingJot() {
+	<div class="lp-jot">
+		<div class="lp-mini-heading"><span>Jotpad</span><span aria-hidden="true">↙</span></div>
+		<textarea aria-label="Try the Jotpad (not saved)" spellcheck="false">{ "A few things on my mind…\n\nAn idea for later\nA book to look up\nSomething I don't want to forget" }</textarea>
+		<span class="lp-caption">A scratchpad for everything that isn't a block.</span>
+	</div>
+}
+
+templ landingHabits() {
+	<div class="lp-habits">
+		<div class="lp-mini-heading"><span>Habits</span><span>This week</span></div>
+		<div class="lp-habit-week" aria-hidden="true"><span></span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span></div>
+		for _, habit := range []string{"Read", "Walk", "Make time"} {
+			<div class="lp-habit-row"><span>{ habit }</span>
+				for i, day := range []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"} {
+					<button type="button" data-demo-habit aria-label={ habit + " on " + day } aria-pressed={ map[bool]string{true: "true", false: "false"}[i < 2] }><span aria-hidden="true">✓</span></button>
+				}
+			</div>
+		}
+		<span class="lp-caption">Little things, a little more often.</span>
+	</div>
+}

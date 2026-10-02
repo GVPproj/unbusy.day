@@ -12,13 +12,24 @@ import (
 // along with $code on /login/verify.
 templ LoginPage(turnstileSiteKey string) {
 	@layouts.Layout("unbusy.day — log in", "") {
-		<main class="login-main">
-			<h1 class="sr-only">Log in to unbusy.day</h1>
-			@components.LoginAmoeba(turnstileSiteKey)
-			// Mounted at .login-main level, outside #login-form, so the
-			// email→code SSE morph never touches the dialog.
-			@modals.GuideModal()
-			@modals.DialogInit()
+		<main class="landing-page">
+			<section class="lp-quiet" id="start">
+				<div class="login-main">
+					<h1 class="sr-only">Log in to unbusy.day</h1>
+					@components.LoginAmoeba(turnstileSiteKey)
+					// Keep the dialog outside the email→code morph target.
+					@modals.GuideModal()
+					@modals.DialogInit()
+				</div>
+				<a class="lp-scroll" href="#discover"><span>A little more about unbusy</span><span aria-hidden="true">↓</span></a>
+			</section>
+			@loginLanding()
+			<footer class="lp-footer">
+				@components.UBLogo("92", "40")
+				<p>It's always today.</p>
+				<a href="#start">Back to the start ↑</a>
+			</footer>
 		</main>
+		<script type="module" src="/static/js/landing.js"></script>
 	}
 }

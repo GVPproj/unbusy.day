@@ -14,6 +14,32 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/web"
 )
 
+func TestLoginLandingPage(t *testing.T) {
+	for _, siteKey := range []string{"", "test-site-key"} {
+		t.Run(siteKey, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			LoginPageHandler(siteKey).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/login?variant=B", nil))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status: want 200, got %d", rec.Code)
+			}
+			body := rec.Body.String()
+			for _, want := range []string{`class="landing-page"`, `id="login-form"`, `/login/code`, `id="discover"`, `id="guide-modal"`, "A little more about unbusy", `/static/js/landing.js`, `data-demo-habit`} {
+				if !strings.Contains(body, want) {
+					t.Errorf("missing %q", want)
+				}
+			}
+			for _, unwanted := range []string{"prototype", "lp-editorial", "lp-field"} {
+				if strings.Contains(body, unwanted) {
+					t.Errorf("unexpected %q", unwanted)
+				}
+			}
+			if siteKey != "" && !strings.Contains(body, `data-sitekey="test-site-key"`) {
+				t.Error("missing Turnstile widget")
+			}
+		})
+	}
+}
+
 type fakeAuth struct {
 	verifyErr error
 

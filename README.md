@@ -44,20 +44,15 @@ cp .env.example .env
 task dev                          # SQLite + templ watch + Go hot reload
 ```
 
-## Landing-page prototypes (this branch)
+## Landing page
 
-Stop any running `task dev`, then start the throwaway landing study:
+On `feat/landingPage`, run `task dev` and open <http://localhost:7331/login>.
+The selected Quiet reveal design keeps the existing login above a scroll-down
+introduction. Sign-in is real; the example plan, Jotpad, and habits are local demos
+and do not save changes.
 
-```sh
-task prototype:landing
-```
-
-Open <http://localhost:7331/login?variant=A>. Use **`?variant=A`**, **`B`**, or **`C`**
-to compare Quiet reveal, Editorial, and Field guide, or use the floating arrows.
-Demo changes are not saved and the prototype login sends no email. Stop with **Ctrl+C**.
-
-See the [prototype testing guide](internal/frontend/routes/login_prototype.md)
-for all URLs, a manual checklist, dark-mode preview, and troubleshooting.
+The full A/B/C study is preserved on `prototype/UNB-77-login-landing` at `d5bbdff`
+(UNB-77). No variant parameter or prototype task is needed on this branch.
 
 ## Testing
 

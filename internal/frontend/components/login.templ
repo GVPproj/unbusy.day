@@ -10,12 +10,6 @@ import (
 // LoginAmoeba wraps the login content in an undulating SVG-blob backdrop.
 // An empty turnstileSiteKey (dev) renders no presence widget.
 templ LoginAmoeba(turnstileSiteKey string) {
-	@loginAmoeba() {
-		@LoginEmailForm(turnstileSiteKey)
-	}
-}
-
-templ loginAmoeba() {
 	<div class="login-amoeba">
 		<svg class="login-amoeba-svg" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
 			// Pixel feeling renders the same morph through this mosaic filter
@@ -45,7 +39,7 @@ templ loginAmoeba() {
 			<div class="login-logo">
 				@UBLogo("153", "66")
 			</div>
-			{ children... }
+			@LoginEmailForm(turnstileSiteKey)
 		</div>
 	</div>
 }
