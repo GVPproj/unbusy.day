@@ -46,13 +46,18 @@ task dev                          # SQLite + templ watch + Go hot reload
 
 ## Landing page
 
-On `feat/landingPage`, run `task dev` and open <http://localhost:7331/login>.
-The selected Quiet reveal design keeps the existing login above a scroll-down
-introduction. Sign-in is real; the example plan, Jotpad, and habits are local demos
-and do not save changes.
+Run `task dev` and open <http://localhost:7331/login>. The Quiet reveal design
+places real OTP sign-in above a scroll-down introduction. The example plan,
+Jotpad, and habits are local demos; changes are not saved and reset on reload.
 
-The full A/B/C study is preserved on `prototype/UNB-77-login-landing` at `d5bbdff`
-(UNB-77). No variant parameter or prototype task is needed on this branch.
+The revised copy and removal of the login's “What is it?” guide button are
+intentional (UNB-77). The authenticated app still offers the Guide. Landing page
+geometry lives in the CSS layout layer; component styles use leaf scopes without
+styling through the login form or demo dialog boundaries (ADR 0011).
+
+The full A/B/C study is preserved locally on `prototype/UNB-77-login-landing` at
+`d5bbdff` (UNB-77). The ordinary `/login` page needs no variant parameter or
+prototype task.
 
 ## Testing
 

@@ -3,10 +3,11 @@ import { baseURL, signIn } from "./session.js";
 
 test.use({ viewport: { width: 1200, height: 800 } });
 
-test("Gruvbox guide selection applies canonical light and dark palettes", async ({ page }) => {
-	await page.goto(`${baseURL}/login`, { waitUntil: "load" });
+test("Gruvbox guide selection applies canonical light and dark palettes", async ({ context, page }) => {
+	await signIn(context);
+	await page.goto(baseURL, { waitUntil: "load" });
 	const guide = page.locator("#guide-modal");
-	await guide.evaluate((dialog) => dialog.showModal());
+	await page.getByRole("button", { name: "Guide", exact: true }).click();
 	for (let step = 1; step < 4; step++) {
 		await guide.getByRole("button", { name: "Next", exact: true }).click();
 	}

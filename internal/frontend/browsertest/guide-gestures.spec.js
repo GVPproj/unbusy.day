@@ -1,11 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { baseURL } from "./session.js";
+import { baseURL, signIn } from "./session.js";
 
 test.use({ viewport: { width: 1200, height: 800 } });
 
+test.beforeEach(async ({ context }) => {
+	await signIn(context);
+});
+
 async function openDemo(page) {
-	await page.goto(`${baseURL}/login`, { waitUntil: "load" });
-	await page.getByRole("button", { name: /What is it/ }).click();
+	await page.goto(baseURL, { waitUntil: "load" });
+	await page.getByRole("button", { name: "Guide", exact: true }).click();
 	const dialog = page.locator("#guide-modal");
 	await expect(dialog).toBeVisible();
 	await dialog.getByRole("button", { name: "Next" }).click();

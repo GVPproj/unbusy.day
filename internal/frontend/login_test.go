@@ -23,12 +23,12 @@ func TestLoginLandingPage(t *testing.T) {
 				t.Fatalf("status: want 200, got %d", rec.Code)
 			}
 			body := rec.Body.String()
-			for _, want := range []string{`class="landing-page"`, `id="login-form"`, `/login/code`, `id="discover"`, `id="guide-modal"`, "Read more...", `/static/js/landing.js`, `data-demo-habit`} {
+			for _, want := range []string{`class="landing-page"`, `id="login-form"`, `/login/code`, `id="discover"`, `href="#discover"`, `/static/js/landing.js`, `data-demo-habit`} {
 				if !strings.Contains(body, want) {
 					t.Errorf("missing %q", want)
 				}
 			}
-			for _, unwanted := range []string{"prototype", "lp-editorial", "lp-field"} {
+			for _, unwanted := range []string{"prototype", "lp-editorial", "lp-field", `id="guide-modal"`, `commandfor="guide-modal"`} {
 				if strings.Contains(body, unwanted) {
 					t.Errorf("unexpected %q", unwanted)
 				}
