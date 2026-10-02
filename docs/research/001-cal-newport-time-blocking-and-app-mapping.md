@@ -244,7 +244,7 @@ The Guide is implemented as a four-step walkthrough in
 `internal/frontend/components/modals/guide.templ`, with its presentation in
 `internal/frontend/static/css/app.css`:
 
-1. **What is this thing?** introduces time-blocking as giving each minute one job
+1. **What is this thing?** introduces time-blocking as giving each moment of your workday one function
    rather than working reactively. This is the condensed version of Newport's
    core rationale
    ([Planning Every Minute](https://calnewport.com/deep-habits-the-importance-of-planning-every-minute-of-your-work-day/)).

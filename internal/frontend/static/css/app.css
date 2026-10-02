@@ -1398,6 +1398,12 @@
       }
     }
 
+    [data-demo-create] form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
     /* pane 3's demo uses the same CSS-owned gesture interpolation and
        completion policy as the planner. */
     .gc-demo {
@@ -2260,6 +2266,9 @@
       user-select: none;
     }
 
+  }
+
+  @scope (.blocks, .landing-guide-figure) {
     /* Free-slot "add" target: dashed accent border + plus icon on
 		   hover/focus only. */
     .slot-add {
@@ -2297,6 +2306,9 @@
       }
     }
 
+  }
+
+  @scope (.blocks) {
     /* Live "now" marker: a zero-height full-width row now.js
 		   positions; the time chip hangs in the gutter. */
     #now-pill {
@@ -3105,6 +3117,7 @@
     a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
     .lp-eyebrow { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 1.5rem; }
     .lp-caption { display: block; font-size: 0.8rem; color: var(--ink-muted); line-height: 1.5; }
+    .lp-reverse > .lp-copy > .lp-caption { font-size: 1.125rem; color: var(--accent); }
     .lp-scroll { position: absolute; bottom: 2rem; left: 50%; translate: -50% 0; display: grid; justify-items: center; gap: 0.5rem; width: max-content; max-width: 90%; color: var(--ink-muted); font-size: 0.8rem; }
     .lp-scroll > span:last-child { font-size: 1.8rem; line-height: 1; color: var(--accent); transition: translate 160ms; }
     .lp-scroll:hover > span:last-child { translate: 0 4px; }
@@ -3118,11 +3131,13 @@
     .lp-types strong, .lp-types div > span { display: block; }
     .lp-types strong { font-size: 1.35rem; font-weight: 600; }
     .lp-types div > span { font-size: 0.85rem; line-height: 1.5; margin-top: 0.25rem; }
-    .lp-jot, .lp-habits { padding: 1.5rem; border: 1px solid var(--rail-border); border-radius: var(--radius); min-width: 0; background: var(--surface); }
+    .lp-paper.companion .companion-head { min-height: 3rem; padding: 0 0 0.75rem; border-bottom: 1px solid var(--rail-border); box-shadow: none; --divider-offset: calc(0.75rem + 1px); flex-wrap: wrap; }
+    .lp-jot, .lp-habits { min-width: 0; min-height: 17rem; }
+    .lp-jot { display: flex; flex-direction: column; flex: 1; }
+    .lp-jot textarea { padding: 1rem; border: 1px solid var(--rail-border); border-radius: var(--radius); background: var(--surface); }
     .lp-mini-heading { display: flex; justify-content: space-between; gap: 1rem; color: var(--accent); margin-bottom: 1.5rem; font-weight: 600; }
     .lp-mini-heading > span + span { font-size: 0.8rem; color: var(--ink-muted); }
-    .lp-jot textarea { width: 100%; min-height: 11rem; font-size: 0.95rem; line-height: 1.85; resize: vertical; }
-    .lp-jot .lp-caption, .lp-habits .lp-caption { margin-top: 1.5rem; }
+    .lp-jot textarea { width: 100%; flex: 1; min-height: 0; font-size: 0.95rem; line-height: 1.85; resize: none; }
     .lp-habit-week, .lp-habit-row { display: grid; grid-template-columns: minmax(5rem, 1fr) repeat(5, 1.8rem); gap: 0.4rem; align-items: center; margin-bottom: 0.65rem; font-size: 0.85rem; }
     .lp-habit-week { color: var(--ink-muted); text-align: center; font-size: 0.7rem; }
     .lp-habit-row button { border: 1px solid var(--rail-border); border-radius: 50%; width: 1.8rem; height: 1.8rem; cursor: pointer; }
@@ -3135,11 +3150,9 @@
     .lp-quiet-story { max-width: 1120px; margin: auto; padding: 0 3rem; }
     .lp-feature { min-height: 80svh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6rem; padding-block: 7rem; }
     .lp-reverse > .lp-copy { order: 2; }
-    .lp-extras { padding: 5rem 0 7rem; }
-    .lp-extra-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; }
 
     @media (width < 52rem) {
-      .lp-feature, .lp-extra-pair { grid-template-columns: 1fr; gap: 3rem; }
+      .lp-feature { grid-template-columns: 1fr; gap: 3rem; }
       .lp-feature { min-height: auto; padding-block: 5rem; }
       .lp-reverse > .lp-copy { order: 0; }
       .lp-quiet-story { padding-inline: 1.5rem; }
@@ -3150,7 +3163,6 @@
     @media (width < 36rem) {
       .lp-habit-week, .lp-habit-row { grid-template-columns: minmax(4rem, 1fr) repeat(5, 1.65rem); gap: 0.3rem; }
       .lp-habit-row button { width: 1.65rem; height: 1.65rem; }
-      .lp-jot, .lp-habits { padding: 1rem; }
     }
     @media (prefers-reduced-motion: reduce) {
       .lp-scroll > span:last-child { transition: none; }

@@ -2,7 +2,6 @@ package routes
 
 import (
 	"github.com/GVPproj/unbusy.day/internal/frontend/components"
-	"github.com/GVPproj/unbusy.day/internal/frontend/components/modals"
 	"github.com/GVPproj/unbusy.day/internal/frontend/layouts"
 )
 
@@ -17,16 +16,12 @@ templ LoginPage(turnstileSiteKey string) {
 				<div class="login-main">
 					<h1 class="sr-only">Log in to unbusy.day</h1>
 					@components.LoginAmoeba(turnstileSiteKey)
-					// Keep the dialog outside the email→code morph target.
-					@modals.GuideModal()
-					@modals.DialogInit()
 				</div>
-				<a class="lp-scroll" href="#discover"><span>Read more...</span><span aria-hidden="true">↓</span></a>
+				<a class="lp-scroll" href="#discover"><span>Learn...</span><span aria-hidden="true">↓</span></a>
 			</section>
 			@loginLanding()
 			<footer class="lp-footer">
 				@components.UBLogo("92", "40")
-				<p>It's always today.</p>
 				<a href="#start">Back to the start ↑</a>
 			</footer>
 		</main>

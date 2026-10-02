@@ -15,7 +15,7 @@ Structure your days with a time-blocked schedule.  There's habit tracking and a 
 
 unbusy.day is a **time-block planning** app, inspired by Cal Newport's
 [system](https://calnewport.com/deep-habits-the-importance-of-planning-every-minute-of-your-work-day/).
-Time-blocking is giving every minute of your workday **one job**, avoiding the
+Time-blocking is giving every moment of your workday **one function**, avoiding the
 [costs](https://www.apa.org/topics/research/multitasking) of
 [switching contexts](https://calnewport.com/a-productivity-lesson-from-a-classic-arcade-game/)
 while you work.

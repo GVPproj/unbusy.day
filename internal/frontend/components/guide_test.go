@@ -108,28 +108,22 @@ func TestGuideModalSwipeWiring(t *testing.T) {
 	}
 }
 
-// The login page mounts the same dialog, an outlined non-submitting invoker, and
-// the invoker-command fallback loader. The invoker's label is left to churn; what
-// matters is type="button" (it must not submit the email form) and that it opens
-// the guide.
-func TestLoginPageRendersGuideModalAndWhyButton(t *testing.T) {
+func TestLoginPageLoadsLandingDemo(t *testing.T) {
 	body := renderLogin(t)
 
-	if !strings.Contains(body, `id="guide-modal"`) {
-		t.Errorf("login page missing guide-modal; body:\n%s", body)
+	for _, required := range []string{`class="guide-figure guide-column gc-demo"`, "/static/js/guide/demo.js", "/static/js/invoker-fallback.js"} {
+		if !strings.Contains(body, required) {
+			t.Errorf("login page missing %q", required)
+		}
 	}
-	// The guide invoker must not submit the email form.
-	if !strings.Contains(body, `<button type="button" class="outline-btn" commandfor="guide-modal" command="show-modal">`) {
-		t.Errorf("login page missing the outlined type=button guide invoker; body:\n%s", body)
-	}
-	// DialogInit's fallback loader must be present on login too.
-	if !strings.Contains(body, "/static/js/invoker-fallback.js") {
-		t.Errorf("login page missing DialogInit (invoker-fallback.js); body:\n%s", body)
-	}
-	// The dialog must sit OUTSIDE #login-form so the email→code SSE morph never
-	// wipes it. The form may carry the Why? invoker (commandfor), but not the
-	// dialog element itself.
-	if form := loginFormElement(t, body); strings.Contains(form, `id="guide-modal"`) {
-		t.Errorf("guide-modal is inside #login-form — an SSE morph would wipe it; must live outside the patch target; form:\n%s", form)
+}
+
+func TestLoginPageOmitsGuideModalAndButton(t *testing.T) {
+	body := renderLogin(t)
+
+	for _, unwanted := range []string{`id="guide-modal"`, `commandfor="guide-modal"`, "What is it?"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("login page contains %q; body:\n%s", unwanted, body)
+		}
 	}
 }

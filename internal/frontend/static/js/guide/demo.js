@@ -1,6 +1,7 @@
 // Drag + stretch for the Guide demo. JavaScript computes the real push cascade;
 // CSS interpolates targets and the final placement is swapped in as a FLIP.
 import { pushLayout } from "../blocks/push.js";
+import { initDemoCreate } from "./create.js";
 import { waitForTransitions } from "../transitions.js";
 
 for (const col of document.querySelectorAll(".gc-demo")) initDemo(col);
@@ -23,6 +24,7 @@ function initDemo(col) {
   let gesture = null;
   let settling = false;
   let generation = 0;
+  const refreshSlots = initDemoCreate(col, layoutIn, bounds, () => gesture || settling);
 
   col.addEventListener("pointerdown", (e) => {
     if (gesture || settling || e.button !== 0) return;
@@ -149,6 +151,7 @@ function initDemo(col) {
       el.style.gridRow = placement.slot + " / span " + placement.span;
     }
     clearTransient(elements);
+    refreshSlots();
   }
 
   function clearTransient(elements = blocksIn()) {

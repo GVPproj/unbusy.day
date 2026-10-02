@@ -6,7 +6,6 @@ import "github.com/GVPproj/unbusy.day/internal/frontend/components"
 templ LandingPlan(interactive bool) {
 	<div class="landing-guide-figure">
 		@guideColumn(interactive, 7) {
-			<span class="gc-add" style="grid-row:1">@components.IconPlus()</span>
 			<span class="gc-block" data-type="deep" data-id="deep-work" data-slot="2" data-span="2" style="grid-row:2 / span 2">
 				<span class="gc-label">Deep Work</span>@gcHandle()
 			</span>
@@ -17,5 +16,49 @@ templ LandingPlan(interactive bool) {
 				<span class="gc-label">Coffee</span>@gcHandle()
 			</span>
 		}
+		if interactive {
+			<template data-demo-block>
+				<span class="gc-block">
+					<span class="gc-label"></span>@gcHandle()
+				</span>
+			</template>
+			<template data-demo-add>
+				<button type="button" class="slot-add" commandfor="landing-create-modal" command="show-modal" aria-label="New Block">
+					@components.IconPlus()
+				</button>
+			</template>
+			<dialog class="app-dialog" data-demo-create id="landing-create-modal" closedby="any" aria-labelledby="landing-create-modal-title">
+				<h2 id="landing-create-modal-title">New Block</h2>
+				<form method="dialog">
+					<label class="stack">
+						Name
+						<input type="text" class="field" name="label" required autofocus placeholder="e.g. Deep Work"/>
+					</label>
+					<fieldset>
+						<legend>Type</legend>
+						<div class="type-options">
+							@landingTypeOption("deep", "Focus")
+							@landingTypeOption("shallow", "Admin")
+							@landingTypeOption("break", "Break")
+							@landingTypeOption("appointment", "Fixed")
+						</div>
+					</fieldset>
+					<footer>
+						<button type="button" class="btn btn-secondary" commandfor="landing-create-modal" command="close">Cancel</button>
+						<button type="submit" class="btn">Create</button>
+					</footer>
+				</form>
+			</dialog>
+			<script type="module" src="/static/js/guide/demo.js"></script>
+			@DialogInit()
+		}
 	</div>
+}
+
+templ landingTypeOption(typ string, label string) {
+	<label class="type-option">
+		<input type="radio" name="type" value={ typ } class="sr-only" checked?={ typ == "deep" }/>
+		<span class="swatch" data-type={ typ } aria-hidden="true"></span>
+		{ label }
+	</label>
 }

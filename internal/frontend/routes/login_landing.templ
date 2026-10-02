@@ -6,25 +6,35 @@ templ loginLanding() {
 	<div class="lp-quiet-story" id="discover">
 		<section class="lp-feature">
 			<div class="lp-copy">
-				<h2>Give every minute<br/><em>one job.</em></h2>
-				<p>Start your day with a clean slate. Add your timed commitments, then build out the rest — prioritizing <strong>Deep Work.</strong></p>
+				<h2>Block out time<br/>with levels of <em>focus</em>.</h2>
+				<p>Making time for <strong>focused work</strong> gets easier when we give the other parts of our workday clear boundaries.</p>
 			</div>
 			@landingTypes()
 		</section>
 		<section class="lp-feature lp-reverse">
 			<div class="lp-copy">
-				<h2>Things come up.<br/><em>Shape the day.</em></h2>
-				<p>Drag blocks to rearrange them; stretch using the grip at the bottom. Things shift naturally into place.</p>
-				<span class="lp-caption">Try it — this little plan is yours to move.</span>
+				<h2>Shape the <em>day</em>.</h2>
+				<p>Create, stretch, resize, reorder. Watching our day plan fill up helps us avoid taking on too much.</p>
+				<span class="lp-caption">← Try the interactive demo!</span>
 			</div>
 			<div class="lp-paper">@modals.LandingPlan(true)</div>
 		</section>
-		<section class="lp-extras">
+		<section class="lp-feature">
 			<div class="lp-copy">
-				<h2>A little space<br/><em>{ "for the rest." }</em></h2>
-				<p>There's habit tracking and a little notepad too :)</p>
+				<h2>Build habits,<br/><em>take notes</em>.</h2>
+				<p>Just enough to keep focused on the main thing.</p>
 			</div>
-			<div class="lp-extra-pair">@landingJot() @landingHabits()</div>
+			<div class="lp-paper companion" aria-label="Notes & Habits demo">
+				<header class="companion-head">
+					<div role="tablist" aria-label="Notes & Habits demo">
+						<button type="button" id="demo-jot-tab" role="tab" aria-controls="demo-jot-panel" aria-selected="true" tabindex="0">Jotpad</button>
+						<button type="button" id="demo-habits-tab" role="tab" aria-controls="demo-habits-panel" aria-selected="false" tabindex="-1">Habits</button>
+					</div>
+				</header>
+				<div id="demo-jot-panel" role="tabpanel" aria-labelledby="demo-jot-tab" tabindex="0">@landingJot()</div>
+				<div id="demo-habits-panel" role="tabpanel" aria-labelledby="demo-habits-tab" tabindex="0" hidden>@landingHabits()</div>
+			</div>
+			<script src="/static/js/companion.js"></script>
 		</section>
 	</div>
 }
@@ -32,7 +42,7 @@ templ loginLanding() {
 templ landingTypes() {
 	<ul class="lp-types" aria-label="Four block types">
 		<li data-type="deep"><div><strong>Focus</strong><span>Undistracted effort</span></div></li>
-		<li data-type="shallow"><div><strong>Admin</strong><span>Chat, light tasks</span></div></li>
+		<li data-type="shallow"><div><strong>Admin</strong><span>Chat, email, light tasks</span></div></li>
 		<li data-type="break"><div><strong>Break</strong><span>Take regularly</span></div></li>
 		<li data-type="appointment"><div><strong>Fixed</strong><span>Appointments, meetings</span></div></li>
 	</ul>
@@ -40,15 +50,13 @@ templ landingTypes() {
 
 templ landingJot() {
 	<div class="lp-jot">
-		<div class="lp-mini-heading"><span>Jotpad</span><span aria-hidden="true">↙</span></div>
 		<textarea aria-label="Try the Jotpad (not saved)" spellcheck="false">{ "A few things on my mind…\n\nAn idea for later\nA book to look up\nSomething I don't want to forget" }</textarea>
-		<span class="lp-caption">A scratchpad for everything that isn't a block.</span>
 	</div>
 }
 
 templ landingHabits() {
 	<div class="lp-habits">
-		<div class="lp-mini-heading"><span>Habits</span><span>This week</span></div>
+		<div class="lp-mini-heading"><span>This week</span></div>
 		<div class="lp-habit-week" aria-hidden="true"><span></span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span></div>
 		for _, habit := range []string{"Read", "Walk", "Make time"} {
 			<div class="lp-habit-row"><span>{ habit }</span>
@@ -57,6 +65,5 @@ templ landingHabits() {
 				}
 			</div>
 		}
-		<span class="lp-caption">Little things, a little more often.</span>
 	</div>
 }
