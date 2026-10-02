@@ -44,6 +44,21 @@ cp .env.example .env
 task dev                          # SQLite + templ watch + Go hot reload
 ```
 
+## Landing-page prototypes (this branch)
+
+Stop any running `task dev`, then start the throwaway landing study:
+
+```sh
+task prototype:landing
+```
+
+Open <http://localhost:7331/login?variant=A>. Use **`?variant=A`**, **`B`**, or **`C`**
+to compare Quiet reveal, Editorial, and Field guide, or use the floating arrows.
+Demo changes are not saved and the prototype login sends no email. Stop with **Ctrl+C**.
+
+See the [prototype testing guide](internal/frontend/routes/login_prototype.md)
+for all URLs, a manual checklist, dark-mode preview, and troubleshooting.
+
 ## Testing
 
 ```bash

@@ -3105,7 +3105,7 @@
   @scope (.prototype-guide-figure) {
     :scope { width: 100%; min-width: 0; }
   }
-  @scope (.landing-prototype) {
+  @scope (.landing-prototype) to (.login-main) {
     :scope { overflow: clip; }
     h1, h2 { font-weight: 600; line-height: 1.08; letter-spacing: -0.045em; text-wrap: balance; }
     h1 { font-size: clamp(3.3rem, 6.5vw, 6.5rem); }
@@ -3151,13 +3151,7 @@
     .lp-footer { max-width: 1160px; margin: 0 auto; padding: 4rem 2rem 8rem; border-top: 1px solid var(--rail-border); display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; color: var(--accent); font-size: 0.85rem; }
 
     /* A: the familiar quiet login, followed by alternating full-width scenes. */
-    .lp-quiet { display: grid; place-items: center; padding-top: 7rem; isolation: isolate; }
-    .lp-blob { position: absolute; width: min(45rem, 105vw); aspect-ratio: 1; background: var(--column-bg); border-radius: 44% 56% 63% 37% / 55% 46% 54% 45%; z-index: -1; top: 44%; left: 50%; translate: -50% -50%; rotate: -12deg; }
-    .lp-quiet-login { width: min(22rem, 100%); text-align: center; display: grid; justify-items: center; gap: 1.5rem; padding-bottom: 2rem; }
-    .lp-quiet-login h1 { line-height: 1; }
-    .lp-tagline { font-size: 1.1rem; }
-    .lp-quiet .lp-login-fields { flex-direction: column; }
-    .lp-quiet input { text-align: center; }
+    .lp-quiet { position: relative; }
     .lp-quiet-story { max-width: 1120px; margin: auto; padding: 0 3rem; }
     .lp-feature { min-height: 80svh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6rem; padding-block: 7rem; }
     .lp-reverse > .lp-copy { order: 2; }
@@ -3209,7 +3203,6 @@
 
     @media (width < 52rem) {
       .lp-hero { padding: 1.5rem 1.5rem 10rem; }
-      .lp-quiet { padding-top: 5rem; }
       .lp-feature, .lp-extra-pair, .lp-workbench, .lp-field-story { grid-template-columns: 1fr; gap: 3rem; }
       .lp-feature { min-height: auto; padding-block: 5rem; }
       .lp-reverse > .lp-copy { order: 0; }

@@ -30,12 +30,12 @@ templ LoginPrototype(variant string) {
 }
 
 templ LandingQuietReveal() {
-	<section class="lp-hero lp-quiet" id="start">
-		<div class="lp-blob" aria-hidden="true"></div>
-		<div class="lp-quiet-login">
-			<h1><span class="sr-only">unbusy.day</span>@components.UBLogo("153", "66")</h1>
-			<p class="lp-tagline">A less overwhelming approach<br/>to having a brain.</p>
-			@prototypeLogin()
+	<section class="lp-quiet" id="start">
+		<div class="login-main">
+			<h1 class="sr-only">Log in to unbusy.day</h1>
+			@components.PrototypeLoginAmoeba()
+			@modals.GuideModal()
+			@modals.DialogInit()
 		</div>
 		@prototypeScroll("A little more about unbusy", "#discover")
 	</section>
