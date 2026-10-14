@@ -2665,7 +2665,7 @@
       }
     }
 
-    [role="tab"] {
+    .companion-head [role="tab"] {
       padding: 0.5rem 0.75rem;
       border-bottom: 3px solid transparent;
       color: var(--ink-muted);
@@ -3010,7 +3010,48 @@
     /* Fills the panel; the editor scrolls internally — no auto-grow, which
 			   would either fight .column's height cap or bring back document
 			   scroll. */
-    #jot-cm {
+    .note-tabs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+      padding: 0.75rem;
+      border: 1px solid var(--rail-border);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    [role="tab"] {
+      min-height: 2.75rem;
+      padding: 0.25rem 0.5rem;
+      border-bottom: 3px solid transparent;
+      color: var(--ink-muted);
+      cursor: pointer;
+
+      &[aria-selected="true"] {
+        color: var(--ink);
+        border-bottom-color: var(--accent);
+        font-weight: 700;
+      }
+
+      &:hover {
+        background: color-mix(in srgb, var(--hover-shift) 8%, transparent);
+      }
+    }
+
+    .note-status {
+      display: inline-block;
+      width: 0.65em;
+      margin-left: 0.15em;
+      color: var(--ink-muted);
+    }
+
+    [data-state="offline"] .note-status {
+      color: var(--ink-error);
+      font-weight: 700;
+    }
+
+    .jot-mount {
       flex: 1;
       min-height: 0;
       display: flex;

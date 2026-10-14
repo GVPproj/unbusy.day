@@ -36,13 +36,16 @@ bounds change that would leave any Block outside the Day Plan is rejected.
 The User's current time of day is indicated live on the plan.
 
 ## Jotpad
-A User's private, perpetual scratchpad: one free-text document, owned by
-exactly one User, sitting beside their Day Plan. It has no lifecycle of its
-own — it does not reset, roll over, or expire, and the User is the only thing
-that empties it. Where the Day Plan has no history because a day ends, the
-Jotpad has no history because it never does. It is markdown-*flavoured* by
-convention only: nothing renders it, and its value is exactly the characters
-the User typed. Clearing the Day Plan does not touch it.
+A User's private scratchpad beside their Day Plan, containing exactly three
+perpetual Notes: **Daily**, **Weekly**, and **Quarterly**. These fixed names
+describe planning horizons, not calendar periods; clearing the Day Plan
+leaves all three untouched.
+
+## Note
+One of a User's three fixed free-text documents in their Jotpad, preserving
+exactly the characters they type, markdown-flavoured by convention only.
+A Note has no history, automatic reset, rollover, or expiry; its content
+persists until the User edits or clears it.
 
 ## Habit
 A named practice privately owned by exactly one User, with a calendar start

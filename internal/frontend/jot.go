@@ -15,8 +15,8 @@ import (
 // JotService is the frontend's view of the Jotpad service; *jot.Service
 // satisfies it.
 type JotService interface {
-	Get(ctx context.Context, owner string) (jot.Pad, error)
-	Set(ctx context.Context, owner, text string, base int64) (jot.Pad, error)
+	Get(ctx context.Context, owner, note string) (jot.Pad, error)
+	Set(ctx context.Context, owner, note, text string, base int64) (jot.Pad, error)
 }
 
 // The leading underscores keep the jot out of every *other* endpoint's POST
@@ -43,13 +43,21 @@ type jotResponse struct {
 // client stops believing an over-cap doc is saved.
 func JotHandler(svc JotService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		note := jot.Daily
+		if r.URL.Query().Has("note") {
+			note = r.URL.Query().Get("note")
+		}
+		if !jot.ValidNote(note) {
+			http.Error(w, "invalid note", http.StatusBadRequest)
+			return
+		}
 		var sig jotSignals
 		if err := datastar.ReadSignals(r, &sig); err != nil {
 			http.Error(w, "invalid signals body", http.StatusBadRequest)
 			return
 		}
 
-		pad, err := svc.Set(r.Context(), web.OwnerFrom(r.Context()), sig.Text, sig.Version)
+		pad, err := svc.Set(r.Context(), web.OwnerFrom(r.Context()), note, sig.Text, sig.Version)
 		switch {
 		case errors.Is(err, jot.ErrTooLong):
 			log.Printf("200 rejection jot: %v (%d chars)", err, len(sig.Text))
@@ -73,6 +81,18 @@ func JotHandler(svc JotService) http.Handler {
 // jotSignalPatch is the shape both the SSE snapshot and live jot events patch:
 // underscore-prefixed so Datastar never posts the pad back on other endpoints,
 // applied by the client via data-on-signal-patch — never an element patch.
-func jotSignalPatch(p jot.Pad) map[string]any {
-	return map[string]any{"_jotv": p.Version, "_jott": p.Text}
+func jotSignalPatch(note string, p jot.Pad) map[string]any {
+	return map[string]any{"_jot" + note + "v": p.Version, "_jot" + note + "t": p.Text}
+}
+
+func jotSnapshot(ctx context.Context, svc JotService, owner string) (map[string]jot.Pad, error) {
+	pads := make(map[string]jot.Pad, 3)
+	for _, note := range []string{jot.Daily, jot.Weekly, jot.Quarterly} {
+		pad, err := svc.Get(ctx, owner, note)
+		if err != nil {
+			return nil, err
+		}
+		pads[note] = pad
+	}
+	return pads, nil
 }

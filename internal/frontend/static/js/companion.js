@@ -2,7 +2,7 @@
   const companion = document.querySelector(".companion");
   if (!companion) return;
 
-  const tabs = [...companion.querySelectorAll('[role="tab"]')];
+  const tabs = [...companion.querySelectorAll('.companion-head [role="tab"]')];
   const select = (selected) => {
     let shown;
     for (const tab of tabs) {

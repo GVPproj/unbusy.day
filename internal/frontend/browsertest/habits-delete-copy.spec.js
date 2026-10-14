@@ -6,7 +6,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 test("delete confirmation copies literal names on every opening, including after a rename", async ({ context, page }) => {
 	await signIn(context);
 	await page.goto(baseURL, { waitUntil: "load" });
-	await expect(page.locator(".cm-editor")).toBeVisible();
+	await expect(page.locator("#jot-daily-panel .cm-editor")).toBeVisible();
 	await page.getByRole("tab", { name: "Habits", exact: true }).click();
 
 	const original = `Read "books" & 'notes' <img src=x onerror=alert(1)>`;

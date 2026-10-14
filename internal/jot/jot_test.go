@@ -51,26 +51,27 @@ func newOwner(t *testing.T, db *sql.DB) string {
 // on any error, return the committed state.
 func set(t *testing.T, svc *jot.Service, owner, text string, base int64) jot.Pad {
 	t.Helper()
-	p, err := svc.Set(context.Background(), owner, text, base)
+	p, err := svc.Set(context.Background(), owner, jot.Daily, text, base)
 	if err != nil {
 		t.Fatalf("set %q from v%d: %v", text, base, err)
 	}
 	return p
 }
 
-// The column default is the whole "new user" story: no seeding, no ErrNoRows
-// branch, no upsert — a User row exists, so a Jotpad exists, empty at v0.
+// Every fixed note exists logically for a new User, empty at v0.
 func TestGet_DefaultsToEmptyVersionZeroForANewUser(t *testing.T) {
 	db := newDB(t)
 	svc := jot.NewService(db, nil)
 	owner := newOwner(t, db)
 
-	got, err := svc.Get(context.Background(), owner)
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	if got.Text != "" || got.Version != 0 {
-		t.Errorf("new user's jot: want empty at v0, got %+v", got)
+	for _, note := range []string{jot.Daily, jot.Weekly, jot.Quarterly} {
+		got, err := svc.Get(context.Background(), owner, note)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != (jot.Pad{}) {
+			t.Errorf("new user's %s: want empty at v0, got %+v", note, got)
+		}
 	}
 }
 
@@ -86,7 +87,7 @@ func TestSet_CASHitStoresExactlyAndIncrementsTheVersion(t *testing.T) {
 	if p.Text != text || p.Version != 1 {
 		t.Errorf("committed: want %q at v1, got %+v", text, p)
 	}
-	got, err := svc.Get(ctx, owner)
+	got, err := svc.Get(ctx, owner, jot.Daily)
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestSet_CASMissMergesBothSidesEdits(t *testing.T) {
 	set(t, svc, owner, "## Monday\n- call Mom\n- buy milk\n\n## Tuesday\n- dentist\n", 1) // phone edits Monday → v2
 
 	// The laptop, still on v1, edits Tuesday and flushes.
-	p, err := svc.Set(context.Background(), owner,
+	p, err := svc.Set(context.Background(), owner, jot.Daily,
 		"## Monday\n- call Mom\n\n## Tuesday\n- dentist at 3pm\n", 1)
 	if err != nil {
 		t.Fatalf("stale set: %v", err)
@@ -141,7 +142,7 @@ func TestSet_MissOlderThanTheShadowStillAppliesTheEdit(t *testing.T) {
 	set(t, svc, owner, "alpha one\nbeta\ngamma\ndelta\n", 2) // v3; shadow now holds v2
 
 	// The stale tab (base v1, two revisions behind) edits the beta line.
-	p, err := svc.Set(context.Background(), owner, "alpha\nbeta two\ngamma\n", 1)
+	p, err := svc.Set(context.Background(), owner, jot.Daily, "alpha\nbeta two\ngamma\n", 1)
 	if err != nil {
 		t.Fatalf("older-than-shadow set: %v", err)
 	}
@@ -165,14 +166,14 @@ func TestSet_OverTheCapReturnsTheAuthoritativeStateWithErrTooLong(t *testing.T) 
 	owner := newOwner(t, db)
 
 	set(t, svc, owner, "keep me", 0)
-	p, err := svc.Set(ctx, owner, strings.Repeat("a", jot.MaxLen+1), 1)
+	p, err := svc.Set(ctx, owner, jot.Daily, strings.Repeat("a", jot.MaxLen+1), 1)
 	if !errors.Is(err, jot.ErrTooLong) {
 		t.Fatalf("over-cap set: want ErrTooLong, got %v", err)
 	}
 	if p.Text != "keep me" || p.Version != 1 {
 		t.Errorf("rejected write must return the untouched state; got %+v", p)
 	}
-	got, gerr := svc.Get(ctx, owner)
+	got, gerr := svc.Get(ctx, owner, jot.Daily)
 	if gerr != nil {
 		t.Fatalf("get: %v", gerr)
 	}
@@ -193,7 +194,7 @@ func TestSet_OverCapMergeResultIsRejectedWhole(t *testing.T) {
 	set(t, svc, owner, "seed\n"+half, 1) // v2 grows the front
 
 	// The stale tab (base v1) appends its own near-half; merged they exceed the cap.
-	p, err := svc.Set(context.Background(), owner, "seed\n"+strings.Repeat("b", jot.MaxLen/2+100), 1)
+	p, err := svc.Set(context.Background(), owner, jot.Daily, "seed\n"+strings.Repeat("b", jot.MaxLen/2+100), 1)
 	if !errors.Is(err, jot.ErrTooLong) {
 		t.Fatalf("over-cap merge: want ErrTooLong, got %v", err)
 	}
@@ -210,10 +211,10 @@ func TestSet_CapCountsCharactersNotBytes(t *testing.T) {
 	ctx := context.Background()
 	owner := newOwner(t, db)
 
-	if _, err := svc.Set(ctx, owner, strings.Repeat("é", jot.MaxLen), 0); err != nil {
+	if _, err := svc.Set(ctx, owner, jot.Daily, strings.Repeat("é", jot.MaxLen), 0); err != nil {
 		t.Fatalf("set multi-byte at cap: %v", err)
 	}
-	if _, err := svc.Set(ctx, owner, strings.Repeat("é", jot.MaxLen+1), 1); !errors.Is(err, jot.ErrTooLong) {
+	if _, err := svc.Set(ctx, owner, jot.Daily, strings.Repeat("é", jot.MaxLen+1), 1); !errors.Is(err, jot.ErrTooLong) {
 		t.Errorf("multi-byte over cap: want ErrTooLong, got %v", err)
 	}
 }
@@ -225,7 +226,7 @@ func TestSet_IsOwnerScoped(t *testing.T) {
 	a, b := newOwner(t, db), newOwner(t, db)
 
 	set(t, svc, a, "a's private notes", 0)
-	got, err := svc.Get(ctx, b)
+	got, err := svc.Get(ctx, b, jot.Daily)
 	if err != nil {
 		t.Fatalf("get b: %v", err)
 	}
@@ -234,7 +235,7 @@ func TestSet_IsOwnerScoped(t *testing.T) {
 	}
 
 	set(t, svc, b, "b's notes", 0)
-	got, err = svc.Get(ctx, a)
+	got, err = svc.Get(ctx, a, jot.Daily)
 	if err != nil {
 		t.Fatalf("get a: %v", err)
 	}
@@ -255,7 +256,7 @@ type capturePub struct {
 
 func (c *capturePub) PublishJot(e jot.Event) {
 	c.events = append(c.events, e)
-	p, err := c.svc.Get(context.Background(), c.owner)
+	p, err := c.svc.Get(context.Background(), e.Owner, e.Note)
 	if err != nil {
 		c.t.Errorf("get during publish: %v", err)
 	}
@@ -276,7 +277,7 @@ func TestSet_PublishesTheCommittedStatePostCommit(t *testing.T) {
 		t.Fatalf("publishes: want 1, got %d", len(pub.events))
 	}
 	e := pub.events[0]
-	if e.Owner != owner || e.Version != p.Version || e.Text != p.Text {
+	if e.Owner != owner || e.Note != jot.Daily || e.Version != p.Version || e.Text != p.Text {
 		t.Errorf("event: want %+v for %s, got %+v", p, owner, e)
 	}
 	// Post-commit: a concurrent reader at publish time sees the new state.
@@ -293,7 +294,7 @@ func TestSet_RejectedWriteDoesNotPublish(t *testing.T) {
 	owner := newOwner(t, db)
 	pub.owner = owner
 
-	if _, err := svc.Set(context.Background(), owner, strings.Repeat("a", jot.MaxLen+1), 0); !errors.Is(err, jot.ErrTooLong) {
+	if _, err := svc.Set(context.Background(), owner, jot.Daily, strings.Repeat("a", jot.MaxLen+1), 0); !errors.Is(err, jot.ErrTooLong) {
 		t.Fatalf("want ErrTooLong, got %v", err)
 	}
 	if len(pub.events) != 0 {
@@ -304,14 +305,85 @@ func TestSet_RejectedWriteDoesNotPublish(t *testing.T) {
 // RequireSession guarantees the User row, so this can't happen in the app — but
 // it must surface as an error rather than as an empty Jotpad, which a later Set
 // would then quietly write over.
+func TestNotes_IsolateVersionsMergeBasesAndEventsAcrossNotesAndOwners(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{t: t}
+	svc := jot.NewService(db, pub)
+	pub.svc = svc
+	ctx := context.Background()
+	a, b := newOwner(t, db), newOwner(t, db)
+	notes := []string{jot.Daily, jot.Weekly, jot.Quarterly}
+	for _, owner := range []string{a, b} {
+		for _, note := range notes {
+			prefix := owner + "/" + note + "\n"
+			p, err := svc.Set(ctx, owner, note, prefix+"alpha\nbeta\n", 0)
+			if err != nil || p.Version != 1 {
+				t.Fatalf("seed %s/%s: %+v, %v", owner, note, p, err)
+			}
+			p, err = svc.Set(ctx, owner, note, prefix+"alpha one\nbeta\n", 1)
+			if err != nil || p.Version != 2 {
+				t.Fatalf("edit %s/%s: %+v, %v", owner, note, p, err)
+			}
+		}
+	}
+	// All other notes and owners wrote after Daily's base was captured.
+	for _, owner := range []string{a, b} {
+		for _, note := range notes {
+			prefix := owner + "/" + note + "\n"
+			want := jot.Pad{Text: prefix + "alpha one\nbeta two\n", Version: 3}
+			p, err := svc.Set(ctx, owner, note, prefix+"alpha\nbeta two\n", 1)
+			if err != nil || p != want {
+				t.Fatalf("merge %s/%s: %+v, %v; want %+v", owner, note, p, err, want)
+			}
+			got, err := svc.Get(ctx, owner, note)
+			if err != nil || got != want {
+				t.Fatalf("get %s/%s: %+v, %v", owner, note, got, err)
+			}
+			e := pub.events[len(pub.events)-1]
+			if e.Owner != owner || e.Note != note || e.Text != want.Text || e.Version != 3 {
+				t.Fatalf("event: %+v", e)
+			}
+			before := len(pub.events)
+			p, err = svc.Set(ctx, owner, note, strings.Repeat("x", jot.MaxLen+1), 3)
+			if !errors.Is(err, jot.ErrTooLong) || p != want || len(pub.events) != before {
+				t.Fatalf("rejection %s/%s: %+v, %v", owner, note, p, err)
+			}
+		}
+	}
+	for i, e := range pub.events {
+		if pub.readBack[i] != (jot.Pad{Text: e.Text, Version: e.Version}) {
+			t.Errorf("event not readable post-commit: %+v", e)
+		}
+	}
+}
+
+func TestNotes_RejectUnknownIdentityWithoutPublishing(t *testing.T) {
+	db := newDB(t)
+	pub := &capturePub{t: t}
+	svc := jot.NewService(db, pub)
+	pub.svc = svc
+	owner := newOwner(t, db)
+	for _, note := range []string{"", "Daily", "monthly", " daily", "weekly "} {
+		if _, err := svc.Get(context.Background(), owner, note); !errors.Is(err, jot.ErrInvalidNote) {
+			t.Errorf("Get(%q): want ErrInvalidNote, got %v", note, err)
+		}
+		if _, err := svc.Set(context.Background(), owner, note, "text", 0); !errors.Is(err, jot.ErrInvalidNote) {
+			t.Errorf("Set(%q): want ErrInvalidNote, got %v", note, err)
+		}
+	}
+	if len(pub.events) != 0 {
+		t.Errorf("invalid notes published: %+v", pub.events)
+	}
+}
+
 func TestGet_UnknownOwnerErrors(t *testing.T) {
 	db := newDB(t)
 	svc := jot.NewService(db, nil)
 
-	if _, err := svc.Get(context.Background(), "no-such-user"); err == nil {
+	if _, err := svc.Get(context.Background(), "no-such-user", jot.Daily); err == nil {
 		t.Error("unknown owner Get: want an error, got nil")
 	}
-	if _, err := svc.Set(context.Background(), "no-such-user", "x", 0); err == nil {
+	if _, err := svc.Set(context.Background(), "no-such-user", jot.Daily, "x", 0); err == nil {
 		t.Error("unknown owner Set: want an error, got nil")
 	}
 }

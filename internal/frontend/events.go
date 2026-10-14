@@ -73,12 +73,18 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 			return
 		}
 		patchEnvelope(sse, bs)
-		pad, err := jots.Get(r.Context(), owner)
+		pads, err := jotSnapshot(r.Context(), jots, owner)
 		if err != nil {
 			log.Printf("ds events jot: %v", err)
 			return
 		}
-		if err := sse.MarshalAndPatchSignals(jotSignalPatch(pad)); err != nil {
+		signals := make(map[string]any, 6)
+		for note, pad := range pads {
+			for key, value := range jotSignalPatch(note, pad) {
+				signals[key] = value
+			}
+		}
+		if err := sse.MarshalAndPatchSignals(signals); err != nil {
 			return
 		}
 
@@ -98,7 +104,7 @@ func EventsHandler(svc BlockService, jots JotService, broker *pubsub.Broker, hab
 				}
 				patchEnvelope(sse, e.Blocks)
 			case je := <-sub.Jots:
-				if err := sse.MarshalAndPatchSignals(jotSignalPatch(jot.Pad{Text: je.Text, Version: je.Version})); err != nil {
+				if err := sse.MarshalAndPatchSignals(jotSignalPatch(je.Note, jot.Pad{Text: je.Text, Version: je.Version})); err != nil {
 					return
 				}
 			case <-sub.Habits:

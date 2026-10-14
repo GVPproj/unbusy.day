@@ -6,11 +6,12 @@ test.use({ viewport: { width: 1440, height: 900 }, timezoneId: "Pacific/Kiritima
 test.beforeEach(async ({ context, page }) => {
  await signIn(context);
 	await page.goto(baseURL, { waitUntil: "load" });
-	await expect(page.locator(".cm-editor")).toBeVisible();
+	await expect(page.locator("#jot-daily-panel .cm-editor")).toBeVisible();
 });
 
-const jotTab = (page) => page.getByRole("tab", { name: "Jotpad", exact: true });
-const habitsTab = (page) => page.getByRole("tab", { name: "Habits", exact: true });
+const companionTabs = (page) => page.getByRole("tablist", { name: "Notes & Habits", exact: true });
+const jotTab = (page) => companionTabs(page).getByRole("tab", { name: "Jotpad", exact: true });
+const habitsTab = (page) => companionTabs(page).getByRole("tab", { name: "Habits", exact: true });
 const habitName = (page) => page.locator("#habit-create").getByLabel("Name", { exact: true });
 const habitStart = (page) => page.locator("#habit-create").getByLabel("Start date", { exact: true });
 const habitRow = (page, name) => page.locator("#habit-matrix tbody tr").filter({ has: page.getByRole("rowheader", { name, exact: true }) });
@@ -85,14 +86,18 @@ test("desktop defaults to Jotpad beside the plan; tabs have roving keyboard sele
 	await expect(page.locator(".companion-head #companion-status")).toBeVisible();
 	await expect(page.locator("#jot-panel h2, #jot-panel output")).toHaveCount(0);
 	const header = await page.locator(".companion-head").boundingBox();
-	const jotEditor = await page.locator(".cm-editor").boundingBox();
-	expect(jotEditor.y - (header.y + header.height)).toBeLessThan(20);
+	const noteTabs = page.getByRole("tablist", { name: "Planning horizon", exact: true });
+	await expect(noteTabs).toBeVisible();
+	const noteHeader = await noteTabs.boundingBox();
+	expect(noteHeader.y - (header.y + header.height)).toBeLessThan(20);
+	const jotEditor = await page.locator("#jot-daily-panel .cm-editor").boundingBox();
+	expect(jotEditor.y - (noteHeader.y + noteHeader.height)).toBeLessThan(20);
 	await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
 	await expect(jotTab(page)).toHaveAttribute("tabindex", "0");
 	await expect(habitsTab(page)).toHaveAttribute("aria-selected", "false");
 	await expect(habitsTab(page)).toHaveAttribute("tabindex", "-1");
 	const plan = await page.locator("#block-list").boundingBox();
-	const editor = await page.locator(".cm-editor").boundingBox();
+	const editor = await page.locator("#jot-daily-panel .cm-editor").boundingBox();
 	expect(editor.x).toBeGreaterThanOrEqual(plan.x + plan.width);
 
 	await jotTab(page).focus();
@@ -774,11 +779,11 @@ test("habit names accept 80 Unicode characters and reject longer names without l
 test("mobile Plan / Extras navigation keeps names visible while dates scroll", async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await expect(page.locator("#block-list")).toBeVisible();
-	await expect(page.locator(".cm-editor")).toBeHidden();
+	await expect(page.locator("#jot-daily-panel .cm-editor")).toBeHidden();
 	await mobilePanel(page, "Extras");
 	await expect(page.locator("#block-list")).toBeHidden();
 	await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
-	await expect(page.locator(".cm-editor")).toBeVisible();
+	await expect(page.locator("#jot-daily-panel .cm-editor")).toBeVisible();
 	await habitsTab(page).click();
 	await createHabit(page, "A daily walk");
 	const { today } = await localCalendar(page);
@@ -869,11 +874,11 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		id: block.dataset.id, slot: block.dataset.slot, span: block.dataset.span, text: block.textContent,
 	})));
 	const plan = await planState();
-	const content = page.locator(".cm-content");
+	const content = page.locator("#jot-daily-panel .cm-content");
 	const text = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}: keep this note`).join("\n");
 	let releaseSave;
 	const saveGate = new Promise((resolve) => { releaseSave = resolve; });
-	await page.route("**/jot", async (route) => {
+	await page.route("**/jot?note=daily", async (route) => {
 		await saveGate;
 		await route.continue();
 	});
@@ -884,17 +889,17 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		await page.keyboard.press("ArrowLeft");
 		await pending;
 		await expect(page.locator("#companion-status")).not.toHaveAttribute("data-state", "saved");
-		await expect.poll(() => page.locator(".cm-scroller").evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+		await expect.poll(() => page.locator("#jot-daily-panel .cm-scroller").evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 		const state = await page.evaluateHandle(async () => {
 			const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-			const view = EditorView.findFromDOM(document.querySelector(".cm-editor"));
+			const view = EditorView.findFromDOM(document.querySelector("#jot-daily-panel .cm-editor"));
 			const selection = getSelection();
 			return {
 				view, originalSelection: view.state.selection.toJSON(),
-				editor: document.querySelector(".cm-editor"),
+				editor: document.querySelector("#jot-daily-panel .cm-editor"),
 				anchorText: selection.anchorNode.textContent,
 				offset: selection.anchorOffset,
-				scroll: document.querySelector(".cm-scroller").scrollTop,
+				scroll: document.querySelector("#jot-daily-panel .cm-scroller").scrollTop,
 			};
 		});
 		await habitsTab(page).click();
@@ -918,12 +923,14 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 		await page.keyboard.press("Tab");
 		await expect(page.locator("#jot-panel")).toBeFocused();
 		await page.keyboard.press("Tab");
+		await expect(page.getByRole("tab", { name: "Daily", exact: true })).toBeFocused();
+		await page.keyboard.press("Tab");
 		await expect(content).toBeFocused();
 		// CodeMirror restores its virtualized viewport on the next measurement frame.
 		await expect.poll(() => state.evaluate((saved) => ({
-			sameEditor: saved.editor === document.querySelector(".cm-editor"),
+			sameEditor: saved.editor === document.querySelector("#jot-daily-panel .cm-editor"),
 			sameCaret: saved.anchorText === getSelection().anchorNode.textContent && saved.offset === getSelection().anchorOffset,
-			scrollDifference: Math.abs(saved.scroll - document.querySelector(".cm-scroller").scrollTop),
+			scrollDifference: Math.abs(saved.scroll - document.querySelector("#jot-daily-panel .cm-scroller").scrollTop),
 		}))).toEqual({ sameEditor: true, sameCaret: true, scrollDifference: 0 });
 		await state.dispose();
 		const saved = page.waitForResponse((response) => new URL(response.url()).pathname === "/jot" && response.request().method() === "POST");
@@ -953,7 +960,7 @@ test("Jotpad text, caret, scroll and pending save survive habit deletion while t
 });
 
 test("adding and clearing plan blocks leaves habits and Jotpad unchanged after reload", async ({ page }) => {
-	await page.locator(".cm-content").click();
+	await page.locator("#jot-daily-panel .cm-content").click();
 	await page.keyboard.insertText("Keep my perpetual notes");
 	await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 	await habitsTab(page).click();
@@ -968,10 +975,10 @@ test("adding and clearing plan blocks leaves habits and Jotpad unchanged after r
 	await expect(page.locator(".block-item")).toHaveCount(0);
 	await expect(habitRow(page, "Read every day")).toBeVisible();
 	await jotTab(page).click();
-	await expect(page.locator(".cm-content")).toHaveText("Keep my perpetual notes");
+	await expect(page.locator("#jot-daily-panel .cm-content")).toHaveText("Keep my perpetual notes");
 	await page.reload({ waitUntil: "load" });
 	await expect(page.locator(".block-item")).toHaveCount(0);
-	await expect(page.locator(".cm-content")).toHaveText("Keep my perpetual notes");
+	await expect(page.locator("#jot-daily-panel .cm-content")).toHaveText("Keep my perpetual notes");
 	await habitsTab(page).click();
 	await expect(habitRow(page, "Read every day")).toBeVisible();
 });

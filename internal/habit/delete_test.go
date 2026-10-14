@@ -293,9 +293,14 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pad, err := pads.Set(ctx, "alice", "Keep my notes", 0)
+	pad, err := pads.Set(ctx, "alice", "daily", "Keep my notes", 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, note := range []string{"weekly", "quarterly"} {
+		if _, err := pads.Set(ctx, "alice", note, "Keep "+note, 0); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := s.Create(ctx, "alice", "Read", "2024-01-01", "UTC"); err != nil {
 		t.Fatal(err)
@@ -336,7 +341,7 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 	if err != nil || gotBounds != bounds {
 		t.Fatalf("bounds changed: %+v %v", gotBounds, err)
 	}
-	gotPad, err := pads.Get(ctx, "alice")
+	gotPad, err := pads.Get(ctx, "alice", "daily")
 	if err != nil || gotPad != pad {
 		t.Fatalf("jotpad changed: %+v %v", gotPad, err)
 	}
@@ -346,6 +351,16 @@ func TestDeleteLeavesOtherHabitsDayPlanAndJotpadUntouched(t *testing.T) {
 	got, err = s.List(ctx, "alice")
 	if err != nil || !reflect.DeepEqual(got, []habit.Habit{wantHabit}) {
 		t.Fatalf("plan clear changed habits: %+v %v", got, err)
+	}
+	for _, note := range []string{"daily", "weekly", "quarterly"} {
+		want := "Keep " + note
+		if note == "daily" {
+			want = pad.Text
+		}
+		got, err := pads.Get(ctx, "alice", note)
+		if err != nil || got.Text != want || got.Version != 1 {
+			t.Fatalf("plan clear changed %s note: %+v %v", note, got, err)
+		}
 	}
 }
 

@@ -6,7 +6,7 @@ test.use({ viewport: { width: 1440, height: 900 }, timezoneId: "UTC" });
 test.beforeEach(async ({ context, page }) => {
 	await signIn(context);
 	await page.goto(baseURL, { waitUntil: "load" });
-	await expect(page.locator(".cm-editor")).toBeVisible();
+	await expect(page.locator("#jot-daily-panel .cm-editor")).toBeVisible();
 	await page.getByRole("tab", { name: "Habits", exact: true }).click();
 });
 

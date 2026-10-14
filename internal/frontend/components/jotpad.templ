@@ -6,17 +6,35 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
-// Styling lives in app.css: @scope (.jotpad).
-
-// The companion keeps this editor mounted across tab switches and matrix patches.
-// Stored text travels as JSON so escaping cannot mangle it.
-templ Jotpad(pad jot.Pad) {
+// All notes stay mounted; switching never discards editor or sync state.
+templ Jotpad(pads map[string]jot.Pad) {
 	<section class="jotpad" aria-labelledby="jot-tab">
-		@templ.JSONScript("jot-cm-text", pad.Text)
+		<div class="note-tabs" role="tablist" aria-label="Planning horizon">
+			@jotNoteTab("daily", "Daily", true)
+			@jotNoteTab("weekly", "Weekly", false)
+			@jotNoteTab("quarterly", "Quarterly", false)
+		</div>
+		@jotNote("daily", "jot-cm", pads["daily"], true)
+		@jotNote("weekly", "jot-cm-weekly", pads["weekly"], false)
+		@jotNote("quarterly", "jot-cm-quarterly", pads["quarterly"], false)
+	</section>
+}
+
+templ jotNoteTab(note, label string, selected bool) {
+	<button type="button" id={ "jot-" + note + "-tab" } role="tab" aria-controls={ "jot-" + note + "-panel" } aria-selected={ strconv.FormatBool(selected) } tabindex={ map[bool]string{true: "0", false: "-1"}[selected] } data-note={ note } data-state="saved">
+		{ label }<span class="note-status" aria-hidden="true"></span>
+	</button>
+}
+
+templ jotNote(note, mountID string, pad jot.Pad, selected bool) {
+	<div id={ "jot-" + note + "-panel" } role="tabpanel" aria-labelledby={ "jot-" + note + "-tab" } hidden?={ !selected }>
+		@templ.JSONScript(mountID+"-text", pad.Text)
 		<div
-			id="jot-cm"
+			id={ mountID }
+			class="jot-mount"
+			data-note={ note }
 			data-maxlen={ strconv.Itoa(jot.MaxLen) }
 			data-jot-version={ strconv.FormatInt(pad.Version, 10) }
 		></div>
-	</section>
+	</div>
 }

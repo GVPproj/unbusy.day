@@ -27,13 +27,13 @@ test.describe("Jotpad Android JS-branch emulation (not a real Android OS test)",
 			await page.goto(baseURL, { waitUntil: "load" });
 			expect(await page.evaluate(() => navigator.userAgent)).toMatch(/Chrome\/.*Android\b/);
 			const note = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}: keep this note`).join("\n");
-			const content = page.locator(".cm-content");
+			const content = page.locator("#jot-daily-panel .cm-content");
 			await content.click();
 			await page.keyboard.insertText(note);
 			await expect(page.locator("#companion-status")).toHaveAttribute("data-state", "saved");
 			const state = await page.evaluateHandle(async (composing) => {
 				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-				const view = EditorView.findFromDOM(document.querySelector(".cm-editor"));
+				const view = EditorView.findFromDOM(document.querySelector("#jot-daily-panel .cm-editor"));
 				view.dispatch({ selection: { anchor: composing ? 2386 : 2390, head: 2390 }, scrollIntoView: true });
 				await new Promise((resolve) => view.requestMeasure({ read: () => null, write: () => queueMicrotask(resolve) }));
 				return { view, scroll: view.scrollDOM.scrollTop, selection: view.state.selection.toJSON(), text: view.state.doc.toString() };
@@ -49,7 +49,7 @@ test.describe("Jotpad Android JS-branch emulation (not a real Android OS test)",
 			await page.keyboard.press("Escape");
 			if (scenario.remote) {
 				await state.evaluate((saved) => {
-					window.__jotRemote(1_000_000, "PREFIX " + saved.text);
+					window.__jotRemote("daily", 1_000_000, "PREFIX " + saved.text);
 					saved.text = saved.view.state.doc.toString();
 					saved.selection = saved.view.state.selection.toJSON();
 				});

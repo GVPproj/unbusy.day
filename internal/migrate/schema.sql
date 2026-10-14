@@ -84,3 +84,13 @@ CREATE TABLE habit_id_allocator (
 
 CREATE INDEX habit_owner_sort_order_idx ON habit (owner_id, sort_order);
 
+CREATE TABLE jot_note (
+    owner TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+    note TEXT NOT NULL CHECK (note IN ('daily', 'weekly', 'quarterly')),
+    text TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 0,
+    base_text TEXT,
+    base_version INTEGER,
+    PRIMARY KEY (owner, note)
+);
+

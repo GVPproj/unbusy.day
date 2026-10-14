@@ -6,12 +6,48 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+	createJotSync,
+	wireTeardown,
 	remoteAction,
 	ackAction,
 	minimalEdit,
 	retryDelay,
 	statusOf,
 } from "./sync.js";
+
+test("pending note state reports immediately while the save label stays debounced", (t) => {
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	const previous = globalThis.window;
+	globalThis.window = new EventTarget();
+	t.after(() => { globalThis.window = previous; });
+	let text = "saved";
+	const states = [], labels = [];
+	const sync = createJotSync({
+		getText: () => text, applyText: () => {}, postURL: "/jot?note=daily", version: 0,
+		onState: (state) => states.push(state), onStatus: (state) => labels.push(state),
+	});
+	text = "pending";
+	sync.edited();
+	assert.equal(states.at(-1), "saving");
+	assert.deepEqual(labels, []);
+	t.mock.timers.tick(500);
+	assert.equal(labels.at(-1), "saving");
+});
+
+test("switching away flushes with an acknowledgement rather than marking a beacon saved", (t) => {
+	const previousWindow = globalThis.window, previousDocument = globalThis.document;
+	globalThis.window = new EventTarget();
+	globalThis.document = new EventTarget();
+	t.after(() => { globalThis.window = previousWindow; globalThis.document = previousDocument; });
+	const editor = new EventTarget();
+	let flushes = 0, beacons = 0;
+	wireTeardown({ flush: () => flushes++, beacon: () => beacons++ }, editor);
+	editor.dispatchEvent(new Event("blur"));
+	assert.equal(flushes, 1);
+	assert.equal(beacons, 0);
+	window.dispatchEvent(new Event("pagehide"));
+	assert.equal(beacons, 1);
+});
 
 const clean = (over = {}) => ({
 	version: 5,

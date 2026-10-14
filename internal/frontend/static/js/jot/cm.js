@@ -179,6 +179,10 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				history(),
 				drawSelection(),
 				EditorView.lineWrapping,
+				EditorView.contentAttributes.of({
+					id: opts.note === "daily" ? "jot-editor" : `jot-editor-${opts.note}`,
+					"aria-label": `${opts.label ?? "Daily"} note`,
+				}),
 				placeholder(PLACEHOLDER),
 				// markdown() adds its own list-editing keymap. markdownLanguage is
 				// the GFM dialect needed for task markers, tables, and strikethrough.
@@ -217,15 +221,22 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 
 	// Native refocus can scroll to zero before CM measures a redisplayed editor.
 	const panel = mount.closest('[role="tabpanel"]');
-	panel?.addEventListener("companion-hide", () => {
+	const hide = () => {
 		flushReturn(view);
 		// Measure queued scroll effects before a rapid hide can snapshot the old viewport.
 		view.coordsAtPos(view.state.selection.main.head);
 		panelReturn = { scroll: view.scrollSnapshot() };
-	});
-	panel?.addEventListener("companion-show", () => {
+	};
+	const show = () => {
 		if (panelReturn?.scroll) view.dispatch({ effects: panelReturn.scroll });
-	});
+		view.requestMeasure();
+	};
+	panel?.addEventListener("companion-hide", hide);
+	panel?.addEventListener("companion-show", show);
+	// Outer tab events do not bubble down to the selected inner panel.
+	const outer = mount.closest("#jot-panel");
+	outer?.addEventListener("companion-hide", () => { if (!panel.hidden) hide(); });
+	outer?.addEventListener("companion-show", () => { if (!panel.hidden) show(); });
 	view.contentDOM.addEventListener("focus", () => {
 		const pending = panelReturn;
 		if (!pending) return;
@@ -267,10 +278,10 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		postURL,
 		version: opts.version ?? 0,
 		onStatus: opts.onStatus,
+		onState: opts.onState,
 	});
 
-	// The SSE stream hands (version, text) here via data-on-signal-patch.
-	window.__jotRemote = (v, text) => sync.remote(v, text);
+	opts.onReady?.(sync.remote);
 
 	wireTeardown(sync, view.contentDOM);
 

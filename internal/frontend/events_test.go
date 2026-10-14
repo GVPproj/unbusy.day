@@ -234,7 +234,9 @@ func TestEventsPatchesEnvelopeSignals(t *testing.T) {
 func TestEventsConnectShipsTheJotSnapshotAsSignals(t *testing.T) {
 	svc := &fakeService{blocks: threeBlocks()}
 	jots := newFakeJot()
-	jots.pads[testOwner] = jot.Pad{Text: "notes from the phone", Version: 7}
+	jots.pads[testOwner+"/daily"] = jot.Pad{Text: "notes from the phone", Version: 7}
+	jots.pads[testOwner+"/weekly"] = jot.Pad{Text: "weekly plan", Version: 2}
+	jots.pads["other-owner/quarterly"] = jot.Pad{Text: "private", Version: 9}
 	broker := pubsub.New()
 
 	_, br := openEvents(t, EventsHandler(svc, jots, broker, newTestHabits(t)))
@@ -245,12 +247,12 @@ func TestEventsConnectShipsTheJotSnapshotAsSignals(t *testing.T) {
 	if !strings.Contains(frame, "datastar-patch-signals") {
 		t.Fatalf("jot snapshot must be a signal patch; frame:\n%s", frame)
 	}
-	for _, want := range []string{`"_jotv":7`, `"_jott":"notes from the phone"`} {
+	for _, want := range []string{`"_jotdailyv":7`, `"_jotdailyt":"notes from the phone"`, `"_jotweeklyv":2`, `"_jotweeklyt":"weekly plan"`, `"_jotquarterlyv":0`, `"_jotquarterlyt":""`} {
 		if !strings.Contains(frame, want) {
 			t.Errorf("jot snapshot missing %q; frame:\n%s", want, frame)
 		}
 	}
-	if strings.Contains(frame, "datastar-patch-elements") {
+	if strings.Contains(frame, "datastar-patch-elements") || strings.Contains(frame, "private") {
 		t.Errorf("jot state must never ride an element patch; frame:\n%s", frame)
 	}
 }
@@ -267,15 +269,21 @@ func TestEventsStreamsPublishedJotEventsAsSignals(t *testing.T) {
 	readFrame(t, br) // connect jot snapshot signals
 	readFrame(t, br) // connect habits
 
-	broker.PublishJot(jot.Event{Owner: testOwner, Version: 8, Text: "typed on device A"})
+	broker.PublishJot(jot.Event{Owner: "other-owner", Note: "weekly", Version: 9, Text: "private"})
+	broker.PublishJot(jot.Event{Owner: testOwner, Note: "weekly", Version: 8, Text: "typed on device A"})
 
 	frame := readFrame(t, br)
 	if !strings.Contains(frame, "datastar-patch-signals") {
 		t.Fatalf("jot event must be a signal patch; frame:\n%s", frame)
 	}
-	for _, want := range []string{`"_jotv":8`, `"_jott":"typed on device A"`} {
+	for _, want := range []string{`"_jotweeklyv":8`, `"_jotweeklyt":"typed on device A"`} {
 		if !strings.Contains(frame, want) {
 			t.Errorf("jot event missing %q; frame:\n%s", want, frame)
+		}
+	}
+	for _, absent := range []string{"_jotdaily", "_jotquarterly", "private", "datastar-patch-elements"} {
+		if strings.Contains(frame, absent) {
+			t.Errorf("live note patch contains %q: %s", absent, frame)
 		}
 	}
 }

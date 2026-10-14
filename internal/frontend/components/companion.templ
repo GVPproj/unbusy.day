@@ -1,11 +1,9 @@
 package components
 
-import (
-	"github.com/GVPproj/unbusy.day/internal/jot"
-)
+import "github.com/GVPproj/unbusy.day/internal/jot"
 
 // Only #habit-grid and feedback are patch targets; tabs and editor persist.
-templ Companion(pad jot.Pad) {
+templ Companion(pads map[string]jot.Pad) {
 	<aside class="column companion" aria-label="Notes & Habits">
 		<header class="companion-head">
 			<div role="tablist" aria-label="Notes & Habits">
@@ -15,7 +13,7 @@ templ Companion(pad jot.Pad) {
 			<output id="companion-status" data-state="saved">Saved</output>
 		</header>
 		<div id="jot-panel" role="tabpanel" aria-labelledby="jot-tab" tabindex="0">
-			@Jotpad(pad)
+			@Jotpad(pads)
 		</div>
 		<div id="habits-panel" role="tabpanel" aria-labelledby="habits-tab" tabindex="0" hidden>
 			@Habits()

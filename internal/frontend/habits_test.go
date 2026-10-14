@@ -330,7 +330,7 @@ func TestHabitCreationSurvivesPageReloadAndIsIndependentOfPlanAndJotpad(t *testi
 	blocks := block.NewService(db, nil)
 	jots := jot.NewService(db, nil)
 	ctx := context.Background()
-	if _, err := jots.Set(ctx, testOwner, "Keep these notes", 0); err != nil {
+	if _, err := jots.Set(ctx, testOwner, "daily", "Keep these notes", 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := blocks.Create(ctx, testOwner, "Focus", 18, block.BlockType("deep")); err != nil {

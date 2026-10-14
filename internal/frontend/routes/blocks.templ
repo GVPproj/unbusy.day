@@ -10,21 +10,30 @@ import (
 
 // Initialize timezone before the body's stream request; child signals initialize later.
 // retry 'always' reconnects even after a clean stream end.
-templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
+templ BlocksPage(cs []block.Block, b block.Bounds, pads map[string]jot.Pad) {
 	@layouts.Layout("unbusy.day", "$timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; @get('/events', {retry: 'always', filterSignals: {include: /^timezone$/}})") {
-		// $_jotv/$_jott carry live jot state from /events as signal patches
-		// (never element patches — nothing may re-render an editor being typed
-		// into). data-on-signal-patch hands them to the sync driver, which
-		// version-guards and applies them itself; underscore names keep the pad
-		// off every other endpoint's POST.
+		// Buffer live updates while the CodeMirror module graph loads.
+		<script>
+			window.__jotPending = new Map();
+			window.__jotRemote = (note, version, text) => {
+				const prior = window.__jotPending.get(note);
+				if (!prior || version > prior[0]) window.__jotPending.set(note, [version, text]);
+			};
+		</script>
+		// Note-scoped signals feed persistent editors, never element patches.
+		// Underscore names keep note text off other endpoints' POSTs.
 		<div
 			class="shell"
 			data-signals:_navopen="false"
 			data-signals:_jotopen="false"
-			data-signals:_jotv="0"
-			data-signals:_jott="''"
-			data-on-signal-patch="window.__jotRemote && window.__jotRemote($_jotv, $_jott)"
-			data-on-signal-patch-filter="{include: /^_jotv$/}"
+			data-signals:_jotdailyv="0"
+			data-signals:_jotdailyt="''"
+			data-signals:_jotweeklyv="0"
+			data-signals:_jotweeklyt="''"
+			data-signals:_jotquarterlyv="0"
+			data-signals:_jotquarterlyt="''"
+			data-on-signal-patch="window.__jotRemote?.('daily', $_jotdailyv, $_jotdailyt); window.__jotRemote?.('weekly', $_jotweeklyv, $_jotweeklyt); window.__jotRemote?.('quarterly', $_jotquarterlyv, $_jotquarterlyt)"
+			data-on-signal-patch-filter="{include: /^_jot(daily|weekly|quarterly)v$/}"
 		>
 			@components.SideNav()
 			@components.MenuToggle()
@@ -66,19 +75,8 @@ templ BlocksPage(cs []block.Block, b block.Bounds, pad jot.Pad) {
 					<script type="module" src="/static/js/now.js"></script>
 					<script type="module" src="/static/js/shortcuts.js"></script>
 				</main>
-				@components.Companion(pad)
-				// The whole save path (debounce, CAS version, retry, teardown
-				// beacon) lives in the jot-sync driver behind initJotpadCM.
-				<script type="module">
-					import { initJotpadCM } from "/static/js/jot/cm.js"
-					import { setSaveState } from "/static/js/save-status.js"
-					const mount = document.getElementById("jot-cm")
-					const text = JSON.parse(document.getElementById("jot-cm-text").textContent)
-					if (mount) initJotpadCM(mount, text, "/jot", Number(mount.dataset.maxlen), {
-						version: Number(mount.dataset.jotVersion),
-						onStatus: (state) => setSaveState(document, "jot", state),
-					})
-				</script>
+				@components.Companion(pads)
+				<script type="module" src="/static/js/jot/notes.js"></script>
 			</div>
 		</div>
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/GVPproj/unbusy.day/internal/jot"
 )
 
-// fakeJotService implements JotService in memory, keyed by owner so the
+// fakeJotService implements JotService in memory, keyed by owner/note so the
 // scoping assertions are real rather than recorded. Set mimics the real
 // service's contract: CAS is invisible here (no merge), but over-cap and
 // storage failures return the authoritative pad alongside the error.
@@ -28,22 +28,23 @@ func newFakeJot() *fakeJotService {
 	return &fakeJotService{pads: map[string]jot.Pad{}}
 }
 
-func (f *fakeJotService) Get(ctx context.Context, owner string) (jot.Pad, error) {
+func (f *fakeJotService) Get(ctx context.Context, owner, note string) (jot.Pad, error) {
 	f.gotOwner = owner
 	if f.getErr != nil {
 		return jot.Pad{}, f.getErr
 	}
-	return f.pads[owner], nil
+	return f.pads[owner+"/"+note], nil
 }
 
-func (f *fakeJotService) Set(ctx context.Context, owner, text string, base int64) (jot.Pad, error) {
+func (f *fakeJotService) Set(ctx context.Context, owner, note, text string, base int64) (jot.Pad, error) {
 	f.gotOwner = owner
 	f.gotBase = base
+	key := owner + "/" + note
 	if f.setErr != nil {
-		return f.pads[owner], f.setErr
+		return f.pads[key], f.setErr
 	}
-	p := jot.Pad{Text: text, Version: f.pads[owner].Version + 1}
-	f.pads[owner] = p
+	p := jot.Pad{Text: text, Version: f.pads[key].Version + 1}
+	f.pads[key] = p
 	return p, nil
 }
 
@@ -64,6 +65,19 @@ func decodeJotResponse(t *testing.T, rec *httptest.ResponseRecorder) (int64, *st
 
 // The write path answers plain JSON, never an element patch: the committed
 // version, and no text when the store took exactly what the client sent.
+func TestJotHandlerRejectsUnknownNoteBeforeStorage(t *testing.T) {
+	for _, query := range []string{"?note=monthly", "?note=Daily", "?note="} {
+		t.Run(query, func(t *testing.T) {
+			svc := newFakeJot()
+			rec := httptest.NewRecorder()
+			JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot"+query, `{"_jot":"private","_jotVersion":0}`))
+			if rec.Code != http.StatusBadRequest || svc.gotOwner != "" {
+				t.Fatalf("status=%d, storage owner=%q", rec.Code, svc.gotOwner)
+			}
+		})
+	}
+}
+
 func TestJotHandlerStoresAndAnswersTheCommittedVersion(t *testing.T) {
 	svc := newFakeJot()
 	rec := httptest.NewRecorder()
@@ -84,7 +98,7 @@ func TestJotHandlerStoresAndAnswersTheCommittedVersion(t *testing.T) {
 	if svc.gotOwner != testOwner || svc.gotBase != 0 {
 		t.Errorf("owner/base: want %q/0, got %q/%d", testOwner, svc.gotOwner, svc.gotBase)
 	}
-	if got := svc.pads[testOwner].Text; got != "buy milk\nsee a friend" {
+	if got := svc.pads[testOwner+"/daily"].Text; got != "buy milk\nsee a friend" {
 		t.Errorf("stored text: got %q", got)
 	}
 }
@@ -92,7 +106,7 @@ func TestJotHandlerStoresAndAnswersTheCommittedVersion(t *testing.T) {
 // Clearing the Jotpad is a normal write, not an empty-body no-op.
 func TestJotHandlerStoresAnEmptyJot(t *testing.T) {
 	svc := newFakeJot()
-	svc.pads[testOwner] = jot.Pad{Text: "old notes", Version: 1}
+	svc.pads[testOwner+"/daily"] = jot.Pad{Text: "old notes", Version: 1}
 	rec := httptest.NewRecorder()
 
 	JotHandler(svc).ServeHTTP(rec, authedRequest(http.MethodPost, "/jot", `{"_jot":"","_jotVersion":1}`))
@@ -100,7 +114,7 @@ func TestJotHandlerStoresAnEmptyJot(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	if got := svc.pads[testOwner].Text; got != "" {
+	if got := svc.pads[testOwner+"/daily"].Text; got != "" {
 		t.Errorf("stored text: want empty, got %q", got)
 	}
 }
@@ -128,8 +142,10 @@ func TestJotHandlerReturnsTheMergedTextWhenTheStoreDiffers(t *testing.T) {
 
 type mergingJot struct{ merged jot.Pad }
 
-func (m *mergingJot) Get(ctx context.Context, owner string) (jot.Pad, error) { return m.merged, nil }
-func (m *mergingJot) Set(ctx context.Context, owner, text string, base int64) (jot.Pad, error) {
+func (m *mergingJot) Get(ctx context.Context, owner, note string) (jot.Pad, error) {
+	return m.merged, nil
+}
+func (m *mergingJot) Set(ctx context.Context, owner, note, text string, base int64) (jot.Pad, error) {
 	return m.merged, nil
 }
 
@@ -138,7 +154,7 @@ func (m *mergingJot) Set(ctx context.Context, owner, text string, base int64) (j
 // saved (the indicator would otherwise lie). Still 200, still no element patch.
 func TestJotHandlerAnswersTheAuthoritativeStateForAnOverCapWrite(t *testing.T) {
 	svc := newFakeJot()
-	svc.pads[testOwner] = jot.Pad{Text: "keep me", Version: 3}
+	svc.pads[testOwner+"/daily"] = jot.Pad{Text: "keep me", Version: 3}
 	svc.setErr = jot.ErrTooLong
 	rec := httptest.NewRecorder()
 
@@ -173,7 +189,7 @@ func TestJotHandlerRejectsAMalformedSignalsBody(t *testing.T) {
 // content — leading blank lines, HTML-ish fragments — survives every reload.
 func TestPageRendersTheStoredJotInTheEditorPayload(t *testing.T) {
 	jots := newFakeJot()
-	jots.pads[testOwner] = jot.Pad{Text: "\n\n- milk & eggs <b>", Version: 4}
+	jots.pads[testOwner+"/daily"] = jot.Pad{Text: "\n\n- milk & eggs <b>", Version: 4}
 	rec := httptest.NewRecorder()
 
 	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
@@ -228,7 +244,7 @@ func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	for _, want := range []string{
 		`data-jot-version="0"`,
 		`data-maxlen="100000"`,
-		`/static/js/jot/cm.js`,
+		`/static/js/jot/notes.js`,
 		`id="companion-status"`,
 		`data-state="saved"`,
 	} {
@@ -250,15 +266,19 @@ func TestPageRendersTheJotWriteWiring(t *testing.T) {
 	}
 }
 
-// Remote jot state arrives as _jotv/_jott signal patches on /events; the shell
+// Remote note state arrives as note-scoped signal patches on /events; the shell
 // hands them to the sync driver via data-on-signal-patch. Never element patches.
 func TestPageRendersTheJotRemoteListener(t *testing.T) {
 	body := renderPageWithJot(t, "")
 
 	for _, want := range []string{
-		`data-signals:_jotv="0"`,
-		`data-on-signal-patch="window.__jotRemote && window.__jotRemote($_jotv, $_jott)"`,
-		`data-on-signal-patch-filter="{include: /^_jotv$/}"`,
+		`data-signals:_jotdailyv="0"`,
+		`data-signals:_jotweeklyv="0"`,
+		`data-signals:_jotquarterlyv="0"`,
+		`$_jotdailyv, $_jotdailyt`,
+		`$_jotweeklyv, $_jotweeklyt`,
+		`$_jotquarterlyv, $_jotquarterlyt`,
+		`data-on-signal-patch-filter="{include: /^_jot(daily|weekly|quarterly)v$/}"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q; body:\n%s", want, body)
@@ -316,7 +336,7 @@ func TestGuideModalIntroducesTheJotpad(t *testing.T) {
 func renderPageWithJot(t *testing.T, text string) string {
 	t.Helper()
 	jots := newFakeJot()
-	jots.pads[testOwner] = jot.Pad{Text: text}
+	jots.pads[testOwner+"/daily"] = jot.Pad{Text: text}
 	rec := httptest.NewRecorder()
 	PageHandler(&fakeService{blocks: threeBlocks()}, jots).
 		ServeHTTP(rec, authedRequest(http.MethodGet, "/", ""))

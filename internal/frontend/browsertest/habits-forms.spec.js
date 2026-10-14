@@ -7,7 +7,7 @@ async function loadBeforeMidnight(context, page) {
 	await signIn(context);
 	await page.clock.setFixedTime(new Date("2025-01-01T07:59:00Z"));
 	await page.goto(baseURL, { waitUntil: "load" });
-	await expect(page.locator(".cm-editor")).toBeVisible();
+	await expect(page.locator("#jot-daily-panel .cm-editor")).toBeVisible();
 	await page.getByRole("tab", { name: "Habits", exact: true }).click();
 }
 

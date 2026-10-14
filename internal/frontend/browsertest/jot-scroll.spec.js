@@ -14,7 +14,7 @@ for (const scenario of scenarios) {
 		page.on("response", (response) => {
 			if (new URL(response.url()).pathname === "/jot" && response.ok()) writes.add(response.request().postDataJSON()?._jot);
 		});
-		const content = page.locator(".cm-content");
+		const content = page.locator("#jot-daily-panel .cm-content");
 		await content.click();
 		await page.keyboard.insertText(note);
 		await page.keyboard.press("ArrowLeft");
@@ -22,7 +22,7 @@ for (const scenario of scenarios) {
 		if (scenario === "remote") await expect.poll(() => writes.has(note)).toBe(true);
 		const state = await page.evaluateHandle(async (scenario) => {
 			const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-			const view = EditorView.findFromDOM(document.querySelector(".cm-editor"));
+			const view = EditorView.findFromDOM(document.querySelector("#jot-daily-panel .cm-editor"));
 			if (scenario === "offscreen") {
 				view.scrollDOM.scrollTop = 0;
 				await new Promise((resolve) => view.requestMeasure({ read: () => null, write: () => queueMicrotask(resolve) }));
@@ -88,7 +88,7 @@ for (const scenario of scenarios) {
 				editor.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 				saved.view.dispatch({ selection: { anchor: 0 }, scrollIntoView: true, userEvent: "select.pointer" });
 			}
-			if (scenario === "remote") window.__jotRemote(1_000_000, "PREFIX " + saved.text);
+			if (scenario === "remote") window.__jotRemote("daily", 1_000_000, "PREFIX " + saved.text);
 			if (scenario.endsWith("rapid")) {
 				document.querySelector('[aria-controls="habits-panel"]').click();
 				showJot();
@@ -111,7 +111,7 @@ for (const scenario of scenarios) {
 			await page.reload();
 			await expect.poll(() => page.evaluate(async () => {
 				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-				const editor = document.querySelector(".cm-editor");
+				const editor = document.querySelector("#jot-daily-panel .cm-editor");
 				return editor ? EditorView.findFromDOM(editor)?.state.doc.toString() : null;
 			})).toBe(expected.text);
 		}

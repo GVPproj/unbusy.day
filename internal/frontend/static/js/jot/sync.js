@@ -72,11 +72,12 @@ const DEBOUNCE = 1000;
  *  - applyText(text):  make the editor show exactly text (a CM transaction —
  *                      the editor's business, never a DOM morph)
  *  - postURL, version: the save endpoint and the version the page rendered
- *  - onStatus(state):  reports saved/saving/offline (optional)
+ *  - onStatus(state):  reports saved/saving/offline, debounced for the label
+ *  - onState(state):   immediate state for background note indicators (optional)
  * Returns {edited, flush, beacon, remote} — call edited() on every local
  * change, beacon() on teardown; remote() is fed by the SSE signal patches.
  */
-export function createJotSync({ getText, applyText, postURL, version, onStatus }) {
+export function createJotSync({ getText, applyText, postURL, version, onStatus, onState }) {
 	let synced = { version, text: getText() };
 	let debounce = 0;
 	let retryTimer = 0;
@@ -102,6 +103,7 @@ export function createJotSync({ getText, applyText, postURL, version, onStatus }
 
 	const updateStatus = () => {
 		const state = statusOf({ offline: isOffline(), dirty: dirty(), inflight });
+		onState?.(state);
 		if (state !== "saving") {
 			clearTimeout(statusTimer);
 			statusTimer = 0;
@@ -223,14 +225,12 @@ export function createJotSync({ getText, applyText, postURL, version, onStatus }
 }
 
 /**
- * Wires the teardown beacon to every moment the page might not get another
- * tick. sendBeacon rather than fetch: a request started during teardown is
- * routinely cancelled, and an iOS PWA (ADR 0010) is suspended without a clean
- * unload — exactly where a paragraph would otherwise be lost. blurTarget is
- * the editor's focusable element.
+ * Flushes on editor blur; beacons on page teardown, including iOS PWA
+ * suspension without a clean unload (ADR 0010).
  */
 export function wireTeardown(sync, blurTarget) {
-	blurTarget.addEventListener("blur", sync.beacon);
+	// Tab switches need an ack and retries; only page teardown uses an unreadable beacon.
+	blurTarget.addEventListener("blur", sync.flush);
 	window.addEventListener("pagehide", sync.beacon);
 	document.addEventListener("visibilitychange", () => {
 		if (document.hidden) sync.beacon();
