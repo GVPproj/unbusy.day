@@ -3026,6 +3026,7 @@
     }
 
     [role="tab"] {
+      position: relative;
       min-height: calc(1lh + 0.7rem);
       padding: 0.25rem 0.5rem;
       font-size: var(--text-sm);
@@ -3045,10 +3046,16 @@
       }
     }
 
+    .note-tabs [role="tab"]:first-child {
+      padding-left: 0;
+    }
+
     .note-status {
-      display: inline-block;
+      position: absolute;
+      inset-inline-start: calc(100% - 0.25rem);
+      top: 50%;
+      transform: translateY(-50%);
       width: 0.65em;
-      margin-left: 0.15em;
       color: var(--ink-muted);
     }
 
