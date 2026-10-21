@@ -31,11 +31,11 @@ const (
 
 // roots are the direct upgrade inputs. The manifest locks the complete deployed graph.
 var roots = []string{
-	"/@codemirror/view@6.43.11/es2022/view.mjs",
-	"/@codemirror/state@6.7.2/es2022/state.mjs",
-	"/@codemirror/commands@6.10.4/es2022/commands.mjs",
-	"/@codemirror/language@6.12.4/es2022/language.mjs",
-	"/@lezer/highlight@1.2.3/es2022/highlight.mjs",
+	"/@codemirror/view@6.43.15/es2022/view.mjs",
+	"/@codemirror/state@6.7.6/es2022/state.mjs",
+	"/@codemirror/commands@6.11.1/es2022/commands.mjs",
+	"/@codemirror/language@6.13.1/es2022/language.mjs",
+	"/@lezer/highlight@1.2.5/es2022/highlight.mjs",
 	"/@codemirror/lang-markdown@6.5.2/es2022/lang-markdown.mjs",
 }
 
@@ -46,7 +46,7 @@ var (
 
 const (
 	lezerNodeImport = `import __Process$ from "/node/process.mjs";`
-	lezerDebugCode  = `var g=typeof __Process$<"u"&&__Process$.env&&/\bparse\b/.test(__Process$.env.LOG),A=null;`
+	lezerDebugCode  = `var g=typeof __Process$<"u"&&__Process$.env&&/\bparse\b/.test(__Process$.env.LOG),v=null;`
 )
 
 type manifest struct {
@@ -338,7 +338,7 @@ func normalize(modulePath string, body []byte) ([]byte, error) {
 			return nil, fmt.Errorf("normalize %s: expected one Lezer parse-debug expression, found %d", modulePath, count)
 		}
 		text = strings.Replace(text, lezerNodeImport, "", 1)
-		text = strings.Replace(text, lezerDebugCode, `var g=false,A=null;`, 1)
+		text = strings.Replace(text, lezerDebugCode, `var g=false,v=null;`, 1)
 	}
 	return []byte(text), nil
 }

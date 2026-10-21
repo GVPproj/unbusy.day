@@ -1,29 +1,29 @@
 {
   "schema": 1,
   "roots": [
-    "https://esm.sh/@codemirror/commands@6.10.4/es2022/commands.mjs",
+    "https://esm.sh/@codemirror/commands@6.11.1/es2022/commands.mjs",
     "https://esm.sh/@codemirror/lang-markdown@6.5.2/es2022/lang-markdown.mjs",
-    "https://esm.sh/@codemirror/language@6.12.4/es2022/language.mjs",
-    "https://esm.sh/@codemirror/state@6.7.2/es2022/state.mjs",
-    "https://esm.sh/@codemirror/view@6.43.11/es2022/view.mjs",
-    "https://esm.sh/@lezer/highlight@1.2.3/es2022/highlight.mjs"
+    "https://esm.sh/@codemirror/language@6.13.1/es2022/language.mjs",
+    "https://esm.sh/@codemirror/state@6.7.6/es2022/state.mjs",
+    "https://esm.sh/@codemirror/view@6.43.15/es2022/view.mjs",
+    "https://esm.sh/@lezer/highlight@1.2.5/es2022/highlight.mjs"
   ],
   "modules": [
     {
       "path": "modules/@codemirror__autocomplete__autocomplete.mjs",
       "package": "@codemirror/autocomplete",
-      "version": "6.20.3",
-      "sourceURL": "https://esm.sh/@codemirror/autocomplete@6.20.3/es2022/autocomplete.mjs",
-      "sourceSHA256": "5fcf84e77915220af7e9cb427937bbbb862ba1862e564c08b52b38a2145b90a0",
-      "sha256": "70adf899faabeba5ec7ea13fee7ee557de267015d7aa348823fb69fea791891c"
+      "version": "6.20.4",
+      "sourceURL": "https://esm.sh/@codemirror/autocomplete@6.20.4/es2022/autocomplete.mjs",
+      "sourceSHA256": "d29bcae86920cd6e68d115e65d9913599eb49b6fa3e068debc930654c81aed73",
+      "sha256": "956dc335799629f96def96c3c1929b0fc7ca4c576e26b941df3281276f27be35"
     },
     {
       "path": "modules/@codemirror__commands__commands.mjs",
       "package": "@codemirror/commands",
-      "version": "6.10.4",
-      "sourceURL": "https://esm.sh/@codemirror/commands@6.10.4/es2022/commands.mjs",
-      "sourceSHA256": "8e7b933f0746bd84221f8b6ad0a505d13ee1dbe9252ad613dd85da9ee8b1c5f1",
-      "sha256": "b39610b9b2f46d7f6bbf17818a2a0b37e22fab5b74b8a294eee67618fd2a95c8"
+      "version": "6.11.1",
+      "sourceURL": "https://esm.sh/@codemirror/commands@6.11.1/es2022/commands.mjs",
+      "sourceSHA256": "9307e042c71ebf1cbbc59aaacf245b49adea56fb09d351904b2e0ec1b12704ce",
+      "sha256": "14d0d9fb4890c52dae90384ebe173c24395093f1ca6a6ba56b43bc19fcba774f"
     },
     {
       "path": "modules/@codemirror__lang-css__lang-css.mjs",
@@ -60,50 +60,58 @@
     {
       "path": "modules/@codemirror__language__language.mjs",
       "package": "@codemirror/language",
-      "version": "6.12.4",
-      "sourceURL": "https://esm.sh/@codemirror/language@6.12.4/es2022/language.mjs",
-      "sourceSHA256": "0f35c0785708c011cd78bae7c16d2c47a94adc91268ad4802fe30a1092d7fef6",
-      "sha256": "f0323311489551da576147d39550f077d900767a583f3a6a2a5adc4b877919fc"
+      "version": "6.13.1",
+      "sourceURL": "https://esm.sh/@codemirror/language@6.13.1/es2022/language.mjs",
+      "sourceSHA256": "87ece00cb6f489cb910b94ab0dbd11824e5b5763da9f77043d1b73f45b14d73e",
+      "sha256": "7d8948bbced86a09ee2efb81c14680903dfe46038c9f8cbf6d507e2fcbf41c20"
     },
     {
       "path": "modules/@codemirror__state__state.mjs",
       "package": "@codemirror/state",
-      "version": "6.7.2",
-      "sourceURL": "https://esm.sh/@codemirror/state@6.7.2/es2022/state.mjs",
-      "sourceSHA256": "906e9e3af16b6f1c98adec387599c57749c8d2d1f628308b37219c20f4e37c42",
-      "sha256": "d0473c33c21b37acab5af95ec647209898b972e126b32db92d10d1ce1d3517bd"
+      "version": "6.7.6",
+      "sourceURL": "https://esm.sh/@codemirror/state@6.7.6/es2022/state.mjs",
+      "sourceSHA256": "93b97d1245de655e919599759e1d5ba7645f09c5a29482eca13b2793a84ee093",
+      "sha256": "eb9929a5e5dc75c4fed4798c9ffd19791f6f0c669638c3be0c3022ecbd65925c"
+    },
+    {
+      "path": "modules/@codemirror__streamparser__streamparser.mjs",
+      "package": "@codemirror/streamparser",
+      "version": "6.0.0",
+      "sourceURL": "https://esm.sh/@codemirror/streamparser@6.0.0/es2022/streamparser.mjs",
+      "sourceSHA256": "11954889032ec52e394bd700c0669802df4c6e5d8787d663eef0f27bbcf339f1",
+      "sha256": "5293e6cdfa83360adc8b6abd9965a7a1d9d99b8ab14c57144700e7d67ec305d2"
     },
     {
       "path": "modules/@codemirror__view__view.mjs",
       "package": "@codemirror/view",
-      "version": "6.43.11",
-      "sourceURL": "https://esm.sh/@codemirror/view@6.43.11/es2022/view.mjs",
-      "sourceSHA256": "30196fce3fca774fba1b4da83d104ea49a0c5916b7986270a03b719822d7d9e4",
-      "sha256": "b86d07a25f9e7e73551d72808fc64f745aa705b760db4f1222067f28117fabe0"
+      "version": "6.43.15",
+      "sourceURL": "https://esm.sh/@codemirror/view@6.43.15/es2022/view.mjs",
+      "sourceSHA256": "05684782a8d6856913d745164b70dbaf290d6181eb02c0aa71b81b0052085826",
+      "sha256": "efad2659977deb20fac7fae1524abf617fd6cfdf28f5ba12e90bb5ab23d1af78"
     },
     {
       "path": "modules/@lezer__common__common.mjs",
       "package": "@lezer/common",
-      "version": "1.5.2",
-      "sourceURL": "https://esm.sh/@lezer/common@1.5.2/es2022/common.mjs",
-      "sourceSHA256": "be5b2d95988df3a9a78fea54eb1a0f9ec931bb730e37e02b55ee98026d972b0c",
-      "sha256": "098176929adf699ad61d7ceb9a5d957c9c95236077416ff95a4f87598dfaa565"
+      "version": "1.5.3",
+      "sourceURL": "https://esm.sh/@lezer/common@1.5.3/es2022/common.mjs",
+      "sourceSHA256": "7e77672230b2895a5118e0456240e649f531aaff795b76b0e81abd147a78c4e6",
+      "sha256": "c328d18846ee0e2afec9a54a4db81a3d4561162270038a2aa83879f4075b8353"
     },
     {
       "path": "modules/@lezer__css__css.mjs",
       "package": "@lezer/css",
-      "version": "1.3.6",
-      "sourceURL": "https://esm.sh/@lezer/css@1.3.6/es2022/css.mjs",
-      "sourceSHA256": "6babf952b7b94d79f89757770fab24ebbd0e326efa695aa1dd0564fcbc33f712",
-      "sha256": "9a1b1fcd4cca499aa3c429890f4e503aafc1c4af59b1b2d734051911d931de85"
+      "version": "1.3.9",
+      "sourceURL": "https://esm.sh/@lezer/css@1.3.9/es2022/css.mjs",
+      "sourceSHA256": "6b2073b87bcb97947d309aa60c65d424902d9f321c0672f6f0b6d0cbb2c77ecc",
+      "sha256": "674864795b1936d283cd77d1441ad656447a4c8558b36a90e0c550b64c6cb08c"
     },
     {
       "path": "modules/@lezer__highlight__highlight.mjs",
       "package": "@lezer/highlight",
-      "version": "1.2.3",
-      "sourceURL": "https://esm.sh/@lezer/highlight@1.2.3/es2022/highlight.mjs",
-      "sourceSHA256": "a8e07cfe2f791e3789f4f76c7e77e9cd96fbc0218a09860477b514b9f7d3f7ba",
-      "sha256": "abd603ff221e438471fcf3865307611e03217f5a7cd02b15a068a44dc59c848d"
+      "version": "1.2.5",
+      "sourceURL": "https://esm.sh/@lezer/highlight@1.2.5/es2022/highlight.mjs",
+      "sourceSHA256": "521d3c85743b2eed95beaad7ba1bf93d6bfd8fc96d5a38cd197e1b46a7c0dec6",
+      "sha256": "cddc243089ef20c4b15c6022e442c27aca7d36ee0e25ed128f9906fc18737d3d"
     },
     {
       "path": "modules/@lezer__html__html.mjs",
@@ -116,26 +124,26 @@
     {
       "path": "modules/@lezer__javascript__javascript.mjs",
       "package": "@lezer/javascript",
-      "version": "1.5.4",
-      "sourceURL": "https://esm.sh/@lezer/javascript@1.5.4/es2022/javascript.mjs",
-      "sourceSHA256": "cdba0c787af4862533284a0f018dafb32fb5d97d1ec630105d5eee2713e04166",
-      "sha256": "bd18d5740a1c05b5b01df1f714098d169aa0564f93206cc7ccf4d9744e27ce2a"
+      "version": "1.5.6",
+      "sourceURL": "https://esm.sh/@lezer/javascript@1.5.6/es2022/javascript.mjs",
+      "sourceSHA256": "98e94fba65e76e8980c10de5835d5d1ede386c0862a707862248530ad298f1f9",
+      "sha256": "f90cf1025e2f3635123a153807e209778b1347748d3813d077f680a87305b426"
     },
     {
       "path": "modules/@lezer__lr__lr.mjs",
       "package": "@lezer/lr",
-      "version": "1.4.10",
-      "sourceURL": "https://esm.sh/@lezer/lr@1.4.10/es2022/lr.mjs",
-      "sourceSHA256": "3df155056bd36db39b215ad65cb6ee6922f4f0bd8cbc11bb26b2216f608e5eb6",
-      "sha256": "429e7f77b36f28396910ee20bafe2f27eddb53cb28236a225c19f5371bd41c4f"
+      "version": "1.4.11",
+      "sourceURL": "https://esm.sh/@lezer/lr@1.4.11/es2022/lr.mjs",
+      "sourceSHA256": "051cbe4c0265be081c9bca33e8104fb52c42e48201829c498db173cfe687cca3",
+      "sha256": "56cb2e5fad7deed422b95d60410f1107291758d9d061d87f4eb25966351cd2f9"
     },
     {
       "path": "modules/@lezer__markdown__markdown.mjs",
       "package": "@lezer/markdown",
-      "version": "1.7.2",
-      "sourceURL": "https://esm.sh/@lezer/markdown@1.7.2/es2022/markdown.mjs",
-      "sourceSHA256": "412a4664d09e9a1b16cf7c895e124637d873646e858bbbc14dcd5b737a93ae8b",
-      "sha256": "d70398102885be0d1a67fdada1a7b6f8b4d5e6cc6faf77b7bf6b5c58baecf804"
+      "version": "1.8.1",
+      "sourceURL": "https://esm.sh/@lezer/markdown@1.8.1/es2022/markdown.mjs",
+      "sourceSHA256": "5769e8c8a9819375bea9f77963e02ba50af0fd0867a48c710a05252f6bb25923",
+      "sha256": "e7c33b1fad505d9ec12eb0cd8974ea6ff24e9f8ac1bc903daba61015f29310cc"
     },
     {
       "path": "modules/@marijn__find-cluster-break__find-cluster-break.mjs",
@@ -156,10 +164,10 @@
     {
       "path": "modules/style-mod__style-mod.mjs",
       "package": "style-mod",
-      "version": "4.1.3",
-      "sourceURL": "https://esm.sh/style-mod@4.1.3/es2022/style-mod.mjs",
-      "sourceSHA256": "f9630ae52320e3869d6f1dead8f4befe5769dd44c96ef92657e1178007f17eef",
-      "sha256": "90a9734c8bde90af292387b007de556bb3332751e2e2760109a01d47b40c5538"
+      "version": "4.1.4",
+      "sourceURL": "https://esm.sh/style-mod@4.1.4/es2022/style-mod.mjs",
+      "sourceSHA256": "8f603c4477c0ca6ce857c100ff36a614e1277542ae13cf432c726f63d35b9d17",
+      "sha256": "d12c2319502c84b667181202058dd8dca9baa96663b0fbd97f9e76c3201e8086"
     },
     {
       "path": "modules/w3c-keyname__w3c-keyname.mjs",

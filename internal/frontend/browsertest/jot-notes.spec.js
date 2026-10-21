@@ -124,7 +124,7 @@ for (const [device, viewport] of [
 					const header = page.getByRole("tablist", { name: "Planning horizon" });
 					const noteStyle = await header.evaluate((element) => {
 						const style = getComputedStyle(element);
-						return { background: style.backgroundColor, border: style.borderTopColor, padding: style.padding, radius: style.borderRadius };
+						return { background: style.backgroundColor, border: style.borderTopColor, padding: style.padding, topLeftRadius: style.borderTopLeftRadius, topRightRadius: style.borderTopRightRadius };
 					});
 					const bounds = await header.boundingBox();
 					for (const name of notes) {
@@ -138,7 +138,7 @@ for (const [device, viewport] of [
 					const habitStyle = await habitHeader.evaluate((element) => {
 						const style = getComputedStyle(element);
 						const frame = getComputedStyle(element.closest(".habits-matrix"));
-						return { background: style.backgroundColor, border: frame.borderTopColor, padding: style.padding, radius: frame.borderRadius };
+						return { background: style.backgroundColor, border: frame.borderTopColor, padding: style.padding, topLeftRadius: frame.borderTopLeftRadius, topRightRadius: frame.borderTopRightRadius };
 					});
 					expect(noteStyle).toEqual(habitStyle);
 					await tab(page, "Jotpad").click();

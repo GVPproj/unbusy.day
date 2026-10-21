@@ -1,0 +1,25 @@
+/*!
+MIT License
+
+Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+/* esm.sh - @codemirror/streamparser@6.0.0 */
+function l(n,t,s,e=0,i=0){t==null&&(t=n.search(/[^\s\u00a0]/),t==-1&&(t=n.length));let h=i;for(let r=e;r<t;r++)n.charCodeAt(r)==9?h+=s-h%s:h++;return h}var o=class{constructor(t,s,e,i){this.string=t,this.tabSize=s,this.indentUnit=e,this.overrideIndent=i,this.pos=0,this.start=0,this.lastColumnPos=0,this.lastColumnValue=0}eol(){return this.pos>=this.string.length}sol(){return this.pos==0}peek(){return this.string.charAt(this.pos)||void 0}next(){if(this.pos<this.string.length)return this.string.charAt(this.pos++)}eat(t){let s=this.string.charAt(this.pos),e;if(typeof t=="string"?e=s==t:e=s&&(t instanceof RegExp?t.test(s):t(s)),e)return++this.pos,s}eatWhile(t){let s=this.pos;for(;this.eat(t););return this.pos>s}eatSpace(){let t=this.pos;for(;/[\s\u00a0]/.test(this.string.charAt(this.pos));)++this.pos;return this.pos>t}skipToEnd(){this.pos=this.string.length}skipTo(t){let s=this.string.indexOf(t,this.pos);if(s>-1)return this.pos=s,!0}backUp(t){this.pos-=t}column(){return this.lastColumnPos<this.start&&(this.lastColumnValue=l(this.string,this.start,this.tabSize,this.lastColumnPos,this.lastColumnValue),this.lastColumnPos=this.start),this.lastColumnValue}indentation(){var t;return(t=this.overrideIndent)!==null&&t!==void 0?t:l(this.string,null,this.tabSize)}match(t,s,e){if(typeof t=="string"){let i=r=>e?r.toLowerCase():r,h=this.string.substr(this.pos,t.length);return i(h)==i(t)?(s!==!1&&(this.pos+=t.length),!0):null}else{let i=this.string.slice(this.pos).match(t);return i&&i.index>0?null:(i&&s!==!1&&(this.pos+=i[0].length),i)}}current(){return this.string.slice(this.start,this.pos)}};export{o as StringStream};

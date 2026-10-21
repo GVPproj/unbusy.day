@@ -140,11 +140,11 @@ func TestGenerateRequiresRefreshToBootstrap(t *testing.T) {
 
 func TestGenerateRemovesLezerNodeDebugCode(t *testing.T) {
 	fixture := newRegistryFixture(t)
-	modulePath := "/@lezer/lr@1.4.10/es2022/lr.mjs"
+	modulePath := "/@lezer/lr@1.4.11/es2022/lr.mjs"
 	fixture.modules[modulePath] = `import __Process$ from "/node/process.mjs";
-var g=typeof __Process$<"u"&&__Process$.env&&/\bparse\b/.test(__Process$.env.LOG),A=null;
+var g=typeof __Process$<"u"&&__Process$.env&&/\bparse\b/.test(__Process$.env.LOG),v=null;
 export {g};`
-	fixture.licenses["@lezer/lr@1.4.10"] = "LEZER LICENSE"
+	fixture.licenses["@lezer/lr@1.4.11"] = "LEZER LICENSE"
 	destination := filepath.Join(t.TempDir(), "vendor")
 
 	if err := generate(fixture.config(destination, []string{modulePath}, true)); err != nil {
@@ -154,16 +154,16 @@ export {g};`
 	if strings.Contains(body, "node/process") || strings.Contains(body, "__Process$") {
 		t.Fatalf("Node debug code remains:\n%s", body)
 	}
-	if !strings.Contains(body, "var g=false,A=null;") {
+	if !strings.Contains(body, "var g=false,v=null;") {
 		t.Fatalf("parse-debug expression was not disabled:\n%s", body)
 	}
 }
 
 func TestGenerateRejectsChangedLezerPatternsWithoutReplacingDestination(t *testing.T) {
 	const (
-		modulePath = "/@lezer/lr@1.4.10/es2022/lr.mjs"
+		modulePath = "/@lezer/lr@1.4.11/es2022/lr.mjs"
 		nodeImport = `import __Process$ from "/node/process.mjs";`
-		debugCode  = `var g=typeof __Process$<"u"&&__Process$.env&&/\bparse\b/.test(__Process$.env.LOG),A=null;`
+		debugCode  = `var g=typeof __Process$<"u"&&__Process$.env&&/\bparse\b/.test(__Process$.env.LOG),v=null;`
 	)
 	tests := []struct {
 		name string
@@ -177,7 +177,7 @@ func TestGenerateRejectsChangedLezerPatternsWithoutReplacingDestination(t *testi
 		t.Run(tt.name, func(t *testing.T) {
 			fixture := newRegistryFixture(t)
 			fixture.modules[modulePath] = tt.body
-			fixture.licenses["@lezer/lr@1.4.10"] = "LEZER LICENSE"
+			fixture.licenses["@lezer/lr@1.4.11"] = "LEZER LICENSE"
 			destination := filepath.Join(t.TempDir(), "vendor")
 			if err := os.MkdirAll(destination, 0o755); err != nil {
 				t.Fatal(err)
