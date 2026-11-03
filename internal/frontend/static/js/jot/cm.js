@@ -33,7 +33,7 @@ import {
 	markdownLanguage,
 } from "/static/vendor/codemirror/modules/@codemirror__lang-markdown__lang-markdown.mjs";
 
-import { getCM, vim } from "/static/vendor/codemirror/modules/@replit__codemirror-vim__codemirror-vim.mjs";
+import { getCM, Vim, vim } from "/static/vendor/codemirror/modules/@replit__codemirror-vim__codemirror-vim.mjs";
 import { readVimPreference, writeVimPreference } from "./preference.js";
 import { createJotSync, minimalEdit, wireTeardown } from "./sync.js";
 
@@ -229,6 +229,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 
 	let vimAdapter;
 	let modeListener;
+	let vimInsertMode = false;
 	const modeNames = {
 		normal: "Normal mode",
 		insert: "Insert mode",
@@ -245,13 +246,17 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		modeListener = undefined;
 	};
 	const showVimMode = () => {
+		vimInsertMode = false;
 		try {
 			const adapter = getCM(view);
 			if (!adapter) {
 				opts.onVimMode?.("Vim mode");
 				return;
 			}
-			const listener = (event) => opts.onVimMode?.(modeNames[event?.mode] ?? "Vim mode");
+			const listener = (event) => {
+				vimInsertMode = event?.mode === "insert";
+				opts.onVimMode?.(modeNames[event?.mode] ?? "Vim mode");
+			};
 			adapter.on("vim-mode-change", listener);
 			vimAdapter = adapter;
 			modeListener = listener;
@@ -320,10 +325,12 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	const sync = createJotSync({
 		getText: () => view.state.doc.toString(),
 		applyText: (text) => {
-			const edit = minimalEdit(view.state.doc.toString(), text);
-			if (!edit) return;
 			applying = true;
 			try {
+				// Vim's transient selections/operators do not map through remote edits.
+				if (vimAdapter && !vimInsertMode) Vim.handleKey(vimAdapter, "<Esc>", "user");
+				const edit = minimalEdit(view.state.doc.toString(), text);
+				if (!edit) return;
 				view.dispatch({
 					changes: edit,
 					// A doc-length cap transaction filter is active; remote

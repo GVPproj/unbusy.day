@@ -295,6 +295,47 @@ test.describe("optional Jotpad Vim", () => {
 		for (const name of notes) await expectText(page, name, `${name} original remote`);
 	});
 
+	test("remote text cancels stale Visual selections and pending operators", async ({ context, page }) => {
+		await seed(page, "Daily", "one alpha beta");
+		const other = await context.newPage();
+		await other.goto(baseURL, { waitUntil: "load" });
+		await expect((await panel(other, "Daily")).locator(".cm-editor")).toHaveCount(1);
+		await toggle(page).check();
+		const editor = await select(page, "Daily");
+		await editor.focus();
+		for (const key of ["0", "w", "v", "l", "l"]) await page.keyboard.press(key);
+		await expectMode(page, "Visual");
+		const otherEditor = await select(other, "Daily");
+		await otherEditor.focus();
+		await other.keyboard.press("ControlOrMeta+Home");
+		await saveAfter(other, "Daily", () => other.keyboard.insertText("prefix "));
+		await expectText(page, "Daily", "prefix one alpha beta");
+		await expectMode(page, "Normal");
+		await editor.focus();
+		await page.keyboard.press("d");
+		await expectText(page, "Daily", "prefix one alpha beta");
+		// A second remote edit must also clear that pending delete operator.
+		await otherEditor.focus();
+		await other.keyboard.press("ControlOrMeta+Home");
+		await saveAfter(other, "Daily", () => other.keyboard.insertText("new "));
+		await expectText(page, "Daily", "new prefix one alpha beta");
+		await editor.focus();
+		await page.keyboard.press("w");
+		await expectText(page, "Daily", "new prefix one alpha beta");
+		await page.keyboard.press("0");
+		await page.keyboard.press("3");
+		await page.keyboard.press("R");
+		await expectMode(page, "Replace");
+		await saveAfter(page, "Daily", () => page.keyboard.type("Z"));
+		const replaced = (await editorState(page, "Daily")).text;
+		await expectText(other, "Daily", replaced);
+		await otherEditor.focus();
+		await other.keyboard.press("ControlOrMeta+Home");
+		await saveAfter(other, "Daily", () => other.keyboard.insertText("authoritative "));
+		await expectText(page, "Daily", `authoritative ${replaced}`);
+		await expectMode(page, "Normal");
+	});
+
 	test("Vim controls and mode feedback fit desktop and narrow layouts", async ({ page }) => {
 		for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
 			await page.setViewportSize(viewport);
