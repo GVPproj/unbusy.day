@@ -29,6 +29,10 @@ export function createVimSession(view, adapter) {
 		run,
 		remote(action) {
 			return run(() => {
+				// Prompts own DOM callbacks that core Escape alone cannot cancel.
+				adapter.state.dialog?.querySelector("input")?.dispatchEvent(new KeyboardEvent("keydown", {
+					key: "Escape", keyCode: 27, bubbles: true, cancelable: true,
+				}));
 				cancelInsertRepeat();
 				// Insert/caret state survives; Visual, Replace and pending operators do not.
 				if (!adapter.state.vim?.insertMode || adapter.state.overwrite) {

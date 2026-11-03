@@ -55,9 +55,12 @@ graph actually deployed, not only the direct upgrade inputs.
 
 `js/jot/vim.js` isolates each mounted Note's insertion recorder while retaining
 shared Vim registers/search. The pinned core exposes no per-editor recorder,
-so this bridge uses `getVimGlobalState_`, `insertModeRepeat`, and
-`lastEditInputState.repeatOverride`. Re-audit these private fields on upgrades.
+so this bridge uses `getVimGlobalState_`, `insertModeRepeat`,
+`lastEditInputState.repeatOverride`, and the adapter's `state.dialog` input.
+Re-audit these private fields on upgrades. Before authoritative edits, DOM
+Escape cancels prompt callbacks that core Escape alone cannot reach.
 Authoritative edits cancel pending counts and bypass recording without leaving
 Insert mode; actual disable cleans up Insert listeners without repeating text.
 The Vim browser tests cover remote convergence, counted Insert/dot-repeat,
-native paste, note switches, and editor preservation across reconfiguration.
+native paste, pending Ex prompts, note switches, and editor preservation across
+reconfiguration.

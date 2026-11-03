@@ -437,6 +437,41 @@ test.describe("optional Jotpad Vim", () => {
 		await expectMode(page, "Insert");
 	});
 
+	for (const name of notes) {
+		test(`${name} remote text cancels pending Ex commands without deleting newly received lines`, async ({ context, page }) => {
+			await seed(page, name, "original\nsecond");
+			const other = await context.newPage();
+			await other.goto(baseURL, { waitUntil: "load" });
+			await toggle(page).check();
+			await (await select(page, name)).focus();
+			await page.keyboard.type(":1d");
+			const prompt = (await panel(page, name)).locator(".cm-vim-panel input");
+			await expect(prompt).toBeVisible();
+			const posts = [];
+			page.on("request", (request) => {
+				if (request.method() === "POST" && new URL(request.url()).pathname === "/jot") posts.push(request.url());
+			});
+			await (await select(other, name)).focus();
+			await other.keyboard.press("ControlOrMeta+Home");
+			await saveAfter(other, name, () => other.keyboard.insertText("remote\n"));
+			await expectText(page, name, "remote\noriginal\nsecond");
+			await page.bringToFront();
+			await page.keyboard.press("Enter");
+			await expectText(page, name, "remote\noriginal\nsecond");
+			await expect(prompt).toHaveCount(0);
+			await expectMode(page, "Normal");
+			await page.waitForTimeout(1200);
+			expect(posts).toEqual([]);
+			await expectText(other, name, "remote\noriginal\nsecond");
+			// New commands still execute and autosave after the stale prompt is cancelled.
+			await saveAfter(page, name, () => page.keyboard.type(":2d\n"));
+			await expectText(page, name, "remote\nsecond");
+			await expectText(other, name, "remote\nsecond");
+			await page.reload({ waitUntil: "load" });
+			await expectText(page, name, "remote\nsecond");
+		});
+	}
+
 	test("remote text cancels stale Visual selections and pending operators", async ({ context, page }) => {
 		await seed(page, "Daily", "one alpha beta");
 		const other = await context.newPage();
