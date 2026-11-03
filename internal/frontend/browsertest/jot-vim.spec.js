@@ -84,6 +84,13 @@ async function expectText(page, name, text) {
 	await expect.poll(async () => (await editorState(page, name)).text).toBe(text);
 }
 
+async function expectSameEditorView(page, name, original) {
+	expect(await (await panel(page, name)).locator(".cm-editor").evaluate(async (element, original) => {
+		const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+		return original.dom.isConnected && EditorView.findFromDOM(element) === original;
+	}, original)).toBe(true);
+}
+
 async function expectVimExtensions(page, enabled) {
 	for (const name of notes) {
 		const editor = (await panel(page, name)).locator(".cm-editor");
@@ -273,10 +280,7 @@ test.describe("optional Jotpad Vim", () => {
 			await toggle(page).setChecked(enabled);
 			for (const name of notes) {
 				await select(page, name);
-				expect(await views.get(name).evaluate(async (original) => {
-					const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-					return original.dom.isConnected && EditorView.findFromDOM(original.dom) === original;
-				})).toBe(true);
+				await expectSameEditorView(page, name, views.get(name));
 				await expect.poll(() => editorState(page, name)).toEqual(snapshots.get(name));
 			}
 		}
@@ -545,10 +549,7 @@ test.describe("optional Jotpad Vim", () => {
 			}
 			for (const name of notes) {
 				await select(page, name);
-				expect(await (await panel(page, name)).locator(".cm-editor").evaluate(async (element, original) => {
-					const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-					return EditorView.findFromDOM(element) === original;
-				}, views.get(name))).toBe(true);
+				await expectSameEditorView(page, name, views.get(name));
 				await expect.poll(() => historyState(name)).toEqual(snapshots.get(name));
 				if (width >= 832) await expectMode(page, "Normal");
 			}
@@ -574,10 +575,7 @@ test.describe("optional Jotpad Vim", () => {
 			const editor = await select(page, name);
 			await expectMode(page, "Normal");
 			await expect.poll(() => historyState(name)).toEqual(snapshots.get(name));
-			expect(await (await panel(page, name)).locator(".cm-editor").evaluate(async (element, original) => {
-				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-				return EditorView.findFromDOM(element) === original;
-			}, views.get(name))).toBe(true);
+			await expectSameEditorView(page, name, views.get(name));
 			await editor.focus();
 			await saveAfter(page, name, () => page.keyboard.press("u"));
 			await expectText(page, name, `${name} desktop history`);

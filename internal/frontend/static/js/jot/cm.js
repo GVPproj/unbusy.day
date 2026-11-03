@@ -244,7 +244,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		visual: "Visual",
 		replace: "Replace",
 	};
-	const detachModeListener = () => {
+	const detachVimSession = () => {
 		try {
 			if (vimAdapter && modeListener) vimAdapter.off("vim-mode-change", modeListener);
 		} catch {
@@ -255,7 +255,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		vimAdapter = undefined;
 		modeListener = undefined;
 	};
-	const showVimMode = () => {
+	const attachVimSession = () => {
 		try {
 			const adapter = getCM(view);
 			if (!adapter) {
@@ -281,10 +281,10 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 			opts.vimToggle.checked = enabled;
 		}
 		if (enabled === vimEnabled) return;
-		detachModeListener();
+		detachVimSession();
 		view.dispatch({ effects: vimCompartment.reconfigure(enabled ? vim() : []) });
 		vimEnabled = enabled;
-		if (enabled) showVimMode();
+		if (enabled) attachVimSession();
 		else opts.onVimMode?.(null);
 	};
 	if (opts.vimToggle) {
@@ -299,7 +299,7 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	// Mobile suspends Vim without overwriting this device's desktop preference.
 	desktop.addEventListener("change", updateVim);
 	updateVim();
-	if (vimEnabled) showVimMode();
+	if (vimEnabled) attachVimSession();
 
 	// Capture before CM's Android key deferral, which can bypass its event observers.
 	for (const type of ["keydown", "beforeinput", "compositionstart"]) {
