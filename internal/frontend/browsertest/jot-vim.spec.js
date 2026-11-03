@@ -73,6 +73,36 @@ async function expectText(page, name, text) {
 	await expect.poll(async () => (await editorState(page, name)).text).toBe(text);
 }
 
+async function expectVimExtensions(page, enabled) {
+	for (const name of notes) {
+		const editor = (await panel(page, name)).locator(".cm-editor");
+		await expect(editor).toHaveCount(1);
+		await expect.poll(() => editor.evaluate(async (element) => {
+			const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+			const { getCM } = await import("/static/vendor/codemirror/modules/@replit__codemirror-vim__codemirror-vim.mjs");
+			return Boolean(getCM(EditorView.findFromDOM(element)));
+		}), { message: `${name} Vim extension enabled: ${enabled}` }).toBe(enabled);
+	}
+}
+
+async function expectMobileVimOff(page) {
+	await expect(page.locator(".jot-tools")).toBeHidden();
+	await expect(page.locator('label[for="jot-vim"]')).toBeHidden();
+	await expect(toggle(page)).toBeHidden();
+	await expect(toggle(page)).toBeDisabled();
+	await expect(toggle(page)).not.toBeChecked();
+	await expect(mode(page)).toBeHidden();
+	await expectVimExtensions(page, false);
+}
+
+async function chooseTheme(page, name) {
+	const theme = page.locator("#theme-modal");
+	await theme.evaluate((dialog) => dialog.showModal());
+	await theme.getByRole("radio", { name, exact: true }).locator("..").click();
+	await theme.getByRole("button", { name: "Done", exact: true }).click();
+	await page.evaluate(() => document.fonts.ready);
+}
+
 test.describe("optional Jotpad Vim", () => {
 	test.use({ viewport: { width: 1440, height: 900 } });
 	test.beforeEach(async ({ context, page }) => {
@@ -336,39 +366,223 @@ test.describe("optional Jotpad Vim", () => {
 		await expectMode(page, "Normal");
 	});
 
-	test("Vim controls and mode feedback fit desktop and narrow layouts", async ({ page }) => {
-		for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
-			await page.setViewportSize(viewport);
+	for (const preference of ["true", "false"]) {
+		test(`mobile load ignores desktop Vim preference ${preference} and rejects synthetic enabling`, async ({ page }) => {
+			await page.evaluate((value) => localStorage.setItem("unbusy:jot-vim", value), preference);
+			await page.setViewportSize({ width: 390, height: 844 });
 			await page.reload({ waitUntil: "load" });
 			await openNotes(page);
+			await expectMobileVimOff(page);
+			await toggle(page).evaluate((input) => {
+				input.checked = true;
+				input.dispatchEvent(new Event("change", { bubbles: true }));
+			});
+			await expectMobileVimOff(page);
+			for (const name of notes) {
+				await (await select(page, name)).focus();
+				await saveAfter(page, name, () => page.keyboard.type("hjkl"));
+				await expectText(page, name, "hjkl");
+			}
+			expect(await page.evaluate(() => localStorage.getItem("unbusy:jot-vim"))).toBe(preference);
+			await page.setViewportSize({ width: 832, height: 900 });
+			await expect(toggle(page)).toBeVisible();
+			await expect(toggle(page)).toBeEnabled();
+			await expect(toggle(page)).toBeChecked({ checked: preference === "true" });
+			await expectVimExtensions(page, preference === "true");
+			for (const name of notes) {
+				await select(page, name);
+				await expectText(page, name, "hjkl");
+				if (preference === "true") await expectMode(page, "Normal");
+				else await expect(mode(page)).toBeHidden();
+			}
+		});
+	}
+
+	test("desktop-mobile-desktop resize preserves mounted editors, documents, history and desktop preference", async ({ page }) => {
+		test.setTimeout(60_000);
+		const views = new Map();
+		const snapshots = new Map();
+		const historyState = async (name) => {
+			const { text, undo, redo } = await editorState(page, name);
+			return { text, undo, redo };
+		};
+		for (const name of notes) {
+			await seed(page, name, `${name} desktop history`);
+			await saveAfter(page, name, () => page.keyboard.insertText(" extra"));
+			await saveAfter(page, name, () => page.keyboard.press("ControlOrMeta+z"));
+			await expectText(page, name, `${name} desktop history`);
+			views.set(name, await (await panel(page, name)).locator(".cm-editor").evaluateHandle(async (element) => {
+				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+				return EditorView.findFromDOM(element);
+			}));
+		}
+		await toggle(page).check();
+		for (const [name, key, expected] of [["Daily", "i", "Insert"], ["Weekly", "v", "Visual"], ["Quarterly", "R", "Replace"]]) {
+			await (await select(page, name)).focus();
+			await page.keyboard.press(key);
+			await expectMode(page, expected);
+			snapshots.set(name, await historyState(name));
+			expect(snapshots.get(name).undo).toBeGreaterThan(0);
+			expect(snapshots.get(name).redo).toBeGreaterThan(0);
+		}
+		const posts = [];
+		const recordPost = (request) => {
+			if (request.method() === "POST" && new URL(request.url()).pathname === "/jot") posts.push(request.url());
+		};
+		page.on("request", recordPost);
+		// Cross the exact 52rem boundary, then exercise a phone-sized viewport.
+		for (const width of [831, 832, 390, 1440]) {
+			await page.setViewportSize({ width, height: 900 });
+			if (width < 832) {
+				await openNotes(page);
+				await expectMobileVimOff(page);
+			} else {
+				await expect(toggle(page)).toBeVisible();
+				await expect(toggle(page)).toBeEnabled();
+				await expect(toggle(page)).toBeChecked();
+				await expectVimExtensions(page, true);
+			}
+			for (const name of notes) {
+				await select(page, name);
+				expect(await (await panel(page, name)).locator(".cm-editor").evaluate(async (element, original) => {
+					const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+					return EditorView.findFromDOM(element) === original;
+				}, views.get(name))).toBe(true);
+				await expect.poll(() => historyState(name)).toEqual(snapshots.get(name));
+				if (width >= 832) await expectMode(page, "Normal");
+			}
+			expect(await page.evaluate(() => localStorage.getItem("unbusy:jot-vim"))).toBe("true");
+		}
+		await page.waitForTimeout(1200);
+		expect(posts).toEqual([]);
+		page.off("request", recordPost);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await openNotes(page);
+		await expectMobileVimOff(page);
+		for (const name of notes) {
+			await (await select(page, name)).focus();
+			await page.keyboard.press("ControlOrMeta+End");
+			await saveAfter(page, name, () => page.keyboard.type("hjkl"));
+			await expectText(page, name, `${name} desktop historyhjkl`);
+			snapshots.set(name, await historyState(name));
+		}
+		await page.setViewportSize({ width: 832, height: 900 });
+		await expect(toggle(page)).toBeChecked();
+		await expectVimExtensions(page, true);
+		for (const name of notes) {
+			const editor = await select(page, name);
+			await expectMode(page, "Normal");
+			await expect.poll(() => historyState(name)).toEqual(snapshots.get(name));
+			expect(await (await panel(page, name)).locator(".cm-editor").evaluate(async (element, original) => {
+				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+				return EditorView.findFromDOM(element) === original;
+			}, views.get(name))).toBe(true);
+			await editor.focus();
+			await saveAfter(page, name, () => page.keyboard.press("u"));
+			await expectText(page, name, `${name} desktop history`);
+			await saveAfter(page, name, () => page.keyboard.press("Control+r"));
+			await expectText(page, name, `${name} desktop historyhjkl`);
+			await views.get(name).dispose();
+		}
+		expect(await page.evaluate(() => localStorage.getItem("unbusy:jot-vim"))).toBe("true");
+	});
+
+	for (const feeling of ["Mono", "Cozy", "Pixel"]) {
+		test(`note tabs and Vim tools share one non-overlapping header row in ${feeling}`, async ({ page }) => {
+			await chooseTheme(page, feeling);
 			await toggle(page).check();
 			await (await select(page, "Quarterly")).focus();
 			await page.keyboard.press("R");
-			await expectMode(page, "Replace");
-			const controls = [page.locator('label[for="jot-vim"]'), mode(page), ...notes.map((name) => tab(page, name))];
-			const frame = await page.locator(".jotpad").boundingBox();
-			const boxes = [];
-			for (const control of controls) {
-				await expect(control).toBeVisible();
-				const box = await control.boundingBox();
-				expect(box.width).toBeGreaterThan(0);
-				expect(box.x).toBeGreaterThanOrEqual(Math.max(0, frame.x) - 1);
-				expect(box.x + box.width).toBeLessThanOrEqual(Math.min(viewport.width, frame.x + frame.width) + 1);
-				expect(box.y).toBeGreaterThanOrEqual(frame.y - 1);
-				expect(box.y + box.height).toBeLessThanOrEqual(Math.min(viewport.height, frame.y + frame.height) + 1);
-				boxes.push(box);
+			for (const width of [1440, 1024, 832]) {
+				await page.setViewportSize({ width, height: 900 });
+				await expectMode(page, "Replace");
+				await expect(mode(page)).toHaveText("Replace");
+				const header = page.locator(".note-header");
+				const noteTabs = header.locator(":scope > .note-tabs");
+				const tools = header.locator(":scope > .jot-tools");
+				await expect(header).toHaveCSS("display", "flex");
+				await expect(header).toHaveCSS("flex-direction", "row");
+				await expect(noteTabs).toBeVisible();
+				await expect(tools).toBeVisible();
+				const frame = await header.boundingBox();
+				const tabsBox = await noteTabs.boundingBox();
+				const toolsBox = await tools.boundingBox();
+				const insets = await header.evaluate((element) => {
+					const style = getComputedStyle(element);
+					return {
+						left: parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth),
+						right: parseFloat(style.paddingRight) + parseFloat(style.borderRightWidth),
+					};
+				});
+				expect(Math.abs(tabsBox.x - frame.x - insets.left)).toBeLessThanOrEqual(2);
+				expect(Math.abs(toolsBox.x + toolsBox.width - (frame.x + frame.width - insets.right))).toBeLessThanOrEqual(2);
+				expect(tabsBox.x + tabsBox.width).toBeLessThanOrEqual(toolsBox.x + 1);
+				const centerY = (box) => box.y + box.height / 2;
+				expect(Math.abs(centerY(tabsBox) - centerY(toolsBox))).toBeLessThanOrEqual(2);
+				const controls = [page.locator('label[for="jot-vim"]'), mode(page), ...notes.map((name) => tab(page, name))];
+				const boxes = [];
+				for (const control of controls) {
+					await expect(control).toBeVisible();
+					const box = await control.boundingBox();
+					expect(box.width).toBeGreaterThan(0);
+					expect(box.x).toBeGreaterThanOrEqual(Math.max(0, frame.x) - 1);
+					expect(box.x + box.width).toBeLessThanOrEqual(Math.min(width, frame.x + frame.width) + 1);
+					expect(box.y).toBeGreaterThanOrEqual(frame.y - 1);
+					expect(box.y + box.height).toBeLessThanOrEqual(frame.y + frame.height + 1);
+					expect(Math.abs(centerY(box) - centerY(tabsBox))).toBeLessThanOrEqual(2);
+					boxes.push(box);
+				}
+				for (let i = 0; i < boxes.length; i++) {
+					for (const b of boxes.slice(i + 1)) {
+						const a = boxes[i];
+						const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+						const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+						expect(overlapX <= 1 || overlapY <= 1).toBe(true);
+					}
+				}
+				expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 			}
-			for (let i = 0; i < boxes.length; i++) {
-				for (const b of boxes.slice(i + 1)) {
-					const a = boxes[i];
-					const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
-					const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
-					expect(overlapX <= 1 || overlapY <= 1).toBe(true);
+		});
+	}
+
+	test("Vim checkbox and feedback use the active light and dark theme tokens", async ({ page }) => {
+		const accents = [];
+		for (const colorMode of ["Light", "Dark"]) {
+			await chooseTheme(page, colorMode);
+			await expect(page.locator("html")).toHaveAttribute("data-colormode", colorMode.toLowerCase());
+			for (const checked of [false, true]) {
+				await toggle(page).setChecked(checked);
+				const colors = await toggle(page).evaluate((input) => {
+					const probe = document.createElement("span");
+					input.parentElement.append(probe);
+					const resolve = (token) => {
+						probe.style.color = `var(${token})`;
+						return getComputedStyle(probe).color;
+					};
+					const style = getComputedStyle(input);
+					const colors = {
+						background: style.backgroundColor,
+						expectedBackground: resolve(input.checked ? "--accent" : "--surface"),
+						border: style.borderTopColor,
+						expectedBorder: resolve(input.checked ? "--accent" : "--ink-muted"),
+						checkmark: getComputedStyle(input, "::after").borderTopColor,
+						expectedCheckmark: resolve("--bg"),
+						feedback: getComputedStyle(document.getElementById("jot-vim-mode")).color,
+						expectedFeedback: resolve("--ink-muted"),
+					};
+					probe.remove();
+					return colors;
+				});
+				expect(colors.background).toBe(colors.expectedBackground);
+				expect(colors.border).toBe(colors.expectedBorder);
+				if (checked) {
+					await expectMode(page, "Normal");
+					expect(colors.checkmark).toBe(colors.expectedCheckmark);
+					expect(colors.feedback).toBe(colors.expectedFeedback);
+					accents.push(colors.background);
 				}
 			}
-			expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-			await toggle(page).uncheck();
-			await expect(mode(page)).toBeHidden();
 		}
+		expect(accents[0]).not.toBe(accents[1]);
 	});
 });

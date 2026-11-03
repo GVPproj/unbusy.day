@@ -89,12 +89,13 @@ test("desktop defaults to Jotpad beside the plan; tabs have roving keyboard sele
 	const header = await page.locator(".companion-head").boundingBox();
 	const noteTabs = page.getByRole("tablist", { name: "Planning horizon", exact: true });
 	await expect(noteTabs).toBeVisible();
-	const noteHeader = await noteTabs.boundingBox();
+	const noteHeader = await page.locator(".note-header").boundingBox();
 	expect(noteHeader.y - (header.y + header.height)).toBeLessThan(20);
 	const tools = await page.locator(".jot-tools").boundingBox();
-	expect(tools.y - (noteHeader.y + noteHeader.height)).toBeLessThan(20);
+	expect(tools.y).toBeGreaterThanOrEqual(noteHeader.y);
+	expect(tools.y + tools.height).toBeLessThanOrEqual(noteHeader.y + noteHeader.height);
 	const jotEditor = await page.locator("#jot-daily-panel .cm-editor").boundingBox();
-	expect(jotEditor.y - (tools.y + tools.height)).toBeLessThan(20);
+	expect(jotEditor.y - (noteHeader.y + noteHeader.height)).toBeLessThan(20);
 	await expect(jotTab(page)).toHaveAttribute("aria-selected", "true");
 	await expect(jotTab(page)).toHaveAttribute("tabindex", "0");
 	await expect(habitsTab(page)).toHaveAttribute("aria-selected", "false");

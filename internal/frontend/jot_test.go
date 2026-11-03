@@ -271,7 +271,7 @@ func TestPageRendersTheOptionalVimControl(t *testing.T) {
 	for _, want := range []string{
 		`<input id="jot-vim" type="checkbox"`,
 		`<label for="jot-vim"`,
-		`<output id="jot-vim-mode" class="jot-vim-mode" aria-live="polite" hidden>Normal mode</output>`,
+		`<output id="jot-vim-mode" class="jot-vim-mode" aria-live="polite" hidden>Normal</output>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q", want)

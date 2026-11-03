@@ -147,7 +147,9 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		// Restricted storage leaves Vim off for this mount.
 	}
 	const vimCompartment = new Compartment();
-	const vimEnabled = readVimPreference(storage);
+	const desktop = window.matchMedia("(width >= 52rem)");
+	let vimRequested = readVimPreference(storage);
+	let vimEnabled = desktop.matches && vimRequested;
 	let panelReturn;
 	const finishReturn = () => { panelReturn = undefined; };
 	const nativeCaretReset = (view) => {
@@ -231,10 +233,10 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 	let modeListener;
 	let vimInsertMode = false;
 	const modeNames = {
-		normal: "Normal mode",
-		insert: "Insert mode",
-		visual: "Visual mode",
-		replace: "Replace mode",
+		normal: "Normal",
+		insert: "Insert",
+		visual: "Visual",
+		replace: "Replace",
 	};
 	const detachModeListener = () => {
 		try {
@@ -260,22 +262,36 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 			adapter.on("vim-mode-change", listener);
 			vimAdapter = adapter;
 			modeListener = listener;
-			opts.onVimMode?.("Normal mode");
+			opts.onVimMode?.("Normal");
 		} catch {
 			opts.onVimMode?.("Vim mode");
 		}
 	};
+	const updateVim = () => {
+		const enabled = desktop.matches && vimRequested;
+		if (opts.vimToggle) {
+			opts.vimToggle.disabled = !desktop.matches;
+			opts.vimToggle.checked = enabled;
+		}
+		if (enabled === vimEnabled) return;
+		detachModeListener();
+		view.dispatch({ effects: vimCompartment.reconfigure(enabled ? vim() : []) });
+		vimEnabled = enabled;
+		if (enabled) showVimMode();
+		else opts.onVimMode?.(null);
+	};
 	if (opts.vimToggle) {
-		opts.vimToggle.checked = vimEnabled;
 		opts.vimToggle.addEventListener("change", () => {
-			const enabled = opts.vimToggle.checked;
-			detachModeListener();
-			view.dispatch({ effects: vimCompartment.reconfigure(enabled ? vim() : []) });
-			if (enabled) showVimMode();
-			else opts.onVimMode?.(null);
-			writeVimPreference(storage, enabled);
+			if (desktop.matches) {
+				vimRequested = opts.vimToggle.checked;
+				writeVimPreference(storage, vimRequested);
+			}
+			updateVim();
 		});
 	}
+	// Mobile suspends Vim without overwriting this device's desktop preference.
+	desktop.addEventListener("change", updateVim);
+	updateVim();
 	if (vimEnabled) showVimMode();
 
 	// Capture before CM's Android key deferral, which can bypass its event observers.

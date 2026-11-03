@@ -121,7 +121,7 @@ for (const [device, viewport] of [
 						Object.assign(document.documentElement.dataset, { colorscheme, colormode });
 					}, { colorscheme, colormode });
 					await select(page, "Quarterly");
-					const header = page.getByRole("tablist", { name: "Planning horizon" });
+					const header = page.locator(".note-header");
 					const noteStyle = await header.evaluate((element) => {
 						const style = getComputedStyle(element);
 						return { background: style.backgroundColor, border: style.borderTopColor, padding: style.padding, topLeftRadius: style.borderTopLeftRadius, topRightRadius: style.borderTopRightRadius };

@@ -9,17 +9,19 @@ import (
 // All notes stay mounted; switching never discards editor or sync state.
 templ Jotpad(pads map[string]jot.Pad) {
 	<section class="jotpad" aria-labelledby="jot-tab">
-		<div class="note-tabs" role="tablist" aria-label="Planning horizon">
-			@jotNoteTab("daily", "Daily", true)
-			@jotNoteTab("weekly", "Weekly", false)
-			@jotNoteTab("quarterly", "Quarterly", false)
-		</div>
-		<div class="jot-tools">
-			<label for="jot-vim" class="jot-vim-toggle">
-				<input id="jot-vim" type="checkbox"/>
-				<span>Vim</span>
-			</label>
-			<output id="jot-vim-mode" class="jot-vim-mode" aria-live="polite" hidden>Normal mode</output>
+		<div class="note-header">
+			<div class="note-tabs" role="tablist" aria-label="Planning horizon">
+				@jotNoteTab("daily", "Daily", true)
+				@jotNoteTab("weekly", "Weekly", false)
+				@jotNoteTab("quarterly", "Quarterly", false)
+			</div>
+			<div class="jot-tools">
+				<output id="jot-vim-mode" class="jot-vim-mode" aria-live="polite" hidden>Normal</output>
+				<label for="jot-vim" class="jot-vim-toggle">
+					<input id="jot-vim" type="checkbox"/>
+					<span>Vim</span>
+				</label>
+			</div>
 		</div>
 		@jotNote("daily", "jot-cm", pads["daily"], true)
 		@jotNote("weekly", "jot-cm-weekly", pads["weekly"], false)
