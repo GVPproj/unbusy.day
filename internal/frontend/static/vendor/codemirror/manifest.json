@@ -6,9 +6,9 @@
     "https://esm.sh/@codemirror/language@6.13.1/es2022/language.mjs",
     "https://esm.sh/@codemirror/state@6.7.6/es2022/state.mjs",
     "https://esm.sh/@codemirror/view@6.43.15/es2022/view.mjs",
-    "https://esm.sh/@lezer/common@1.5.3/es2022/common.mjs",
+    "https://esm.sh/@lezer/common@1.5.5/es2022/common.mjs",
     "https://esm.sh/@lezer/highlight@1.2.5/es2022/highlight.mjs",
-    "https://esm.sh/@lezer/lr@1.4.11/es2022/lr.mjs",
+    "https://esm.sh/@lezer/lr@1.4.12/es2022/lr.mjs",
     "https://esm.sh/@replit/codemirror-vim@6.4.0/es2022/codemirror-vim.mjs"
   ],
   "modules": [
@@ -103,10 +103,10 @@
     {
       "path": "modules/@lezer__common__common.mjs",
       "package": "@lezer/common",
-      "version": "1.5.3",
-      "sourceURL": "https://esm.sh/@lezer/common@1.5.3/es2022/common.mjs",
-      "sourceSHA256": "7e77672230b2895a5118e0456240e649f531aaff795b76b0e81abd147a78c4e6",
-      "sha256": "c328d18846ee0e2afec9a54a4db81a3d4561162270038a2aa83879f4075b8353"
+      "version": "1.5.5",
+      "sourceURL": "https://esm.sh/@lezer/common@1.5.5/es2022/common.mjs",
+      "sourceSHA256": "6240734c66ac79c8dde53283fbd1b9abc5f279cbe2e40437b1521c8626e8075b",
+      "sha256": "bd5ea174c6a4291728a07107ca8080fb442e31a59fb150c698a4f6d479de9b50"
     },
     {
       "path": "modules/@lezer__css__css.mjs",
@@ -143,10 +143,10 @@
     {
       "path": "modules/@lezer__lr__lr.mjs",
       "package": "@lezer/lr",
-      "version": "1.4.11",
-      "sourceURL": "https://esm.sh/@lezer/lr@1.4.11/es2022/lr.mjs",
-      "sourceSHA256": "051cbe4c0265be081c9bca33e8104fb52c42e48201829c498db173cfe687cca3",
-      "sha256": "56cb2e5fad7deed422b95d60410f1107291758d9d061d87f4eb25966351cd2f9"
+      "version": "1.4.12",
+      "sourceURL": "https://esm.sh/@lezer/lr@1.4.12/es2022/lr.mjs",
+      "sourceSHA256": "14ff933cfc0d6b99e45520dc7e3d3fbd0046a937491b000bc28b6366ca1f5101",
+      "sha256": "f2b86f423d17a6a431082a52ba7f284d35d05ac34dab2d0a63d05b240379c8da"
     },
     {
       "path": "modules/@lezer__markdown__markdown.mjs",

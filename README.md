@@ -32,7 +32,7 @@ Every block gets one of four types:
 
 ## Quickstart
 
-Requires `go` ≥ 1.26 and a few Go tools:
+Requires `go` ≥ 1.26.10 and a few Go tools:
 
 ```bash
 # One-time

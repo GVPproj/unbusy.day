@@ -39,8 +39,8 @@ var roots = []string{
 	"/@codemirror/lang-markdown@6.5.2/es2022/lang-markdown.mjs",
 	"/@replit/codemirror-vim@6.4.0/es2022/codemirror-vim.mjs",
 	// Keep the existing Lezer graph pinned when refreshing the Vim addition.
-	"/@lezer/common@1.5.3/es2022/common.mjs",
-	"/@lezer/lr@1.4.11/es2022/lr.mjs",
+	"/@lezer/common@1.5.5/es2022/common.mjs",
+	"/@lezer/lr@1.4.12/es2022/lr.mjs",
 }
 
 var (

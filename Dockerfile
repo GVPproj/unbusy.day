@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.28.0
 # Single-stage Go build (+ templ generate) → scratch. 
 
 # --- Go build (+ templ generate) ---
