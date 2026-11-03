@@ -50,3 +50,14 @@ the local graph, shared package identities, and Vim extension compatibility
 (the compatibility check uses Node when available). `task
 check:versions` reads the generated manifest because it reports the complete
 graph actually deployed, not only the direct upgrade inputs.
+
+## Vim insertion recording
+
+`js/jot/vim.js` isolates each mounted Note's insertion recorder while retaining
+shared Vim registers/search. The pinned core exposes no per-editor recorder,
+so this bridge uses `getVimGlobalState_`, `insertModeRepeat`, and
+`lastEditInputState.repeatOverride`. Re-audit these private fields on upgrades.
+Authoritative edits cancel pending counts and bypass recording without leaving
+Insert mode; actual disable cleans up Insert listeners without repeating text.
+The Vim browser tests cover remote convergence, counted Insert/dot-repeat,
+native paste, note switches, and editor preservation across reconfiguration.

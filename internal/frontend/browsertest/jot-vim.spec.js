@@ -53,6 +53,17 @@ async function seed(page, name, text) {
 	await saveAfter(page, name, () => page.keyboard.insertText(text));
 }
 
+async function seedWithRedoHistory(page, name, text) {
+	await seed(page, name, text);
+	await saveAfter(page, name, () => page.keyboard.insertText(" extra"));
+	await saveAfter(page, name, () => page.keyboard.press("ControlOrMeta+z"));
+	await expectText(page, name, text);
+	return (await panel(page, name)).locator(".cm-editor").evaluateHandle(async (element) => {
+		const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
+		return EditorView.findFromDOM(element);
+	});
+}
+
 // Read the public model: long notes are virtualized, including while hidden.
 async function editorState(page, name) {
 	return (await panel(page, name)).locator(".cm-editor").evaluate(async (element) => {
@@ -242,17 +253,11 @@ test.describe("optional Jotpad Vim", () => {
 		const views = new Map();
 		for (const [index, name] of notes.entries()) {
 			const text = Array.from({ length: 100 }, (_, line) => `${name} line ${line + 1}: keep this note`).join("\n");
-			await seed(page, name, text);
-			await saveAfter(page, name, () => page.keyboard.insertText(" extra"));
-			await saveAfter(page, name, () => page.keyboard.press("ControlOrMeta+z"));
-			await expectText(page, name, text);
-			const view = await (await panel(page, name)).locator(".cm-editor").evaluateHandle(async (element, index) => {
-				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-				const view = EditorView.findFromDOM(element);
+			const view = await seedWithRedoHistory(page, name, text);
+			await view.evaluate(async (view, index) => {
 				view.dispatch({ selection: { anchor: view.state.doc.line(20 + index * 5).from + 3 } });
 				view.scrollDOM.scrollTop = 150 + index * 120;
 				await new Promise((resolve) => view.requestMeasure({ read: () => null, write: () => queueMicrotask(resolve) }));
-				return view;
 			}, index);
 			views.set(name, view);
 			snapshots.set(name, await editorState(page, name));
@@ -323,6 +328,109 @@ test.describe("optional Jotpad Vim", () => {
 		await expect(tab(page, "Daily")).toHaveAttribute("aria-selected", "true");
 		await expect(await panel(page, "Daily")).toBeVisible();
 		for (const name of notes) await expectText(page, name, `${name} original remote`);
+	});
+
+	test("pending counted Insert and dot-repeat keep each note's typing across switches", async ({ page }) => {
+		const inserts = [
+			["Daily", "Z", "ZZZdaily", "ZZZZZZdaily"],
+			["Weekly", "Y", "YYYweekly", "YYYYYYweekly"],
+			["Quarterly", "X", "XXXquarterly", "XXXXXXquarterly"],
+		];
+		for (const [name] of inserts) await seed(page, name, name.toLowerCase());
+		await toggle(page).check();
+		for (const [name, letter] of inserts) {
+			await (await select(page, name)).focus();
+			for (const key of ["0", "3", "i"]) await page.keyboard.press(key);
+			await saveAfter(page, name, () => page.keyboard.type(letter));
+		}
+		for (const [name, , counted] of [...inserts].reverse()) {
+			await (await select(page, name)).focus();
+			await expectMode(page, "Insert");
+			await saveAfter(page, name, () => page.keyboard.press("Escape"));
+			await expectText(page, name, counted);
+		}
+		for (const [name, , , repeated] of inserts) {
+			await (await select(page, name)).focus();
+			await saveAfter(page, name, () => page.keyboard.press("."));
+			await expectText(page, name, repeated);
+		}
+		await page.reload({ waitUntil: "load" });
+		for (const [name, , , repeated] of inserts) await expectText(page, name, repeated);
+	});
+
+	test("remote text cancels counted Insert without replaying authoritative text", async ({ context, page }) => {
+		await seed(page, "Daily", "one alpha beta");
+		const other = await context.newPage();
+		await other.goto(baseURL, { waitUntil: "load" });
+		await toggle(page).check();
+		const editor = await select(page, "Daily");
+		await editor.focus();
+		for (const key of ["0", "3", "i"]) await page.keyboard.press(key);
+		await saveAfter(page, "Daily", () => page.keyboard.type("Z"));
+		const otherEditor = await select(other, "Daily");
+		await otherEditor.focus();
+		await other.keyboard.press("ControlOrMeta+Home");
+		await saveAfter(other, "Daily", () => other.keyboard.insertText("prefix "));
+		await expectText(page, "Daily", "prefix Zone alpha beta");
+		await expectMode(page, "Insert");
+		await editor.focus();
+		await page.keyboard.press("Escape");
+		await expectText(page, "Daily", "prefix Zone alpha beta");
+		await saveAfter(page, "Daily", () => page.keyboard.press("."));
+		await expectText(page, "Daily", "prefix ZZone alpha beta");
+		await expectText(other, "Daily", "prefix ZZone alpha beta");
+		await page.reload({ waitUntil: "load" });
+		await expectText(page, "Daily", "prefix ZZone alpha beta");
+	});
+
+	test("a hidden note's remote update cannot replace the active note's pending Insert", async ({ context, page }) => {
+		await seed(page, "Daily", "daily");
+		await seed(page, "Weekly", "weekly");
+		const other = await context.newPage();
+		await other.goto(baseURL, { waitUntil: "load" });
+		await toggle(page).check();
+		for (const [name, letter] of [["Daily", "Z"], ["Weekly", "Y"]]) {
+			await (await select(page, name)).focus();
+			for (const key of ["0", "3", "i"]) await page.keyboard.press(key);
+			await saveAfter(page, name, () => page.keyboard.type(letter));
+		}
+		await (await select(other, "Daily")).focus();
+		await other.keyboard.press("ControlOrMeta+Home");
+		await saveAfter(other, "Daily", () => other.keyboard.insertText("prefix "));
+		await expectText(page, "Daily", "prefix Zdaily");
+		await expect(tab(page, "Weekly")).toHaveAttribute("aria-selected", "true");
+		await expectMode(page, "Insert");
+		await (await select(page, "Weekly")).focus();
+		await saveAfter(page, "Weekly", () => page.keyboard.press("Escape"));
+		await expectText(page, "Weekly", "YYYweekly");
+		await (await select(page, "Daily")).focus();
+		await page.keyboard.press("Escape");
+		await expectText(page, "Daily", "prefix Zdaily");
+		await saveAfter(page, "Daily", () => page.keyboard.press("."));
+		await expectText(other, "Daily", "prefix ZZdaily");
+		await page.reload({ waitUntil: "load" });
+		await expectText(page, "Daily", "prefix ZZdaily");
+		await expectText(page, "Weekly", "YYYweekly");
+	});
+
+	test("remote text still converges after native paste enters Insert", async ({ context, page }) => {
+		await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+		await seed(page, "Daily", "one alpha beta");
+		const other = await context.newPage();
+		await other.goto(baseURL, { waitUntil: "load" });
+		await toggle(page).check();
+		await (await select(page, "Daily")).focus();
+		await page.keyboard.press("0");
+		await page.bringToFront();
+		await page.evaluate(() => navigator.clipboard.writeText("Z"));
+		await saveAfter(page, "Daily", () => page.keyboard.press("ControlOrMeta+Shift+v"));
+		await expectText(page, "Daily", "Zone alpha beta");
+		await expectMode(page, "Insert");
+		await (await select(other, "Daily")).focus();
+		await other.keyboard.press("ControlOrMeta+Home");
+		await saveAfter(other, "Daily", () => other.keyboard.insertText("prefix "));
+		await expectText(page, "Daily", "prefix Zone alpha beta");
+		await expectMode(page, "Insert");
 	});
 
 	test("remote text cancels stale Visual selections and pending operators", async ({ context, page }) => {
@@ -407,14 +515,7 @@ test.describe("optional Jotpad Vim", () => {
 			return { text, undo, redo };
 		};
 		for (const name of notes) {
-			await seed(page, name, `${name} desktop history`);
-			await saveAfter(page, name, () => page.keyboard.insertText(" extra"));
-			await saveAfter(page, name, () => page.keyboard.press("ControlOrMeta+z"));
-			await expectText(page, name, `${name} desktop history`);
-			views.set(name, await (await panel(page, name)).locator(".cm-editor").evaluateHandle(async (element) => {
-				const { EditorView } = await import("/static/vendor/codemirror/modules/@codemirror__view__view.mjs");
-				return EditorView.findFromDOM(element);
-			}));
+			views.set(name, await seedWithRedoHistory(page, name, `${name} desktop history`));
 		}
 		await toggle(page).check();
 		for (const [name, key, expected] of [["Daily", "i", "Insert"], ["Weekly", "v", "Visual"], ["Quarterly", "R", "Replace"]]) {

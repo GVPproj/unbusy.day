@@ -33,8 +33,9 @@ import {
 	markdownLanguage,
 } from "/static/vendor/codemirror/modules/@codemirror__lang-markdown__lang-markdown.mjs";
 
-import { getCM, Vim, vim } from "/static/vendor/codemirror/modules/@replit__codemirror-vim__codemirror-vim.mjs";
+import { getCM, vim } from "/static/vendor/codemirror/modules/@replit__codemirror-vim__codemirror-vim.mjs";
 import { readVimPreference, writeVimPreference } from "./preference.js";
+import { createVimSession } from "./vim.js";
 import { createJotSync, minimalEdit, wireTeardown } from "./sync.js";
 
 // Newlines render as line breaks, letting the empty pad sketch a weekly outline.
@@ -171,8 +172,14 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		if (!nativeCaretReset(view)) finishReturn();
 	};
 
+	let vimSession;
 	const view = new EditorView({
 		parent: mount,
+		dispatchTransactions: (transactions, view) => {
+			const update = () => view.update(transactions);
+			if (vimSession) vimSession.run(update);
+			else update();
+		},
 		state: EditorState.create({
 			doc: initialText,
 			extensions: [
@@ -231,7 +238,6 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 
 	let vimAdapter;
 	let modeListener;
-	let vimInsertMode = false;
 	const modeNames = {
 		normal: "Normal",
 		insert: "Insert",
@@ -244,11 +250,12 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		} catch {
 			// Mode reporting must not prevent extension teardown.
 		}
+		vimSession?.destroy();
+		vimSession = undefined;
 		vimAdapter = undefined;
 		modeListener = undefined;
 	};
 	const showVimMode = () => {
-		vimInsertMode = false;
 		try {
 			const adapter = getCM(view);
 			if (!adapter) {
@@ -256,9 +263,9 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 				return;
 			}
 			const listener = (event) => {
-				vimInsertMode = event?.mode === "insert";
 				opts.onVimMode?.(modeNames[event?.mode] ?? "Vim mode");
 			};
+			vimSession = createVimSession(view, adapter);
 			adapter.on("vim-mode-change", listener);
 			vimAdapter = adapter;
 			modeListener = listener;
@@ -343,16 +350,18 @@ export function initJotpadCM(mount, initialText, postURL, maxLen, opts = {}) {
 		applyText: (text) => {
 			applying = true;
 			try {
-				// Vim's transient selections/operators do not map through remote edits.
-				if (vimAdapter && !vimInsertMode) Vim.handleKey(vimAdapter, "<Esc>", "user");
-				const edit = minimalEdit(view.state.doc.toString(), text);
-				if (!edit) return;
-				view.dispatch({
-					changes: edit,
-					// A doc-length cap transaction filter is active; remote
-					// authoritative text must land regardless.
-					filter: false,
-				});
+				const apply = () => {
+					const edit = minimalEdit(view.state.doc.toString(), text);
+					if (!edit) return;
+					view.dispatch({
+						changes: edit,
+						// A doc-length cap transaction filter is active; remote
+						// authoritative text must land regardless.
+						filter: false,
+					});
+				};
+				if (vimSession) vimSession.remote(apply);
+				else apply();
 			} finally {
 				applying = false;
 			}
